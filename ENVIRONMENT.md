@@ -30,37 +30,92 @@ Java 21+. Install one of:
 - macOS: `brew install openjdk@21`
 - Or download Temurin 21 from https://adoptium.net
 
-This could not be installed automatically from the dev sandbox (its network
-egress allowlist blocked the download). Install it directly on your machine,
-then re-run emulator commands from `functions/README` or `DEPLOYMENT.md`.
+If your network blocks both of those (this happened in the sandboxed dev
+environment used to build this repo — `api.adoptium.net` and all
+`storage.googleapis.com`-hosted downloads returned `403` from a network
+allowlist), Adoptium's own GitHub Releases are a legitimate mirror of the
+same official binaries: https://github.com/adoptium/temurin21-binaries/releases
+— pick the `.tar.gz`/`.zip` for your OS/arch, verify its published checksum,
+extract it anywhere, and point `JAVA_HOME`/`PATH` at it for the emulator
+commands below. This is how Java 21 was actually obtained and verified
+working (`java -version` → Temurin 21.0.12.1) to run the rule tests in
+`firebase-tests/` — see SECURITY.md for those results.
 
-## Firebase projects (required — nothing backend-related works without this)
+## Firebase projects — what's CLI-doable vs. Console-only
 
-Per the architecture spec, this project needs **up to three** Firebase
-projects (dev is required now; staging/production can wait):
+This was verified against the installed `firebase-tools` CLI directly
+(`firebase <command> --help` for every relevant namespace), not assumed.
+Per the architecture spec, this project eventually needs **three** Firebase
+projects (dev / staging / prod); **only dev is needed now.**
 
-1. Go to https://console.firebase.google.com
-2. Create a project named e.g. `bethaniya-ministries-dev`
-3. Repeat for `bethaniya-ministries-staging` and `bethaniya-ministries-prod`
-   when you're ready for them (not required for Day 2)
-4. In each project, enable:
-   - **Authentication** → Sign-in method → enable Google, Apple, and Phone
-     (member auth) and Email/Password (admin auth)
-   - **Firestore Database** → Create database (start in production mode —
-     the rules in this repo are deny-by-default already)
-   - **Storage** → Get started
-   - **Cloud Functions** → requires the Blaze (pay-as-you-go) plan even at
-     zero usage; the free tier covers V1-scale usage per the spec's cost
-     estimates, but the plan itself must be Blaze to deploy Functions at all
-5. For each Firebase project, add a **Web app** (</> icon in project
-   settings) to get the config values for `mobile/.env.local` and
-   `admin/.env.local` (see below)
+**Do NOT use production credentials or production infrastructure for Day
+2 — create a dedicated `-dev` project and use only that.**
+
+### CLI-doable (scripted for you in `scripts/firebase-dev-setup.sh`)
+
+- Creating the GCP + Firebase project (`firebase projects:create`)
+- Registering this repo's `development` alias (`firebase use --add`)
+- Creating the Firestore database (`firebase firestore:databases:create`)
+- Registering a Web app and fetching its SDK config
+  (`firebase apps:create WEB`, `firebase apps:sdkconfig WEB`) — this repo
+  uses the Firebase JS SDK on both mobile (Expo) and admin, not the native
+  `@react-native-firebase` module, so one Web app's config serves both
+- Deploying the committed `firestore.rules`, `firestore.indexes.json`, and
+  `storage.rules` (`firebase deploy --only firestore:rules,firestore:indexes,storage`)
+- Configuring the **Email/Password**, **Google**, and **Anonymous** sign-in
+  providers declaratively (`firebase init auth` then `firebase deploy --only auth`)
+
+### Console-only (you must do these yourself — no CLI command exists for them)
+
+1. **Upgrade the project to the Blaze (pay-as-you-go) plan.** Required
+   before Cloud Functions can deploy at all, even at zero usage. This is a
+   billing-account action (needs a real payment method) — no `firebase-tools`
+   command performs it, by design. Firebase Console → your project →
+   ⚙️ Project settings → Usage and billing → Modify plan.
+2. **Enable/create the default Cloud Storage bucket.** There is no
+   `firebase storage:buckets:create` (or equivalent) command in the
+   installed CLI — confirmed by listing every command namespace. Firebase
+   Console → Build → Storage → Get started.
+3. **Enable Apple and Phone sign-in.** `firebase deploy --only auth` only
+   covers Email/Password, Google, and Anonymous providers (confirmed
+   against Firebase's own CLI-auth-config documentation) — Apple and Phone
+   (both named as member-auth requirements in the spec) have no CLI
+   configuration path. Firebase Console → Build → Authentication →
+   Sign-in method.
+
+### Running the setup
+
+```bash
+npm install -g firebase-tools   # if not already installed
+./scripts/firebase-dev-setup.sh bethaniya-ministries-dev
+```
+
+The script walks through the CLI-doable steps, pauses with an explicit
+checklist right before the point where it needs the three Console steps
+above, and resumes once you confirm they're done. It prints the Firebase
+config values at the end — copy them into `mobile/.env.local` and
+`admin/.env.local` (see below).
+
+### Verifying the repo is actually wired to the right project
+
+After running the script (or doing the steps by hand):
+
+```bash
+firebase use                       # should print the alias "development" -> your project id
+cat .firebaserc                    # "development" should map to your -dev project id, not a placeholder
+firebase deploy --only firestore:rules --dry-run --project development
+```
+
+A successful (non-error) dry-run deploy confirms the CLI, `.firebaserc`,
+and `firebase.json` in this repo are all actually pointed at your real dev
+project — not just that the files look right.
 
 ### Wiring the project IDs into this repo
 
 ```bash
 cp .firebaserc.example .firebaserc
 # edit .firebaserc — replace the placeholder project IDs with your real ones
+# (scripts/firebase-dev-setup.sh does this "development" entry for you)
 ```
 
 `.firebaserc` is gitignored on purpose (project IDs aren't secret, but
