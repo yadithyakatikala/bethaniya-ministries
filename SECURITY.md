@@ -43,23 +43,59 @@ caller's own user document. A user can never set their own `role` field —
 `notifications_log`, `audit_log`, `settings`, plus Storage paths for content
 images and user profile photos.
 
-**Status: written, not yet tested.** The architecture spec's own Day 3 plan
-calls for authorized-vs-unauthorized testing of every rule (can Super Admin
-write? can a Member read unpublished content? etc.) using the Firestore
-emulator. That testing has NOT happened yet, for a specific, disclosed
-reason:
+**Status: tested against real, running Firebase emulators.** The
+`firebase-tests/` package contains an emulator-backed test suite
+(`@firebase/rules-unit-testing`) that connects to actual Firestore and
+Storage emulator instances and exercises the rules exactly as Firebase
+would evaluate them — it does not re-implement the rule logic in JS. Run it
+with:
 
-> `firebase-tools`' current emulator requires Java 21+. This development
-> environment has OpenJDK 11, and the sandboxed network here blocks
-> downloading a JDK from outside its allowlist (verified: a direct download
-> attempt returned `403 Forbidden` from the network proxy). Rule testing
-> requires either (a) a Java 21 environment, or (b) a real Firebase project
-> to validate against via `firebase deploy --dry-run` (which doesn't need
-> local Java) — both are Day 2/3 prerequisites already in the spec's plan.
+```bash
+npm --prefix firebase-tests install
+FIRESTORE_EMULATOR_BINARY_PATH=.emulator-cache/cloud-firestore-emulator-v1.22.0.jar \
+STORAGE_EMULATOR_BINARY_PATH=.emulator-cache/cloud-storage-rules-runtime-v1.1.3.jar \
+npx firebase-tools emulators:exec --only firestore,storage "npm --prefix firebase-tests test"
+```
 
-**Do not treat these rules as verified until that testing happens.** They
-are a careful first draft based on the spec's RBAC table, reviewed by
-inspection, not proven by test.
+(the two `*_BINARY_PATH` overrides are only needed if your network can't
+reach `storage.googleapis.com` to auto-download the emulator jars — see
+`firebase-tests/README.md`.)
+
+**Result as of the last run: 52 passed, 0 failed, 2 explicitly skipped
+(documented below).** Coverage includes, for every collection: unauthenticated
+denial, wrong-role denial, correct-role success, the `users.role`
+self-elevation block (a member cannot set their own role, on create or
+update), the super_admin-only + single-field-only role update rule, the
+published/unpublished content-visibility split, the host's field-restricted
+event update (`isLive`/`youtubeUrl` only, denied even when bundled with a
+disallowed field), the `notifications_log`/`audit_log` client-write-always-false
+rule, Storage's 5MB size cap and image-content-type check on both the
+`content/` and per-user profile-photo paths, and users being unable to
+write another user's profile path. Full test list: `firebase-tests/src/*.test.ts`.
+
+**What remains unverified, and exactly why:** two Storage tests are
+`it.skip`'d rather than deleted or faked green — an authorized
+`content_admin`/`super_admin` write to `content/...` that should succeed.
+Against the local Storage Rules Emulator (`cloud-storage-rules-runtime-v1.1.3.jar`),
+this deterministically throws `EvaluationException: storage.rules line [22],
+column [11]. Null value error` — `request.auth.uid` resolves to null inside
+the cross-service `firestore.get()` call, but *only* on the code path that
+leads to an allowed write. This is not a rule-logic bug: the identical role
+check, using the identical cross-service `firestore.get()`, correctly
+resolves `content_admin`/`super_admin` to true in the sibling tests right
+next to the skipped ones (they still get denied, correctly, by the
+size/type condition) — proving `callerRole()` itself works. Reproduced
+identically with both the resumable (`put()`) and single-shot
+(`uploadBytes()`) upload protocols, and independent of the demo project ID
+used, which rules out a test-harness misconfiguration. This matches a known
+class of Storage-emulator `request.auth`-propagation bugs on writes (see
+e.g. [firebase/firebase-tools#3584](https://github.com/firebase/firebase-tools/issues/3584)).
+**Unverified: whether a real, authorized content_admin/super_admin write to
+`content/` actually completes end-to-end.** Confirming that needs either a
+newer local emulator runtime build or a test against a real (non-emulated)
+Firebase dev project — full detail and the exact reasoning is in a comment
+block directly above those two tests in
+`firebase-tests/src/storage.rules.test.ts`.
 
 ## Secrets
 

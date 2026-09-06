@@ -24,7 +24,10 @@ service firebase.storage {
     }
 
     function isContentAdminOrAbove() {
-      return callerRole() == 'super_admin' || callerRole() == 'content_admin';
+      // Bind once: calling callerRole() twice (once per OR branch) doubles
+      // the firestore.get() cost on every evaluation for no benefit.
+      let role = callerRole();
+      return role == 'super_admin' || role == 'content_admin';
     }
 
     // Default deny.
