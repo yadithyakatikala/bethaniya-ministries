@@ -19,16 +19,9 @@ const AppStateContext = createContext<AppState | undefined>(undefined);
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [isBootstrapped, setBootstrapped] = useState(false);
 
-  const value = useMemo(
-    () => ({ isBootstrapped, setBootstrapped }),
-    [isBootstrapped]
-  );
+  const value = useMemo(() => ({ isBootstrapped, setBootstrapped }), [isBootstrapped]);
 
-  return (
-    <AppStateContext.Provider value={value}>
-      {children}
-    </AppStateContext.Provider>
-  );
+  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
 export function useAppState(): AppState {
