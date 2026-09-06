@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 # Firebase DEVELOPMENT project setup -- CLI-doable steps only.
 #
-# This script does NOT touch production. It creates/configures a single
-# dedicated Firebase development project and wires this repo to it.
+# This script does NOT touch production. It creates (or reuses -- see
+# below) a single dedicated Firebase development project and wires this
+# repo to it.
+#
+# Reusing an existing project: Firebase project IDs are globally unique
+# across ALL Google/Firebase customers, not just your own account. If your
+# requested id is already taken by anyone, Google silently assigns a
+# suffixed id instead (e.g. requesting "bethaniya-ministries-dev" can
+# yield "bethaniya-ministries-dev-58588"). This script handles that: it
+# checks whether the given <project-id> already exists before trying to
+# create it, so re-running with the ACTUAL id Firebase assigned continues
+# setup on that same project rather than attempting to create a second
+# one. This is not specific to any one project id/suffix -- it works for
+# any existing project id you pass in.
 #
 # What this script does NOT do (Console-only -- see ENVIRONMENT.md for why):
 #   - Upgrade the project to the Blaze billing plan
@@ -13,6 +25,9 @@
 # Storage rule deploys will fail.
 #
 # Usage: ./scripts/firebase-dev-setup.sh <project-id> [display-name]
+#   <project-id> may be a NEW id to request, or the ACTUAL id of a project
+#   that already exists (e.g. one Firebase previously created with a
+#   suffix) -- either way this script does the right thing.
 set -euo pipefail
 
 PROJECT_ID="${1:?Usage: $0 <project-id> [display-name]}"
@@ -23,8 +38,16 @@ command -v firebase >/dev/null 2>&1 || { echo "Install firebase-tools first: npm
 echo "== 1/6: Firebase login (opens a browser) =="
 firebase login
 
-echo "== 2/6: Create the Firebase dev project =="
-firebase projects:create "$PROJECT_ID" --display-name "$DISPLAY_NAME"
+echo "== 2/6: Create or reuse the Firebase dev project =="
+if firebase projects:list --json 2>/dev/null | PROJECT_ID="$PROJECT_ID" node -e '
+  const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
+  process.exit(data.result.some((p) => p.projectId === process.env.PROJECT_ID) ? 0 : 1);
+'; then
+  echo "  Project $PROJECT_ID already exists -- reusing it (not creating a second one)."
+else
+  echo "  Project $PROJECT_ID not found -- creating it now."
+  firebase projects:create "$PROJECT_ID" --display-name "$DISPLAY_NAME"
+fi
 
 echo "== 3/6: Set it as the 'development' alias for this repo =="
 if [ ! -f .firebaserc ]; then

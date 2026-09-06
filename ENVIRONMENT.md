@@ -87,8 +87,22 @@ projects (dev / staging / prod); **only dev is needed now.**
 
 ```bash
 npm install -g firebase-tools   # if not already installed
-./scripts/firebase-dev-setup.sh bethaniya-ministries-dev
+./scripts/firebase-dev-setup.sh bethaniya-ministries-dev-58588
 ```
+
+**The canonical existing development project is `bethaniya-ministries-dev-58588`
+— reuse it, don't create a second dev project.** Firebase project IDs are
+globally unique across every Google/Firebase customer, not just this
+account: the first setup requested `bethaniya-ministries-dev`, that exact
+string was already taken by someone else, and Firebase silently assigned
+the suffixed id `bethaniya-ministries-dev-58588` instead — the display
+name (`bethaniya-ministries-dev`) and the actual project id are different
+strings, and the id is what matters for every CLI/config purpose. The
+script detects whether the id you pass it already exists (via `firebase
+projects:list`) before trying to create anything, so re-running it with an
+existing project's real id continues setup on that same project instead of
+creating a duplicate — this isn't specific to this one suffix, it works
+for any project id you already have.
 
 The script walks through the CLI-doable steps, pauses with an explicit
 checklist right before the point where it needs the three Console steps
