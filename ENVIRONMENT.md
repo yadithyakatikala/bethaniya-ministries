@@ -51,7 +51,7 @@ projects (dev / staging / prod); **only dev is needed now.**
 **Do NOT use production credentials or production infrastructure for Day
 2 — create a dedicated `-dev` project and use only that.**
 
-### CLI-doable (scripted for you in `scripts/firebase-dev-setup.sh`)
+### CLI-doable (scripted for you in `scripts/firebase-dev-setup.sh`), free Spark tier
 
 - Creating the GCP + Firebase project (`firebase projects:create`)
 - Registering this repo's `development` alias (`firebase use --add`)
@@ -60,28 +60,63 @@ projects (dev / staging / prod); **only dev is needed now.**
   (`firebase apps:create WEB`, `firebase apps:sdkconfig WEB`) — this repo
   uses the Firebase JS SDK on both mobile (Expo) and admin, not the native
   `@react-native-firebase` module, so one Web app's config serves both
-- Deploying the committed `firestore.rules`, `firestore.indexes.json`, and
-  `storage.rules` (`firebase deploy --only firestore:rules,firestore:indexes,storage`)
-- Configuring the **Email/Password**, **Google**, and **Anonymous** sign-in
-  providers declaratively (`firebase init auth` then `firebase deploy --only auth`)
+- Deploying the committed `firestore.rules` and `firestore.indexes.json`
+  (`firebase deploy --only firestore:rules,firestore:indexes`)
 
-### Console-only (you must do these yourself — no CLI command exists for them)
+None of the above requires the Blaze plan or any billing information —
+`scripts/firebase-dev-setup.sh` does all of it unconditionally.
 
-1. **Upgrade the project to the Blaze (pay-as-you-go) plan.** Required
-   before Cloud Functions can deploy at all, even at zero usage. This is a
-   billing-account action (needs a real payment method) — no `firebase-tools`
-   command performs it, by design. Firebase Console → your project →
-   ⚙️ Project settings → Usage and billing → Modify plan.
-2. **Enable/create the default Cloud Storage bucket.** There is no
-   `firebase storage:buckets:create` (or equivalent) command in the
-   installed CLI — confirmed by listing every command namespace. Firebase
-   Console → Build → Storage → Get started.
-3. **Enable Apple and Phone sign-in.** `firebase deploy --only auth` only
-   covers Email/Password, Google, and Anonymous providers (confirmed
-   against Firebase's own CLI-auth-config documentation) — Apple and Phone
-   (both named as member-auth requirements in the spec) have no CLI
-   configuration path. Firebase Console → Build → Authentication →
-   Sign-in method.
+### Blaze-gated (deferred — not required for current local-development work)
+
+As of Firebase's October 2024 policy change, both of these require the
+Blaze (pay-as-you-go) plan, even at zero usage:
+
+1. **Enable/create the default Cloud Storage bucket**, and therefore
+   deploying `storage.rules` (`firebase deploy --only storage` fails
+   without the bucket). There is no CLI command to create the bucket
+   itself — confirmed by listing every command namespace.
+2. **Deploy Cloud Functions.** (This repo's setup script does not attempt
+   a functions deploy at all; `functions/` is developed and tested locally
+   via the emulator instead — see below.)
+
+`scripts/firebase-dev-setup.sh` does not perform either of these and does
+not pause waiting for them — it prints instructions for finishing them
+later, when billing is actually attached. **We are intentionally not
+upgrading to Blaze during current development** to avoid attaching billing
+or incurring any charges; see "Developing without Blaze" below for how
+Storage/Functions work is still verified in the meantime.
+
+### Console-only, not Blaze-gated (deferred as Day 2 scope, not a billing issue)
+
+- **Enable Apple and Phone sign-in.** `firebase deploy --only auth` only
+  covers Email/Password, Google, and Anonymous providers (confirmed
+  against Firebase's own CLI-auth-config documentation) — Apple and Phone
+  (both named as member-auth requirements in the spec) have no CLI
+  configuration path. Firebase Console → Build → Authentication →
+  Sign-in method. Not needed until Day 2 auth work begins.
+
+### Developing without Blaze (current phase)
+
+The project stays on the free Spark plan for now — no billing attached, no
+possibility of charges. This does not block rule-level development:
+
+- **Firestore and Storage security rules** are verified against real,
+  local Firestore/Storage emulators — no real project, bucket, or billing
+  plan needed at all. This already works today; see
+  `firebase-tests/README.md` and `SECURITY.md` for how to run it and the
+  current pass/fail/skip counts.
+- **Firestore data access** (once app code is wired to it) can be
+  developed against the real dev project's Firestore database, which is
+  fully usable on Spark.
+- **Storage and Cloud Functions app-level work** will need either the
+  local Firebase Emulator Suite (`firebase emulators:start` — already
+  configured in `firebase.json` with `auth`, `functions`, `firestore`,
+  `storage`, `hosting`, and `ui` emulator ports, all runnable with no
+  billing plan at all) or, eventually, Blaze once you decide to attach it.
+  Wiring the mobile/admin apps' Firebase SDK initialization to actually
+  connect to these emulators is Day 2 scope (both apps' `firebase/config.ts`
+  currently define the config shape only, by design — see the "Day 1 note"
+  comment in each file) and hasn't been started.
 
 ### Running the setup
 
@@ -104,11 +139,11 @@ existing project's real id continues setup on that same project instead of
 creating a duplicate — this isn't specific to this one suffix, it works
 for any project id you already have.
 
-The script walks through the CLI-doable steps, pauses with an explicit
-checklist right before the point where it needs the three Console steps
-above, and resumes once you confirm they're done. It prints the Firebase
-config values at the end — copy them into `mobile/.env.local` and
-`admin/.env.local` (see below).
+The script runs straight through every Spark-tier step with no manual
+pause (there's nothing in that path that needs a Console action), then
+prints instructions for the deferred Blaze-gated steps instead of waiting
+for them. It prints the Firebase config values at the end — copy them into
+`mobile/.env.local` and `admin/.env.local` (see below).
 
 ### Verifying the repo is actually wired to the right project
 
