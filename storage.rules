@@ -1,0 +1,54 @@
+rules_version = '2';
+
+/**
+ * Firebase Storage Security Rules — Bethaniya Ministries
+ *
+ * Strategy: deny-by-default. Images only (per architecture spec — no audio
+ * files in Storage; song audio is referenced by external URL).
+ *
+ * Day 1 status: foundation rules. Full authorized/unauthorized testing is a
+ * Day 3+ task alongside the Firestore rules testing pass.
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Mirrors the Firestore users/{uid}.role lookup used in firestore.rules.
+    function callerRole() {
+      return isSignedIn()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isContentAdminOrAbove() {
+      return callerRole() == 'super_admin' || callerRole() == 'content_admin';
+    }
+
+    // Default deny.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Public, published content images (announcements, daily verse, songs,
+    // events). Anyone signed in can read; only Content Admins+ can write.
+    // 5 MB cap matches the input-validation rule in the architecture spec.
+    match /content/{imageType}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isContentAdminOrAbove()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // User-uploaded profile photos: each user manages only their own.
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

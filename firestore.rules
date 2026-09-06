@@ -1,0 +1,136 @@
+rules_version = '2';
+
+/**
+ * Firestore Security Rules — Bethaniya Ministries
+ *
+ * Strategy: deny-by-default (whitelist only). See /SECURITY.md and
+ * FINAL_ARCHITECTURE_SPECIFICATION.md Section D for the full RBAC model this
+ * implements.
+ *
+ * Day 1 status: foundation rules matching the roles/collections table in the
+ * architecture spec. Formal authorized-vs-unauthorized testing (Super Admin
+ * can do X, Member cannot do Y, etc.) is a Day 3 task once the emulator
+ * testing harness is set up and there is real data to exercise these rules
+ * against — do not treat these as fully verified yet.
+ *
+ * Roles: super_admin | content_admin | host | member
+ * A user's role lives on their own /users/{uid} document (field: "role").
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers -----------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Reads the caller's own user document to determine their role.
+    // NOTE: this performs a `get()`, which counts against Firestore read
+    // quotas/limits on every rule evaluation that calls it — acceptable at
+    // V1 scale, revisit with custom claims if it becomes a cost/perf issue.
+    function callerRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function hasRole(role) {
+      return callerRole() == role;
+    }
+
+    function isSuperAdmin() {
+      return hasRole('super_admin');
+    }
+
+    function isContentAdminOrAbove() {
+      return isSuperAdmin() || hasRole('content_admin');
+    }
+
+    function isHostOrAbove() {
+      return isContentAdminOrAbove() || hasRole('host');
+    }
+
+    // ---- Default deny --------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---- users -----------------------------------------------------
+    // Members: read their own doc. Admins: read all.
+    // Role field can only be changed by a Super Admin (never by the user
+    // themselves — prevents self-elevation).
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isContentAdminOrAbove();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.role == 'member';
+
+      allow update: if (isOwner(userId)
+          && request.resource.data.role == resource.data.role)
+        || (isSuperAdmin()
+          && request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly(['role']));
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ---- announcements -----------------------------------------------
+    match /announcements/{announcementId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.published == true);
+      allow write: if isContentAdminOrAbove();
+    }
+
+    // ---- daily_verses --------------------------------------------------
+    match /daily_verses/{verseId} {
+      allow read: if isSignedIn();
+      allow write: if isContentAdminOrAbove();
+    }
+
+    // ---- songs -----------------------------------------------------
+    match /songs/{songId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.published == true);
+      allow write: if isContentAdminOrAbove();
+    }
+
+    // ---- events -----------------------------------------------------
+    match /events/{eventId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.published == true);
+      // Content Admins manage events; Hosts may only toggle live-stream fields.
+      allow create, delete: if isContentAdminOrAbove();
+      allow update: if isContentAdminOrAbove()
+        || (isHostOrAbove()
+          && request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly(['isLive', 'youtubeUrl']));
+    }
+
+    // ---- notifications_log --------------------------------------------
+    // Written only by Cloud Functions (via Admin SDK, which bypasses these
+    // rules entirely) — clients never write directly.
+    match /notifications_log/{notificationId} {
+      allow read: if isHostOrAbove();
+      allow write: if false;
+    }
+
+    // ---- audit_log -----------------------------------------------------
+    // Written only by Cloud Functions. Super Admin read-only.
+    match /audit_log/{entryId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    // ---- settings -----------------------------------------------------
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "bethaniya-ministries-dev",
+    "development": "bethaniya-ministries-dev",
+    "staging": "bethaniya-ministries-staging",
+    "production": "bethaniya-ministries-prod"
+  }
+}
