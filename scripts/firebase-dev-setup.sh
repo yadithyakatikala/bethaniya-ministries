@@ -16,7 +16,7 @@
 set -euo pipefail
 
 PROJECT_ID="${1:?Usage: $0 <project-id> [display-name]}"
-DISPLAY_NAME="${2:-Bethaniya Ministries (Dev)}"
+DISPLAY_NAME="${2:-Bethaniya Ministries Dev}"
 
 command -v firebase >/dev/null 2>&1 || { echo "Install firebase-tools first: npm install -g firebase-tools"; exit 1; }
 
