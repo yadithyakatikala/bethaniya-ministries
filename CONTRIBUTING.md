@@ -36,6 +36,11 @@ For `admin`, also run `npm run build` (Vite build catches some type errors
 (Day 1 didn't include it — see DEPLOYMENT.md for the plan) — these checks
 are currently a manual discipline, not an automated gate.
 
+If you touched `firestore.rules` or `storage.rules`, also update and run
+the real emulator-backed tests in `firebase-tests/` (see its README and
+SECURITY.md) — a rule change without a matching test change is the one
+category of "looks done" that this repo has explicitly gotten wrong before.
+
 ## Commit style
 
 Logical, scoped commits — not one giant commit per day. Prefix with the

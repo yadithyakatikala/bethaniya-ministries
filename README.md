@@ -31,12 +31,15 @@ bethaniya-ministries/
 ├── functions/    Firebase Cloud Functions (Node.js + TypeScript)
 ├── firebase.json, firestore.rules, firestore.indexes.json, storage.rules
 │                 Firebase project configuration (shared across dev/staging/prod)
+├── firebase-tests/  Emulator-backed security rule tests (@firebase/rules-unit-testing)
 ├── FINAL_ARCHITECTURE_SPECIFICATION.md   Approved baseline spec
 ├── ARCHITECTURE.md    How this repo implements that spec
-├── SECURITY.md        Security model, RBAC, what's enforced where
+├── SECURITY.md        Security model, RBAC, what's enforced where, real test results
 ├── ENVIRONMENT.md      Manual setup: Firebase projects, env vars, tool versions
 ├── CONTRIBUTING.md    Code conventions, commit style, how to run checks
-└── DEPLOYMENT.md      How to deploy each part
+├── DEPLOYMENT.md      How to deploy each part
+├── PRODUCTION_READINESS.md  Explicit staged pipeline; NOT production ready yet
+└── BIBLE_LICENSING.md  What's confirmed, what's not, for English + Telugu
 ```
 
 `mobile`, `admin`, and `functions` are three independent npm packages (no
@@ -74,8 +77,9 @@ npm run build
 - Three scaffolded, independently-verified packages (mobile/admin/functions)
   with TypeScript strict mode, ESLint, Prettier, and a passing test in each.
 - Firestore and Storage security rules implementing the RBAC model from the
-  spec (deny-by-default, four roles) — written but not yet emulator-tested
-  (see SECURITY.md for why, and the Day 2/3 plan to close that gap).
+  spec (deny-by-default, four roles) — tested against real, running Firebase
+  emulators (52 passing, 2 explicitly documented as unverified pending an
+  emulator limitation; see SECURITY.md for the full results).
 - `firebase.json`, indexes, and `.firebaserc.example` — ready for real
   Firebase project IDs once they exist.
 - This documentation set.
@@ -89,8 +93,16 @@ FINAL_ARCHITECTURE_SPECIFICATION.md Section E for the day-by-day plan.
 
 ## Bible content licensing
 
-**Not yet resolved.** English and Telugu Bible text require verified
-licensing before any real scripture text is added to this repo or app — see
-FINAL_ARCHITECTURE_SPECIFICATION.md Section C. No copyrighted Bible text
-exists anywhere in this codebase. Any Bible content added before licensing
-is resolved must be clearly-labeled placeholder/synthetic data only.
+**`BIBLE CONTENT: BLOCKED FOR PRODUCTION — LICENSING UNVERIFIED`.** English
+(World English Bible) is confirmed public domain and usable; Telugu has no
+confirmed source yet. See [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) for
+what was investigated and what's still open. No copyrighted Bible text
+exists anywhere in this codebase — the Bible screen
+(`mobile/src/features/bible/`) renders clearly-labelled synthetic
+placeholder verses only, per the spec's own sanctioned fallback.
+
+## Production readiness
+
+**Not production ready — expected at this stage.** See
+[PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) for the explicit
+staged pipeline and exactly what's verified vs. still pending.
