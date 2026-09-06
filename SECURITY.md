@@ -54,14 +54,14 @@ with:
 npm --prefix firebase-tests install
 FIRESTORE_EMULATOR_BINARY_PATH=.emulator-cache/cloud-firestore-emulator-v1.22.0.jar \
 STORAGE_EMULATOR_BINARY_PATH=.emulator-cache/cloud-storage-rules-runtime-v1.1.3.jar \
-npx firebase-tools emulators:exec --only firestore,storage "npm --prefix firebase-tests test"
+npx firebase-tools emulators:exec --only auth,firestore,storage "npm --prefix firebase-tests test"
 ```
 
 (the two `*_BINARY_PATH` overrides are only needed if your network can't
 reach `storage.googleapis.com` to auto-download the emulator jars — see
 `firebase-tests/README.md`.)
 
-**Result as of the last run: 52 passed, 0 failed, 2 explicitly skipped
+**Result as of the last run: 55 passed, 0 failed, 2 explicitly skipped
 (documented below).** Coverage includes, for every collection: unauthenticated
 denial, wrong-role denial, correct-role success, the `users.role`
 self-elevation block (a member cannot set their own role, on create or
@@ -72,6 +72,16 @@ disallowed field), the `notifications_log`/`audit_log` client-write-always-false
 rule, Storage's 5MB size cap and image-content-type check on both the
 `content/` and per-user profile-photo paths, and users being unable to
 write another user's profile path. Full test list: `firebase-tests/src/*.test.ts`.
+
+**Also verified: the actual client-SDK connection path the apps use.**
+`firebase-tests/src/client-emulator-smoke.test.ts` signs in through the Auth
+emulator, then uses that real session against the Firestore and Storage
+emulators the same way `mobile/src/services/firebase/app.ts` and
+`admin/src/services/firebase/app.ts` do at runtime (plain `firebase/app`,
+`firebase/auth`, `firebase/firestore`, `firebase/storage` client SDK calls,
+not `@firebase/rules-unit-testing`) -- proving an Auth-emulator-issued token
+is actually honored by the Firestore/Storage emulators under the real,
+committed rules, not just that the rules pass in isolation.
 
 **What remains unverified, and exactly why:** two Storage tests are
 `it.skip`'d rather than deleted or faked green — an authorized

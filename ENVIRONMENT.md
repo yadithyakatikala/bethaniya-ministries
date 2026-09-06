@@ -98,25 +98,36 @@ Storage/Functions work is still verified in the meantime.
 ### Developing without Blaze (current phase)
 
 The project stays on the free Spark plan for now — no billing attached, no
-possibility of charges. This does not block rule-level development:
+possibility of charges. Both apps' Firebase SDK initialization
+(`mobile/src/services/firebase/app.ts`, `admin/src/services/firebase/app.ts`)
+connects to the local Emulator Suite by default (toggle:
+`EXPO_PUBLIC_USE_FIREBASE_EMULATORS` / `VITE_USE_FIREBASE_EMULATORS`, default
+`true`) and falls back to safe placeholder config when `.env.local` isn't
+filled in, so this works on a completely fresh clone with zero Firebase
+account setup:
 
 - **Firestore and Storage security rules** are verified against real,
   local Firestore/Storage emulators — no real project, bucket, or billing
-  plan needed at all. This already works today; see
-  `firebase-tests/README.md` and `SECURITY.md` for how to run it and the
-  current pass/fail/skip counts.
-- **Firestore data access** (once app code is wired to it) can be
-  developed against the real dev project's Firestore database, which is
-  fully usable on Spark.
-- **Storage and Cloud Functions app-level work** will need either the
-  local Firebase Emulator Suite (`firebase emulators:start` — already
-  configured in `firebase.json` with `auth`, `functions`, `firestore`,
-  `storage`, `hosting`, and `ui` emulator ports, all runnable with no
-  billing plan at all) or, eventually, Blaze once you decide to attach it.
-  Wiring the mobile/admin apps' Firebase SDK initialization to actually
-  connect to these emulators is Day 2 scope (both apps' `firebase/config.ts`
-  currently define the config shape only, by design — see the "Day 1 note"
-  comment in each file) and hasn't been started.
+  plan needed at all. See `firebase-tests/README.md` and `SECURITY.md` for
+  how to run the rule-test suite and the current pass/fail/skip counts,
+  including `client-emulator-smoke.test.ts`, which proves the same
+  Auth-then-Firestore/Storage connection path the apps use at runtime
+  actually works end to end.
+- **Day-to-day interactive development** (running the mobile app or admin
+  dashboard against local data) uses:
+  ```bash
+  firebase emulators:start --only auth,firestore,storage,functions
+  ```
+  from the repository root. This starts entirely locally, requires no
+  billing plan, and needs no Firebase account beyond having `firebase-tools`
+  installed. The optional Emulator UI (`--only ...,ui`, or leaving `ui`
+  enabled in `firebase.json`) downloads a small package from Google the
+  first time it runs on a given machine — a one-time step, unrelated to
+  Blaze/billing, that just needs normal internet access.
+- **Cloud Functions app-level work** (once functions call real triggers)
+  runs against the Functions emulator the same way — no Blaze needed
+  locally; only a real *deploy* (`firebase deploy --only functions`) needs
+  Blaze.
 
 ### Running the setup
 

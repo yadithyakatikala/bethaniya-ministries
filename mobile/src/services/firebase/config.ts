@@ -10,9 +10,11 @@
  * key) because Metro/Expo replaces EXPO_PUBLIC_* references at build time and cannot
  * inline a dynamically-computed lookup (enforced by the expo/no-dynamic-env-var lint rule).
  *
- * Day 1 note: this file defines the config shape and warns on missing values instead of
- * throwing, since no real Firebase project exists yet. Day 2 will tighten this once
- * .env.local is required for local development.
+ * This module defines the config shape and warns on missing values instead
+ * of throwing. The actual Firebase SDK instances (initializeApp, initializeAuth,
+ * getFirestore, ...) and the local Emulator Suite wiring live in ./app.ts --
+ * missing values there fall back to safe emulator-only placeholders, so an
+ * unfilled .env.local still doesn't block local development.
  */
 
 export interface FirebaseWebConfig {

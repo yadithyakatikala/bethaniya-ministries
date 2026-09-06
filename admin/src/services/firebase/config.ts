@@ -5,8 +5,9 @@
  * secrets; access control is enforced by Firestore/Storage security rules and
  * Firebase Auth (see /SECURITY.md), not by hiding this config.
  *
- * Day 1: defines the config shape only. The Firebase SDK itself (initializeApp,
- * getAuth, getFirestore, ...) is wired up on Day 2 once real Firebase projects exist.
+ * This module defines the config shape only. The actual Firebase SDK
+ * instances (initializeApp, getAuth, getFirestore, ...) and the local
+ * Emulator Suite wiring live in ./app.ts.
  */
 
 export interface FirebaseWebConfig {

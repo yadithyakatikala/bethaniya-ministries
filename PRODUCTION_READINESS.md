@@ -13,10 +13,15 @@ security/testing pass are done.
 DAY 1 FOUNDATION              ← done, corrected, and verified (this repo, now)
         │
         ▼
-Development verified          ← in progress: emulator-backed rule tests done
-        │                       (see SECURITY.md); a real Firebase dev project
-        │                       still needs to be created (ENVIRONMENT.md
-        │                       "Firebase projects" checklist — your action)
+Development verified          ← in progress: dev Firebase project exists
+        │                       (bethaniya-ministries-dev-58588, free Spark
+        │                       tier — Blaze intentionally not attached, see
+        │                       ENVIRONMENT.md "Developing without Blaze");
+        │                       emulator-backed rule tests done (SECURITY.md);
+        │                       mobile/admin Firebase SDK wired to the local
+        │                       Emulator Suite (Auth/Firestore/Storage) and
+        │                       proven end-to-end by
+        │                       firebase-tests/client-emulator-smoke.test.ts
         ▼
 Day 2–16 implementation       ← NOT STARTED. Auth flows, Bible/songs/events
         │                       UI, admin CRUD, notifications, live streaming,
@@ -66,11 +71,16 @@ happened — none of this creates or requires a production Firebase project.
 
 ## Explicitly not claimed
 
-This document does not claim: that a real Firebase dev/staging/production
-project exists yet (dev project creation is the user's action per
-`ENVIRONMENT.md`); that any app screen beyond the Day 1 placeholder and the
-placeholder Bible screen has been built; that Storage rules' allow-path has
-been end-to-end verified (see SECURITY.md's documented emulator
-limitation); or that Bible content licensing is resolved (see
-`BIBLE_LICENSING.md`). Each of those is tracked in its own document rather
-than summarized away here.
+This document does not claim: that the staging or production Firebase
+projects exist (only dev — `bethaniya-ministries-dev-58588` — does, and it
+stays on the free Spark plan by design, see `ENVIRONMENT.md` "Developing
+without Blaze"); that any app screen beyond the Day 1 placeholder and the
+placeholder Bible screen has been built (the Firebase SDK/emulator wiring
+in `mobile/src/services/firebase/app.ts` and
+`admin/src/services/firebase/app.ts` is plumbing, not a screen or auth
+flow); that Storage rules' allow-path has been end-to-end verified against
+a real Firebase project (see SECURITY.md's documented emulator limitation —
+the client-SDK smoke test proves the emulator path, not the real backend);
+or that Bible content licensing is resolved (see `BIBLE_LICENSING.md`).
+Each of those is tracked in its own document rather than summarized away
+here.
