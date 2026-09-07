@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { ChapterScreen } from '../ChapterScreen';
 import { setLanguagePreference } from '../languagePreference';
 
@@ -10,19 +12,31 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   default: jest.fn(() => 'light'),
 }));
 
+// ChapterScreen now reads/sets language and theme through usePreferences()
+// (Day 9), not languagePreference.ts / useColorScheme() directly, so the
+// real provider stack is needed. PreferencesProvider still reads/writes
+// languagePreference.ts's own AsyncStorage key under the hood, so
+// setLanguagePreference()-seeded state and the AsyncStorage assertions
+// below are unchanged.
+jest.mock('../../../services/firebase/app');
+
 async function renderScreen(bookId: string, chapterNumber: number) {
   const navigate = jest.fn();
   const utils = await render(
-    <ChapterScreen
-      navigation={{ navigate } as never}
-      route={
-        {
-          key: 'BibleChapter',
-          name: 'BibleChapter',
-          params: { bookId, chapterNumber },
-        } as never
-      }
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <ChapterScreen
+          navigation={{ navigate } as never}
+          route={
+            {
+              key: 'BibleChapter',
+              name: 'BibleChapter',
+              params: { bookId, chapterNumber },
+            } as never
+          }
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
   return { ...utils, navigate };
 }

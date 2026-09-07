@@ -44,13 +44,27 @@ export const MEMBER_ROLE = 'member' as const;
 
 /** Fields Day 2 actually needs (Admin Users page: name, email, phone, role,
  * join date, per FINAL_ARCHITECTURE_SPECIFICATION.md's Day 11 plan) --
- * nothing else is collected. */
+ * nothing else is collected here.
+ *
+ * Day 9 adds photoURL/languagePreference/themePreference/
+ * notificationsEnabled as optional fields the *owner* sets later via the
+ * mobile Profile/Settings screens (see firestore.rules'
+ * isValidUserProfileSelfUpdate() for the value constraints, and
+ * mobile/src/services/firebase/userProfile.ts for the client write path).
+ * This trigger never sets them on creation -- role/email/phoneNumber/
+ * createdAt stay the only fields populated at account-creation time, and
+ * remain server-controlled / never owner-editable after that (enforced by
+ * firestore.rules' users/{userId} update rule, not by this file). */
 export interface UserProfileDocument {
   role: typeof MEMBER_ROLE;
   displayName: string | null;
   email: string | null;
   phoneNumber: string | null;
   createdAt: FieldValue;
+  photoURL?: string | null;
+  languagePreference?: 'en' | 'te';
+  themePreference?: 'light' | 'dark';
+  notificationsEnabled?: boolean;
 }
 
 /** The subset of firebase-admin's UserRecord this handler actually reads --

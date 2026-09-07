@@ -15,8 +15,12 @@
  * logAdminAction.ts's own header comment and SECURITY.md's "Day 3" section
  * for the full reasoning.
  *
- * Still to come per FINAL_ARCHITECTURE_SPECIFICATION.md:
- *   - sendNotification()   — Day 10, FCM delivery on admin "send" action
+ * sendNotification (Day 10, see ./sendNotification.ts) is the admin
+ * "Send Notification" action's callable, following the identical
+ * callable-not-trigger architecture as logAdminAction for the same
+ * reason. It does NOT perform real FCM delivery -- see that file's header
+ * comment for the full, honest disclosure of why (no registered push
+ * tokens exist anywhere in this project).
  *
  * Admin SDK is initialized once here and re-exported so future function
  * modules share a single app instance instead of each calling initializeApp().
@@ -26,6 +30,7 @@ import * as functionsV1 from 'firebase-functions/v1';
 import { initializeApp } from 'firebase-admin/app';
 import { createUserProfileHandler } from './createUserProfile';
 import { AdminActionError, logAdminActionHandler } from './logAdminAction';
+import { SendNotificationError, sendNotificationHandler } from './sendNotification';
 
 export const adminApp = initializeApp();
 
@@ -55,6 +60,24 @@ export const logAdminAction = onCall(async (request) => {
     // HttpsError) into a real HttpsError, so callable clients still get the
     // normal { code, message } shape Firebase's SDK expects.
     if (error instanceof AdminActionError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    throw error;
+  }
+});
+
+export const sendNotification = onCall(async (request) => {
+  try {
+    return await sendNotificationHandler(
+      request.data,
+      request.auth
+        ? { uid: request.auth.uid, email: request.auth.token.email ?? null }
+        : undefined
+    );
+  } catch (error) {
+    // Same plain-Error-to-HttpsError conversion as logAdminAction above,
+    // for the same reason (see sendNotification.ts's header comment).
+    if (error instanceof SendNotificationError) {
       throw new HttpsError(error.code, error.message);
     }
     throw error;

@@ -16,6 +16,7 @@ import { EditSongPage } from './features/songs/EditSongPage';
 import { EventsListPage } from './features/events/EventsListPage';
 import { EventForm } from './features/events/EventForm';
 import { EditEventPage } from './features/events/EditEventPage';
+import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -36,6 +37,9 @@ import { subscribeToAuthChanges } from './store/authStore';
  * Day 7 adds /events* the same way (see EventsListPage.tsx) -- events adds
  * a second, narrower write surface for the Host role (live-stream fields
  * only), on top of the same publish-concept shape.
+ * Day 10 adds /notifications (see NotificationsPage.tsx) -- a single page,
+ * not a list/new/edit trio like the others, since composing and sending is
+ * a one-shot action rather than CRUD on persistent editable documents.
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -147,6 +151,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <EditEventPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />

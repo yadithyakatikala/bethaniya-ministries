@@ -6,13 +6,12 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePreferences } from '../../context/PreferencesContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById } from './books';
 import { loadChapter } from './dataSource';
-import { getLanguagePreference, setLanguagePreference } from './languagePreference';
 import type { BibleChapter, BibleLanguage } from './types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapter'>;
@@ -22,21 +21,30 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapter'>;
  * numbers/verse text/reference, Previous/Next navigation that correctly
  * handles the first/last chapter of a book, a placeholder-content banner
  * (both languages are placeholder today -- see dataSource.ts), and
- * light/dark-mode-aware colors via the same `useColorScheme()` pattern
- * as ../daily-verses/DailyVerseCard.tsx (requirement I -- no new theme
- * system).
+ * light/dark-mode-aware colors via the shared usePreferences().isDark
+ * (Day 9 -- see ../../context/PreferencesContext.tsx; Day 8 originally
+ * used useColorScheme() directly here, same as
+ * ../daily-verses/DailyVerseCard.tsx).
  *
  * The language toggle (requirement F) lives here rather than on the
- * Books/Chapters screens, since it only affects chapter content;
- * ChapterScreen loads the saved preference on mount (restoring it when
- * the module is reopened) and persists any change via
- * languagePreference.ts, local-only (no Firestore) per Day 8 scope.
+ * Books/Chapters screens, since it only affects chapter content. Day 8
+ * persisted the choice locally only, via languagePreference.ts directly;
+ * Day 9 routes it through usePreferences().setLanguagePreference()
+ * instead, so the same choice also syncs to Firestore when signed in and
+ * stays consistent with the language shown anywhere else preferences are
+ * read (languagePreference.ts itself is unchanged and still does the
+ * actual local-storage read/write, just now called from
+ * PreferencesContext instead of from this screen).
  */
 type LoadResult = { key: string; chapter: BibleChapter | null };
 
 export function ChapterScreen({ route, navigation }: Props) {
   const { bookId, chapterNumber } = route.params;
-  const [language, setLanguage] = useState<BibleLanguage>('en');
+  const {
+    languagePreference: language,
+    setLanguagePreference,
+    isDark,
+  } = usePreferences();
   // requestKey identifies "which request a result/error belongs to".
   // chapter/hasError are DERIVED below by comparing this key against the
   // most recent settled result, rather than reset with an imperative
@@ -48,22 +56,11 @@ export function ChapterScreen({ route, navigation }: Props) {
   const requestKey = `${bookId}:${chapterNumber}:${language}`;
   const [result, setResult] = useState<LoadResult | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const isDark = useColorScheme() === 'dark';
   const colors = isDark ? darkColors : lightColors;
 
   const book = getBookById(bookId);
   const chapter = result?.key === requestKey ? result.chapter : undefined;
   const hasError = errorKey === requestKey;
-
-  useEffect(() => {
-    let cancelled = false;
-    void getLanguagePreference().then((saved) => {
-      if (!cancelled) setLanguage(saved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +79,6 @@ export function ChapterScreen({ route, navigation }: Props) {
   async function handleToggleLanguage() {
     const next: BibleLanguage = language === 'en' ? 'te' : 'en';
     await setLanguagePreference(next);
-    setLanguage(next);
   }
 
   if (!book) {

@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
  * authorized state renders and sign-out works. Day 4 adds a link into the
  * one real content-management screen that exists so far (Announcements);
  * Day 5 adds a second link for Daily Verses; Day 6 adds a third for Songs;
- * Day 7 adds a fourth for Events.
+ * Day 7 adds a fourth for Events; Day 10 adds a fifth for Notifications.
  * A fuller nav/sidebar covering
  * the rest of FINAL_ARCHITECTURE_SPECIFICATION.md's "Dashboard Overview"
  * (stats, activity feed, quick actions) is later V1 scope, not built here.
@@ -57,6 +57,14 @@ export function DashboardPage() {
           data-testid="events-nav-link"
         >
           Manage Events
+        </Button>
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/notifications"
+          data-testid="notifications-nav-link"
+        >
+          Notifications
         </Button>
         <Button
           variant="outlined"

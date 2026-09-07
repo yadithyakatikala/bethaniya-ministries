@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { HomeScreen } from '../HomeScreen';
 
 /**
@@ -14,7 +15,9 @@ import { HomeScreen } from '../HomeScreen';
  * screen inside a Navigator (a bare NavigationContainer isn't enough),
  * so this test helper builds a small real Stack.Navigator, mirroring
  * AppNavigator.tsx's shape, with a stub "SongsList" screen to assert
- * against.
+ * against. Day 9 adds PreferencesProvider -- HomeScreen renders
+ * DailyVerseCard, which now reads usePreferences() (see
+ * ../../daily-verses/DailyVerseCard.tsx), so it needs the real provider.
  */
 const Stack = createNativeStackNavigator();
 
@@ -30,16 +33,28 @@ function BibleBooksStub() {
   return <Text testID="bible-books-stub">Bible books stub</Text>;
 }
 
+function ProfileStub() {
+  return <Text testID="profile-stub">Profile stub</Text>;
+}
+
+function NotificationCenterStub() {
+  return <Text testID="notification-center-stub">Notification center stub</Text>;
+}
+
 function renderHomeScreen() {
   return render(
     <NavigationContainer>
       <AuthProvider>
-        <Stack.Navigator>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="SongsList" component={SongsListStub} />
-          <Stack.Screen name="EventsList" component={EventsListStub} />
-          <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
-        </Stack.Navigator>
+        <PreferencesProvider>
+          <Stack.Navigator>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="SongsList" component={SongsListStub} />
+            <Stack.Screen name="EventsList" component={EventsListStub} />
+            <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
+            <Stack.Screen name="Profile" component={ProfileStub} />
+            <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
+          </Stack.Navigator>
+        </PreferencesProvider>
       </AuthProvider>
     </NavigationContainer>
   );
@@ -122,5 +137,27 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('bible-nav-button')).toBeTruthy());
     await fireEvent.press(getByTestId('bible-nav-button'));
     await waitFor(() => expect(getByTestId('bible-books-stub')).toBeTruthy());
+  });
+
+  it('navigates to Profile when "Profile" is pressed', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u7', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('profile-nav-button')).toBeTruthy());
+    await fireEvent.press(getByTestId('profile-nav-button'));
+    await waitFor(() => expect(getByTestId('profile-stub')).toBeTruthy());
+  });
+
+  it('navigates to Notifications when "Notifications" is pressed', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u8', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
+    await fireEvent.press(getByTestId('notifications-nav-button'));
+    await waitFor(() => expect(getByTestId('notification-center-stub')).toBeTruthy());
   });
 });

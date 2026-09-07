@@ -1,12 +1,6 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePreferences } from '../../context/PreferencesContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById } from './books';
 
@@ -22,7 +16,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapters'>;
  */
 export function ChaptersListScreen({ route, navigation }: Props) {
   const { bookId } = route.params;
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = usePreferences();
   const colors = isDark ? darkColors : lightColors;
   const book = getBookById(bookId);
 

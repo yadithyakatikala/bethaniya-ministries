@@ -1,4 +1,7 @@
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeScreen } from '../features/auth/HomeScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
@@ -11,7 +14,11 @@ import type { PublishedEvent } from '../services/firebase/events';
 import { BooksListScreen } from '../features/bible/BooksListScreen';
 import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
 import { ChapterScreen } from '../features/bible/ChapterScreen';
+import { BibleSearchScreen } from '../features/bible/BibleSearchScreen';
 import { getBookById } from '../features/bible/books';
+import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { NotificationCenterScreen } from '../features/notifications/NotificationCenterScreen';
 
 /**
  * Real navigation, introduced in Day 6 -- per the user's explicit
@@ -55,13 +62,27 @@ export type RootStackParamList = {
   BibleBooks: undefined;
   BibleChapters: { bookId: string };
   BibleChapter: { bookId: string; chapterNumber: number };
+  BibleSearch: undefined;
+  Profile: undefined;
+  Settings: undefined;
+  NotificationCenter: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Day 10: a module-level ref to the navigation tree, so
+ * ../services/notifications/notificationService.ts's notification-tap
+ * handler can navigate without needing a navigation prop of its own --
+ * it fires from a global expo-notifications listener, outside any
+ * screen's render tree. See React Navigation's own documented pattern
+ * for "navigating without the navigation prop."
+ */
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
 export function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator initialRouteName="Home">
         <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
         <Stack.Screen
@@ -109,6 +130,26 @@ export function AppNavigator() {
               ? `${getBookById(route.params.bookId)?.name} ${route.params.chapterNumber}`
               : 'Chapter',
           })}
+        />
+        <Stack.Screen
+          name="BibleSearch"
+          component={BibleSearchScreen}
+          options={{ title: 'Search' }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: 'Profile' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ title: 'Settings' }}
+        />
+        <Stack.Screen
+          name="NotificationCenter"
+          component={NotificationCenterScreen}
+          options={{ title: 'Notifications' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

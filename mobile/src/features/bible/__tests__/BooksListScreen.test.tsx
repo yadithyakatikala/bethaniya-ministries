@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { BooksListScreen } from '../BooksListScreen';
 import { BIBLE_BOOKS } from '../books';
 
@@ -9,13 +11,25 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   default: jest.fn(() => 'light'),
 }));
 
+// BooksListScreen now reads its theme from usePreferences() (Day 9 --
+// see ../../../context/PreferencesContext.tsx) instead of calling
+// useColorScheme() directly, so the real provider stack is needed here.
+// PreferencesProvider itself still falls back to the system color scheme
+// (the deep useColorScheme() mock above) when signed out / nothing is
+// stored, so the light/dark-mode assertions below are unchanged.
+jest.mock('../../../services/firebase/app');
+
 async function renderScreen() {
   const navigate = jest.fn();
   const utils = await render(
-    <BooksListScreen
-      navigation={{ navigate } as never}
-      route={{ key: 'BibleBooks', name: 'BibleBooks' } as never}
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <BooksListScreen
+          navigation={{ navigate } as never}
+          route={{ key: 'BibleBooks', name: 'BibleBooks' } as never}
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
   return { ...utils, navigate };
 }

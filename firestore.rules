@@ -145,6 +145,29 @@ service cloud.firestore {
         && data.youtubeUrl.matches('^$|^https?://.+');
     }
 
+    // Day 9: validates a member's self-service update to their own user
+    // document. Owners may only ever touch the fields listed in the
+    // .hasOnly([...]) check on the `allow update` rule below -- this
+    // function additionally re-validates the VALUE of each field that is
+    // present in the resulting document, the same isValidX(data) pattern
+    // used above for announcements/dailyVerse/songs/events. role, email,
+    // phoneNumber, and createdAt are intentionally absent here: they are
+    // never in the owner-editable field allowlist, so this function never
+    // needs to validate them for a self-update.
+    function isValidUserProfileSelfUpdate(data) {
+      return data.displayName is string
+        && data.displayName.size() > 0 && data.displayName.size() <= 200
+        && (!('photoURL' in data)
+            || data.photoURL == null
+            || (data.photoURL is string && data.photoURL.size() <= 2000))
+        && (!('languagePreference' in data)
+            || data.languagePreference in ['en', 'te'])
+        && (!('themePreference' in data)
+            || data.themePreference in ['light', 'dark'])
+        && (!('notificationsEnabled' in data)
+            || data.notificationsEnabled is bool);
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -161,8 +184,18 @@ service cloud.firestore {
       allow create: if isOwner(userId)
         && request.resource.data.role == 'member';
 
+      // Day 9: an owner's self-update may ONLY touch the profile/
+      // preference fields below (never role, email, phoneNumber, or
+      // createdAt -- those stay server-controlled / Super-Admin-only),
+      // and every field it does touch must additionally pass
+      // isValidUserProfileSelfUpdate()'s value checks. A Super Admin's
+      // update is unchanged: role-only, exactly as before.
       allow update: if (isOwner(userId)
-          && request.resource.data.role == resource.data.role)
+          && request.resource.data.diff(resource.data)
+               .affectedKeys()
+               .hasOnly(['displayName', 'photoURL', 'languagePreference',
+                         'themePreference', 'notificationsEnabled'])
+          && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()
           && request.resource.data.diff(resource.data)
                .affectedKeys().hasOnly(['role']));

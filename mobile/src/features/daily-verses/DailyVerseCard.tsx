@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { usePreferences } from '../../context/PreferencesContext';
 import {
   subscribeToTodaysDailyVerse,
   type TodaysDailyVerse,
@@ -17,14 +11,14 @@ import {
  * shape as ../announcements/AnnouncementsList.tsx, plus an image (when
  * set) and explicit light/dark-mode-aware colors (per the spec's Day 5
  * testing bar: "Verse text renders in dark/light mode"). There is no
- * app-wide theme system yet (Profile's "Theme preference" is Day 9+
- * scope, not built) -- `useColorScheme()` (react-native core, no new
- * dependency) is used directly here rather than building one early.
+ * app-wide theme system: usePreferences().isDark (see
+ * ../../context/PreferencesContext.tsx), added in Day 9, which is what
+ * ultimately backs an explicit Settings-screen theme choice.
  */
 export function DailyVerseCard() {
   const [verse, setVerse] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = usePreferences();
   const colors = isDark ? darkColors : lightColors;
 
   useEffect(() => {

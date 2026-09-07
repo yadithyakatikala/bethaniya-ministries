@@ -30,3 +30,13 @@ export const query = jest.fn((...args) => args[0]);
 export const where = jest.fn();
 export const orderBy = jest.fn();
 export const onSnapshot = jest.fn(() => jest.fn());
+
+// Day 9: mobile/src/services/firebase/userProfile.ts is the first mobile
+// module to read/write a single document (rather than a collection
+// query) and the first to write at all -- doc()/updateDoc() added here
+// for it, same jest.fn() shape as every export above.
+export const doc = jest.fn((_db, ...pathSegments) => ({ path: pathSegments.join('/') }));
+export const getDoc = jest.fn();
+export const setDoc = jest.fn();
+export const updateDoc = jest.fn();
+export const serverTimestamp = jest.fn(() => new MockTimestamp(0));

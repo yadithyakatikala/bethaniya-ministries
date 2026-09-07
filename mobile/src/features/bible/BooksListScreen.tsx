@@ -1,12 +1,13 @@
 import {
+  Button,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePreferences } from '../../context/PreferencesContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
 import type { BibleBook } from './types';
@@ -28,7 +29,7 @@ const SECTIONS: { title: string; data: BibleBook[] }[] = [
  * for fast scrolling alike.
  */
 export function BooksListScreen({ navigation }: Props) {
-  const isDark = useColorScheme() === 'dark';
+  const { isDark } = usePreferences();
   const colors = isDark ? darkColors : lightColors;
 
   return (
@@ -37,6 +38,13 @@ export function BooksListScreen({ navigation }: Props) {
       style={[styles.list, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.listContent}
     >
+      <View style={styles.searchRow}>
+        <Button
+          title="Search"
+          onPress={() => navigation.navigate('BibleSearch')}
+          testID="bible-search-nav-button"
+        />
+      </View>
       {SECTIONS.map((section) => (
         <View key={section.title}>
           <View
@@ -80,6 +88,7 @@ const darkColors = {
 const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: 24 },
+  searchRow: { padding: 16 },
   sectionHeader: { paddingHorizontal: 16, paddingVertical: 8 },
   sectionHeaderText: { fontWeight: '700', fontSize: 14 },
   item: {

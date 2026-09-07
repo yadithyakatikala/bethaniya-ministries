@@ -1,16 +1,35 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
 import { onSnapshot } from 'firebase/firestore';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { DailyVerseCard } from '../DailyVerseCard';
 
 jest.mock('../../../services/firebase/app');
+
+// DailyVerseCard now reads isDark from usePreferences() (Day 9), which
+// needs the real provider stack. onAuthStateChanged is left at its
+// default (never fires -- see mobile/__mocks__/firebase/auth.js), so
+// AuthContext's status stays 'loading' / uid stays null throughout these
+// tests, meaning PreferencesProvider never subscribes to a Firestore user
+// profile -- the shared `onSnapshot` mock below is only ever driven by
+// DailyVerseCard's own daily-verse subscription, exactly as before.
+function renderCard() {
+  return render(
+    <AuthProvider>
+      <PreferencesProvider>
+        <DailyVerseCard />
+      </PreferencesProvider>
+    </AuthProvider>
+  );
+}
 
 describe('DailyVerseCard', () => {
   afterEach(() => jest.clearAllMocks());
 
   it('shows a loading state before the first snapshot arrives', async () => {
     (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
-    const { getByTestId } = await render(<DailyVerseCard />);
+    const { getByTestId } = await renderCard();
     expect(getByTestId('daily-verse-loading')).toBeTruthy();
   });
 
@@ -19,7 +38,7 @@ describe('DailyVerseCard', () => {
       next({ docs: [] });
       return jest.fn();
     });
-    const { getByTestId } = await render(<DailyVerseCard />);
+    const { getByTestId } = await renderCard();
     await waitFor(() => expect(getByTestId('daily-verse-empty')).toBeTruthy());
   });
 
@@ -28,7 +47,7 @@ describe('DailyVerseCard', () => {
       err({ code: 'unavailable' });
       return jest.fn();
     });
-    const { getByTestId } = await render(<DailyVerseCard />);
+    const { getByTestId } = await renderCard();
     await waitFor(() => expect(getByTestId('daily-verse-error')).toBeTruthy());
   });
 
@@ -49,7 +68,7 @@ describe('DailyVerseCard', () => {
       });
       return jest.fn();
     });
-    const { getByText, queryByTestId } = await render(<DailyVerseCard />);
+    const { getByText, queryByTestId } = await renderCard();
     await waitFor(() => expect(getByText('For God so loved the world...')).toBeTruthy());
     expect(getByText('John 3:16')).toBeTruthy();
     expect(queryByTestId('daily-verse-image')).toBeNull();
@@ -72,7 +91,7 @@ describe('DailyVerseCard', () => {
       });
       return jest.fn();
     });
-    const { getByTestId } = await render(<DailyVerseCard />);
+    const { getByTestId } = await renderCard();
     await waitFor(() => expect(getByTestId('daily-verse-image')).toBeTruthy());
   });
 });

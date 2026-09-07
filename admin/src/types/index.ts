@@ -156,3 +156,42 @@ export interface EventFormInput {
   /** ISO-ish string from a <input type="datetime-local"> field; parsed to a Date on submit. */
   startsAt: string;
 }
+
+/**
+ * A sent-notification record at /notifications_log/{id}, per
+ * FINAL_ARCHITECTURE_SPECIFICATION.md's Day 10 plan ("Notification log
+ * (view past sent)") and its RBAC table's `notifications_log` row
+ * (Member: None, Host/Content Admin/Super Admin: Read). Written only by
+ * the sendNotification Cloud Function via the Admin SDK (see
+ * firestore.rules' notifications_log rule, `allow write: if false`) --
+ * this admin app only ever reads this collection, never writes to it
+ * directly.
+ *
+ * `recipientCount` is the real count of matching /users documents at the
+ * moment of sending, computed server-side -- see
+ * functions/src/sendNotification.ts's header comment for why this project
+ * does not (and, without registered FCM tokens, cannot) claim any of this
+ * was actually delivered as a push notification.
+ */
+export type NotificationRecipientGroup = 'all_members' | 'admins_only';
+
+export interface NotificationLogEntry {
+  id: string;
+  title: string;
+  message: string;
+  /** Storage download URL, or null if no image was attached. */
+  imageUrl: string | null;
+  recipientGroup: NotificationRecipientGroup;
+  recipientCount: number;
+  sentBy: string;
+  sentByEmail: string | null;
+  sentAt: Date | null;
+}
+
+/** Fields the Notifications page composer collects and sends to the sendNotification callable -- see services/firebase/notifications.ts. */
+export interface SendNotificationFormInput {
+  title: string;
+  message: string;
+  imageUrl: string | null;
+  recipientGroup: NotificationRecipientGroup;
+}

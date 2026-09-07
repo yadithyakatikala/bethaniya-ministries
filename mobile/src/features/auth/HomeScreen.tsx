@@ -40,7 +40,12 @@ function ChurchBranding() {
  * `useNavigation()` is how it reaches "SongsList" rather than a prop.
  * Tap-to-detail navigation for announcements is later scope and still
  * not built here. Day 7 adds an "Events" entry point the same way. Day 8
- * adds a "Bible" entry point identically, into BibleBooks.
+ * adds a "Bible" entry point identically, into BibleBooks. Day 9/10 add
+ * "Profile" and "Notifications" entry points the same way -- Settings is
+ * reached from Profile (not from Home directly) and Bible Search is
+ * reached from the Bible books list (not from Home directly either), per
+ * the decision to keep Home from accumulating an entry point for every
+ * new screen.
  */
 export function HomeScreen() {
   const { user, signOut } = useAuth();
@@ -73,6 +78,16 @@ export function HomeScreen() {
         title="Bible"
         onPress={() => navigation.navigate('BibleBooks')}
         testID="bible-nav-button"
+      />
+      <Button
+        title="Profile"
+        onPress={() => navigation.navigate('Profile')}
+        testID="profile-nav-button"
+      />
+      <Button
+        title="Notifications"
+        onPress={() => navigation.navigate('NotificationCenter')}
+        testID="notifications-nav-button"
       />
       <DailyVerseCard />
       <AnnouncementsList />

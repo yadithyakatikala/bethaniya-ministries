@@ -132,6 +132,141 @@ describe('firestore.rules', () => {
       );
     });
 
+    // Day 9: an owner's self-update may touch displayName/photoURL/
+    // languagePreference/themePreference/notificationsEnabled -- and ONLY
+    // those fields, each subject to isValidUserProfileSelfUpdate()'s value
+    // checks -- see firestore.rules' users/{userId} update rule and its
+    // isValidUserProfileSelfUpdate() helper. These cases were added
+    // alongside that rule change; the existing 'own non-role fields' test
+    // above (displayName alone) already covered the pre-Day-9 shape and
+    // still passes unchanged under the new rule.
+    describe('Day 9: self-update field/value restrictions', () => {
+      it('allows a member to update photoURL/languagePreference/themePreference/notificationsEnabled together', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({
+            photoURL: 'https://example.com/photo.jpg',
+            languagePreference: 'te',
+            themePreference: 'dark',
+            notificationsEnabled: false,
+          })
+        );
+      });
+
+      it('allows a member to set photoURL to null', async () => {
+        await seed(async (db) =>
+          db
+            .doc('users/member-1')
+            .set({ role: 'member', displayName: 'A', photoURL: 'https://x/y.jpg' })
+        );
+        const db = dbFor('member-1');
+        await assertSucceeds(db.doc('users/member-1').update({ photoURL: null }));
+      });
+
+      it("blocks a member from self-updating their email field", async () => {
+        await seed(async (db) =>
+          db
+            .doc('users/member-1')
+            .set({ role: 'member', displayName: 'A', email: 'a@example.com' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ email: 'attacker@example.com' })
+        );
+      });
+
+      it('blocks a member from self-updating their phoneNumber field', async () => {
+        await seed(async (db) =>
+          db
+            .doc('users/member-1')
+            .set({ role: 'member', displayName: 'A', phoneNumber: '+10000000000' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ phoneNumber: '+19999999999' })
+        );
+      });
+
+      it('blocks a member from self-updating their createdAt field', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ createdAt: new Date() })
+        );
+      });
+
+      it('blocks bundling an allowed field with a disallowed one in the same self-update', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ displayName: 'B', email: 'new@example.com' })
+        );
+      });
+
+      it('blocks an empty displayName', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ displayName: '' }));
+      });
+
+      it('blocks a displayName over 200 characters', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ displayName: 'x'.repeat(201) })
+        );
+      });
+
+      it('blocks an invalid languagePreference value', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ languagePreference: 'fr' })
+        );
+      });
+
+      it('blocks an invalid themePreference value', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ themePreference: 'blue' })
+        );
+      });
+
+      it('blocks a non-boolean notificationsEnabled value', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ notificationsEnabled: 'yes' })
+        );
+      });
+
+      it('blocks a non-string, non-null photoURL', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ photoURL: 12345 }));
+      });
+    });
+
     it("blocks a content_admin from changing another user's role (only super_admin may)", async () => {
       await seed(async (db) => {
         await db.doc('users/admin-1').set({ role: 'content_admin' });
