@@ -39,6 +39,11 @@ import {
   connectStorageEmulator,
   getStorage,
 } from 'firebase/storage';
+import {
+  type Functions,
+  connectFunctionsEmulator,
+  getFunctions,
+} from 'firebase/functions';
 
 import { type FirebaseWebConfig, getFirebaseConfig } from './config';
 
@@ -86,11 +91,15 @@ export const firebaseApp: FirebaseApp = existingApp ?? initializeApp(config);
 export const auth: Auth = getAuth(firebaseApp);
 export const db: Firestore = getFirestore(firebaseApp);
 export const storage: FirebaseStorage = getStorage(firebaseApp);
+// Day 4: needed to call the logAdminAction callable (Day 3) from real admin
+// actions -- see services/firebase/auditLog.ts. Not used before Day 4.
+export const functions: Functions = getFunctions(firebaseApp);
 
 if (useEmulators && !existingApp) {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectStorageEmulator(storage, 'localhost', 9199);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 
 export const usingFirebaseEmulators = useEmulators;

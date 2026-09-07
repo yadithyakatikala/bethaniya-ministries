@@ -209,10 +209,91 @@ describe('firestore.rules', () => {
       );
     });
 
-    it('allows a content_admin to write announcements', async () => {
+    it('allows a content_admin to write a valid announcement', async () => {
       await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
       await assertSucceeds(
-        dbFor('admin-1').doc('announcements/a2').set({ published: true, body: 'x' })
+        dbFor('admin-1')
+          .doc('announcements/a2')
+          .set({ title: 'Sunday Service', content: 'Join us at 10am.', published: true, imageUrl: null })
+      );
+    });
+
+    // ---- Day 4: isValidAnnouncement() field-level validation ------------
+    // BLOCKED in this environment: cannot run (see the emulator-cache
+    // limitation reported for Day 4 in the End-of-Day report) -- written
+    // now so it's ready to run once the emulator is reachable again.
+    it('blocks a host from writing announcements (content_admin+ only)', async () => {
+      await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
+      await assertFails(
+        dbFor('host-1')
+          .doc('announcements/a3')
+          .set({ title: 'Title', content: 'Content', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write missing a title', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('announcements/a4')
+          .set({ content: 'Content', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write missing content', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('announcements/a5')
+          .set({ title: 'Title', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with an empty title', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('announcements/a6')
+          .set({ title: '', content: 'Content', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with a title over 200 characters', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('announcements/a7')
+          .set({ title: 'x'.repeat(201), content: 'Content', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with a non-boolean published field', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('announcements/a8')
+          .set({ title: 'Title', content: 'Content', published: 'yes', imageUrl: null })
+      );
+    });
+
+    it('allows a content_admin write with imageUrl omitted entirely', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('announcements/a9')
+          .set({ title: 'Title', content: 'Content', published: false })
+      );
+    });
+
+    it("blocks a content_admin update that leaves an existing announcement's title malformed", async () => {
+      await seed(async (db) =>
+        db
+          .doc('announcements/a10')
+          .set({ title: 'Valid', content: 'Content', published: false, imageUrl: null })
+      );
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('announcements/a10').update({ title: '' })
       );
     });
   });

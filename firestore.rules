@@ -54,6 +54,26 @@ service cloud.firestore {
       return isContentAdminOrAbove() || hasRole('host');
     }
 
+    // Announcement field-level validation (Day 4). Re-validates the
+    // client's input server-side, per FINAL_ARCHITECTURE_SPECIFICATION.md's
+    // "Server-Side (Cloud Functions): re-validate all inputs (do not trust
+    // client)" principle -- applied here via rules rather than a dedicated
+    // Cloud Function, matching every other content collection (songs,
+    // events, daily_verses), none of which has one either; see
+    // /SECURITY.md's "Day 4" section for the full reasoning. request.resource.data
+    // is always the complete resulting document (not just changed fields),
+    // for both create and update, so this also covers a partial update like
+    // the publish/unpublish toggle. Length caps bound payload size given the
+    // "mostly plain text" XSS risk assessment in FINAL_ARCHITECTURE_SPECIFICATION.md.
+    function isValidAnnouncement(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.content is string
+        && data.content.size() > 0 && data.content.size() <= 5000
+        && data.published is bool
+        && (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string);
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -80,10 +100,13 @@ service cloud.firestore {
     }
 
     // ---- announcements -----------------------------------------------
+    // Day 4: create/update additionally re-validated via isValidAnnouncement().
     match /announcements/{announcementId} {
       allow read: if isContentAdminOrAbove()
         || (isSignedIn() && resource.data.published == true);
-      allow write: if isContentAdminOrAbove();
+      allow create, update: if isContentAdminOrAbove()
+        && isValidAnnouncement(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
     }
 
     // ---- daily_verses --------------------------------------------------

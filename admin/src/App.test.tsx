@@ -8,7 +8,12 @@ vi.mock('./services/firebase/app', () => ({
   auth: {},
   db: {},
   storage: {},
+  functions: {},
   usingFirebaseEmulators: true,
+}));
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(() => vi.fn()),
 }));
 
 vi.mock('firebase/auth', () => ({
@@ -20,6 +25,21 @@ vi.mock('firebase/auth', () => ({
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   getDoc: vi.fn(),
+  collection: vi.fn(),
+  addDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  deleteDoc: vi.fn(),
+  onSnapshot: vi.fn(() => vi.fn()),
+  orderBy: vi.fn(),
+  query: vi.fn(),
+  serverTimestamp: vi.fn(),
+  Timestamp: class MockTimestamp {},
+}));
+
+vi.mock('firebase/storage', () => ({
+  ref: vi.fn(),
+  uploadBytes: vi.fn(),
+  getDownloadURL: vi.fn(),
 }));
 
 /**

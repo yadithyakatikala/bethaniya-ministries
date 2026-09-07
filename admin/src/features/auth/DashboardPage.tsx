@@ -1,11 +1,14 @@
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 /**
- * Authenticated dashboard shell -- Day 2 only needs to prove the
- * authenticated + authorized state renders and sign-out works; the real
- * admin dashboard screens (content, users, notifications, ...) are later
- * V1 days' scope.
+ * Authenticated dashboard shell -- Day 2 proved the authenticated +
+ * authorized state renders and sign-out works. Day 4 adds a link into the
+ * one real content-management screen that exists so far (Announcements);
+ * a fuller nav/sidebar covering the rest of FINAL_ARCHITECTURE_SPECIFICATION.md's
+ * "Dashboard Overview" (stats, activity feed, quick actions) is later V1
+ * scope, not built here.
  */
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -18,15 +21,25 @@ export function DashboardPage() {
         Welcome, {user?.email ?? 'Admin'}
       </Typography>
       <Typography color="text.secondary" gutterBottom>
-        Role: {role} — Day 2 foundation — dashboard is a placeholder
+        Role: {role}
       </Typography>
-      <Button
-        variant="outlined"
-        onClick={() => void signOut()}
-        data-testid="sign-out-button"
-      >
-        Sign out
-      </Button>
+      <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/announcements"
+          data-testid="announcements-nav-link"
+        >
+          Manage Announcements
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => void signOut()}
+          data-testid="sign-out-button"
+        >
+          Sign out
+        </Button>
+      </Stack>
     </Box>
   );
 }
