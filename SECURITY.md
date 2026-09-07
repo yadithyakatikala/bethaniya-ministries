@@ -148,3 +148,226 @@ This is a small, non-production, pre-launch project — there is no formal
 disclosure process yet. If you find a security issue in this repo, open an
 issue or contact the maintainer directly rather than filing a public issue
 with exploit details, until the app has real users.
+
+## Day 2: Authentication
+
+### Providers and where they run
+
+| App    | Provider(s)                          | Implementation                                                                 |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------- |
+| Mobile | Google, Apple, Phone (OTP)            | Firebase Auth via the Firebase JS SDK (not `@react-native-firebase`)             |
+| Admin  | Email + Password                      | Firebase Auth via the Firebase JS SDK; admin/host accounts are provisioned by a Super Admin, there is no self-signup |
+
+Mobile has no email/password option by design (per
+FINAL_ARCHITECTURE_SPECIFICATION.md's Authentication section) — OAuth/OTP
+only, for simpler member UX. Admin has no OAuth by design — a small,
+known set of staff accounts, provisioned deliberately.
+
+### Google Sign-In
+
+`mobile/src/features/auth/useGoogleSignIn.ts` uses `expo-auth-session`'s
+generic OAuth/OIDC request machinery (`expo-auth-session/providers/google`'s
+`useIdTokenAuthRequest`), not the deprecated `expo-google-app-auth` package.
+It exchanges the resulting Google ID token for a Firebase credential via
+`GoogleAuthProvider.credential()` + `signInWithCredential()`
+(`mobile/src/services/firebase/authService.ts`).
+
+**Blocked on real Google Cloud OAuth Client IDs**, which require the
+Google Cloud/Firebase Console — every `accounts.google.com` /
+`googleapis.com` endpoint is network-blocked in this sandbox (see
+ENVIRONMENT.md), so these credentials cannot be created here. Until
+`EXPO_PUBLIC_GOOGLE_CLIENT_ID` (and/or the per-platform variants) are set in
+`mobile/.env.local`, the "Continue with Google" button renders but stays
+disabled with an explanatory message (`useGoogleSignIn.ts`'s
+`configured`/`canPrompt` flags) — pressing it cannot reach Google at all,
+by construction, rather than failing unpredictably.
+
+### Apple Sign-In
+
+`mobile/src/services/firebase/appleSignIn.ts` uses `expo-apple-authentication`
+(the native "Sign in with Apple" sheet), generates a random nonce, hashes it
+with `expo-crypto` (SHA-256) for the native request, and exchanges the
+resulting identity token + raw nonce for a Firebase credential via
+`OAuthProvider('apple.com').credential()` + `signInWithCredential()`.
+`mobile/app.json` was updated to add the `expo-apple-authentication` config
+plugin (adds the Sign In with Apple entitlement to a native build).
+
+**Blocked on**: a native/custom-dev-client build (this does not work in
+Expo Go at all) and a real Apple Developer Program account with the
+capability enabled for the app's bundle ID — neither exists yet, and
+building one requires `eas-cli`/Apple credentials this environment cannot
+create (see DEPLOYMENT.md's "Mobile app (EAS Build)" section, a
+pre-existing, documented limitation). The button hides itself entirely on
+platforms/devices where `expo-apple-authentication`'s own
+`isAvailableAsync()` reports Apple Sign-In is unsupported, rather than
+showing a button that can never work.
+
+### Phone Authentication — the reCAPTCHA/verifier decision
+
+`signInWithPhoneNumber()` requires an `ApplicationVerifier` (anti-abuse
+challenge). The Firebase JS SDK's concrete implementation,
+`RecaptchaVerifier`, is a browser-only DOM class — **it is not exported
+from the React Native build at all** (confirmed by inspecting
+`node_modules/@firebase/auth/dist/rn/index.js`'s actual exports: it has
+`PhoneAuthProvider` and `signInWithPhoneNumber`, no `RecaptchaVerifier`).
+
+The community package that normally fills this gap on Expo,
+`expo-firebase-recaptcha`, was evaluated and **deliberately not used**: it
+pulls in an outdated `expo-firebase-core` → nested `expo-constants` →
+`{xmldom, semver, uuid, xml2js}` chain that added **4 high + 13 moderate**
+real `npm audit` findings (XML injection, ReDoS, prototype pollution) when
+test-installed, on top of this project's pre-existing 10 moderate,
+unrelated `@expo/*`-tooling findings. `npm audit fix --force` could only
+"fix" this by downgrading to an even older, still-vulnerable version. Given
+the project's own "no unnecessary dependencies" / quality-over-speed
+principles, and that this dependency would ship inside the real app bundle,
+it was installed, audited, and then removed in the same session rather than
+accepted.
+
+Instead, `mobile/src/services/firebase/emulatorRecaptchaVerifier.ts`
+implements a minimal, dependency-free `ApplicationVerifier` (the interface
+is just `{ type: string; verify(): Promise<string> }`) for **emulator-only**
+use. Reading `@firebase/auth`'s actual bundled source confirms `.verify()`
+is only ever invoked when the connected project has reCAPTCHA Enterprise
+phone-provider protection enabled server-side (a real-project Console
+setting this repo's dev project does not have), and the Auth Emulator does
+not enforce any reCAPTCHA check for phone sign-in at all — so this stub is
+sufficient for genuine emulator-backed development and testing.
+`getPhoneApplicationVerifier()` throws if called outside emulator mode, so
+it can never accidentally reach a real backend.
+
+**Blocked on**: real (non-emulator) Phone Authentication has no
+implemented verifier at all — this is a known, deliberate gap, not an
+oversight. Closing it needs either a maintained, dependency-clean
+`RecaptchaVerifier`-equivalent for Expo/React Native (none was found as of
+this writing) or enabling reCAPTCHA Enterprise for the real project. Do not
+reach for `expo-firebase-recaptcha` to close this gap without re-running
+`npm audit` and re-evaluating whether a fixed version exists.
+
+### Role assignment: `createUserProfile()`
+
+`functions/src/createUserProfile.ts` implements the Cloud Function named in
+FINAL_ARCHITECTURE_SPECIFICATION.md ("`createUserProfile()` on first
+sign-in"). It's a `functions.auth.user().onCreate()` trigger (v1 namespace —
+there is no v2 equivalent that fires *after* user creation; v2's `identity`
+triggers are pre-creation *blocking* functions requiring separate Console
+configuration this project doesn't use).
+
+Security properties, each covered by a real test against a running
+Firestore emulator (`functions/src/__tests__/createUserProfile.test.ts`):
+
+- **Runs only from the Auth system itself**, never from anything the
+  mobile/admin client supplies — the client has no way to invoke this
+  function directly or pass it arguments.
+- **The client can never influence the assigned role.** The handler's
+  input type (`AuthUserLike`) has no `role` field at all — there is nothing
+  to trust or distrust, by construction, not by a runtime check that could
+  be bypassed.
+- **Default role is always `'member'`** (the lowest-privilege role) — the
+  only value `MEMBER_ROLE` can be.
+- **Idempotent**: wrapped in a Firestore transaction that checks for an
+  existing document first. Cloud Functions background triggers have
+  at-least-once delivery, so a retried invocation is a no-op rather than a
+  duplicate write.
+- **Never overwrites an existing profile** — including one whose `role` a
+  Super Admin has since elevated. Tested explicitly: a pre-existing
+  `super_admin` profile survives a `createUserProfile` invocation for that
+  same uid unchanged.
+- **Independently enforced twice.** `firestore.rules`'s own create rule
+  (`allow create: if isOwner(userId) && request.resource.data.role ==
+  'member'`) means even a hypothetical direct client write to
+  `/users/{uid}` on create is rejected for any role other than `member` —
+  this function and the rules enforce the same invariant from two
+  unrelated code paths, deliberately, rather than relying on either alone.
+
+Only the fields the Admin Users page actually needs are stored — `role`,
+`displayName`, `email`, `phoneNumber`, `createdAt` — no field beyond what
+FINAL_ARCHITECTURE_SPECIFICATION.md's Day 11 Admin Users page describes
+(name, email, phone, role, join date). No unnecessary personal data is
+collected.
+
+### Admin/Host authorization boundary
+
+`admin/src/routes/ProtectedRoute.tsx` distinguishes: unauthenticated (deny,
+redirect to `/login`); authenticated with role `member` (deny, "Access
+denied" message); authenticated with role `host`/`content_admin`/
+`super_admin` (render the dashboard). The role is read from the signed-in
+user's own `/users/{uid}` document (`admin/src/services/firebase/userProfile.ts`),
+which `firestore.rules` already permits any authenticated user to read
+(`allow read: if isOwner(userId) || isContentAdminOrAbove();`).
+
+**This client-side check is explicitly a UX convenience, not the security
+boundary** — consistent with this file's "hiding a button is not security"
+principle above. A signed-in Member who somehow bypassed
+`ProtectedRoute` (e.g. by disabling JavaScript checks) would still be
+denied every actual Firestore/Storage read or write by `firestore.rules`
+and `storage.rules`, evaluated server-side, unaffected by anything the
+client renders. Day 2 does not add per-feature RBAC (e.g. "hosts can toggle
+live-stream fields but not delete announcements") — only the coarse
+authenticated/member/staff boundary; finer-grained UI gating is later V1
+scope, and is not a security control either way, per the same principle.
+
+### Session persistence
+
+- **Mobile**: `initializeAuth(firebaseApp, { persistence:
+  getReactNativePersistence(AsyncStorage) })` — Firebase Auth's own
+  documented, SDK-provided React Native persistence mechanism, not a
+  hand-rolled storage scheme. **Correction to
+  FINAL_ARCHITECTURE_SPECIFICATION.md**: that document twice described this
+  as "AsyncStorage (encrypted ...)" / "AsyncStorage (encrypted by OS)" —
+  this was inaccurate. Plain `@react-native-async-storage/async-storage`
+  does not encrypt its contents (plain SQLite on Android, plain files on
+  iOS); OS-level full-disk encryption is not the same as app-level
+  encryption of this specific storage. Both lines have been corrected in
+  place in the spec. The actual mitigation is Firebase Auth's own standard
+  mobile design: only a short-lived ID token and a long-lived, individually
+  revocable refresh token are ever persisted — never a password — which is
+  the same pattern Firebase's own official `getReactNativePersistence`
+  helper implements and is the reason this project uses that helper instead
+  of writing to AsyncStorage directly anywhere in the auth flow.
+- **Admin (web)**: Firebase Auth's default web persistence
+  (IndexedDB-backed `indexedDBLocalPersistence`, falling back automatically
+  per Firebase's own SDK logic) — `admin/src/services/firebase/app.ts` calls
+  plain `getAuth(firebaseApp)` without overriding persistence, so it uses
+  whatever Firebase's SDK selects as the safe default for the current
+  browser, per Firebase's own documentation. No admin code writes anything
+  auth-related to `localStorage`/`sessionStorage` directly.
+
+### Error handling
+
+Both apps map every Firebase Auth error code to a short, user-facing
+message and never render a raw Firebase error code or message
+(`mobile/src/services/firebase/authErrors.ts`,
+`admin/src/services/firebase/authErrors.ts`) — covering invalid/expired
+OTP, cancelled Google/Apple sign-in (detected via provider-specific
+cancellation shapes, not just Firebase error codes), network failure, and
+(admin-only) an unauthorized-role message distinct from "wrong password."
+
+### What's actually verified — Day 2 test levels
+
+**Unit tested** (mocked Firebase SDK boundary, no real backend): the full
+mobile auth state machine (`AuthContext`) across
+loading/unauthenticated/authenticated/error and sign-out; `authService`'s
+credential-exchange calls; the phone-OTP screen flow including error
+display; the admin `authStore`/`ProtectedRoute`/`LoginPage` across the same
+states plus the member-vs-staff authorization boundary; every
+`authErrors.ts` mapping, for both apps. 47 mobile + 15 admin tests, all
+passing (`mobile`: `npm test`, `admin`: `npm test`).
+
+**Emulator tested** (real, running Firebase emulators, no mocks): the
+`createUserProfile` Cloud Function's full security-property set, against a
+real Firestore emulator (8/8 functions tests,
+`firebase emulators:exec --only firestore "npm --prefix functions test"`);
+the pre-existing `firestore.rules`/`storage.rules`/client-SDK-wiring suite,
+re-run after all Day 2 changes with no regressions (55 passed, 2
+pre-existing documented skips, unrelated to Day 2).
+
+**NOT tested — do not claim otherwise:** Google Sign-In (blocked on real
+OAuth Client IDs), Apple Sign-In (blocked on a native build + Apple
+Developer account), and real (non-emulator) Phone Authentication (no
+verifier implemented for that case) have **only been unit-tested against
+mocks** — their actual provider integration has never executed against
+Google, Apple, or a real Firebase backend, and no real device has run any
+part of this app. "Implemented" and "actually verified" are different
+claims throughout this section; where a provider says "blocked," treat it
+as implemented-but-unverified, not working.

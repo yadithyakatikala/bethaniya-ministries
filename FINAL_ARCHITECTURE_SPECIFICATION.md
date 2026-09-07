@@ -16,7 +16,7 @@
 - **State Management:** React Context + local state + data-fetching layer (NOT Redux unless justified below)
 - **Navigation:** React Navigation
 - **UI Components:** React Native built-ins + custom components
-- **Local Storage:** AsyncStorage (encrypted session tokens, user preferences)
+- **Local Storage:** AsyncStorage (user preferences; auth session persistence via Firebase Auth's own React Native persistence layer, not manual AsyncStorage writes -- see Day 2 correction below)
 - **Backend SDK:** Firebase SDK (native bindings)
 - **Testing:** Jest + React Native Testing Library
 
@@ -449,7 +449,8 @@ Note: If neither A nor B succeeds by Day 3, we default to C
 - **Not included:** 2FA (add in V2 if needed)
 
 ### Session Management
-- **Mobile:** Firebase token + AsyncStorage (encrypted by OS)
+- **Mobile:** Firebase Auth's built-in React Native persistence (`getReactNativePersistence(AsyncStorage)`), not a manual encrypted-AsyncStorage scheme
+  > **Day 2 correction:** AsyncStorage itself does NOT encrypt its contents (it is plain SQLite on Android / plain files on iOS) -- "encrypted by OS" was inaccurate and has been corrected here and above. The mitigation is Firebase Auth's own standard mobile-SDK design: it stores only a short-lived ID token and a long-lived, individually revocable refresh token (never a password), matching the same pattern Firebase's own official React Native persistence helper uses and documents. See SECURITY.md's "Known limitations" for the full explanation.
 - **Admin:** Firebase session (browser storage)
 - **Logout:** Clears session immediately
 - **Persistence:** Session persists across app restart (intentional)

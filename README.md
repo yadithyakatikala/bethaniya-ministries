@@ -4,8 +4,10 @@ A mobile app (iOS + Android) and admin/host web dashboard for Bethaniya
 Ministries: home feed, Bible (English + Telugu), songs, events with live
 stream support, push notifications, and role-based content management.
 
-**Status:** Day 1 — foundation only. No feature screens are built yet. See
-"What Day 1 actually built" below.
+**Status:** Day 2 — authentication foundation. Beyond Day 1's scaffolding,
+mobile and admin now have a real (architecturally complete) sign-in flow and
+a server-enforced role model; no other feature screens are built yet. See
+"What Day 1 actually built" and "What Day 2 actually built" below.
 
 ## Tech stack
 
@@ -78,7 +80,7 @@ npm run build
   with TypeScript strict mode, ESLint, Prettier, and a passing test in each.
 - Firestore and Storage security rules implementing the RBAC model from the
   spec (deny-by-default, four roles) — tested against real, running Firebase
-  emulators (52 passing, 2 explicitly documented as unverified pending an
+  emulators (55 passing, 2 explicitly documented as unverified pending an
   emulator limitation; see SECURITY.md for the full results).
 - `firebase.json`, indexes, and `.firebaserc.example` — ready for real
   Firebase project IDs once they exist.
@@ -86,10 +88,38 @@ npm run build
 
 ## What Day 1 deliberately did NOT build
 
-Per project instructions, Day 1 is foundation only. No auth flows, no Bible
+Per project instructions, Day 1 was foundation only. No auth flows, no Bible
 UI, no songs/events/notifications screens, no admin CRUD, no live streaming,
-no store submission prep. Those start Day 2 onward — see
-FINAL_ARCHITECTURE_SPECIFICATION.md Section E for the day-by-day plan.
+no store submission prep. Auth started Day 2 (below); everything else
+starts Day 3 onward — see FINAL_ARCHITECTURE_SPECIFICATION.md Section E for
+the day-by-day plan.
+
+## What Day 2 actually built
+
+- **Mobile**: Google Sign-In, Apple Sign-In, and Phone OTP sign-in flows
+  (Firebase Auth), a `loading | unauthenticated | authenticated | error`
+  auth-state Context, basic sign-in/home screens, and Firebase's own
+  React-Native session-persistence helper (not hand-rolled AsyncStorage
+  code). 47 tests passing (`npm test` in `mobile/`).
+- **Admin**: email/password sign-in, a Zustand auth store, a real
+  `ProtectedRoute` enforcing the member/host/content_admin/super_admin
+  boundary, and a basic login/dashboard UI. 15 tests passing (`npm test`
+  in `admin/`).
+- **Functions**: `createUserProfile`, a Cloud Function that creates each
+  user's `/users/{uid}` Firestore profile on first sign-in with a
+  server-assigned `member` role that the client can never influence or
+  overwrite — 8 tests passing against a real Firestore emulator
+  (`firebase emulators:exec --only firestore "npm --prefix functions test"`).
+- A corrected `FINAL_ARCHITECTURE_SPECIFICATION.md` (an inaccurate claim
+  about AsyncStorage being encrypted was fixed) and new "Day 2:
+  Authentication" sections in SECURITY.md and ARCHITECTURE.md.
+
+**Explicitly not verified against a real provider or device**: Google
+Sign-In, Apple Sign-In, and non-emulator Phone Authentication are
+implemented and unit-tested against mocks only — see SECURITY.md's "What's
+actually verified — Day 2 test levels" for the exact breakdown and why
+(network-blocked OAuth Console access; Apple Developer account + native
+build requirements).
 
 ## Bible content licensing
 
