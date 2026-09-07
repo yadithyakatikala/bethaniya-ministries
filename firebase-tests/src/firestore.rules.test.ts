@@ -317,9 +317,95 @@ describe('firestore.rules', () => {
       await assertFails(dbFor('member-1').doc('daily_verses/v1').set({ text: 'x' }));
     });
 
-    it('allows a content_admin to write', async () => {
+    it('allows a content_admin to write a valid daily verse', async () => {
       await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
-      await assertSucceeds(dbFor('admin-1').doc('daily_verses/v1').set({ text: 'x' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('daily_verses/v2')
+          .set({
+            reference: 'John 3:16',
+            text: 'For God so loved the world...',
+            date: '2026-09-07',
+            imageUrl: null,
+          })
+      );
+    });
+
+    // ---- Day 5: isValidDailyVerse() field-level validation ---------------
+    // BLOCKED in this environment: cannot run (same emulator-cache
+    // limitation reported for Day 4/5's other rules tests) -- written now
+    // so it's ready to run once the emulator is reachable again.
+    it('blocks a host from writing daily verses (content_admin+ only)', async () => {
+      await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
+      await assertFails(
+        dbFor('host-1')
+          .doc('daily_verses/v3')
+          .set({ reference: 'Ref', text: 'Text', date: '2026-09-07', imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write missing a reference', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('daily_verses/v4')
+          .set({ text: 'Text', date: '2026-09-07', imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write missing text', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('daily_verses/v5')
+          .set({ reference: 'Ref', date: '2026-09-07', imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with a missing date', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('daily_verses/v6')
+          .set({ reference: 'Ref', text: 'Text', imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with a malformed date', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('daily_verses/v7')
+          .set({ reference: 'Ref', text: 'Text', date: 'not-a-date', imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write with a reference over 200 characters', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('daily_verses/v8')
+          .set({ reference: 'x'.repeat(201), text: 'Text', date: '2026-09-07', imageUrl: null })
+      );
+    });
+
+    it('allows a content_admin write with imageUrl omitted entirely', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('daily_verses/v9')
+          .set({ reference: 'Ref', text: 'Text', date: '2026-09-07' })
+      );
+    });
+
+    it("blocks a content_admin update that leaves an existing daily verse's text malformed", async () => {
+      await seed(async (db) =>
+        db
+          .doc('daily_verses/v10')
+          .set({ reference: 'Ref', text: 'Valid text', date: '2026-09-07', imageUrl: null })
+      );
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(dbFor('admin-1').doc('daily_verses/v10').update({ text: '' }));
     });
   });
 

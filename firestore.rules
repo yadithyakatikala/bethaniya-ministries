@@ -59,11 +59,11 @@ service cloud.firestore {
     // "Server-Side (Cloud Functions): re-validate all inputs (do not trust
     // client)" principle -- applied here via rules rather than a dedicated
     // Cloud Function, matching every other content collection (songs,
-    // events, daily_verses), none of which has one either; see
-    // /SECURITY.md's "Day 4" section for the full reasoning. request.resource.data
-    // is always the complete resulting document (not just changed fields),
-    // for both create and update, so this also covers a partial update like
-    // the publish/unpublish toggle. Length caps bound payload size given the
+    // events), none of which has one; see /SECURITY.md's "Day 4" section
+    // for the full reasoning. request.resource.data is always the
+    // complete resulting document (not just changed fields), for both
+    // create and update, so this also covers a partial update like the
+    // publish/unpublish toggle. Length caps bound payload size given the
     // "mostly plain text" XSS risk assessment in FINAL_ARCHITECTURE_SPECIFICATION.md.
     function isValidAnnouncement(data) {
       return data.title is string
@@ -71,6 +71,24 @@ service cloud.firestore {
         && data.content is string
         && data.content.size() > 0 && data.content.size() <= 5000
         && data.published is bool
+        && (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string);
+    }
+
+    // Daily-verse field-level validation (Day 5). Same reasoning as
+    // isValidAnnouncement() above, applied to daily_verses' fields.
+    // Unlike announcements there is no `published` field to validate --
+    // daily_verses has no publish/unpublish concept (see the RBAC table's
+    // unconditional "Read" for that collection, and the read rule below,
+    // which is unchanged). `date` must be a YYYY-MM-DD string, matching
+    // what admin/src/features/daily-verses/validation.ts and
+    // mobile/src/services/firebase/dailyVerses.ts both already assume.
+    function isValidDailyVerse(data) {
+      return data.reference is string
+        && data.reference.size() > 0 && data.reference.size() <= 200
+        && data.text is string
+        && data.text.size() > 0 && data.text.size() <= 5000
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string);
     }
 
@@ -110,9 +128,14 @@ service cloud.firestore {
     }
 
     // ---- daily_verses --------------------------------------------------
+    // Day 5: create/update additionally re-validated via isValidDailyVerse().
+    // Read is unchanged -- unconditional for any signed-in user, per the
+    // RBAC table's daily_verses row (no publish gate, unlike announcements).
     match /daily_verses/{verseId} {
       allow read: if isSignedIn();
-      allow write: if isContentAdminOrAbove();
+      allow create, update: if isContentAdminOrAbove()
+        && isValidDailyVerse(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
     }
 
     // ---- songs -----------------------------------------------------

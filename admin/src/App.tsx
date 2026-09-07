@@ -7,6 +7,9 @@ import { DashboardPage } from './features/auth/DashboardPage';
 import { AnnouncementsListPage } from './features/announcements/AnnouncementsListPage';
 import { AnnouncementForm } from './features/announcements/AnnouncementForm';
 import { EditAnnouncementPage } from './features/announcements/EditAnnouncementPage';
+import { DailyVersesListPage } from './features/daily-verses/DailyVersesListPage';
+import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
+import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -21,6 +24,7 @@ import { subscribeToAuthChanges } from './store/authStore';
  * ProtectedRoute -- the same authenticated/authorized boundary applies to
  * every admin screen, not just the dashboard shell; write actions within
  * those screens are further gated by role, see AnnouncementsListPage.tsx).
+ * Day 5 adds /daily-verses* the same way (see DailyVersesListPage.tsx).
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -60,6 +64,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <EditAnnouncementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-verses"
+            element={
+              <ProtectedRoute>
+                <DailyVersesListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-verses/new"
+            element={
+              <ProtectedRoute>
+                <DailyVerseForm mode="create" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-verses/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditDailyVersePage />
               </ProtectedRoute>
             }
           />
