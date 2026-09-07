@@ -1,7 +1,10 @@
 import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 /**
  * Static church branding block -- Day 5's Home Screen "Work" item
@@ -31,11 +34,16 @@ function ChurchBranding() {
  * (AnnouncementsList). Day 5 adds church branding (static -- see
  * ChurchBranding above) and the daily verse card (DailyVerseCard), per
  * the spec's "Home screen UI (church branding + daily verse card +
- * announcements list)" plan item. Tap-to-detail navigation for
- * announcements is later scope and still not built here.
+ * announcements list)" plan item. Day 6 adds a "Songs" entry point into
+ * the real navigation introduced this day (see AppNavigator.tsx) --
+ * HomeScreen is itself the "Home" screen registered in that stack, so
+ * `useNavigation()` is how it reaches "SongsList" rather than a prop.
+ * Tap-to-detail navigation for announcements is later scope and still
+ * not built here.
  */
 export function HomeScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
 
@@ -50,6 +58,11 @@ export function HomeScreen() {
         />
       </View>
       <ChurchBranding />
+      <Button
+        title="Songs"
+        onPress={() => navigation.navigate('SongsList')}
+        testID="songs-nav-button"
+      />
       <DailyVerseCard />
       <AnnouncementsList />
     </ScrollView>

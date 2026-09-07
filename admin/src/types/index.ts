@@ -81,3 +81,49 @@ export interface DailyVerseFormInput {
   imageUrl: string | null;
   date: string;
 }
+
+/**
+ * A song document at /songs/{id}, per FINAL_ARCHITECTURE_SPECIFICATION.md's
+ * Day 6 plan. Unlike DailyVerse, songs DO have a `published` field -- the
+ * RBAC table's songs row is "Member: Read published / Host: Read all",
+ * the same shape as Announcement, and firestore.rules' existing songs
+ * rule already reflects that.
+ *
+ * `audioUrl` is always an external URL -- per storage.rules' own comment
+ * ("no audio files in Storage; song audio is referenced by external URL")
+ * this project deliberately does not upload or store audio in Firebase
+ * Storage. It must be a direct link to a playable audio file or stream
+ * (e.g. .mp3/.m4a/.wav, or an HLS .m3u8 URL) -- expo-audio (the mobile
+ * player, see mobile/src/features/songs/AudioPlayer.tsx) hands this URI
+ * straight to the platform's native media player, which does not resolve
+ * third-party webpages such as a YouTube watch page or a Spotify track
+ * page into playable audio, so those are not valid values here even
+ * though the spec's own sample-data note mentions them loosely.
+ * `coverUrl` is the one Storage-backed field here, uploaded the same way
+ * Announcement's/DailyVerse's imageUrl are (see
+ * services/firebase/songs.ts's uploadSongCoverImage).
+ */
+export interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  category: string;
+  lyrics: string;
+  audioUrl: string;
+  /** Storage download URL, or null until a cover is uploaded/if none is set. */
+  coverUrl: string | null;
+  /** Controls visibility to members -- see firestore.rules' songs read rule. */
+  published: boolean;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin form actually collects -- id/createdAt/updatedAt/published are set elsewhere (see services/firebase/songs.ts). */
+export interface SongFormInput {
+  title: string;
+  artist: string;
+  category: string;
+  lyrics: string;
+  audioUrl: string;
+  coverUrl: string | null;
+}

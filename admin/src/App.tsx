@@ -10,6 +10,9 @@ import { EditAnnouncementPage } from './features/announcements/EditAnnouncementP
 import { DailyVersesListPage } from './features/daily-verses/DailyVersesListPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
+import { SongsListPage } from './features/songs/SongsListPage';
+import { SongForm } from './features/songs/SongForm';
+import { EditSongPage } from './features/songs/EditSongPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -25,6 +28,8 @@ import { subscribeToAuthChanges } from './store/authStore';
  * every admin screen, not just the dashboard shell; write actions within
  * those screens are further gated by role, see AnnouncementsListPage.tsx).
  * Day 5 adds /daily-verses* the same way (see DailyVersesListPage.tsx).
+ * Day 6 adds /songs* the same way (see SongsListPage.tsx) -- songs has the
+ * same publish-concept RBAC shape as announcements, unlike daily_verses.
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -88,6 +93,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <EditDailyVersePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/songs"
+            element={
+              <ProtectedRoute>
+                <SongsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/songs/new"
+            element={
+              <ProtectedRoute>
+                <SongForm mode="create" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/songs/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditSongPage />
               </ProtectedRoute>
             }
           />

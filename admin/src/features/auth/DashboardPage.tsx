@@ -6,7 +6,8 @@ import { useAuthStore } from '../../store/authStore';
  * Authenticated dashboard shell -- Day 2 proved the authenticated +
  * authorized state renders and sign-out works. Day 4 adds a link into the
  * one real content-management screen that exists so far (Announcements);
- * Day 5 adds a second link for Daily Verses. A fuller nav/sidebar covering
+ * Day 5 adds a second link for Daily Verses; Day 6 adds a third for Songs.
+ * A fuller nav/sidebar covering
  * the rest of FINAL_ARCHITECTURE_SPECIFICATION.md's "Dashboard Overview"
  * (stats, activity feed, quick actions) is later V1 scope, not built here.
  */
@@ -39,6 +40,14 @@ export function DashboardPage() {
           data-testid="daily-verses-nav-link"
         >
           Manage Daily Verses
+        </Button>
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/songs"
+          data-testid="songs-nav-link"
+        >
+          Manage Songs
         </Button>
         <Button
           variant="outlined"

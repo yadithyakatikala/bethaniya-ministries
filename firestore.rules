@@ -92,6 +92,30 @@ service cloud.firestore {
         && (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string);
     }
 
+    // Song field-level validation (Day 6). Same reasoning as
+    // isValidAnnouncement() above, applied to songs' fields -- songs has
+    // the same publish-concept RBAC shape as announcements (unlike
+    // daily_verses), so `published` is validated the same way here too.
+    // `audioUrl` is checked for string presence/length only, not URL
+    // shape -- per storage.rules' own doc comment, song audio is always
+    // an external URL (never uploaded to Firebase Storage), and this
+    // mirrors imageUrl/coverUrl's existing string-only validation rather
+    // than adding a new kind of check no other field here has.
+    function isValidSong(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.artist is string
+        && data.artist.size() > 0 && data.artist.size() <= 200
+        && data.category is string
+        && data.category.size() > 0 && data.category.size() <= 100
+        && data.lyrics is string
+        && data.lyrics.size() > 0 && data.lyrics.size() <= 10000
+        && data.audioUrl is string
+        && data.audioUrl.size() > 0 && data.audioUrl.size() <= 2000
+        && data.published is bool
+        && (!('coverUrl' in data) || data.coverUrl == null || data.coverUrl is string);
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -139,10 +163,13 @@ service cloud.firestore {
     }
 
     // ---- songs -----------------------------------------------------
+    // Day 6: create/update additionally re-validated via isValidSong().
     match /songs/{songId} {
       allow read: if isContentAdminOrAbove()
         || (isSignedIn() && resource.data.published == true);
-      allow write: if isContentAdminOrAbove();
+      allow create, update: if isContentAdminOrAbove()
+        && isValidSong(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
     }
 
     // ---- events -----------------------------------------------------

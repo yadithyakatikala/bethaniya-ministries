@@ -422,6 +422,207 @@ describe('firestore.rules', () => {
       await seed(async (db) => db.doc('users/member-1').set({ role: 'member' }));
       await assertFails(dbFor('member-1').doc('songs/s1').set({ published: true }));
     });
+
+    it('allows a content_admin to write a valid song', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('songs/s2')
+          .set({
+            title: 'Amazing Grace',
+            artist: 'Traditional',
+            category: 'Hymn',
+            lyrics: 'Amazing grace, how sweet the sound',
+            audioUrl: 'https://example.com/amazing-grace.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    // ---- Day 6: isValidSong() field-level validation ---------------------
+    // BLOCKED in this environment: cannot run (see the emulator-cache
+    // limitation reported for Day 4 in the End-of-Day report) -- written
+    // now so it's ready to run once the emulator is reachable again.
+    it('blocks a host from writing songs (content_admin+ only)', async () => {
+      await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
+      await assertFails(
+        dbFor('host-1')
+          .doc('songs/s3')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write missing a title', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s4')
+          .set({
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write missing an artist', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s5')
+          .set({
+            title: 'Title',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write missing a category', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s6')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write missing lyrics', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s7')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            category: 'Category',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write missing an audioUrl', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s8')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write with an empty title', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s9')
+          .set({
+            title: '',
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write with a title over 200 characters', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s10')
+          .set({
+            title: 'x'.repeat(201),
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: true,
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('blocks a content_admin write with a non-boolean published field', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('songs/s11')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: 'yes',
+            coverUrl: null,
+          })
+      );
+    });
+
+    it('allows a content_admin write with coverUrl omitted entirely', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('songs/s12')
+          .set({
+            title: 'Title',
+            artist: 'Artist',
+            category: 'Category',
+            lyrics: 'Lyrics',
+            audioUrl: 'https://example.com/song.mp3',
+            published: false,
+          })
+      );
+    });
+
+    it("blocks a content_admin update that leaves an existing song's title malformed", async () => {
+      await seed(async (db) =>
+        db.doc('songs/s13').set({
+          title: 'Valid',
+          artist: 'Artist',
+          category: 'Category',
+          lyrics: 'Lyrics',
+          audioUrl: 'https://example.com/song.mp3',
+          published: false,
+          coverUrl: null,
+        })
+      );
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(dbFor('admin-1').doc('songs/s13').update({ title: '' }));
+    });
   });
 
   describe('events (host field-restricted update)', () => {
