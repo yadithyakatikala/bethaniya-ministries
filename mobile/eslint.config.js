@@ -10,4 +10,15 @@ module.exports = [
   {
     ignores: ['dist/*', 'node_modules/*', '.expo/*'],
   },
+  {
+    // Jest manual mocks (__mocks__/) and the Jest setup file use the global
+    // `jest` object outside of any *.test.* file, so eslint-config-expo's
+    // test-file glob (which supplies Jest globals) doesn't cover them.
+    files: ['jest.setup.js', '**/__mocks__/**/*.js'],
+    languageOptions: {
+      globals: {
+        jest: 'readonly',
+      },
+    },
+  },
 ];

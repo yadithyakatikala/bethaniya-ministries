@@ -1,41 +1,36 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
 import { AppStateProvider } from './src/context/AppStateContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LoadingScreen } from './src/features/auth/LoadingScreen';
+import { SignInScreen } from './src/features/auth/SignInScreen';
+import { HomeScreen } from './src/features/auth/HomeScreen';
 
 /**
- * Root component — Day 1 foundation placeholder.
+ * Root component.
  *
- * This intentionally does NOT implement the real "Maranatha" splash screen,
- * navigation, or auth flow yet (see project instructions: Day 1 is foundation
- * only). It exists to prove the scaffold builds, runs, and is wired to the
- * app-wide context provider that later screens will consume.
+ * Day 1 built the scaffold; Day 2 adds the real authentication foundation
+ * (see AuthContext.tsx): the app now renders one of Loading / SignIn / Home
+ * based on Firebase's actual auth state, instead of the static placeholder
+ * screen Day 1 shipped.
  */
 export default function App() {
   return (
     <AppStateProvider>
-      <View style={styles.container}>
-        <Text style={styles.title}>Bethaniya Ministries</Text>
-        <Text style={styles.subtitle}>Day 1 foundation — under construction</Text>
+      <AuthProvider>
+        <AuthGate />
         <StatusBar style="auto" />
-      </View>
+      </AuthProvider>
     </AppStateProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-});
+function AuthGate() {
+  const { status } = useAuth();
+
+  if (status === 'loading') return <LoadingScreen />;
+  if (status === 'authenticated') return <HomeScreen />;
+  // 'unauthenticated' and 'error' both resolve to the sign-in screen -- an
+  // Auth-subsystem error (see AuthContext.tsx) still needs a way for the
+  // user to retry signing in, and authErrorMessage surfaces what went wrong.
+  return <SignInScreen />;
+}
