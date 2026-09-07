@@ -16,6 +16,12 @@ class MockTimestamp {
   toDate() {
     return new Date(this.seconds * 1000);
   }
+  static now() {
+    return new MockTimestamp(Math.floor(Date.now() / 1000));
+  }
+  static fromDate(date) {
+    return new MockTimestamp(Math.floor(date.getTime() / 1000));
+  }
 }
 
 export const Timestamp = MockTimestamp;

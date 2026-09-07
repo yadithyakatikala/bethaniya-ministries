@@ -625,39 +625,54 @@ describe('firestore.rules', () => {
     });
   });
 
-  describe('events (host field-restricted update)', () => {
+  describe('events (host field-restricted update, isValidEvent())', () => {
+    /** A complete, isValidEvent()-passing event document -- spread and override per test. */
+    function validEvent(overrides: Record<string, unknown> = {}) {
+      return {
+        title: 'Sunday Service',
+        location: '123 Main St, Springfield',
+        description: 'Weekly gathering with worship and teaching.',
+        startsAt: new Date('2026-09-20T18:30:00Z'),
+        published: true,
+        isLive: false,
+        youtubeUrl: '',
+        ...overrides,
+      };
+    }
+
     it('blocks a host from creating an event', async () => {
       await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
-      await assertFails(
-        dbFor('host-1')
-          .doc('events/e1')
-          .set({ published: true, title: 'x', isLive: false })
-      );
+      await assertFails(dbFor('host-1').doc('events/e1').set(validEvent()));
     });
 
     it('allows a host to update only isLive/youtubeUrl on an existing event', async () => {
       await seed(async (db) => {
         await db.doc('users/host-1').set({ role: 'host' });
-        await db.doc('events/e1').set({
-          published: true,
-          title: 'Sunday Service',
-          isLive: false,
-          youtubeUrl: '',
-        });
+        await db.doc('events/e1').set(validEvent());
       });
       await assertSucceeds(
         dbFor('host-1')
           .doc('events/e1')
-          .update({ isLive: true, youtubeUrl: 'https://youtu.be/x' })
+          .update({ isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' })
+      );
+    });
+
+    it('allows a host to clear youtubeUrl back to an empty string', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db
+          .doc('events/e1')
+          .set(validEvent({ isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' }));
+      });
+      await assertSucceeds(
+        dbFor('host-1').doc('events/e1').update({ isLive: false, youtubeUrl: '' })
       );
     });
 
     it('blocks a host from updating other event fields (e.g. title)', async () => {
       await seed(async (db) => {
         await db.doc('users/host-1').set({ role: 'host' });
-        await db
-          .doc('events/e1')
-          .set({ published: true, title: 'Sunday Service', isLive: false });
+        await db.doc('events/e1').set(validEvent());
       });
       await assertFails(dbFor('host-1').doc('events/e1').update({ title: 'Renamed' }));
     });
@@ -665,33 +680,121 @@ describe('firestore.rules', () => {
     it('blocks a host from updating title even when isLive is also included', async () => {
       await seed(async (db) => {
         await db.doc('users/host-1').set({ role: 'host' });
-        await db
-          .doc('events/e1')
-          .set({ published: true, title: 'Sunday Service', isLive: false });
+        await db.doc('events/e1').set(validEvent());
       });
       await assertFails(
         dbFor('host-1').doc('events/e1').update({ isLive: true, title: 'Renamed' })
       );
     });
 
-    it('allows a content_admin to create and fully edit events', async () => {
+    it("blocks a host's live-stream update if the resulting youtubeUrl is not a valid http(s) URL", async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('events/e1').set(validEvent());
+      });
+      await assertFails(
+        dbFor('host-1')
+          .doc('events/e1')
+          .update({ isLive: true, youtubeUrl: 'not-a-url' })
+      );
+    });
+
+    // Regression test for a Day 7 review finding: an earlier version of
+    // admin/src/services/firebase/events.ts's setEventLiveStream() also
+    // wrote `updatedAt` alongside isLive/youtubeUrl. Because the rule
+    // below is `.hasOnly(['isLive', 'youtubeUrl'])` -- not `.hasAny(...)`
+    // -- a Host write that touches ANY other key, including updatedAt,
+    // must be rejected. This test proves the rule itself is correctly
+    // strict (it was never the bug); the fix was removing updatedAt from
+    // the client write, covered separately in
+    // admin/src/services/firebase/__tests__/events.test.ts.
+    it('blocks a host from modifying updatedAt, even when bundled with a valid isLive/youtubeUrl update', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('events/e1').set(validEvent());
+      });
+      await assertFails(
+        dbFor('host-1')
+          .doc('events/e1')
+          .update({
+            isLive: true,
+            youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+            updatedAt: new Date(),
+          })
+      );
+    });
+
+    it('allows a content_admin to create a valid event and fully edit it', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(dbFor('admin-1').doc('events/e2').set(validEvent()));
+      await assertSucceeds(
+        dbFor('admin-1').doc('events/e2').update(validEvent({ title: 'Renamed' }))
+      );
+    });
+
+    it('allows a super_admin the same full event management as a content_admin', async () => {
+      await seed(async (db) => db.doc('users/super-1').set({ role: 'super_admin' }));
+      await assertSucceeds(dbFor('super-1').doc('events/e2').set(validEvent()));
+      await assertSucceeds(
+        dbFor('super-1').doc('events/e2').update(validEvent({ title: 'Renamed' }))
+      );
+      await assertSucceeds(dbFor('super-1').doc('events/e2').delete());
+    });
+
+    it('allows a content_admin to delete an event; blocks a host from deleting', async () => {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('events/e1').set(validEvent());
+        await db.doc('events/e2').set(validEvent());
+      });
+      await assertFails(dbFor('host-1').doc('events/e1').delete());
+      await assertSucceeds(dbFor('admin-1').doc('events/e2').delete());
+    });
+
+    it('blocks a content_admin create with a missing required field (e.g. no location)', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const { location: _location, ...withoutLocation } = validEvent();
+      await assertFails(dbFor('admin-1').doc('events/e3').set(withoutLocation));
+    });
+
+    it('blocks a content_admin create where startsAt is not a timestamp', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('events/e3')
+          .set(validEvent({ startsAt: '2026-09-20T18:30:00Z' }))
+      );
+    });
+
+    it('blocks a content_admin create with a non-YouTube-shaped youtubeUrl', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('events/e3').set(validEvent({ youtubeUrl: 'not-a-url' }))
+      );
+    });
+
+    it('allows a content_admin create with an empty youtubeUrl (no stream set yet)', async () => {
       await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
       await assertSucceeds(
-        dbFor('admin-1')
-          .doc('events/e2')
-          .set({ published: true, title: 'x', isLive: false })
-      );
-      await assertSucceeds(
-        dbFor('admin-1').doc('events/e2').update({ title: 'Renamed' })
+        dbFor('admin-1').doc('events/e3').set(validEvent({ youtubeUrl: '' }))
       );
     });
 
     it('blocks a member from reading an unpublished event', async () => {
       await seed(async (db) => {
         await db.doc('users/member-1').set({ role: 'member' });
-        await db.doc('events/e1').set({ published: false, title: 'x' });
+        await db.doc('events/e1').set(validEvent({ published: false }));
       });
       await assertFails(dbFor('member-1').doc('events/e1').get());
+    });
+
+    it('allows a member to read a published event', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('events/e1').set(validEvent({ published: true }));
+      });
+      await assertSucceeds(dbFor('member-1').doc('events/e1').get());
     });
   });
 

@@ -116,6 +116,35 @@ service cloud.firestore {
         && (!('coverUrl' in data) || data.coverUrl == null || data.coverUrl is string);
     }
 
+    // Event field-level validation (Day 7). Same reasoning as
+    // isValidAnnouncement() above, applied to events' fields -- events adds
+    // isLive/youtubeUrl on top of the same publish-concept shape songs has.
+    // This function is applied to BOTH the Content-Admin write branch and
+    // the Host-only field-restricted update branch below (see the events
+    // match block) -- request.resource.data is always the *complete*
+    // resulting document for an update, not a diff, so a Host's
+    // isLive/youtubeUrl-only update must still produce a fully valid
+    // event (which it will, since title/location/description/startsAt/
+    // published are carried over unchanged from the existing, already-
+    // valid document -- a Host's update never touches them, enforced by
+    // the .diff().affectedKeys().hasOnly([...]) check alongside this one).
+    // youtubeUrl may be an empty string (no stream URL set yet) or an
+    // http(s) URL -- never arbitrary text, but also never required.
+    function isValidEvent(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.location is string
+        && data.location.size() > 0 && data.location.size() <= 200
+        && data.description is string
+        && data.description.size() > 0 && data.description.size() <= 2000
+        && data.startsAt is timestamp
+        && data.published is bool
+        && data.isLive is bool
+        && data.youtubeUrl is string
+        && data.youtubeUrl.size() <= 2000
+        && data.youtubeUrl.matches('^$|^https?://.+');
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -173,15 +202,18 @@ service cloud.firestore {
     }
 
     // ---- events -----------------------------------------------------
+    // Day 7: create/update additionally re-validated via isValidEvent().
     match /events/{eventId} {
       allow read: if isContentAdminOrAbove()
         || (isSignedIn() && resource.data.published == true);
       // Content Admins manage events; Hosts may only toggle live-stream fields.
-      allow create, delete: if isContentAdminOrAbove();
-      allow update: if isContentAdminOrAbove()
+      allow create: if isContentAdminOrAbove() && isValidEvent(request.resource.data);
+      allow update: if (isContentAdminOrAbove() && isValidEvent(request.resource.data))
         || (isHostOrAbove()
           && request.resource.data.diff(resource.data)
-               .affectedKeys().hasOnly(['isLive', 'youtubeUrl']));
+               .affectedKeys().hasOnly(['isLive', 'youtubeUrl'])
+          && isValidEvent(request.resource.data));
+      allow delete: if isContentAdminOrAbove();
     }
 
     // ---- notifications_log --------------------------------------------

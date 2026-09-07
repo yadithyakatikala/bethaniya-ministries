@@ -127,3 +127,32 @@ export interface SongFormInput {
   audioUrl: string;
   coverUrl: string | null;
 }
+
+/**
+ * An event (service, gathering, live stream, etc). `published` controls member visibility
+ * (see firestore.rules' events read rule). `isLive`/`youtubeUrl` are managed separately by the
+ * Live Stream Manager -- Hosts may update only those two fields (see firestore.rules), never the
+ * rest of the document.
+ */
+export interface Event {
+  id: string;
+  title: string;
+  location: string;
+  description: string;
+  startsAt: Date | null;
+  published: boolean;
+  isLive: boolean;
+  /** YouTube URL for the live stream/recording, or '' if none is set yet. Not arbitrary media -- see mobile's youtube.ts parser. */
+  youtubeUrl: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin event form collects -- id/published/isLive/youtubeUrl/createdAt/updatedAt are set elsewhere (see services/firebase/events.ts). */
+export interface EventFormInput {
+  title: string;
+  location: string;
+  description: string;
+  /** ISO-ish string from a <input type="datetime-local"> field; parsed to a Date on submit. */
+  startsAt: string;
+}

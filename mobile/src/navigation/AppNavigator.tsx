@@ -4,6 +4,10 @@ import { HomeScreen } from '../features/auth/HomeScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
 import { SongDetailScreen } from '../features/songs/SongDetailScreen';
 import type { PublishedSong } from '../services/firebase/songs';
+import { EventsListScreen } from '../features/events/EventsListScreen';
+import { EventDetailScreen } from '../features/events/EventDetailScreen';
+import { YouTubePlayerScreen } from '../features/events/YouTubePlayerScreen';
+import type { PublishedEvent } from '../services/firebase/events';
 
 /**
  * Real navigation, introduced in Day 6 -- per the user's explicit
@@ -16,19 +20,28 @@ import type { PublishedSong } from '../services/firebase/songs';
  *
  * Matches the approved structure exactly:
  *   Home -> Songs (SongsList) -> Song Detail + Player (SongDetail)
+ *   Home -> Events (EventsList) -> Event Detail (EventDetail) -> YouTube
+ *     Player (YouTubePlayer), reached only via EventDetail's "WATCH LIVE"
+ *     button, itself only shown when the event is actually live.
  *
- * SongDetail receives the full song object as a route param rather than
- * an id the screen re-subscribes by -- SongsListScreen already holds the
- * complete, real-time PublishedSong list, so passing the object avoids a
- * redundant second Firestore subscription for a screen this simple.
- * Proportional to Day 6; a param-store or id-based re-fetch pattern can
- * be introduced later if a future day's screen needs to be linked to
- * directly (e.g. from a push notification) without coming from the list.
+ * SongDetail/EventDetail receive the full song/event object as a route
+ * param rather than an id the screen re-subscribes by -- SongsListScreen/
+ * EventsListScreen already hold the complete, real-time list, so passing
+ * the object avoids a redundant second Firestore subscription for a
+ * screen this simple. Proportional to Days 6-7; a param-store or
+ * id-based re-fetch pattern can be introduced later if a future day's
+ * screen needs to be linked to directly (e.g. from a push notification)
+ * without coming from the list. YouTubePlayer takes only the raw
+ * youtubeUrl string (not the whole event) -- see youtube.ts for how it's
+ * parsed into a playable embed URL.
  */
 export type RootStackParamList = {
   Home: undefined;
   SongsList: undefined;
   SongDetail: { song: PublishedSong };
+  EventsList: undefined;
+  EventDetail: { event: PublishedEvent };
+  YouTubePlayer: { youtubeUrl: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,6 +60,21 @@ export function AppNavigator() {
           name="SongDetail"
           component={SongDetailScreen}
           options={({ route }) => ({ title: route.params.song.title })}
+        />
+        <Stack.Screen
+          name="EventsList"
+          component={EventsListScreen}
+          options={{ title: 'Events' }}
+        />
+        <Stack.Screen
+          name="EventDetail"
+          component={EventDetailScreen}
+          options={({ route }) => ({ title: route.params.event.title })}
+        />
+        <Stack.Screen
+          name="YouTubePlayer"
+          component={YouTubePlayerScreen}
+          options={{ title: 'Live Stream' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

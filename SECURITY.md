@@ -68,7 +68,9 @@ self-elevation block (a member cannot set their own role, on create or
 update), the super_admin-only + single-field-only role update rule, the
 published/unpublished content-visibility split, the host's field-restricted
 event update (`isLive`/`youtubeUrl` only, denied even when bundled with a
-disallowed field), the `notifications_log`/`audit_log` client-write-always-false
+disallowed field, and still subject to the same `isValidEvent()` field
+validation as a content_admin's write -- see `firestore.rules`), the
+`notifications_log`/`audit_log` client-write-always-false
 rule, Storage's 5MB size cap and image-content-type check on both the
 `content/` and per-user profile-photo paths, and users being unable to
 write another user's profile path. Full test list: `firebase-tests/src/*.test.ts`.

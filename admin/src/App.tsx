@@ -13,6 +13,9 @@ import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
 import { SongsListPage } from './features/songs/SongsListPage';
 import { SongForm } from './features/songs/SongForm';
 import { EditSongPage } from './features/songs/EditSongPage';
+import { EventsListPage } from './features/events/EventsListPage';
+import { EventForm } from './features/events/EventForm';
+import { EditEventPage } from './features/events/EditEventPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -30,6 +33,9 @@ import { subscribeToAuthChanges } from './store/authStore';
  * Day 5 adds /daily-verses* the same way (see DailyVersesListPage.tsx).
  * Day 6 adds /songs* the same way (see SongsListPage.tsx) -- songs has the
  * same publish-concept RBAC shape as announcements, unlike daily_verses.
+ * Day 7 adds /events* the same way (see EventsListPage.tsx) -- events adds
+ * a second, narrower write surface for the Host role (live-stream fields
+ * only), on top of the same publish-concept shape.
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -117,6 +123,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <EditSongPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events"
+            element={
+              <ProtectedRoute>
+                <EventsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/new"
+            element={
+              <ProtectedRoute>
+                <EventForm mode="create" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditEventPage />
               </ProtectedRoute>
             }
           />
