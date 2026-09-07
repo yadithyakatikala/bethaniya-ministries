@@ -371,3 +371,104 @@ Google, Apple, or a real Firebase backend, and no real device has run any
 part of this app. "Implemented" and "actually verified" are different
 claims throughout this section; where a provider says "blocked," treat it
 as implemented-but-unverified, not working.
+
+## Day 3: Audit Logging (`logAdminAction`)
+
+### What Day 3 actually was
+
+Per FINAL_ARCHITECTURE_SPECIFICATION.md's own day-by-day plan, "Day 3" is
+titled "Firestore Security Rules + Database Design." Most of that content
+was already completed and verified during this project's actual Day 1 work
+(security rules for all 9 collections, the emulator-backed test suite, and
+Firestore indexes for common queries — see "Current rule coverage" above).
+The one item from the spec's Day 3 goals that remained unimplemented was
+**`logAdminAction()`** ("Cloud Functions: `logAdminAction()` triggers on
+writes (audit logging)"), so that is what Day 3's actual work consisted of.
+Rules deployment to a real Firebase project remains intentionally undone —
+see DEPLOYMENT.md ("Nothing in this repo is deployed anywhere yet"), a
+pre-existing, deliberate project stance, not a Day 3 gap.
+
+### Why `logAdminAction` is a callable function, not a Firestore trigger
+
+The spec's own phrasing ("triggers on writes") suggests a Firestore
+background trigger (`onDocumentWritten`/`functions.firestore.document().
+onWrite`). That was evaluated and rejected: **Firestore background triggers
+carry no caller-identity context at all** — no `request.auth`, unlike
+Realtime Database triggers or callable functions. The spec's own Audit Log
+Entry Format requires a trustworthy `admin_id`/`admin_email`, and this
+project's established principle (`createUserProfile`, Day 2) is to never
+trust a client-supplied identity value. A trigger-based design could only
+get an admin's identity by trusting a `lastModifiedBy`-style field the
+client itself wrote onto the document being changed — exactly the kind of
+client-trusted identity this project avoids everywhere else.
+
+`functions/src/logAdminAction.ts` is instead an HTTPS **callable** function
+(`onCall`), which the admin client is expected to invoke immediately after
+performing a Firestore write. `admin_id` and `admin_email` are read from
+Firebase's own verified callable-auth context (`request.auth`), which the
+client cannot forge — never from the request payload. See
+`logAdminAction.ts`'s own header comment for the full reasoning, and
+ARCHITECTURE.md for why the pure handler throws a local `AdminActionError`
+instead of importing `firebase-functions/v2/https`'s `HttpsError` directly
+(the same Jest/ESM constraint documented for `createUserProfile`/
+`healthCheck` in Day 1–2).
+
+### Security properties, each covered by a real test against a running Firestore emulator
+
+(`functions/src/__tests__/logAdminAction.test.ts`, 11 tests)
+
+- **Rejects unauthenticated calls** — `request.auth` absent → `unauthenticated`.
+- **Rejects callers without an authorized role.** The caller's role is
+  looked up server-side from their own `/users/{uid}` document (the same
+  document `createUserProfile` writes and only a Super Admin can change);
+  a caller with no profile, or role `member`, is rejected with
+  `permission-denied`. A `member` never performs any of the actions this
+  log records, matching the RBAC table's `audit_log: Member none` row.
+- **`admin_id`/`admin_email` are always derived from verified auth, never
+  from the client payload** — tested explicitly: a call whose data payload
+  includes spoofed `admin_id`/`admin_email` fields still writes the real
+  authenticated caller's identity, not the spoofed one.
+- **Input validation**: `action` must be one of the spec's five values
+  (`create`/`update`/`delete`/`publish`/`unpublish`); `collection` must be
+  one of the six spec-listed audit subjects (`users`, `announcements`,
+  `daily_verses`, `songs`, `events`, `settings`); `documentId` and
+  `changeSummary` are required non-empty strings. Any violation is rejected
+  with `invalid-argument` before anything is written.
+- **`audit_log` remains write-protected at the rules layer regardless.**
+  `firestore.rules`' existing `audit_log` rule (`allow write: if false`)
+  is unchanged — `logAdminAction` can write only because Cloud Functions'
+  Admin SDK bypasses Firestore rules entirely, the same trust boundary
+  `createUserProfile` and `notifications_log` already rely on. A client
+  attempting to write `/audit_log` directly is still denied unconditionally.
+
+### What's NOT built as part of Day 3 (deliberately)
+
+Nothing yet calls `logAdminAction` from a real admin action, because no
+admin CRUD UI exists yet (announcements/songs/events management starts Day
+4+, per the spec; Admin Users/role management starts Day 11). Wiring
+`logAdminAction` into those flows is that later work's responsibility, not
+Day 3's — Day 3 only had to make the function itself exist, secure, and
+tested, which it now is.
+
+### What's actually verified — Day 3 test levels
+
+**Emulator tested** (real, running Firestore emulator, no mocks): all 11
+`logAdminAction` tests above, plus 4 `healthCheck`/module-export tests, plus
+the pre-existing 5 `createUserProfile` tests (20 functions tests total) and
+the 55-passed/2-skipped `firestore.rules`/`storage.rules` suite, all re-run
+after Day 3's changes with zero regressions (`firebase emulators:exec
+--only firestore "npm --prefix functions test"` → 20/20; `firebase
+emulators:exec --only auth,firestore,storage "npm --prefix firebase-tests
+test"` → 55 passed / 2 documented skips, unchanged from Day 2).
+
+**NOT tested — do not claim otherwise:** `logAdminAction` has never been
+invoked from a real admin client (none exists yet) or deployed to a real
+Firebase project (Cloud Functions deployment requires the Blaze plan, which
+this project does not enable — see the ₹0 rule in ENVIRONMENT.md). Its
+callable-auth behavior is exercised in tests by passing a plain mock
+`CallerAuthContext` object directly to the handler, the same pattern
+`createUserProfile.test.ts` uses for `AuthUserLike` — this proves the
+handler's own logic is correct, not that Firebase's real callable-auth
+plumbing (`onCall`'s `request.auth` population) behaves identically; that
+remains unverified until a real deployed callable is exercised by a real
+signed-in client.

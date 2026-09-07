@@ -4,10 +4,10 @@ A mobile app (iOS + Android) and admin/host web dashboard for Bethaniya
 Ministries: home feed, Bible (English + Telugu), songs, events with live
 stream support, push notifications, and role-based content management.
 
-**Status:** Day 2 — authentication foundation. Beyond Day 1's scaffolding,
-mobile and admin now have a real (architecturally complete) sign-in flow and
-a server-enforced role model; no other feature screens are built yet. See
-"What Day 1 actually built" and "What Day 2 actually built" below.
+**Status:** Day 3 — authentication foundation + audit logging. Beyond Day
+1's scaffolding and Day 2's sign-in flow, admin/host actions can now be
+recorded in a tamper-resistant audit log; no content-management (CRUD)
+screens are built yet. See "What Day 1/2/3 actually built" below.
 
 ## Tech stack
 
@@ -120,6 +120,33 @@ implemented and unit-tested against mocks only — see SECURITY.md's "What's
 actually verified — Day 2 test levels" for the exact breakdown and why
 (network-blocked OAuth Console access; Apple Developer account + native
 build requirements).
+
+## What Day 3 actually built
+
+- **`logAdminAction`**, a Cloud Function that writes an immutable
+  `/audit_log` entry for an admin/host action, matching the spec's exact
+  Audit Log Entry Format. It's a callable function rather than a Firestore
+  background trigger — Firestore triggers don't carry caller identity, so
+  they can't produce a trustworthy `admin_id`/`admin_email` — see
+  SECURITY.md's "Day 3" section for the full reasoning. 11 new tests
+  passing against a real Firestore emulator (20 functions tests total, all
+  passing: `firebase emulators:exec --only firestore "npm --prefix
+  functions test"`).
+- Corrected two stale documentation claims discovered while working in this
+  area: `firestore.rules`/`storage.rules`' own header comments still said
+  rule testing was "a Day 3 task" not yet done, when it was actually
+  completed and verified back on Day 1 — both now point at SECURITY.md's
+  real, current test results instead.
+- Nothing yet calls `logAdminAction` — no admin CRUD UI exists yet to call
+  it from (that starts Day 4+). Day 3's job was to make the function exist,
+  secure, and tested; wiring it into real admin actions is later work's
+  responsibility.
+
+**Not verified**: `logAdminAction` has never been invoked by a real admin
+client or deployed to a real Firebase project (Cloud Functions deployment
+requires the Blaze plan, which this project does not enable). See
+SECURITY.md's "What's actually verified — Day 3 test levels" for the exact
+breakdown.
 
 ## Bible content licensing
 

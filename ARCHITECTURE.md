@@ -81,11 +81,12 @@ section for the actual, current test status and the two remaining skips.
 
 `functions/src/index.ts` exports the initialized Admin SDK app instance
 (`adminApp`), which every function module imports rather than each calling
-`initializeApp()` separately, plus two functions: `healthCheck` (v2, HTTPS,
-Day 1 placeholder) and `createUserProfile` (v1, Auth `onCreate` trigger,
-added Day 2 — see below and SECURITY.md for what it does and why). Further
-functions (`logAdminAction`, `sendNotification`) are added later per the
-spec's day-by-day plan.
+`initializeApp()` separately, plus three functions: `healthCheck` (v2,
+HTTPS, Day 1 placeholder), `createUserProfile` (v1, Auth `onCreate`
+trigger, added Day 2), and `logAdminAction` (v2, HTTPS callable, added Day
+3) — see the Day 2/Day 3 sections below and SECURITY.md for what each does
+and why. `sendNotification` is added later (Day 10) per the spec's
+day-by-day plan.
 
 ## Bundle identifiers / app IDs
 
@@ -205,3 +206,39 @@ SECURITY.md for what closing that gap requires.
   small enough not to justify a shared package per the "Why three
   independent packages" reasoning above).
 - `functions/src/createUserProfile.ts`, wired from `functions/src/index.ts`.
+
+## Day 3: `logAdminAction` — a callable, not a trigger
+
+`functions/src/logAdminAction.ts` follows the same "pure handler in its own
+file, thin wrapper in `index.ts`" pattern as `createUserProfile` (see
+above), for the same reason: keep the logic independently unit-testable
+against a real Firestore emulator without a Cloud Functions test harness,
+and keep `firebase-functions`' import surface out of files that don't need
+it.
+
+It goes one step further than `createUserProfile` on that second point:
+`logAdminAction.ts` doesn't import anything from `firebase-functions` at
+all, not even `HttpsError`. `firebase-functions/v2/https` transitively
+pulls in `firebase-admin`'s auth token-verification code
+(`jwks-rsa` → `jose`, an ESM-only package), which crashes Jest's CommonJS
+parser the same way `firebase-functions/v1` did for `healthCheck` — this
+was discovered when the handler's own `HttpsError` import caused exactly
+that crash. The fix: `logAdminAction.ts` defines its own tiny
+`AdminActionError` class (`{ code, message }`, no Firebase dependency at
+all); only `index.ts`'s `onCall` wrapper — which Jest never actually
+executes (see `healthCheck.test.ts`'s mocks) — catches `AdminActionError`
+and converts it to a real `HttpsError` for actual callable clients.
+
+**Why callable, not a Firestore-triggered function**, even though the spec
+says "triggers on writes": Firestore background triggers don't receive
+caller-identity context (no `request.auth`), so they cannot produce a
+trustworthy `admin_id`/`admin_email` without trusting a client-written
+field on the document itself — see SECURITY.md's "Day 3" section for the
+full reasoning and the security properties this design gives.
+
+### Where Day 3 code lives
+
+- `functions/src/logAdminAction.ts`, wired from `functions/src/index.ts` as
+  the `logAdminAction` callable.
+- No mobile or admin changes — nothing calls `logAdminAction` yet, since no
+  admin CRUD UI exists to call it from (that starts Day 4+).

@@ -6,8 +6,9 @@ rules_version = '2';
  * Strategy: deny-by-default. Images only (per architecture spec — no audio
  * files in Storage; song audio is referenced by external URL).
  *
- * Day 1 status: foundation rules. Full authorized/unauthorized testing is a
- * Day 3+ task alongside the Firestore rules testing pass.
+ * Status: tested against a real Storage emulator — see /SECURITY.md's
+ * "Current rule coverage" section, including the two documented, currently
+ * unverifiable cases (an emulator-specific limitation, not a rule bug).
  */
 service firebase.storage {
   match /b/{bucket}/o {

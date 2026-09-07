@@ -7,11 +7,10 @@ rules_version = '2';
  * FINAL_ARCHITECTURE_SPECIFICATION.md Section D for the full RBAC model this
  * implements.
  *
- * Day 1 status: foundation rules matching the roles/collections table in the
- * architecture spec. Formal authorized-vs-unauthorized testing (Super Admin
- * can do X, Member cannot do Y, etc.) is a Day 3 task once the emulator
- * testing harness is set up and there is real data to exercise these rules
- * against — do not treat these as fully verified yet.
+ * Status: these rules are tested — see /SECURITY.md's "Current rule
+ * coverage" section for the real, emulator-backed test suite
+ * (`firebase-tests/`, 55 passed / 2 documented skips as of Day 3) covering
+ * authorized-vs-unauthorized access for every collection below.
  *
  * Roles: super_admin | content_admin | host | member
  * A user's role lives on their own /users/{uid} document (field: "role").
