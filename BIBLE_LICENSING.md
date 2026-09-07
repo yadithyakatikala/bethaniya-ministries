@@ -101,19 +101,63 @@ and Wikimedia Commons `Telugu_Bible.pdf` pages in a real browser (both
 resisted automated fetching in this pass) to read their stated terms
 directly.
 
+## Day 8 status: WEB text import attempted, not completed
+
+Day 8 (Bible Reader implementation) set out to import the World English
+Bible's actual verse text now that its license is confirmed above. That
+import was **not completed** — the license is not in question, but the
+exact source bytes for the text itself could not be safely obtained in
+this sandboxed development environment:
+
+- The environment's web-fetch tooling does not return raw page/file
+  bytes — it fetches a page and runs the content through a small AI model
+  that summarizes/answers about it, rather than returning verbatim text.
+  That means even a successful fetch cannot be trusted to reproduce
+  scripture text byte-for-byte, which fails this project's own
+  licensing-safety bar for importing scripture (verified source content
+  only, never reconstructed or paraphrased).
+- Fetches against `https://ebible.org/web/`,
+  `https://ebible.org/find/details.php?id=eng-web`, and `get.bible`'s
+  data-sets/`eng-web` pages did not surface a concrete, directly
+  downloadable structured (USFM/plain-text) data file through that
+  tooling.
+- Bulk-downloading a zip/USFM archive via `curl`/`wget`/a script instead
+  of the sanctioned fetch tooling is disallowed in this environment.
+  Adding an npm package that bundles Bible text was ruled out (no new
+  dependencies). Reconstructing WEB text from memory was explicitly ruled
+  out as unverifiable guessing, not a safe import.
+
+**Net effect:** the WEB *license* is confirmed usable (see above,
+unchanged), but the WEB *text dataset* has not been imported into this
+repository. English therefore ships the same clearly-labeled synthetic
+placeholder content as Telugu today — see "What ships now instead" below.
+A real WEB dataset, once obtained through a verified, human-reviewed
+channel (someone downloading the actual USFM/text files from ebible.org
+and adding them to the repo directly, outside this sandboxed fetch path),
+is a swap of the Bible module's data source — `getChapter()` in
+`mobile/src/features/bible/dataSource.ts` — not a change to the Bible
+screens, navigation, or app architecture.
+
 ## What ships now instead
 
 Per the spec's own explicitly-sanctioned fallback ("Option 3: Hardcoded
-Sample Data," Section C), the mobile app's Bible screen
-(`mobile/src/features/bible/`) uses a small set of synthetic placeholder
-verses, each one visibly marked as placeholder in the data itself (see
-`PLACEHOLDER_VERSES` in `mobile/src/features/bible/placeholderData.ts`) and
-in the UI (a persistent banner reading "Development content — not a real
-Bible translation"). This is enough to build and test the Bible screen's
-navigation, search UI, and layout now, without the app ever having shipped
-or cached real copyrighted text under an unverified license. Swapping in
-WEB (English) once wired up, and a confirmed Telugu source once one exists,
-is a data-layer change to this same screen — not a rebuild.
+Sample Data," Section C) and its Day 8 instruction to "Use 100-200
+placeholder verses + clear labeling" when the source isn't verified, the
+mobile app's Bible screens (`mobile/src/features/bible/`) use a bounded
+pool of 150 synthetic, sequentially-numbered placeholder verse entries per
+language (`PLACEHOLDER_POOL_SIZE` in
+`mobile/src/features/bible/placeholderData.ts`), deterministically
+distributed across all 66 books' real chapter structure so navigation
+shows different placeholder text per chapter. Every entry is explicitly
+labeled "Development placeholder ... Not scripture" in the data itself,
+and the UI shows a persistent banner reading "Development content — not a
+real Bible translation." This is enough to build and test the Bible
+screens' full navigation, caching, and layout now, without the app ever
+having shipped or cached real copyrighted text under an unverified
+license or an unverified source. Swapping in WEB (English) once its text
+is safely obtained, and a confirmed Telugu source once one exists, is a
+data-layer change to `dataSource.ts` — not a rebuild of the screens or
+navigation.
 
 ## Action needed (from you, not from further research)
 

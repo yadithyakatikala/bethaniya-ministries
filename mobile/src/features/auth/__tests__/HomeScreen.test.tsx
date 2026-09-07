@@ -26,6 +26,10 @@ function EventsListStub() {
   return <Text testID="events-list-stub">Events list stub</Text>;
 }
 
+function BibleBooksStub() {
+  return <Text testID="bible-books-stub">Bible books stub</Text>;
+}
+
 function renderHomeScreen() {
   return render(
     <NavigationContainer>
@@ -34,6 +38,7 @@ function renderHomeScreen() {
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="SongsList" component={SongsListStub} />
           <Stack.Screen name="EventsList" component={EventsListStub} />
+          <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
         </Stack.Navigator>
       </AuthProvider>
     </NavigationContainer>
@@ -106,5 +111,16 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('events-nav-button')).toBeTruthy());
     await fireEvent.press(getByTestId('events-nav-button'));
     await waitFor(() => expect(getByTestId('events-list-stub')).toBeTruthy());
+  });
+
+  it('navigates to the Bible books list when "Bible" is pressed', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u6', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('bible-nav-button')).toBeTruthy());
+    await fireEvent.press(getByTestId('bible-nav-button'));
+    await waitFor(() => expect(getByTestId('bible-books-stub')).toBeTruthy());
   });
 });

@@ -39,7 +39,8 @@ function ChurchBranding() {
  * HomeScreen is itself the "Home" screen registered in that stack, so
  * `useNavigation()` is how it reaches "SongsList" rather than a prop.
  * Tap-to-detail navigation for announcements is later scope and still
- * not built here. Day 7 adds an "Events" entry point the same way.
+ * not built here. Day 7 adds an "Events" entry point the same way. Day 8
+ * adds a "Bible" entry point identically, into BibleBooks.
  */
 export function HomeScreen() {
   const { user, signOut } = useAuth();
@@ -67,6 +68,11 @@ export function HomeScreen() {
         title="Events"
         onPress={() => navigation.navigate('EventsList')}
         testID="events-nav-button"
+      />
+      <Button
+        title="Bible"
+        onPress={() => navigation.navigate('BibleBooks')}
+        testID="bible-nav-button"
       />
       <DailyVerseCard />
       <AnnouncementsList />

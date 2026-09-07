@@ -8,6 +8,10 @@ import { EventsListScreen } from '../features/events/EventsListScreen';
 import { EventDetailScreen } from '../features/events/EventDetailScreen';
 import { YouTubePlayerScreen } from '../features/events/YouTubePlayerScreen';
 import type { PublishedEvent } from '../services/firebase/events';
+import { BooksListScreen } from '../features/bible/BooksListScreen';
+import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
+import { ChapterScreen } from '../features/bible/ChapterScreen';
+import { getBookById } from '../features/bible/books';
 
 /**
  * Real navigation, introduced in Day 6 -- per the user's explicit
@@ -23,6 +27,12 @@ import type { PublishedEvent } from '../services/firebase/events';
  *   Home -> Events (EventsList) -> Event Detail (EventDetail) -> YouTube
  *     Player (YouTubePlayer), reached only via EventDetail's "WATCH LIVE"
  *     button, itself only shown when the event is actually live.
+ *   Home -> Bible (BibleBooks) -> Chapters (BibleChapters) -> Chapter
+ *     Reader (BibleChapter), added Day 8. Retires the orphaned Day 1
+ *     BibleScreen (never wired into navigation) rather than leaving a
+ *     second, dead Bible UI around -- see features/bible/dataSource.ts
+ *     for the module's data-source seam and current placeholder-content
+ *     status.
  *
  * SongDetail/EventDetail receive the full song/event object as a route
  * param rather than an id the screen re-subscribes by -- SongsListScreen/
@@ -42,6 +52,9 @@ export type RootStackParamList = {
   EventsList: undefined;
   EventDetail: { event: PublishedEvent };
   YouTubePlayer: { youtubeUrl: string };
+  BibleBooks: undefined;
+  BibleChapters: { bookId: string };
+  BibleChapter: { bookId: string; chapterNumber: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +88,27 @@ export function AppNavigator() {
           name="YouTubePlayer"
           component={YouTubePlayerScreen}
           options={{ title: 'Live Stream' }}
+        />
+        <Stack.Screen
+          name="BibleBooks"
+          component={BooksListScreen}
+          options={{ title: 'Bible' }}
+        />
+        <Stack.Screen
+          name="BibleChapters"
+          component={ChaptersListScreen}
+          options={({ route }) => ({
+            title: getBookById(route.params.bookId)?.name ?? 'Chapters',
+          })}
+        />
+        <Stack.Screen
+          name="BibleChapter"
+          component={ChapterScreen}
+          options={({ route }) => ({
+            title: getBookById(route.params.bookId)?.name
+              ? `${getBookById(route.params.bookId)?.name} ${route.params.chapterNumber}`
+              : 'Chapter',
+          })}
         />
       </Stack.Navigator>
     </NavigationContainer>
