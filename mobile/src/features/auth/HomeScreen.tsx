@@ -1,29 +1,68 @@
-import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import {
+  subscribeToChurchSettings,
+  type ChurchSettings,
+} from '../../services/firebase/settings';
+
+const DEFAULT_CHURCH_NAME = 'Bethaniya Ministries';
+const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowship.';
 
 /**
- * Static church branding block -- Day 5's Home Screen "Work" item
- * ("church branding + daily verse card + announcements list"). This is
- * deliberately static/hardcoded, not settings-driven: the admin Settings
- * page (church name input + logo URL + description textarea) is
- * explicitly Day 13 scope (FINAL_ARCHITECTURE_SPECIFICATION.md's "Day 13:
- * Admin Dashboard Completion (Settings + Refinement)"), and the
- * `settings` Firestore collection has no admin UI to write it until then
- * -- building a settings-driven version now would be implementing Day 13
- * early. Replace this with real data once Day 13 exists.
+ * Church branding block -- Day 5 built this static/hardcoded ("the admin
+ * Settings page... is explicitly Day 13 scope... Replace this with real
+ * data once Day 13 exists"). Day 13 does exactly that: it now reads the
+ * real /settings/church document via subscribeToChurchSettings (see
+ * ../../services/firebase/settings.ts), per
+ * FINAL_ARCHITECTURE_SPECIFICATION.md's Day 13 plan ("Mobile app
+ * displays updated church info") and P0 feature #17 ("Save button
+ * (syncs to mobile app display)").
+ *
+ * Falls back to the exact same default name/description Day 5 hardcoded
+ * whenever no settings document has ever been saved (a brand-new
+ * deployment before any Super Admin has visited
+ * admin/src/features/settings/SettingsPage.tsx), while the very first
+ * snapshot is still in flight, or on a read error -- there is
+ * deliberately no separate loading/error UI for this decorative header
+ * block; a sensible default is friendlier than a spinner or error
+ * message for something this low-stakes, and firestore.rules' settings
+ * read rule (isSignedIn()) never denies a signed-in member anyway (see
+ * ../../services/firebase/settings.ts's doc comment). The logo only
+ * renders once a settings document with a non-empty logoUrl has actually
+ * loaded -- there is no default/placeholder logo image.
  */
 function ChurchBranding() {
+  const [settings, setSettings] = useState<ChurchSettings | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToChurchSettings(
+      (next) => setSettings(next),
+      () => setSettings(null)
+    );
+    return unsubscribe;
+  }, []);
+
+  const churchName = settings?.churchName || DEFAULT_CHURCH_NAME;
+  const description = settings?.description || DEFAULT_CHURCH_DESCRIPTION;
+
   return (
     <View style={styles.branding} testID="church-branding">
-      <Text style={styles.churchName}>Bethaniya Ministries</Text>
-      <Text style={styles.churchDescription}>
-        A community of faith, worship, and fellowship.
-      </Text>
+      {settings?.logoUrl ? (
+        <Image
+          source={{ uri: settings.logoUrl }}
+          style={styles.logo}
+          testID="church-logo"
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
+      <Text style={styles.churchName}>{churchName}</Text>
+      <Text style={styles.churchDescription}>{description}</Text>
     </View>
   );
 }
@@ -31,21 +70,21 @@ function ChurchBranding() {
 /**
  * Authenticated home screen. Day 2 proved the authenticated state renders
  * and sign-out works; Day 4 added the real-time announcements section
- * (AnnouncementsList). Day 5 adds church branding (static -- see
- * ChurchBranding above) and the daily verse card (DailyVerseCard), per
- * the spec's "Home screen UI (church branding + daily verse card +
- * announcements list)" plan item. Day 6 adds a "Songs" entry point into
- * the real navigation introduced this day (see AppNavigator.tsx) --
- * HomeScreen is itself the "Home" screen registered in that stack, so
- * `useNavigation()` is how it reaches "SongsList" rather than a prop.
- * Tap-to-detail navigation for announcements is later scope and still
- * not built here. Day 7 adds an "Events" entry point the same way. Day 8
- * adds a "Bible" entry point identically, into BibleBooks. Day 9/10 add
- * "Profile" and "Notifications" entry points the same way -- Settings is
- * reached from Profile (not from Home directly) and Bible Search is
- * reached from the Bible books list (not from Home directly either), per
- * the decision to keep Home from accumulating an entry point for every
- * new screen.
+ * (AnnouncementsList). Day 5 adds church branding (see ChurchBranding
+ * above -- settings-driven since Day 13) and the daily verse card
+ * (DailyVerseCard), per the spec's "Home screen UI (church branding +
+ * daily verse card + announcements list)" plan item. Day 6 adds a
+ * "Songs" entry point into the real navigation introduced this day (see
+ * AppNavigator.tsx) -- HomeScreen is itself the "Home" screen registered
+ * in that stack, so `useNavigation()` is how it reaches "SongsList"
+ * rather than a prop. Tap-to-detail navigation for announcements is
+ * later scope and still not built here. Day 7 adds an "Events" entry
+ * point the same way. Day 8 adds a "Bible" entry point identically, into
+ * BibleBooks. Day 9/10 add "Profile" and "Notifications" entry points
+ * the same way -- Settings is reached from Profile (not from Home
+ * directly) and Bible Search is reached from the Bible books list (not
+ * from Home directly either), per the decision to keep Home from
+ * accumulating an entry point for every new screen.
  */
 export function HomeScreen() {
   const { user, signOut } = useAuth();
@@ -113,6 +152,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 24,
   },
+  logo: { width: 96, height: 96, borderRadius: 8, marginBottom: 4 },
   churchName: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
   churchDescription: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
 });

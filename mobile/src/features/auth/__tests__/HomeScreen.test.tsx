@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { HomeScreen } from '../HomeScreen';
@@ -69,6 +70,14 @@ describe('HomeScreen', () => {
   afterEach(() => {
     mockedOnAuthStateChanged.mockReset();
     mockedSignOut.mockReset();
+    // Restore, not just clear -- mockReset() alone would leave onSnapshot
+    // returning `undefined` instead of a real unsubscribe function for
+    // every subsequent test (mobile/__mocks__/firebase/firestore.js's own
+    // default is `jest.fn(() => jest.fn())`, not a bare `jest.fn()`), and
+    // several components elsewhere on this screen (e.g.
+    // PreferencesContext.tsx's own Firestore subscription) call that
+    // return value as a cleanup function on unmount.
+    (onSnapshot as jest.Mock).mockReset().mockImplementation(() => jest.fn());
   });
 
   it('greets the signed-in user by display name', async () => {
@@ -159,5 +168,52 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
     await fireEvent.press(getByTestId('notifications-nav-button'));
     await waitFor(() => expect(getByTestId('notification-center-stub')).toBeTruthy());
+  });
+
+  // Day 13: ChurchBranding is now settings-driven (see
+  // ../../../services/firebase/settings.ts) instead of hardcoded --
+  // isolate the settings/church onSnapshot call from
+  // AnnouncementsList's/DailyVerseCard's own onSnapshot calls (also
+  // mounted on this screen) by checking each call's first argument, the
+  // same `doc()`-produced `{ path }` shape the global firebase/firestore
+  // mock (mobile/__mocks__/firebase/firestore.js) already returns.
+  it('shows the settings-driven church name/description once the settings snapshot arrives', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u9', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    (onSnapshot as jest.Mock).mockImplementation((ref, next) => {
+      if (ref && (ref as { path?: string }).path === 'settings/church') {
+        next({
+          exists: () => true,
+          data: () => ({
+            churchName: 'Grace Chapel',
+            logoUrl: '',
+            description: 'Custom description from settings.',
+            supportEmail: 'contact@example.com',
+          }),
+        });
+      }
+      return jest.fn();
+    });
+    const { getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByText('Grace Chapel')).toBeTruthy());
+    expect(getByText('Custom description from settings.')).toBeTruthy();
+  });
+
+  it('falls back to the default church name/description when no settings document exists', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u10', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    (onSnapshot as jest.Mock).mockImplementation((ref, next) => {
+      if (ref && (ref as { path?: string }).path === 'settings/church') {
+        next({ exists: () => false, data: () => undefined });
+      }
+      return jest.fn();
+    });
+    const { getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByText('Bethaniya Ministries')).toBeTruthy());
+    expect(getByText('A community of faith, worship, and fellowship.')).toBeTruthy();
   });
 });

@@ -227,3 +227,30 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   host: 'Host',
   member: 'Member',
 };
+
+/**
+ * The church-wide settings document at /settings/church, per
+ * FINAL_ARCHITECTURE_SPECIFICATION.md's Day 13 plan and P0 feature #17
+ * ("Settings -- Church name, logo URL, description, Support email, Save
+ * button (syncs to mobile app display)"). firestore.rules' pre-existing
+ * settings/{settingId} rule (Day 3) already matches the RBAC table's
+ * `settings` row exactly (Member/Host/Content Admin: Read, Super Admin:
+ * Read + write) -- see services/firebase/settings.ts's doc comment for
+ * why no rules change is made for this feature.
+ */
+export interface ChurchSettings {
+  churchName: string;
+  logoUrl: string;
+  description: string;
+  supportEmail: string;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin Settings form actually collects -- updatedAt is set
+ * server-side (see services/firebase/settings.ts's saveChurchSettings). */
+export interface ChurchSettingsFormInput {
+  churchName: string;
+  logoUrl: string;
+  description: string;
+  supportEmail: string;
+}

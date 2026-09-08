@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { theme } from './theme/theme';
+import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/auth/DashboardPage';
 import { AnnouncementsListPage } from './features/announcements/AnnouncementsListPage';
@@ -18,6 +19,7 @@ import { EventForm } from './features/events/EventForm';
 import { EditEventPage } from './features/events/EditEventPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { UsersPage } from './features/users/UsersPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -43,6 +45,13 @@ import { subscribeToAuthChanges } from './store/authStore';
  * a one-shot action rather than CRUD on persistent editable documents.
  * Day 11 adds /users (see UsersPage.tsx) -- also a single page (a table
  * with an inline role selector per row), Super-Admin-only.
+ * Day 13 adds /settings (see SettingsPage.tsx) -- also a single page,
+ * viewable by every dashboard role but editable Super-Admin-only (see
+ * that file's own doc comment for the RBAC reasoning) -- and wraps every
+ * route below in AdminLayout (see that file), the "Sidebar navigation,
+ * responsive layout" refinement Day 13 also calls for. AdminLayout only
+ * ever renders inside ProtectedRoute's authenticated+authorized branch,
+ * so /login and the "Access denied" state never show a sidebar.
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -57,7 +66,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <AdminLayout>
+                  <DashboardPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -65,7 +76,9 @@ function App() {
             path="/announcements"
             element={
               <ProtectedRoute>
-                <AnnouncementsListPage />
+                <AdminLayout>
+                  <AnnouncementsListPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -73,7 +86,9 @@ function App() {
             path="/announcements/new"
             element={
               <ProtectedRoute>
-                <AnnouncementForm mode="create" />
+                <AdminLayout>
+                  <AnnouncementForm mode="create" />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -81,7 +96,9 @@ function App() {
             path="/announcements/:id/edit"
             element={
               <ProtectedRoute>
-                <EditAnnouncementPage />
+                <AdminLayout>
+                  <EditAnnouncementPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -89,7 +106,9 @@ function App() {
             path="/daily-verses"
             element={
               <ProtectedRoute>
-                <DailyVersesListPage />
+                <AdminLayout>
+                  <DailyVersesListPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -97,7 +116,9 @@ function App() {
             path="/daily-verses/new"
             element={
               <ProtectedRoute>
-                <DailyVerseForm mode="create" />
+                <AdminLayout>
+                  <DailyVerseForm mode="create" />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -105,7 +126,9 @@ function App() {
             path="/daily-verses/:id/edit"
             element={
               <ProtectedRoute>
-                <EditDailyVersePage />
+                <AdminLayout>
+                  <EditDailyVersePage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -113,7 +136,9 @@ function App() {
             path="/songs"
             element={
               <ProtectedRoute>
-                <SongsListPage />
+                <AdminLayout>
+                  <SongsListPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -121,7 +146,9 @@ function App() {
             path="/songs/new"
             element={
               <ProtectedRoute>
-                <SongForm mode="create" />
+                <AdminLayout>
+                  <SongForm mode="create" />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -129,7 +156,9 @@ function App() {
             path="/songs/:id/edit"
             element={
               <ProtectedRoute>
-                <EditSongPage />
+                <AdminLayout>
+                  <EditSongPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -137,7 +166,9 @@ function App() {
             path="/events"
             element={
               <ProtectedRoute>
-                <EventsListPage />
+                <AdminLayout>
+                  <EventsListPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -145,7 +176,9 @@ function App() {
             path="/events/new"
             element={
               <ProtectedRoute>
-                <EventForm mode="create" />
+                <AdminLayout>
+                  <EventForm mode="create" />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -153,7 +186,9 @@ function App() {
             path="/events/:id/edit"
             element={
               <ProtectedRoute>
-                <EditEventPage />
+                <AdminLayout>
+                  <EditEventPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -161,7 +196,9 @@ function App() {
             path="/notifications"
             element={
               <ProtectedRoute>
-                <NotificationsPage />
+                <AdminLayout>
+                  <NotificationsPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -169,7 +206,19 @@ function App() {
             path="/users"
             element={
               <ProtectedRoute>
-                <UsersPage />
+                <AdminLayout>
+                  <UsersPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <SettingsPage />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />

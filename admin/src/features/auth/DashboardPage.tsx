@@ -1,22 +1,21 @@
-import { Box, Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Box, Button, Typography } from '@mui/material';
 import { useAuthStore } from '../../store/authStore';
 
 /**
  * Authenticated dashboard shell -- Day 2 proved the authenticated +
- * authorized state renders and sign-out works. Day 4 adds a link into the
- * one real content-management screen that exists so far (Announcements);
- * Day 5 adds a second link for Daily Verses; Day 6 adds a third for Songs;
- * Day 7 adds a fourth for Events; Day 10 adds a fifth for Notifications;
- * Day 11 adds a sixth for Users (Super Admin only -- see UsersPage.tsx's
- * own role gate; the nav button itself is shown to every dashboard role
- * per this file's existing pattern, matching the "hiding is UX, not
- * security" principle -- a non-Super-Admin who follows it sees UsersPage's
- * own "not authorized" message, the same as any other role-gated page in
- * this app).
- * A fuller nav/sidebar covering
- * the rest of FINAL_ARCHITECTURE_SPECIFICATION.md's "Dashboard Overview"
- * (stats, activity feed, quick actions) is later V1 scope, not built here.
+ * authorized state renders and sign-out works. Days 4-11 each added a
+ * link into that day's new page via a plain button row on this page
+ * (Announcements, Daily Verses, Songs, Events, Notifications, Users).
+ *
+ * Day 13 removes that button row: App.tsx now wraps every authenticated
+ * route (including this one) in AdminLayout.tsx, a persistent sidebar
+ * providing the exact same links -- see that file's doc comment for the
+ * "Sidebar navigation, responsive layout" refinement this implements.
+ * Keeping both would mean two navigation surfaces pointing at the same
+ * places, which is what Day 13's "Admin dashboard polished" goal argues
+ * against, not for. Sign out stays here (an account action on this
+ * specific screen, not a navigation link the sidebar is responsible
+ * for).
  */
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -31,63 +30,14 @@ export function DashboardPage() {
       <Typography color="text.secondary" gutterBottom>
         Role: {role}
       </Typography>
-      <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/announcements"
-          data-testid="announcements-nav-link"
-        >
-          Manage Announcements
-        </Button>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/daily-verses"
-          data-testid="daily-verses-nav-link"
-        >
-          Manage Daily Verses
-        </Button>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/songs"
-          data-testid="songs-nav-link"
-        >
-          Manage Songs
-        </Button>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/events"
-          data-testid="events-nav-link"
-        >
-          Manage Events
-        </Button>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/notifications"
-          data-testid="notifications-nav-link"
-        >
-          Notifications
-        </Button>
-        <Button
-          variant="contained"
-          component={RouterLink}
-          to="/users"
-          data-testid="users-nav-link"
-        >
-          Users
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={() => void signOut()}
-          data-testid="sign-out-button"
-        >
-          Sign out
-        </Button>
-      </Stack>
+      <Button
+        variant="outlined"
+        onClick={() => void signOut()}
+        data-testid="sign-out-button"
+        sx={{ mt: 2 }}
+      >
+        Sign out
+      </Button>
     </Box>
   );
 }
