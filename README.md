@@ -13,11 +13,11 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 
 ## Current checkpoint
 
-- **Checkpoint:** Day 9 + Day 10 complete.
-- **Git commit:** `b4c251e` (`feat(mobile): complete day 9-10 profile search notifications`)
-- **GitHub `main`:** synchronized with this commit.
-- **Working tree at last checkpoint:** clean.
-- **Next planned milestone:** Day 11 (not started — see "Do NOT start Day 11" constraints throughout this project's working process).
+- **Checkpoint:** Day 14 complete; this Day 15 + Day 16 pass is being committed on top of it.
+- **Git commit (Day 14):** `b322f36` (`docs: complete day 14 documentation and code review`)
+- **GitHub `main`:** synchronized with `b322f36` as of this write-up.
+- **Working tree at the Day 14 checkpoint:** clean.
+- **Next planned milestone:** Day 17 (not started — see "Do NOT start Day 17" constraints throughout this project's working process).
 
 ## Current development status
 
@@ -37,7 +37,9 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 | Day 12 | Real device testing + bug fixes | ⚠️ Static/code-level QA audit only — see "Days 11–13" below; real-device/slow-network/offline testing still pending |
 | Day 13 | Admin dashboard completion (Settings page + sidebar/responsive refinement) | ✅ |
 | Day 14 | Documentation + code review | ✅ |
-| Day 15 | Not started | ⏳ |
+| Day 15 | Unit + integration tests, test coverage reporting | ✅ |
+| Day 16 | Security hardening + final review | ✅ |
+| Day 17 | Not started | ⏳ |
 
 "✅" here means the day's planned scope was implemented and reviewed, not
 that the feature is production-complete — see "Current V1 feature status",
@@ -123,13 +125,13 @@ actually production-ready within each of these.
 
 ## Testing status
 
-Verified results as of the Day 14 checkpoint (built on commit `c2bd5fd`):
+Verified results as of the Day 15+16 checkpoint (built on commit `b322f36`):
 
 | Package | Result |
 | --- | --- |
 | Mobile — Jest | **40/40 suites, 251/251 tests passing** |
 | Mobile — typecheck / lint / format | Clean |
-| Admin — Vitest | **32/32 files, 238/238 tests passing** |
+| Admin — Vitest | **34/34 files, 249/249 tests passing** (+2 files/+11 tests this checkpoint: `admin/src/store/__tests__/{authStore,appStore}.test.ts`) |
 | Admin — typecheck / lint / format / production build | Clean |
 | Functions — typecheck / lint / build | Clean |
 | Functions — `healthCheck.test.ts` (the one functions suite that doesn't need the emulator) | **4/4 passing** |
@@ -141,11 +143,12 @@ Verified results as of the Day 14 checkpoint (built on commit `c2bd5fd`):
   remain **unexecuted** because the Firestore emulator binary download
   (`storage.googleapis.com`) is blocked by the current development
   environment's network allowlist (still `403 Forbidden` /
-  `X-Proxy-Error: blocked-by-allowlist` as of the Day 14 re-check). These
+  `X-Proxy-Error: blocked-by-allowlist` as of the Day 16 re-check). These
   tests are structurally/type sound (verified independently) but have not
   actually run in this environment.
-- **The `firebase-tests/` security-rule suite** remains **blocked** by a
-  pre-existing dependency conflict: `firebase@^12` (used by the app) vs.
+- **The `firebase-tests/` security-rule suite**, including Day 15's new
+  `announcement-lifecycle.test.ts` integration test, remains **blocked** by
+  a pre-existing dependency conflict: `firebase@^12` (used by the app) vs.
   `@firebase/rules-unit-testing@^3.0.4`'s `peer firebase@^10.0.0`
   requirement. `node_modules` has never been installed for this package;
   the suite has never run.
@@ -154,20 +157,46 @@ These two are not described as "passing" anywhere in this project's
 documentation, and no test-affecting code has been changed to manufacture
 a passing result around them.
 
-**`npm audit` (Day 14):** `admin` reports 0 vulnerabilities. `mobile`
-reports 16 moderate-severity advisories and `functions` reports 7, all
-transitive (Expo tooling / `@react-navigation`'s `query-string` dependency
-chain, and a shared `uuid` advisory pulled in by `firebase-admin`'s Google
-Cloud client chain in `functions` and by Expo's config-plugins chain in
-`mobile`). None has a fix that isn't a breaking downgrade: `npm audit fix
---force` would downgrade `expo` to `46.0.21` in `mobile` and
-`firebase-admin` to `10.3.0` in `functions`; `decode-uri-component`'s
-advisory in `mobile` has no fix available at all yet. None are exploitable
-through this project's own code paths (they're build-tooling/SDK-internal
-dependencies, not runtime request-handling paths this app's users can
-reach). Left unfixed rather than force-downgraded — a package.json/lockfile
-change needs a deliberate, explicit decision, not an automatic `--force`
-run during a documentation pass.
+**Test coverage (Day 15, `npm run test:coverage` in each package):**
+
+| Package | Statements | Branches | Functions | Lines |
+| --- | --- | --- | --- | --- |
+| Admin (Vitest, `@vitest/coverage-v8`) | 88.33% | 82.91% | 84.85% | 89.22% |
+| Mobile (Jest, built-in) | 87.30% | 75.43% | 89.13% | 88.48% |
+| Functions (Jest, built-in) | 22.77% | 0% | 0% | 23.46% |
+
+Admin and Mobile both clear the spec's 60%+ target with real margin.
+**Functions' number is not representative of the package's actual logic
+coverage** — only `healthCheck.test.ts` can execute without the blocked
+Firestore emulator, so the other four handler files (each fully covered by
+their own emulator-backed test file, verified independently by reading
+them) show as near-0% simply because their tests never ran, not because
+they're untested code. The low-coverage files worth naming honestly in
+both apps: mobile's `services/firebase/{app,config,googleAuthConfig}.ts`
+(SDK initialization/config, mostly non-branching setup code) and
+`useGoogleSignIn.ts` (native OAuth, already documented as unverified
+against a real provider — see "Current V1 feature status"); admin's
+`EditAnnouncementPage.tsx`/`EditDailyVersePage.tsx`/`EditEventPage.tsx`/
+`EditSongPage.tsx` show 0% only because each is a thin route param →
+props wrapper around its already-100%-covered `*Form.tsx` component (the
+`*Form.tsx` file itself is what's actually tested).
+
+**`npm audit` (re-run Day 16, unchanged since Day 14):** `admin` reports 0
+vulnerabilities (including after Day 15's new `@vitest/coverage-v8`
+devDependency). `mobile` reports 16 moderate-severity advisories and
+`functions` reports 7, all transitive (Expo tooling / `@react-navigation`'s
+`query-string` dependency chain, and a shared `uuid` advisory pulled in by
+`firebase-admin`'s Google Cloud client chain in `functions` and by Expo's
+config-plugins chain in `mobile`). None has a fix that isn't a breaking
+downgrade: `npm audit fix --force` would downgrade `expo` to `46.0.21` in
+`mobile` and `firebase-admin` to `10.3.0` in `functions`;
+`decode-uri-component`'s advisory in `mobile` has no fix available at all
+yet. None are exploitable through this project's own code paths (they're
+build-tooling/SDK-internal dependencies, not runtime request-handling paths
+this app's users can reach). Left unfixed rather than force-downgraded — a
+package.json/lockfile change needs a deliberate, explicit decision. See
+SECURITY.md's "Day 16" section for the full security review checklist this
+result is part of.
 
 ## Cost constraint
 
@@ -428,7 +457,70 @@ accessibility issues across `admin/src`, `mobile/src`, and `functions/src`
 (one real finding: the new Day 13 sidebar's mobile menu button was missing
 an `aria-label`, unlike every other icon button in the codebase — fixed);
 and `npm audit` was run in all three packages (see "Testing status" above
-for the honest result — nothing was force-fixed).
+for the honest result — nothing was force-fixed). This pass also found and
+fixed a real bug in its own prior work: a Python string-replacement script
+used to edit this README on Day 14 had a default-argument capture mistake
+that silently dropped one of two edits in the same script, leaving the
+"Current checkpoint" section above stuck on the stale Day 9+10 text even
+after Day 14 was committed and pushed — caught during this Day 15+16
+audit, not by the earlier review, and corrected here.
+
+### Day 15
+
+Unit + integration tests, test coverage reporting, per the spec's Day 15
+plan. Most of the "unit tests: auth logic, input validators, data
+transformers" ask was already satisfied by prior days' work; the two real
+gaps closed this checkpoint:
+
+- **Admin's Zustand stores (`authStore.ts`, `appStore.ts`) got direct unit
+  tests** (`admin/src/store/__tests__/`) — previously only exercised
+  indirectly through component tests like `App.test.tsx`. Both now show
+  100% statement coverage.
+- **A new integration test**, `firebase-tests/src/announcement-lifecycle.test.ts`,
+  proves the literal "create announcement → verify Firestore → verify
+  mobile" flow the spec names: a Content Admin creates a draft, it's
+  confirmed unreadable by a mobile member, the Content Admin publishes it,
+  and the same member session then reads the published data back
+  successfully — using `@firebase/rules-unit-testing`'s real multi-session
+  testing environment, the same pattern `firestore.rules.test.ts` already
+  uses. Like every other `firebase-tests/` file, it has not actually
+  executed in this environment (see "Testing status" above) — it's
+  structurally sound and ready once either blocker clears.
+- **Test coverage reporting** was added to all three packages
+  (`npm run test:coverage`): admin needed one new devDependency,
+  `@vitest/coverage-v8` (Vitest doesn't bundle a coverage provider);
+  mobile and functions use Jest's built-in `--coverage`, no new dependency.
+  See "Testing status" above for the actual numbers.
+
+Sign-in flow "end-to-end" and security-rule integration tests were **not**
+duplicated — both were already covered (App-level state-transition tests
+in both apps; the existing `firestore.rules.test.ts`/`storage.rules.test.ts`
+suite) before this checkpoint, and adding a second, heavier version (e.g. a
+new browser-automation/e2e tool) wasn't justified by a gap that didn't
+exist — see the spec's own "do not add unrelated improvements" principle.
+
+### Day 16
+
+Security hardening + final review, per the spec's Day 16 plan, run as an
+explicit checklist against this repository's current state — see
+SECURITY.md's new "Day 16" section for the full table (secrets scan,
+`git log --all -S "FIREBASE"`, HTTPS verification, auth/authz review,
+`npm audit`) and results.
+
+**One line item could not be executed as literally specified**: "Enable
+Firestore backups + monitoring." This repository has never had a live
+Firebase project — `.firebaserc` is gitignored and has never existed, no
+Cloud Function has ever been deployed — so there is nothing to enable
+backups or monitoring *on*. Separately, Firestore's managed backup feature
+is itself billed under Firebase's Blaze plan, which this project's ₹0
+constraint rules out regardless. Rather than skip this silently or fake an
+"enabled" state, SECURITY.md's "Backup & disaster recovery" section was
+expanded into a concrete, actionable plan for whoever deploys this later
+(including the Blaze-tier caveat, a possible free-tier-compatible manual
+fallback worth verifying at deployment time, and that Performance
+Monitoring/Crashlytics are Spark-compatible and could be enabled at ₹0
+once a real project exists) — this is a deployment-time task, not
+something Day 16 could do from this repository as it stands.
 
 ## Production readiness
 

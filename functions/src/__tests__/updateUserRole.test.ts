@@ -26,10 +26,7 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-async function setUser(
-  uid: string,
-  fields: Record<string, unknown>
-): Promise<void> {
+async function setUser(uid: string, fields: Record<string, unknown>): Promise<void> {
   await db.collection('users').doc(uid).set(fields, { merge: true });
 }
 

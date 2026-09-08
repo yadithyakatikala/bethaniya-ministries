@@ -13,4 +13,10 @@ module.exports = {
       },
     ],
   },
+  // Day 15: "test coverage report" -- only collected by `npm run
+  // test:coverage`. Most of this package's tests require
+  // FIRESTORE_EMULATOR_HOST and don't run in this environment (see
+  // README.md's "Testing status"), so the resulting number reflects only
+  // what actually executes here, not the whole package.
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts', '!src/index.ts'],
 };

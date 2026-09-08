@@ -39,10 +39,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 export class UpdateUserRoleError extends Error {
   constructor(
     public readonly code:
-      | 'unauthenticated'
-      | 'invalid-argument'
-      | 'permission-denied'
-      | 'not-found',
+      'unauthenticated' | 'invalid-argument' | 'permission-denied' | 'not-found',
     message: string
   ) {
     super(message);
@@ -53,7 +50,12 @@ export class UpdateUserRoleError extends Error {
 /** Every role a Super Admin may assign -- matches admin/src/types.ts's
  * UserRole exactly (all four roles are valid *targets*; which caller may
  * invoke this at all is a separate, narrower check below). */
-export const ASSIGNABLE_ROLES = ['super_admin', 'content_admin', 'host', 'member'] as const;
+export const ASSIGNABLE_ROLES = [
+  'super_admin',
+  'content_admin',
+  'host',
+  'member',
+] as const;
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
 
 /** Only a Super Admin may call this at all -- matches firestore.rules'

@@ -141,12 +141,42 @@ See "Day 3" and "Day 11" below for what's actually verified.
 
 ## Backup & disaster recovery
 
-Not yet configured — requires a real Firebase project. Plan (per spec
-Section D): rely on Firebase's automatic daily Firestore backups
-(30-day retention target), with an optional scheduled Cloud Function export
-to Cloud Storage added later if faster recovery is needed. Documented here
-so it isn't forgotten once a project exists; tracked as an
-ENVIRONMENT.md/DEPLOYMENT.md follow-up.
+**Not yet configured, and cannot be configured from this repository as it
+stands today** — there is no live Firebase project. `.firebaserc` is
+gitignored and has never been created; no Cloud Function has ever been
+deployed; every emulator-based test in this project connects to a local,
+throwaway emulator instance, never a real backend (see README.md's "Cost
+constraint" and "Testing status"). "Enable backups" is not an action this
+repo can take today, independent of billing — there is nothing to enable
+it *on*.
+
+**The concrete plan for whoever deploys this later** (per spec Section D),
+so it isn't reinvented or forgotten:
+
+1. **Firestore's managed "Backup and Restore" feature (scheduled daily/
+   weekly backups with configurable retention) is billed under Firebase's
+   Blaze (pay-as-you-go) plan**, not Spark — this is a real ₹0 boundary,
+   not a technicality, and matches this project's own hard constraint (see
+   README.md's "Cost constraint"). **Verify current Firebase pricing and
+   plan requirements at deployment time** before enabling it — plans and
+   feature availability can change between when this is written and when
+   a real project actually exists.
+2. If backups are wanted before this project can justify Blaze, the
+   fallback is a **manual, human-run `gcloud firestore export` /
+   `firebase firestore:export`** to a Cloud Storage bucket, run
+   periodically by whoever administers the project — confirm at
+   deployment time whether this specific operation is Spark-compatible
+   (it does not need a deployed Cloud Function or Cloud Scheduler, unlike
+   an automated version of the same export, which would).
+3. **Firebase Performance Monitoring and Crashlytics are Spark-plan-
+   compatible** (unlike Firestore's managed backups) and can reasonably be
+   enabled at ₹0 once a real project exists — worth doing before Blaze
+   becomes necessary for anything else, since they cost nothing extra.
+4. None of this blocks Day 17 (App Store prep) or anything else in this
+   project's current, local/emulator-only development phase. It becomes
+   actionable once ENVIRONMENT.md's real-project setup steps are actually
+   run — tracked there and in DEPLOYMENT.md, not here, since this file
+   documents security *state*, not deployment *procedure*.
 
 ## Reporting a concern
 
@@ -607,3 +637,28 @@ running Firestore backend with real network latency (as opposed to the
 synchronous mocked `onSnapshot` this project's Jest tests use) is part of
 the same pending real-device/real-backend verification as everything else
 under "Day 12" in README.md — not yet done.
+
+## Day 16: Security Hardening + Final Review
+
+Per FINAL_ARCHITECTURE_SPECIFICATION.md's Day 16 plan, run as an explicit
+checklist against this repository's actual current state (re-verified for
+this checkpoint, not assumed from prior days):
+
+| Check | Result |
+| --- | --- |
+| Secrets/credentials scanned in current source | **Clean.** `grep`-based scan across `admin/src`, `mobile/src`, `functions/src` for API-key/secret/password/private-key patterns found nothing — see "Secrets" above for what's structurally prevented (`.gitignore`, `.env.example` placeholders). |
+| `git log --all -S "FIREBASE"` (secrets in history) | **Clean.** 7 hits, all legitimate feature/docs commits (env var names, emulator wiring) — see git history directly; none is a leaked credential. |
+| HTTPS enforced everywhere | **Clean, with one correct, expected exception.** The only `http://` (non-`https://`) URL anywhere in `admin/src`/`mobile/src`/`functions/src` is `mobile/src/services/firebase/app.ts`'s `connectAuthEmulator(auth, http://${host}:9099, ...)` — the Firebase Local Emulator Suite requires plain HTTP for local development by design; every real Auth/Firestore/Storage call uses the SDK's default HTTPS endpoints, unconditionally, in both apps. |
+| Authentication flow review (no plaintext passwords) | **Clean.** See "Session persistence" and "Error handling" above (Day 2) — passwords are never stored, only short-lived tokens via Firebase Auth's own SDK-provided persistence. No change since Day 2. |
+| Authorization review (security rules tested) | **Rules unchanged and still deny-by-default** (see "Current rule coverage" above) — 55 passed / 2 documented skips as of the last actual emulator run (Day 2). **Not re-run this checkpoint**: the Firestore emulator binary download remains blocked (see "Firebase Emulator status" in README.md's Testing status, re-verified this session — still `403 Forbidden` / `X-Proxy-Error: blocked-by-allowlist`). No rule was touched by Day 15 or Day 16, so there is nothing new to verify even once the emulator is reachable again. |
+| `npm audit` (dependency vulnerability scan) | Re-run this checkpoint: `admin` — 0 vulnerabilities (unchanged, including after Day 15's new `@vitest/coverage-v8` devDependency). `mobile` — 16 moderate, `functions` — 7 moderate, both unchanged from Day 14, both still only fixable via a breaking `--force` downgrade — left unfixed, same reasoning as Day 14 (see README.md's "Testing status"). |
+| Firestore backups + monitoring enabled | **Not done — cannot be done from this repository.** See the expanded "Backup & disaster recovery" section above: no live Firebase project exists to enable anything on, and Firestore's managed backup feature is Blaze-tier regardless. Documented as a concrete deployment-time plan instead of enabled now, per this project's ₹0 constraint. |
+| Audit logs verified | **Unchanged, already verified.** See "Audit logging", "Day 3", and "Day 11" above — `logAdminAction`/`updateUserRole` write real, tested (at the handler level) audit entries; not yet exercised against a live deployed project (same Blaze-deployment gap as everything else Cloud-Functions-related in this project). |
+
+**Overall: no critical vulnerabilities found in what this repository can
+actually check today.** The two checklist items that aren't fully closed
+(rules re-verification against a live emulator; backups/monitoring on a
+live project) are both blocked by the same two structural facts already
+documented throughout this project — the emulator network block, and no
+live Firebase project existing yet — not by anything Day 16 skipped or
+got wrong.
