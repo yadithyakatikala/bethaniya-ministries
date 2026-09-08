@@ -242,3 +242,100 @@ full reasoning and the security properties this design gives.
   the `logAdminAction` callable.
 - No mobile or admin changes — nothing calls `logAdminAction` yet, since no
   admin CRUD UI exists to call it from (that starts Day 4+).
+
+## Day 11: Admin Users page — code patterns
+
+This section documents *how* the Users page code is organized, at the same
+level as the Day 2/Day 3 sections above. For *why* the RBAC boundary is
+enforced the way it is and what's actually verified, see SECURITY.md's
+"Day 11" section — this section doesn't repeat that content.
+
+### A stricter, page-local role check on top of the route-level gate
+
+`admin/src/features/users/UsersPage.tsx` has its own `canManageUsers(role)`
+check (`role === 'super_admin'`), evaluated inside the component itself,
+in addition to — not instead of — `ProtectedRoute`'s existing host-or-above
+gate that every admin route already goes through. This is a deliberate
+two-layer pattern specific to this page: `ProtectedRoute` answers "can this
+role reach the admin dashboard at all", while `canManageUsers` answers a
+narrower question ("can this specific role manage other users' roles") that
+only this one page needs to ask, because Users management is Super-Admin-
+only per the spec while most other admin routes are host-or-above. Adding
+a third role tier to `ProtectedRoute` itself for one page would have made
+every other route's gate check a page it doesn't need to know about; a
+local check keeps that narrowing where it's actually needed.
+
+### `updateUserRole`: one Cloud Function, two writes, one invocation
+
+`functions/src/updateUserRole.ts` follows the same handler-in-its-own-file
+pattern as `logAdminAction.ts` (see "Day 3" above) — same plain-`Error`-
+subclass-not-`HttpsError` reasoning, same `index.ts` `onCall` wrapper. It
+does the role write and the audit-log write in one handler invocation
+rather than two separate calls, so a client can never end up with a role
+change that has no matching audit entry (or vice versa) because of a
+dropped second network call.
+
+### Where Day 11 code lives
+
+- `admin/src/features/users/{UsersPage,__tests__/UsersPage.test.tsx}`,
+  `admin/src/services/firebase/users.ts` (the one-time-fetch data layer —
+  see that file's own header comment for why this page fetches once rather
+  than subscribing, unlike almost every other admin list page).
+- `functions/src/updateUserRole.ts`, wired from `functions/src/index.ts` as
+  the `updateUserRole` callable.
+
+## Day 13: Settings + AdminLayout — code patterns
+
+This section documents *how* the Day 13 code is organized. For the RBAC
+verification and the read-vs-admin-access distinction it re-confirms, see
+SECURITY.md's "Day 13" section.
+
+### Seed-once-from-first-snapshot, not `useState` on every snapshot
+
+`SettingsPage.tsx`'s form fields are seeded from the settings document's
+*first* real-time snapshot only (`useRef(false)`, not `useState`, so the
+seeding doesn't re-run on every effect re-invocation), the same pattern
+`mobile/src/features/profile/ProfileScreen.tsx` already established for
+its own display-name field. Without this, a Super Admin mid-edit would have
+their in-progress form text overwritten every time the `onSnapshot`
+listener fires again — including from their own save completing, or from
+another admin saving concurrently.
+
+### `AdminLayout`: a CSS-only responsive drawer, not `useMediaQuery`
+
+`admin/src/components/AdminLayout.tsx` wraps every authenticated route
+(see `App.tsx`) in a sidebar using MUI's documented "responsive drawer"
+recipe: two `<Drawer>` elements are always both rendered, and which one is
+visible is controlled purely by each one's own `sx.display` breakpoint
+object (a CSS media query), not by `useMediaQuery()`/`window.matchMedia()`
+in JavaScript. This was a deliberate choice, not the only option: jsdom
+(which `admin/src/test/setup.ts` configures for every Vitest run, including
+`App.test.tsx`, which renders the whole app) doesn't implement
+`window.matchMedia` by default, and adding a polyfill just for this one
+component would have been a new test-setup dependency for a purely
+cosmetic breakpoint decision. The CSS-only recipe sidesteps that entirely —
+`AdminLayout.test.tsx` verifies both drawers render and the active route's
+nav item gets MUI's `Mui-selected` class, without needing any
+`matchMedia` mock at all.
+
+### `settings.ts`: `setDoc(..., { merge: true })`, not `updateDoc`
+
+`admin/src/services/firebase/settings.ts`'s `saveChurchSettings` uses
+`setDoc` with `merge: true` rather than `updateDoc`, because
+`/settings/church` may not exist yet the first time any Super Admin ever
+saves — `updateDoc` throws on a document that's never been created,
+`setDoc(..., { merge: true })` creates it if absent and leaves any other
+future `settings/{settingId}` document alone. Followed by a `logAdminAction`
+call, the same client-write-then-log pattern every other admin write module
+in this project already uses (`announcements.ts`, `songs.ts`, `events.ts`,
+`dailyVerses.ts`).
+
+### Where Day 13 code lives
+
+- `admin/src/components/{AdminLayout,__tests__/AdminLayout.test.tsx}`.
+- `admin/src/features/settings/{SettingsPage,validation,__tests__/*}.ts(x)`,
+  `admin/src/services/firebase/{settings,__tests__/settings.test.ts}.ts`.
+- `admin/src/features/auth/DashboardPage.tsx` (the old per-page nav-button
+  row removed — see that file's own doc comment).
+- `mobile/src/features/auth/HomeScreen.tsx` (`ChurchBranding`, rewritten
+  from static text to a live subscription), `mobile/src/services/firebase/{settings,__tests__/settings.test.ts}.ts`.

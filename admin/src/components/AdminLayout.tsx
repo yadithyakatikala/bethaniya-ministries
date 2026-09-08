@@ -99,6 +99,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             color="inherit"
             edge="start"
             onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation menu"
             data-testid="sidebar-menu-button"
           >
             <MenuIcon />

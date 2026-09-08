@@ -127,13 +127,17 @@ block directly above those two tests in
 
 ## Audit logging
 
-Planned per spec: an immutable `audit_log` Firestore collection, written
-only by Cloud Functions (never directly by clients — `storage.rules` and
+An immutable `audit_log` Firestore collection, written only by Cloud
+Functions (never directly by clients — `storage.rules` and
 `firestore.rules` both deny client writes to it), readable only by
-`super_admin`. The collection's _rules_ exist now; the Cloud Function that
-actually writes to it (`logAdminAction()`) is a Day 3 build task, not yet
-implemented — see functions/src/index.ts's header comment for the current
-scope.
+`super_admin`. **Status correction (Day 14):** this section previously said
+the writing Cloud Function was "not yet implemented" — that was accurate
+when first written (Day 1) but became stale the moment Day 3 shipped it and
+was never updated. `logAdminAction()` (Day 3) and `updateUserRole()`
+(Day 11, which writes its own matching audit entry in the same handler
+invocation as the role change — see "Day 11" below) are both real,
+implemented, tested Cloud Functions that write to this collection today.
+See "Day 3" and "Day 11" below for what's actually verified.
 
 ## Backup & disaster recovery
 
@@ -474,3 +478,132 @@ handler's own logic is correct, not that Firebase's real callable-auth
 plumbing (`onCall`'s `request.auth` population) behaves identically; that
 remains unverified until a real deployed callable is exercised by a real
 signed-in client.
+
+## Day 11: Admin User Management (`updateUserRole`)
+
+### What Day 11 actually built
+
+The Admin Users page (`admin/src/features/users/UsersPage.tsx`) lists every
+user (`name, email, phone, role, join date`, per the spec's exact field
+list — no extra personal data collected, see "Role assignment:
+`createUserProfile()`" above) and lets a Super Admin change another user's
+role via `functions/src/updateUserRole.ts`, a callable Cloud Function
+following the same architecture as `logAdminAction` (see "Day 3" above):
+plain-`Error`-subclass handler, `index.ts`'s `onCall` wrapper converts it
+to a real `HttpsError` at the boundary, pure logic kept independently
+testable against a real Firestore emulator.
+
+### Security properties, each covered by a real test against a running Firestore emulator
+
+- **Caller-role check happens server-side, in the handler**, by reading the
+  caller's own `/users/{uid}` document via the Admin SDK — not by trusting
+  any role claim the client might send. Only `super_admin` may call this
+  function at all (`ALLOWED_CALLER_ROLES`); every other role is rejected
+  with `permission-denied` before any write happens.
+- **Independently enforced twice**, the same defense-in-depth pattern as
+  `createUserProfile`: `firestore.rules`' own `users/{userId}` update rule
+  separately rejects any client attempt to change `role` unless the caller
+  is a `super_admin`. `updateUserRole` writes via the Admin SDK (which
+  bypasses rules by design), so the rule is what would still stop a
+  hypothetical direct client write even if this function didn't exist.
+- **Self-demotion guard**: a Super Admin can never change their own role
+  through this function — checked unconditionally in the handler, not just
+  disabled in the UI (`UsersPage.tsx` also disables the control on the
+  caller's own row, but that's the same "hiding a button is not security"
+  UX convenience this file opens with). Without the server-side check, a
+  bug or a compromised admin session could demote the last Super Admin with
+  no way back short of direct database access.
+- **Atomic role-change + audit log**: the role write and the matching
+  `/audit_log` entry happen in the same handler invocation, so a caller
+  can't get one without the other the way it could if logging were a
+  separate, client-initiated call.
+
+### What's actually verified — Day 11 test levels
+
+**Structurally/type verified, not yet emulator-run**: `updateUserRole.ts`
+is fully typed and covered by `functions/src/__tests__/updateUserRole.test.ts`,
+but — like every other functions emulator-backed test in this project —
+that suite requires `FIRESTORE_EMULATOR_HOST` and has not actually executed
+in this development environment; see "Current rule coverage" above and
+"Testing status" in README.md for the current emulator-download blocker.
+
+**Vitest tested (admin side)**: `admin/src/features/users/__tests__/UsersPage.test.tsx`
+drives a real Zustand `authStore` and proves `UsersPage.tsx`'s own internal
+`canManageUsers(role)` check — stricter than `ProtectedRoute`'s general
+host-or-above dashboard gate, since Users management is Super-Admin-only
+per the spec — shows an in-page "unauthorized" message for `content_admin`
+and `host` (both of whom *can* reach the route per `ProtectedRoute`, but
+not manage users once there), alongside the loading/error/empty/role-change
+states for `super_admin`. `member` is never exercised against this
+component directly because `ProtectedRoute` already excludes `member` from
+every admin route one layer up — the same boundary Day 13's
+`SettingsRoute.test.tsx` proves explicitly for `/settings` below.
+
+**NOT tested — do not claim otherwise**: `updateUserRole` has never been
+invoked by a real signed-in admin client or deployed to a real Firebase
+project, for the same reasons as `logAdminAction` (see "Day 3" above).
+
+## Day 13: Settings (church-wide configuration)
+
+### What Day 13 actually built
+
+The admin Settings page (`admin/src/features/settings/SettingsPage.tsx`)
+reads and writes a single document, `/settings/church`
+(`churchName, logoUrl, description, supportEmail`), via
+`admin/src/services/firebase/settings.ts`. Mobile's `ChurchBranding`
+(`mobile/src/features/auth/HomeScreen.tsx`) subscribes to the same document
+read-only.
+
+### RBAC: no rules change, because none was needed
+
+`firestore.rules`' `settings/{settingId}` rule has existed unchanged since
+Day 3 (`allow read: if isSignedIn(); allow write: if isSuperAdmin();`) and
+already matched FINAL_ARCHITECTURE_SPECIFICATION.md's "Database Access
+Control" table for `settings` exactly (Member/Host/Content Admin: read;
+Super Admin: read + write) before Day 13 wrote a single line of code — see
+`admin/src/services/firebase/settings.ts`'s header comment. Day 13's job
+was entirely UI-level: give Super Admin an edit + save form, and give
+Content Admin/Host a read-only view of the same data, matching the rule
+that already existed.
+
+**A distinction worth stating explicitly, because it's easy to get wrong**:
+the `settings` collection's RBAC row governs *direct Firestore client
+reads* — which is what lets `member`-role mobile users read
+`/settings/church` for the church-branding header. It says nothing about
+whether a `member` can reach the *admin dashboard's* `/settings` route,
+which is a completely separate boundary (`admin/src/routes/ProtectedRoute.tsx`'s
+host-or-above `canAccessAdminDashboard()` gate — see "Admin/Host
+authorization boundary" above). A Member having Firestore read access to a
+collection never implies admin-dashboard access to that collection's
+management page; `/settings` is gated by `ProtectedRoute` exactly like
+every other admin route, independent of the collection's own RBAC row.
+This was re-verified explicitly for Day 13 (not assumed) because it's the
+one place in this project where a collection's RBAC table literally
+includes `member` in a "can read" column for something that also has an
+admin management page — `SettingsRoute.test.tsx` proves all four outcomes
+directly: super_admin (edit access), content_admin/host (read-only,
+reachable), member (denied at the route level, `subscribeToChurchSettings`
+never even called).
+
+### What's actually verified — Day 13 test levels
+
+**Emulator tested**: not applicable — Day 13 added no new Firestore rules
+and no new Cloud Function; the existing Day 3 `settings` rule this feature
+relies on is already covered by the Day 1/2 emulator-tested rule suite (see
+"Current rule coverage" above), unchanged.
+
+**Vitest/Jest tested (real component + real store, mocked Firestore SDK)**:
+`admin/src/services/firebase/__tests__/settings.test.ts`,
+`admin/src/features/settings/__tests__/{SettingsPage,validation}.test.ts`,
+`admin/src/features/settings/__tests__/SettingsRoute.test.tsx` (the
+four-role route-level proof above), `admin/src/components/__tests__/AdminLayout.test.tsx`,
+and `mobile/src/services/firebase/__tests__/settings.test.ts` plus the two
+new `HomeScreen.test.tsx` cases (settings-driven render, and the
+no-settings-document fallback).
+
+**NOT tested — do not claim otherwise**: whether the mobile app's
+settings-driven header actually re-renders correctly against a real,
+running Firestore backend with real network latency (as opposed to the
+synchronous mocked `onSnapshot` this project's Jest tests use) is part of
+the same pending real-device/real-backend verification as everything else
+under "Day 12" in README.md — not yet done.

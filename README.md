@@ -33,7 +33,11 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 | Day 8 | Bible foundation (books/chapters/verses) + language/theme foundation | ✅ |
 | Day 9 | Profile, Preferences, Bible Search | ✅ |
 | Day 10 | Notification architecture, Admin Notifications, Notification Center | ✅ |
-| Day 11 | Not started | ⏳ |
+| Day 11 | Admin Users page (list, view, Super-Admin-only role changes) | ✅ |
+| Day 12 | Real device testing + bug fixes | ⚠️ Static/code-level QA audit only — see "Days 11–13" below; real-device/slow-network/offline testing still pending |
+| Day 13 | Admin dashboard completion (Settings page + sidebar/responsive refinement) | ✅ |
+| Day 14 | Documentation + code review | ✅ |
+| Day 15 | Not started | ⏳ |
 
 "✅" here means the day's planned scope was implemented and reviewed, not
 that the feature is production-complete — see "Current V1 feature status",
@@ -57,6 +61,9 @@ actually production-ready within each of these.
 | Settings / preferences (language, theme, notifications toggle) | Implemented | Two-tier persistence: AsyncStorage always; Firestore sync when signed in. |
 | Notification Center (on-device notification history) | Implemented | Local history only — see "Notifications status". |
 | Admin notification composition/logging | Implemented | Records to an immutable log and computes a real recipient count — does **not** deliver a real push notification. See "Notifications status". |
+| Admin Users page (list all users, Super-Admin-only role changes) | Implemented | `updateUserRole` Cloud Function enforces caller-is-Super-Admin and a self-demotion guard server-side, independent of the UI; see SECURITY.md's "Day 11" section. |
+| Admin Settings page (church name, logo URL, description, support email) | Implemented | Super Admin can edit + save; Content Admin/Host see the same data read-only; Member cannot reach the admin route at all. Saved settings drive the mobile app's church-branding header in real time. See SECURITY.md's "Day 13" section. |
+| Admin dashboard sidebar navigation (responsive) | Implemented | Replaces the earlier per-page dashboard nav-button row; same routes, same `ProtectedRoute` gate. |
 | Firestore security rules / RBAC foundation | Implemented | Deny-by-default, four roles (member/host/content_admin/super_admin); emulator-tested where the emulator is reachable (see "Testing status"). |
 | Real push notification delivery (FCM device tokens) | **Not implemented** | No token registration exists anywhere in this project. |
 | Store submission / production deployment prep | **Not started** | |
@@ -116,25 +123,27 @@ actually production-ready within each of these.
 
 ## Testing status
 
-Verified results as of the Day 9+10 checkpoint (commit `b4c251e`):
+Verified results as of the Day 14 checkpoint (built on commit `c2bd5fd`):
 
 | Package | Result |
 | --- | --- |
-| Mobile — Jest | **39/39 suites, 244/244 tests passing** |
+| Mobile — Jest | **40/40 suites, 251/251 tests passing** |
 | Mobile — typecheck / lint / format | Clean |
-| Admin — Vitest | **25/25 files, 184/184 tests passing** |
+| Admin — Vitest | **32/32 files, 238/238 tests passing** |
 | Admin — typecheck / lint / format / production build | Clean |
 | Functions — typecheck / lint / build | Clean |
+| Functions — `healthCheck.test.ts` (the one functions suite that doesn't need the emulator) | **4/4 passing** |
 
 **Not passing — genuinely unexecuted, not failing quietly:**
 
 - **Functions emulator-backed tests** (`createUserProfile.test.ts`,
-  `logAdminAction.test.ts`, `sendNotification.test.ts`) remain
-  **unexecuted** because the Firestore emulator binary download
+  `logAdminAction.test.ts`, `sendNotification.test.ts`, `updateUserRole.test.ts`)
+  remain **unexecuted** because the Firestore emulator binary download
   (`storage.googleapis.com`) is blocked by the current development
-  environment's network allowlist. These tests are structurally/type
-  sound (verified independently) but have not actually run in this
-  environment.
+  environment's network allowlist (still `403 Forbidden` /
+  `X-Proxy-Error: blocked-by-allowlist` as of the Day 14 re-check). These
+  tests are structurally/type sound (verified independently) but have not
+  actually run in this environment.
 - **The `firebase-tests/` security-rule suite** remains **blocked** by a
   pre-existing dependency conflict: `firebase@^12` (used by the app) vs.
   `@firebase/rules-unit-testing@^3.0.4`'s `peer firebase@^10.0.0`
@@ -144,6 +153,21 @@ Verified results as of the Day 9+10 checkpoint (commit `b4c251e`):
 These two are not described as "passing" anywhere in this project's
 documentation, and no test-affecting code has been changed to manufacture
 a passing result around them.
+
+**`npm audit` (Day 14):** `admin` reports 0 vulnerabilities. `mobile`
+reports 16 moderate-severity advisories and `functions` reports 7, all
+transitive (Expo tooling / `@react-navigation`'s `query-string` dependency
+chain, and a shared `uuid` advisory pulled in by `firebase-admin`'s Google
+Cloud client chain in `functions` and by Expo's config-plugins chain in
+`mobile`). None has a fix that isn't a breaking downgrade: `npm audit fix
+--force` would downgrade `expo` to `46.0.21` in `mobile` and
+`firebase-admin` to `10.3.0` in `functions`; `decode-uri-component`'s
+advisory in `mobile` has no fix available at all yet. None are exploitable
+through this project's own code paths (they're build-tooling/SDK-internal
+dependencies, not runtime request-handling paths this app's users can
+reach). Left unfixed rather than force-downgraded — a package.json/lockfile
+change needs a deliberate, explicit decision, not an automatic `--force`
+run during a documentation pass.
 
 ## Cost constraint
 
@@ -210,6 +234,7 @@ bethaniya-ministries/
 ├── FINAL_ARCHITECTURE_SPECIFICATION.md   Approved baseline spec
 ├── ARCHITECTURE.md    How this repo implements that spec
 ├── SECURITY.md        Security model, RBAC, what's enforced where, real test results
+├── ADMIN_GUIDE.md      Step-by-step dashboard guide for church staff (non-programmers)
 ├── ENVIRONMENT.md      Manual setup: Firebase projects, env vars, tool versions
 ├── CONTRIBUTING.md    Code conventions, commit style, how to run checks
 ├── DEPLOYMENT.md      How to deploy each part
@@ -346,6 +371,64 @@ conditions, Bible Search scope, profile-photo constraints, test quality,
 and more) — one bug was found and fixed during that review (admin
 Notifications UI wording that implied real push delivery) before the
 commit was made.
+
+### Days 11–13
+
+- **Day 11** added the Admin Users page: every user's name/email/phone/role/
+  join date, and a role-change control restricted to Super Admin both in the
+  UI and, independently, server-side — the `updateUserRole` Cloud Function
+  checks the caller's own role from Firestore before writing, and refuses to
+  let a Super Admin demote themselves (no accidental-lockout path). See
+  SECURITY.md's "Day 11" section for the full security write-up.
+- **Day 12** was, per this project's explicit process, a real-device testing
+  day — TestFlight/Play Store installs, actively exercising the app on
+  physical iPhone/Android hardware. That isn't possible in this development
+  environment (no device access), so Day 12 here means a **thorough static/
+  code-level QA audit** against the same testing matrix instead: reading
+  every screen's code for the failure modes real-device testing would catch
+  (loading/error/empty states, form validation, navigation edge cases,
+  RBAC boundaries). The one concrete finding: **mobile's Firestore client is
+  initialized with `getFirestore()`, not `initializeFirestore(..., {
+  localCache: persistentLocalCache() })`**, so there is no configured
+  persistent offline cache — documented as a pending finding, not fixed,
+  since verifying whether it actually needs fixing requires real-device
+  testing under a real network to observe first. **Physical-device testing,
+  slow-network testing, and offline-behavior verification remain pending**
+  and are not claimed as done anywhere in this project's documentation.
+- **Day 13** completed the admin dashboard: a Settings page (church name,
+  logo URL, description, support email) with Save, required-field/URL
+  validation, loading/error states, and a success confirmation — Super Admin
+  can edit and save, Content Admin/Host see the same data read-only, Member
+  cannot reach the admin route at all (the pre-existing `ProtectedRoute`
+  host-or-above gate, unchanged, and confirmed to apply to `/settings`
+  exactly like every other admin route). No Firestore rules change was
+  needed — the Day 3 `settings/{settingId}` rule already matched the RBAC
+  table exactly. Every admin route was also wrapped in a new responsive
+  sidebar (`AdminLayout`), replacing the old per-page nav-button row on the
+  dashboard. Mobile's `ChurchBranding` now subscribes to the real
+  `/settings/church` document instead of showing static text, falling back
+  to the same default name/description when no settings document has been
+  saved yet.
+
+This work was committed and pushed as `c2bd5fd`, after the same
+audit → implement → test → review discipline as every prior checkpoint —
+including a targeted follow-up review specifically re-verifying that the
+Settings route's RBAC matched the spec's table exactly and didn't
+accidentally over- or under-expose the admin dashboard (see
+`SettingsRoute.test.tsx`, which proves all four role outcomes directly).
+
+### Day 14
+
+Documentation + code review, per the spec's Day 14 plan: this README,
+ARCHITECTURE.md, and SECURITY.md were brought up to date through Day 13
+(they had drifted since the Day 9+10 checkpoint); [ADMIN_GUIDE.md](./ADMIN_GUIDE.md)
+was written from scratch (it didn't exist before); a code review pass
+looked for secrets, debug statements, error-handling gaps, and
+accessibility issues across `admin/src`, `mobile/src`, and `functions/src`
+(one real finding: the new Day 13 sidebar's mobile menu button was missing
+an `aria-label`, unlike every other icon button in the codebase — fixed);
+and `npm audit` was run in all three packages (see "Testing status" above
+for the honest result — nothing was force-fixed).
 
 ## Production readiness
 
