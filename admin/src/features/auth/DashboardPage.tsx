@@ -7,7 +7,13 @@ import { useAuthStore } from '../../store/authStore';
  * authorized state renders and sign-out works. Day 4 adds a link into the
  * one real content-management screen that exists so far (Announcements);
  * Day 5 adds a second link for Daily Verses; Day 6 adds a third for Songs;
- * Day 7 adds a fourth for Events; Day 10 adds a fifth for Notifications.
+ * Day 7 adds a fourth for Events; Day 10 adds a fifth for Notifications;
+ * Day 11 adds a sixth for Users (Super Admin only -- see UsersPage.tsx's
+ * own role gate; the nav button itself is shown to every dashboard role
+ * per this file's existing pattern, matching the "hiding is UX, not
+ * security" principle -- a non-Super-Admin who follows it sees UsersPage's
+ * own "not authorized" message, the same as any other role-gated page in
+ * this app).
  * A fuller nav/sidebar covering
  * the rest of FINAL_ARCHITECTURE_SPECIFICATION.md's "Dashboard Overview"
  * (stats, activity feed, quick actions) is later V1 scope, not built here.
@@ -65,6 +71,14 @@ export function DashboardPage() {
           data-testid="notifications-nav-link"
         >
           Notifications
+        </Button>
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/users"
+          data-testid="users-nav-link"
+        >
+          Users
         </Button>
         <Button
           variant="outlined"

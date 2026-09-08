@@ -22,6 +22,12 @@
  * comment for the full, honest disclosure of why (no registered push
  * tokens exist anywhere in this project).
  *
+ * updateUserRole (Day 11, see ./updateUserRole.ts) is the admin Users
+ * page's "change role" callable, same architecture again. Only a Super
+ * Admin may call it; it independently enforces a self-demotion guard
+ * (a Super Admin can never change their own role through this function)
+ * and writes a matching /audit_log entry in the same invocation.
+ *
  * Admin SDK is initialized once here and re-exported so future function
  * modules share a single app instance instead of each calling initializeApp().
  */
@@ -31,6 +37,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { createUserProfileHandler } from './createUserProfile';
 import { AdminActionError, logAdminActionHandler } from './logAdminAction';
 import { SendNotificationError, sendNotificationHandler } from './sendNotification';
+import { UpdateUserRoleError, updateUserRoleHandler } from './updateUserRole';
 
 export const adminApp = initializeApp();
 
@@ -78,6 +85,25 @@ export const sendNotification = onCall(async (request) => {
     // Same plain-Error-to-HttpsError conversion as logAdminAction above,
     // for the same reason (see sendNotification.ts's header comment).
     if (error instanceof SendNotificationError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    throw error;
+  }
+});
+
+export const updateUserRole = onCall(async (request) => {
+  try {
+    return await updateUserRoleHandler(
+      request.data,
+      request.auth
+        ? { uid: request.auth.uid, email: request.auth.token.email ?? null }
+        : undefined
+    );
+  } catch (error) {
+    // Same plain-Error-to-HttpsError conversion as logAdminAction/
+    // sendNotification above, for the same reason (see updateUserRole.ts's
+    // header comment).
+    if (error instanceof UpdateUserRoleError) {
       throw new HttpsError(error.code, error.message);
     }
     throw error;

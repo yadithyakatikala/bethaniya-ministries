@@ -285,6 +285,50 @@ describe('firestore.rules', () => {
       await assertSucceeds(db.doc('users/member-1').update({ role: 'host' }));
     });
 
+    it("blocks a member from changing another user's role", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+      });
+      const db = dbFor('member-1');
+      await assertFails(db.doc('users/member-2').update({ role: 'super_admin' }));
+    });
+
+    it("blocks a host from changing another user's role", async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/member-1').set({ role: 'member' });
+      });
+      const db = dbFor('host-1');
+      await assertFails(db.doc('users/member-1').update({ role: 'content_admin' }));
+    });
+
+    // Day 11: self-demotion guard, rules layer. functions/src/
+    // updateUserRole.ts's callable is the app's only intended path for a
+    // role change and independently rejects a caller targeting their own
+    // uid -- these two tests prove the SAME restriction holds even for a
+    // direct Firestore write that bypasses that callable entirely (e.g.
+    // a Super Admin using the client SDK straight from a browser
+    // console), which is the actual security boundary the callable's own
+    // guard cannot enforce on its own.
+    it('blocks a super_admin from changing their own role, even to another valid role', async () => {
+      await seed(async (db) => db.doc('users/super-1').set({ role: 'super_admin' }));
+      const db = dbFor('super-1');
+      await assertFails(db.doc('users/super-1').update({ role: 'content_admin' }));
+      // Not just a "same value" no-op edge case -- setting it to a
+      // *different*, otherwise-valid role for someone else is still
+      // rejected when the target is the caller's own document.
+      await assertFails(db.doc('users/super-1').update({ role: 'host' }));
+    });
+
+    it('still allows a super_admin to update their own profile fields, unaffected by the self-role-change block', async () => {
+      await seed(async (db) =>
+        db.doc('users/super-1').set({ role: 'super_admin', displayName: 'A' })
+      );
+      const db = dbFor('super-1');
+      await assertSucceeds(db.doc('users/super-1').update({ displayName: 'B' }));
+    });
+
     it('blocks a super_admin from bundling a role change with other field changes', async () => {
       await seed(async (db) => {
         await db.doc('users/super-1').set({ role: 'super_admin' });

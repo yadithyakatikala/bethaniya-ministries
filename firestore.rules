@@ -176,8 +176,9 @@ service cloud.firestore {
 
     // ---- users -----------------------------------------------------
     // Members: read their own doc. Admins: read all.
-    // Role field can only be changed by a Super Admin (never by the user
-    // themselves — prevents self-elevation).
+    // Role field can only be changed by a Super Admin, and only for
+    // SOMEONE ELSE (never by/for the user themselves — prevents both
+    // self-elevation and self-demotion).
     match /users/{userId} {
       allow read: if isOwner(userId) || isContentAdminOrAbove();
 
@@ -188,8 +189,22 @@ service cloud.firestore {
       // preference fields below (never role, email, phoneNumber, or
       // createdAt -- those stay server-controlled / Super-Admin-only),
       // and every field it does touch must additionally pass
-      // isValidUserProfileSelfUpdate()'s value checks. A Super Admin's
-      // update is unchanged: role-only, exactly as before.
+      // isValidUserProfileSelfUpdate()'s value checks.
+      //
+      // Day 11: a Super Admin's role-change branch additionally requires
+      // `!isOwner(userId)` -- a Super Admin may change ANOTHER user's
+      // role, never their own, matching
+      // functions/src/updateUserRole.ts's independent, server-side
+      // self-demotion guard (that callable is the app's only intended
+      // path for a role change; this rule is the defense-in-depth
+      // boundary for a direct Firestore write bypassing it -- see that
+      // file's header comment and admin/src/features/users/UsersPage.tsx's
+      // disabled own-row selector for the other two layers of this same
+      // guard). Without this, a Super Admin using the Firestore client
+      // SDK directly (bypassing the callable and the UI entirely) could
+      // still demote themselves out of Super Admin with no remaining
+      // path back short of direct database access -- exactly what the
+      // guard exists to prevent.
       allow update: if (isOwner(userId)
           && request.resource.data.diff(resource.data)
                .affectedKeys()
@@ -197,6 +212,7 @@ service cloud.firestore {
                          'themePreference', 'notificationsEnabled'])
           && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()
+          && !isOwner(userId)
           && request.resource.data.diff(resource.data)
                .affectedKeys().hasOnly(['role']));
 

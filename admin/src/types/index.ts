@@ -195,3 +195,35 @@ export interface SendNotificationFormInput {
   imageUrl: string | null;
   recipientGroup: NotificationRecipientGroup;
 }
+
+/**
+ * A row on the admin Users page at /users/{uid}, per
+ * FINAL_ARCHITECTURE_SPECIFICATION.md's Day 11 plan ("table showing all
+ * users, name, email, phone, role, join date"). Sourced from exactly the
+ * fields functions/src/createUserProfile.ts's own header comment says the
+ * Admin Users page needs -- nothing more.
+ */
+export interface AdminUserSummary {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  role: UserRole;
+  createdAt: Date | null;
+}
+
+/** Every role a Super Admin may assign via the Users page -- mirrors
+ * functions/src/updateUserRole.ts's ASSIGNABLE_ROLES exactly. */
+export const ASSIGNABLE_ROLES: readonly UserRole[] = [
+  'super_admin',
+  'content_admin',
+  'host',
+  'member',
+];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  content_admin: 'Content Admin',
+  host: 'Host',
+  member: 'Member',
+};

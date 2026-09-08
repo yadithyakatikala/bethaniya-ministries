@@ -17,6 +17,7 @@ import { EventsListPage } from './features/events/EventsListPage';
 import { EventForm } from './features/events/EventForm';
 import { EditEventPage } from './features/events/EditEventPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { UsersPage } from './features/users/UsersPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { subscribeToAuthChanges } from './store/authStore';
 
@@ -40,6 +41,8 @@ import { subscribeToAuthChanges } from './store/authStore';
  * Day 10 adds /notifications (see NotificationsPage.tsx) -- a single page,
  * not a list/new/edit trio like the others, since composing and sending is
  * a one-shot action rather than CRUD on persistent editable documents.
+ * Day 11 adds /users (see UsersPage.tsx) -- also a single page (a table
+ * with an inline role selector per row), Super-Admin-only.
  */
 function App() {
   useEffect(() => subscribeToAuthChanges(), []);
@@ -159,6 +162,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
               </ProtectedRoute>
             }
           />
