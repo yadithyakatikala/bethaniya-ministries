@@ -1,7 +1,20 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { AudioPlayer } from '../AudioPlayer';
+
+/** Wrapped in AuthProvider/PreferencesProvider since AudioPlayer now reads useTheme(). */
+async function renderPlayer(audioUrl: string) {
+  return await render(
+    <AuthProvider>
+      <PreferencesProvider>
+        <AudioPlayer audioUrl={audioUrl} />
+      </PreferencesProvider>
+    </AuthProvider>
+  );
+}
 
 /**
  * expo-audio has no shipped Jest mock (unlike react-native-safe-area-context)
@@ -30,6 +43,8 @@ import { AudioPlayer } from '../AudioPlayer';
  * specific to assert about it than "an unplayable source shows the
  * error state, not a crash."
  */
+jest.mock('../../../services/firebase/app');
+
 jest.mock('expo-audio', () => ({
   useAudioPlayer: jest.fn(),
   useAudioPlayerStatus: jest.fn(),
@@ -54,9 +69,7 @@ describe('AudioPlayer', () => {
       currentTime: 0,
       duration: 0,
     });
-    const { getByTestId } = await render(
-      <AudioPlayer audioUrl="https://example.com/song.mp3" />
-    );
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
     expect(getByTestId('audio-player-loading')).toBeTruthy();
   });
 
@@ -73,7 +86,7 @@ describe('AudioPlayer', () => {
       currentTime: 0,
       duration: 0,
     });
-    const { getByTestId } = await render(<AudioPlayer audioUrl="not-a-real-url" />);
+    const { getByTestId } = await renderPlayer('not-a-real-url');
     expect(getByTestId('audio-player-error')).toBeTruthy();
   });
 
@@ -95,8 +108,8 @@ describe('AudioPlayer', () => {
       currentTime: 0,
       duration: 0,
     });
-    const { getByTestId } = await render(
-      <AudioPlayer audioUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ" />
+    const { getByTestId } = await renderPlayer(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     );
     expect(getByTestId('audio-player-error')).toBeTruthy();
   });
@@ -114,9 +127,7 @@ describe('AudioPlayer', () => {
       currentTime: 65,
       duration: 200,
     });
-    const { getByTestId, getByText } = await render(
-      <AudioPlayer audioUrl="https://example.com/song.mp3" />
-    );
+    const { getByTestId, getByText } = await renderPlayer('https://example.com/song.mp3');
     expect(getByText('1:05 / 3:20')).toBeTruthy();
     expect(getByTestId('audio-play-pause-button')).toBeTruthy();
     expect(getByTestId('audio-restart-button')).toBeTruthy();
@@ -133,9 +144,7 @@ describe('AudioPlayer', () => {
       currentTime: 0,
       duration: 100,
     });
-    const { getByTestId } = await render(
-      <AudioPlayer audioUrl="https://example.com/song.mp3" />
-    );
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
     fireEvent.press(getByTestId('audio-play-pause-button'));
     expect(play).toHaveBeenCalled();
     expect(pause).not.toHaveBeenCalled();
@@ -152,9 +161,7 @@ describe('AudioPlayer', () => {
       currentTime: 10,
       duration: 100,
     });
-    const { getByTestId } = await render(
-      <AudioPlayer audioUrl="https://example.com/song.mp3" />
-    );
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
     fireEvent.press(getByTestId('audio-play-pause-button'));
     expect(pause).toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
@@ -171,9 +178,7 @@ describe('AudioPlayer', () => {
       currentTime: 50,
       duration: 100,
     });
-    const { getByTestId } = await render(
-      <AudioPlayer audioUrl="https://example.com/song.mp3" />
-    );
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
     fireEvent.press(getByTestId('audio-restart-button'));
     expect(seekTo).toHaveBeenCalledWith(0);
     await waitFor(() => expect(play).toHaveBeenCalled());

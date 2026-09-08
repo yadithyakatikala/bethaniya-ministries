@@ -65,7 +65,7 @@ describe('BooksListScreen', () => {
     const { getByTestId } = await renderScreen();
     const list = getByTestId('bible-books-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#F9FAFB');
+    expect(flatStyle.backgroundColor).toBe('#FAF7F1');
   });
 
   it('renders with dark-mode colors when the device is in dark mode', async () => {
@@ -73,6 +73,6 @@ describe('BooksListScreen', () => {
     const { getByTestId } = await renderScreen();
     const list = getByTestId('bible-books-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#1F2937');
+    expect(flatStyle.backgroundColor).toBe('#141A17');
   });
 });

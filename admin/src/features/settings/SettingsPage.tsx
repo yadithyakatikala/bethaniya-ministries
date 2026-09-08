@@ -11,7 +11,6 @@ import {
   DialogTitle,
   Paper,
   TextField,
-  Typography,
 } from '@mui/material';
 import {
   saveChurchSettings,
@@ -23,6 +22,7 @@ import {
   type SettingsValidationErrors,
 } from './validation';
 import { useAuthStore } from '../../store/authStore';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import type { ChurchSettings } from '../../types';
 
 /**
@@ -136,9 +136,7 @@ export function SettingsPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="settings-page">
-      <Typography variant="h5" component="h1" gutterBottom>
-        Settings
-      </Typography>
+      <AdminPageHeader title="Settings" />
 
       {!canEdit ? (
         <Alert

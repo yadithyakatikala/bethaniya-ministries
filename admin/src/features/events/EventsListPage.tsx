@@ -19,7 +19,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -31,6 +30,9 @@ import {
 } from '../../services/firebase/events';
 import { validateEventYouTubeUrl } from './validation';
 import { useAuthStore } from '../../store/authStore';
+import { AdminEmptyState } from '../../components/AdminEmptyState';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminTableCard } from '../../components/AdminTableCard';
 import type { Event } from '../../types';
 
 /** Matches firestore.rules' isContentAdminOrAbove() -- full event CRUD + publish/unpublish. Gating these buttons is a UX convenience only; the rules are the real boundary. */
@@ -159,28 +161,21 @@ export function EventsListPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="events-list-page">
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-        }}
-      >
-        <Typography variant="h5" component="h1">
-          Events
-        </Typography>
-        {canManage ? (
-          <Button
-            variant="contained"
-            component={RouterLink}
-            to="/events/new"
-            data-testid="new-event-button"
-          >
-            New Event
-          </Button>
-        ) : null}
-      </Box>
+      <AdminPageHeader
+        title="Events"
+        action={
+          canManage ? (
+            <Button
+              variant="contained"
+              component={RouterLink}
+              to="/events/new"
+              data-testid="new-event-button"
+            >
+              New Event
+            </Button>
+          ) : undefined
+        }
+      />
 
       {error ? (
         <Alert severity="error" data-testid="events-error">
@@ -195,95 +190,95 @@ export function EventsListPage() {
       ) : null}
 
       {events && events.length === 0 ? (
-        <Typography color="text.secondary" data-testid="events-empty">
-          No events yet.
-        </Typography>
+        <AdminEmptyState message="No events yet." testId="events-empty" />
       ) : null}
 
       {events && events.length > 0 ? (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Starts At</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Live</TableCell>
-                {canManage || canStream ? (
-                  <TableCell align="right">Actions</TableCell>
-                ) : null}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id} data-testid={`event-row-${event.id}`}>
-                  <TableCell>{event.title}</TableCell>
-                  <TableCell>{formatStartsAt(event.startsAt)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={event.published ? 'Published' : 'Draft'}
-                      color={event.published ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {event.isLive ? (
-                      <Chip
-                        label="LIVE"
-                        color="error"
-                        size="small"
-                        data-testid={`live-chip-${event.id}`}
-                      />
-                    ) : null}
-                  </TableCell>
+        <AdminTableCard>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Starts At</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Live</TableCell>
                   {canManage || canStream ? (
-                    <TableCell align="right">
-                      {canManage ? (
-                        <Button
-                          size="small"
-                          onClick={() => void handleTogglePublished(event)}
-                          disabled={busyId === event.id}
-                          data-testid={`toggle-published-${event.id}`}
-                        >
-                          {event.published ? 'Unpublish' : 'Publish'}
-                        </Button>
-                      ) : null}
-                      {canStream ? (
-                        <Button
-                          size="small"
-                          onClick={() => openStreamDialog(event)}
-                          data-testid={`live-stream-${event.id}`}
-                        >
-                          Live Stream
-                        </Button>
-                      ) : null}
-                      {canManage ? (
-                        <>
-                          <IconButton
-                            component={RouterLink}
-                            to={`/events/${event.id}/edit`}
-                            aria-label="Edit"
-                            data-testid={`edit-event-${event.id}`}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            aria-label="Delete"
-                            onClick={() => setDeleteTarget(event)}
-                            disabled={busyId === event.id}
-                            data-testid={`delete-event-${event.id}`}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </>
-                      ) : null}
-                    </TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   ) : null}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {events.map((event) => (
+                  <TableRow key={event.id} data-testid={`event-row-${event.id}`}>
+                    <TableCell>{event.title}</TableCell>
+                    <TableCell>{formatStartsAt(event.startsAt)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={event.published ? 'Published' : 'Draft'}
+                        color={event.published ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {event.isLive ? (
+                        <Chip
+                          label="LIVE"
+                          color="error"
+                          size="small"
+                          data-testid={`live-chip-${event.id}`}
+                        />
+                      ) : null}
+                    </TableCell>
+                    {canManage || canStream ? (
+                      <TableCell align="right">
+                        {canManage ? (
+                          <Button
+                            size="small"
+                            onClick={() => void handleTogglePublished(event)}
+                            disabled={busyId === event.id}
+                            data-testid={`toggle-published-${event.id}`}
+                          >
+                            {event.published ? 'Unpublish' : 'Publish'}
+                          </Button>
+                        ) : null}
+                        {canStream ? (
+                          <Button
+                            size="small"
+                            onClick={() => openStreamDialog(event)}
+                            data-testid={`live-stream-${event.id}`}
+                          >
+                            Live Stream
+                          </Button>
+                        ) : null}
+                        {canManage ? (
+                          <>
+                            <IconButton
+                              component={RouterLink}
+                              to={`/events/${event.id}/edit`}
+                              aria-label="Edit"
+                              data-testid={`edit-event-${event.id}`}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              aria-label="Delete"
+                              onClick={() => setDeleteTarget(event)}
+                              disabled={busyId === event.id}
+                              data-testid={`delete-event-${event.id}`}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        ) : null}
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </AdminTableCard>
       ) : null}
 
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
@@ -313,7 +308,16 @@ export function EventsListPage() {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Live Stream -- {streamTarget?.title}</DialogTitle>
+        <DialogTitle
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <Box component="span">Live Stream -- {streamTarget?.title}</Box>
+          <Chip
+            label={streamTarget?.isLive ? 'LIVE NOW' : 'Not live'}
+            color={streamTarget?.isLive ? 'error' : 'default'}
+            size="small"
+          />
+        </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
             Only the YouTube URL and LIVE status are changed here. No other event field is
@@ -332,9 +336,6 @@ export function EventsListPage() {
             }
             slotProps={{ htmlInput: { 'data-testid': 'stream-url-input' } }}
           />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Currently: {streamTarget?.isLive ? 'LIVE NOW' : 'Not live'}
-          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={closeStreamDialog}>Cancel</Button>

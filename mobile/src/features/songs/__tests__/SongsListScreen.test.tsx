@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { onSnapshot } from 'firebase/firestore';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { SongsListScreen } from '../SongsListScreen';
 
 jest.mock('../../../services/firebase/app');
@@ -10,14 +12,21 @@ jest.mock('../../../services/firebase/app');
  * the `navigation`/`route` casts below stand in for the rest of
  * NativeStackScreenProps' shape, which this test doesn't need (same
  * `as never` convention used in SongDetailScreen.test.tsx).
+ *
+ * Wrapped in AuthProvider/PreferencesProvider since the screen now reads
+ * useTheme() -- same reasoning as AnnouncementsList.test.tsx.
  */
 async function renderScreen() {
   const navigate = jest.fn();
   const utils = await render(
-    <SongsListScreen
-      navigation={{ navigate } as never}
-      route={{ key: 'SongsList', name: 'SongsList' } as never}
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <SongsListScreen
+          navigation={{ navigate } as never}
+          route={{ key: 'SongsList', name: 'SongsList' } as never}
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
   return { ...utils, navigate };
 }

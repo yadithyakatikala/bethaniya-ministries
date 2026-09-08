@@ -28,13 +28,21 @@ const MAX_HISTORY_ENTRIES = 100;
  * decision 11's "navigation payload handling") -- shape is intentionally
  * loose (Record<string, unknown>) since this module has no opinion on
  * what a notification is about; the screen that reads it back is
- * responsible for validating it defensively before navigating anywhere. */
+ * responsible for validating it defensively before navigating anywhere.
+ *
+ * `readAt` is local-only, per the UI audit's "smallest honest fix" for
+ * read/unread state -- notifications_log (Firestore) has no such field
+ * and this module never writes to it (see the module doc comment above
+ * for why); an entry is unread until this device marks it read (see
+ * markNotificationRead below), and that state lives only in this same
+ * AsyncStorage array, never synced anywhere. */
 export interface NotificationHistoryEntry {
   id: string;
   title: string;
   message: string;
   receivedAt: string;
   data: Record<string, unknown> | null;
+  readAt: string | null;
 }
 
 async function readHistory(): Promise<NotificationHistoryEntry[]> {
@@ -71,10 +79,25 @@ export async function addNotificationToHistory(entry: {
     message: entry.message,
     data: entry.data ?? null,
     receivedAt: entry.receivedAt ?? new Date().toISOString(),
+    readAt: null,
   };
   const updated = [newEntry, ...history].slice(0, MAX_HISTORY_ENTRIES);
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
   return newEntry;
+}
+
+/**
+ * Marks one entry read (idempotent -- a second call for an already-read
+ * entry leaves its original `readAt` timestamp unchanged). No-op if the
+ * id isn't found (e.g. it aged out past MAX_HISTORY_ENTRIES between the
+ * screen loading and the tap resolving).
+ */
+export async function markNotificationRead(id: string): Promise<void> {
+  const history = await readHistory();
+  const target = history.find((entry) => entry.id === id);
+  if (!target || target.readAt) return;
+  target.readAt = new Date().toISOString();
+  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 export async function clearNotificationHistory(): Promise<void> {

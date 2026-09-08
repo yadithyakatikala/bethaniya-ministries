@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Button,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
+import { AppButton } from '../../theme/ui/AppButton';
+import { Badge } from '../../theme/ui/Badge';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById } from './books';
 import { loadChapter } from './dataSource';
@@ -35,16 +39,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapter'>;
  * read (languagePreference.ts itself is unchanged and still does the
  * actual local-storage read/write, just now called from
  * PreferencesContext instead of from this screen).
+ *
+ * Restyled onto the shared Vespers theme as the app's most carefully
+ * designed screen, per the approved prototype: hanging verse numbers in
+ * the accent color, a sticky prev/next bar (the AppButton primitive,
+ * whose own `disabled` prop already sets accessibilityState.disabled --
+ * see ChapterScreen.test.tsx's disabled-state assertions), and the
+ * placeholder-content banner promoted to the shared Badge primitive.
+ * Every testID and the exact "Language: English/Telugu" text are
+ * unchanged.
  */
 type LoadResult = { key: string; chapter: BibleChapter | null };
 
 export function ChapterScreen({ route, navigation }: Props) {
   const { bookId, chapterNumber } = route.params;
-  const {
-    languagePreference: language,
-    setLanguagePreference,
-    isDark,
-  } = usePreferences();
+  const { languagePreference: language, setLanguagePreference } = usePreferences();
+  const { colors, radii, spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   // requestKey identifies "which request a result/error belongs to".
   // chapter/hasError are DERIVED below by comparing this key against the
   // most recent settled result, rather than reset with an imperative
@@ -56,7 +67,6 @@ export function ChapterScreen({ route, navigation }: Props) {
   const requestKey = `${bookId}:${chapterNumber}:${language}`;
   const [result, setResult] = useState<LoadResult | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const colors = isDark ? darkColors : lightColors;
 
   const book = getBookById(bookId);
   const chapter = result?.key === requestKey ? result.chapter : undefined;
@@ -96,61 +106,103 @@ export function ChapterScreen({ route, navigation }: Props) {
   const isLastChapter = chapterNumber >= book.chapterCount;
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
-      testID="chapter-screen"
-    >
-      <View style={styles.languageRow}>
-        <Text style={[styles.languageLabel, { color: colors.secondaryText }]}>
-          {`Language: ${language === 'te' ? 'Telugu' : 'English'}`}
-        </Text>
-        <Button
-          title="Switch Language"
-          onPress={() => void handleToggleLanguage()}
-          testID="language-toggle-button"
-        />
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.header,
+          { borderBottomColor: colors.border, paddingTop: insets.top + 8 },
+        ]}
+      >
+        <View style={styles.headerTop}>
+          <Pressable
+            testID="chapter-back-button"
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <View style={[styles.backChevron, { borderColor: colors.text }]} />
+          </Pressable>
+          <Text
+            style={[styles.reference, { color: colors.text }]}
+            testID="chapter-reference"
+          >
+            {`${book.name} ${chapterNumber}`}
+          </Text>
+          <Pressable
+            testID="language-toggle-button"
+            accessibilityRole="button"
+            onPress={() => void handleToggleLanguage()}
+            style={[
+              styles.languagePill,
+              { backgroundColor: colors.primaryTint, borderRadius: radii.control },
+            ]}
+          >
+            <Text style={[styles.languagePillText, { color: colors.primary }]}>
+              {`Language: ${language === 'te' ? 'Telugu' : 'English'}`}
+            </Text>
+          </Pressable>
+        </View>
+        {chapter?.isPlaceholder ? (
+          <View testID="chapter-placeholder-banner">
+            <Badge
+              label="Development content — not a real Bible translation"
+              variant="warning"
+            />
+          </View>
+        ) : null}
       </View>
 
-      <Text style={[styles.reference, { color: colors.text }]} testID="chapter-reference">
-        {`${book.name} ${chapterNumber}`}
-      </Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background, paddingBottom: 100 },
+        ]}
+        testID="chapter-screen"
+      >
+        {chapter === undefined && !hasError ? (
+          <ActivityIndicator testID="chapter-loading" />
+        ) : null}
 
-      {chapter?.isPlaceholder ? (
-        <View style={styles.banner} testID="chapter-placeholder-banner">
-          <Text style={styles.bannerText}>
-            Development content — not a real Bible translation
+        {hasError ? (
+          <Text style={[styles.message, { color: colors.text }]} testID="chapter-error">
+            Could not load this chapter.
           </Text>
-        </View>
-      ) : null}
+        ) : null}
 
-      {chapter === undefined && !hasError ? (
-        <ActivityIndicator testID="chapter-loading" />
-      ) : null}
-
-      {hasError ? (
-        <Text style={[styles.message, { color: colors.text }]} testID="chapter-error">
-          Could not load this chapter.
-        </Text>
-      ) : null}
-
-      {chapter === null && !hasError ? (
-        <Text style={[styles.message, { color: colors.text }]} testID="chapter-not-found">
-          Chapter not found.
-        </Text>
-      ) : null}
-
-      {chapter?.verses.map((verse) => (
-        <View key={verse.number} style={styles.verseRow}>
-          <Text style={[styles.verseNumber, { color: colors.secondaryText }]}>
-            {verse.number}
+        {chapter === null && !hasError ? (
+          <Text
+            style={[styles.message, { color: colors.text }]}
+            testID="chapter-not-found"
+          >
+            Chapter not found.
           </Text>
-          <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
-        </View>
-      ))}
+        ) : null}
 
-      <View style={styles.navRow}>
-        <Button
+        {chapter?.verses.map((verse) => (
+          <View key={verse.number} style={styles.verseRow}>
+            <Text style={[styles.verseNumber, { color: colors.accent }]}>
+              {verse.number}
+            </Text>
+            <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View
+        style={[
+          styles.navRow,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            padding: spacing.md,
+            paddingBottom: Math.max(insets.bottom, spacing.md),
+          },
+        ]}
+      >
+        <AppButton
           title="Previous"
+          variant="secondary"
           onPress={() =>
             navigation.navigate('BibleChapter', {
               bookId,
@@ -160,7 +212,7 @@ export function ChapterScreen({ route, navigation }: Props) {
           disabled={isFirstChapter}
           testID="previous-chapter-button"
         />
-        <Button
+        <AppButton
           title="Next"
           onPress={() =>
             navigation.navigate('BibleChapter', {
@@ -172,36 +224,44 @@ export function ChapterScreen({ route, navigation }: Props) {
           testID="next-chapter-button"
         />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
-const lightColors = {
-  background: '#F9FAFB',
-  text: '#111827',
-  secondaryText: '#6B7280',
-};
-
-const darkColors = {
-  background: '#1F2937',
-  text: '#F9FAFB',
-  secondaryText: '#9CA3AF',
-};
-
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 16, gap: 12 },
-  message: { textAlign: 'center' },
-  languageRow: {
+  screen: { flex: 1 },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
   },
-  languageLabel: { fontSize: 13 },
-  reference: { fontSize: 20, fontWeight: '700' },
-  banner: { backgroundColor: '#FEF3C7', padding: 12, borderRadius: 8 },
-  bannerText: { color: '#92400E', fontWeight: '600', textAlign: 'center' },
-  verseRow: { flexDirection: 'row', gap: 8 },
-  verseNumber: { fontSize: 13, fontWeight: '600', minWidth: 20 },
-  verseText: { flex: 1, fontSize: 16, lineHeight: 22 },
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12 },
+  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  backChevron: {
+    width: 10,
+    height: 10,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    transform: [{ rotate: '45deg' }],
+  },
+  reference: { fontSize: 20, fontWeight: '600' },
+  languagePill: { paddingHorizontal: 12, paddingVertical: 7 },
+  languagePillText: { fontSize: 12.5, fontWeight: '600' },
+  container: { flexGrow: 1, padding: 20, gap: 16 },
+  message: { textAlign: 'center' },
+  verseRow: { flexDirection: 'row', gap: 10, alignItems: 'baseline' },
+  verseNumber: { fontSize: 12.5, fontWeight: '600', minWidth: 18 },
+  verseText: { flex: 1, fontSize: 19, lineHeight: 31 },
+  navRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });

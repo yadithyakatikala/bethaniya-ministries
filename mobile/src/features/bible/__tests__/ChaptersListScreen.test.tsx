@@ -74,6 +74,6 @@ describe('ChaptersListScreen', () => {
     const { getByTestId } = await renderScreen('genesis');
     const list = getByTestId('bible-chapters-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#1F2937');
+    expect(flatStyle.backgroundColor).toBe('#141A17');
   });
 });

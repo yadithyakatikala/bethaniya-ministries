@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { useTheme } from '../../theme';
 import { toYouTubeEmbedUrl } from './youtube';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
@@ -30,12 +31,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
  */
 export function YouTubePlayerScreen({ route }: Props) {
   const { youtubeUrl } = route.params;
+  const { colors } = useTheme();
   const embedUrl = toYouTubeEmbedUrl(youtubeUrl);
 
   if (!embedUrl) {
     return (
-      <View style={styles.container} testID="youtube-player-error">
-        <Text style={styles.errorText}>
+      <View
+        style={[styles.container, { backgroundColor: colors.background }]}
+        testID="youtube-player-error"
+      >
+        <Text style={[styles.errorText, { color: colors.secondaryText }]}>
           This stream link isn&apos;t a supported YouTube URL, so it can&apos;t be played
           here.
         </Text>

@@ -22,11 +22,12 @@ jest.mock('../../../services/firebase/app');
 
 async function renderScreen(bookId: string, chapterNumber: number) {
   const navigate = jest.fn();
+  const goBack = jest.fn();
   const utils = await render(
     <AuthProvider>
       <PreferencesProvider>
         <ChapterScreen
-          navigation={{ navigate } as never}
+          navigation={{ navigate, goBack } as never}
           route={
             {
               key: 'BibleChapter',
@@ -38,7 +39,7 @@ async function renderScreen(bookId: string, chapterNumber: number) {
       </PreferencesProvider>
     </AuthProvider>
   );
-  return { ...utils, navigate };
+  return { ...utils, navigate, goBack };
 }
 
 describe('ChapterScreen', () => {
@@ -140,7 +141,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(getByTestId('chapter-screen')).toBeTruthy());
     const screen = getByTestId('chapter-screen');
     const flatStyle = Object.assign({}, ...[screen.props.contentContainerStyle].flat());
-    expect(flatStyle.backgroundColor).toBe('#F9FAFB');
+    expect(flatStyle.backgroundColor).toBe('#FAF7F1');
   });
 
   it('renders with dark-mode colors when the device is in dark mode', async () => {
@@ -149,6 +150,13 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(getByTestId('chapter-screen')).toBeTruthy());
     const screen = getByTestId('chapter-screen');
     const flatStyle = Object.assign({}, ...[screen.props.contentContainerStyle].flat());
-    expect(flatStyle.backgroundColor).toBe('#1F2937');
+    expect(flatStyle.backgroundColor).toBe('#141A17');
+  });
+
+  it('goes back when the back button is pressed', async () => {
+    const { getByTestId, goBack } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('chapter-back-button')).toBeTruthy());
+    fireEvent.press(getByTestId('chapter-back-button'));
+    expect(goBack).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -24,6 +25,9 @@ import {
 } from '@mui/material';
 import { fetchAllUsers, updateUserRole } from '../../services/firebase/users';
 import { useAuthStore } from '../../store/authStore';
+import { AdminEmptyState } from '../../components/AdminEmptyState';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminTableCard } from '../../components/AdminTableCard';
 import {
   ASSIGNABLE_ROLES,
   ROLE_LABELS,
@@ -64,6 +68,15 @@ import {
 function canManageUsers(role: string | null): boolean {
   return role === 'super_admin';
 }
+
+/** Ascending-authority color coding for the role chip -- reuses the theme's existing palette entries (no new colors introduced) so Super Admin (evergreen) reads as the most privileged down through Member (neutral, uncolored). */
+const ROLE_CHIP_COLOR: Record<UserRole, 'primary' | 'secondary' | 'warning' | 'default'> =
+  {
+    super_admin: 'primary',
+    content_admin: 'secondary',
+    host: 'warning',
+    member: 'default',
+  };
 
 function formatJoinDate(date: Date | null): string {
   return date ? date.toLocaleDateString() : 'Unknown';
@@ -152,9 +165,7 @@ export function UsersPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="users-page">
-      <Typography variant="h5" component="h1" gutterBottom>
-        Users
-      </Typography>
+      <AdminPageHeader title="Users" />
 
       {submitError ? (
         <Alert severity="error" sx={{ mb: 2 }} data-testid="role-change-error">
@@ -180,70 +191,92 @@ export function UsersPage() {
       ) : null}
 
       {users && users.length === 0 ? (
-        <Typography color="text.secondary" data-testid="users-empty">
-          No users yet.
-        </Typography>
+        <AdminEmptyState message="No users yet." testId="users-empty" />
       ) : null}
 
       {users && users.length > 0 ? (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Phone</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Joined</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => {
-                const isSelf = user.uid === ownUid;
-                return (
-                  <TableRow key={user.uid} data-testid={`user-row-${user.uid}`}>
-                    <TableCell>
-                      {user.displayName ?? '--'}
-                      {isSelf ? (
-                        <Chip
-                          label="You"
-                          size="small"
-                          sx={{ ml: 1 }}
-                          data-testid={`user-is-self-${user.uid}`}
-                        />
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{user.email ?? '--'}</TableCell>
-                    <TableCell>{user.phoneNumber ?? '--'}</TableCell>
-                    <TableCell>
-                      <Tooltip
-                        title={isSelf ? 'You cannot change your own role.' : ''}
-                        disableHoverListener={!isSelf}
-                      >
-                        <span>
-                          <Select
-                            size="small"
-                            value={user.role}
-                            onChange={(event) => handleRoleSelect(user, event)}
-                            disabled={isSelf || submitting}
-                            data-testid={`role-select-${user.uid}`}
+        <AdminTableCard>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Joined</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((user) => {
+                  const isSelf = user.uid === ownUid;
+                  return (
+                    <TableRow key={user.uid} data-testid={`user-row-${user.uid}`}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                          <Avatar
+                            sx={{
+                              width: 28,
+                              height: 28,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              bgcolor: 'primary.light',
+                              color: 'primary.dark',
+                            }}
                           >
-                            {ASSIGNABLE_ROLES.map((assignableRole) => (
-                              <MenuItem key={assignableRole} value={assignableRole}>
-                                {ROLE_LABELS[assignableRole]}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>{formatJoinDate(user.createdAt)}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                            {(user.displayName ?? user.email ?? '?')
+                              .charAt(0)
+                              .toUpperCase()}
+                          </Avatar>
+                          <Box component="span">{user.displayName ?? '--'}</Box>
+                          {isSelf ? (
+                            <Chip
+                              label="You"
+                              size="small"
+                              data-testid={`user-is-self-${user.uid}`}
+                            />
+                          ) : null}
+                        </Box>
+                      </TableCell>
+                      <TableCell>{user.email ?? '--'}</TableCell>
+                      <TableCell>{user.phoneNumber ?? '--'}</TableCell>
+                      <TableCell>
+                        <Tooltip
+                          title={isSelf ? 'You cannot change your own role.' : ''}
+                          disableHoverListener={!isSelf}
+                        >
+                          <span>
+                            <Select
+                              size="small"
+                              value={user.role}
+                              onChange={(event) => handleRoleSelect(user, event)}
+                              disabled={isSelf || submitting}
+                              data-testid={`role-select-${user.uid}`}
+                              renderValue={(value) => (
+                                <Chip
+                                  label={ROLE_LABELS[value as UserRole]}
+                                  color={ROLE_CHIP_COLOR[value as UserRole]}
+                                  size="small"
+                                />
+                              )}
+                            >
+                              {ASSIGNABLE_ROLES.map((assignableRole) => (
+                                <MenuItem key={assignableRole} value={assignableRole}>
+                                  {ROLE_LABELS[assignableRole]}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </span>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>{formatJoinDate(user.createdAt)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </AdminTableCard>
       ) : null}
 
       <Dialog open={Boolean(pendingChange)} onClose={() => setPendingChange(null)}>

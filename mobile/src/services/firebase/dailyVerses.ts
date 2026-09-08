@@ -22,6 +22,7 @@ import {
   type Unsubscribe,
   collection,
   onSnapshot,
+  orderBy,
   query,
   where,
 } from 'firebase/firestore';
@@ -72,6 +73,30 @@ export function subscribeToTodaysDailyVerse(
       const [first] = snapshot.docs;
       onNext(first ? toTodaysDailyVerse(first.id, first.data()) : null);
     },
+    onError
+  );
+}
+
+/**
+ * Every daily verse ever set, newest date first -- backs the standalone
+ * Daily Verse screen's archive (see ../../features/daily-verses/
+ * DailyVerseScreen.tsx). Same collection and permission as
+ * subscribeToTodaysDailyVerse above (firestore.rules already allows any
+ * signed-in role to read every daily_verses document -- see that
+ * function's doc comment), just without the `date == today` filter;
+ * ordered by the existing `daily_verses` (date DESCENDING) index
+ * declared in firestore.indexes.json for the admin dashboard's own
+ * "list all, newest first" query, reused here rather than adding a new
+ * one.
+ */
+export function subscribeToDailyVerseArchive(
+  onNext: (verses: TodaysDailyVerse[]) => void,
+  onError: (error: FirestoreError) => void
+): Unsubscribe {
+  const q = query(collection(db, 'daily_verses'), orderBy('date', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => onNext(snapshot.docs.map((d) => toTodaysDailyVerse(d.id, d.data()))),
     onError
   );
 }

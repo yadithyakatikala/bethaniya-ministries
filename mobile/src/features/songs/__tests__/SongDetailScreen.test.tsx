@@ -2,8 +2,12 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { SongDetailScreen } from '../SongDetailScreen';
 import type { PublishedSong } from '../../../services/firebase/songs';
+
+jest.mock('../../../services/firebase/app');
 
 jest.mock('expo-audio', () => ({
   useAudioPlayer: jest.fn(),
@@ -32,10 +36,16 @@ const SONG: PublishedSong = {
  */
 async function renderScreen() {
   return await render(
-    <SongDetailScreen
-      navigation={{} as never}
-      route={{ key: 'SongDetail', name: 'SongDetail', params: { song: SONG } } as never}
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <SongDetailScreen
+          navigation={{} as never}
+          route={
+            { key: 'SongDetail', name: 'SongDetail', params: { song: SONG } } as never
+          }
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
 }
 

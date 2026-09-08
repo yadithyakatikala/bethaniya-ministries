@@ -2,15 +2,23 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { signInWithPhoneNumber } from 'firebase/auth';
 import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { SignInScreen } from '../SignInScreen';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../useGoogleSignIn');
 
+/**
+ * Wrapped in PreferencesProvider since SignInScreen now reads useTheme()
+ * -- the same nesting App.tsx already uses in production (AuthProvider >
+ * PreferencesProvider > ... > SignInScreen).
+ */
 function renderSignInScreen() {
   return render(
     <AuthProvider>
-      <SignInScreen />
+      <PreferencesProvider>
+        <SignInScreen />
+      </PreferencesProvider>
     </AuthProvider>
   );
 }

@@ -1,8 +1,12 @@
 import React from 'react';
 import { Linking } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { EventDetailScreen, buildMapsSearchUrl } from '../EventDetailScreen';
 import type { PublishedEvent } from '../../../services/firebase/events';
+
+jest.mock('../../../services/firebase/app');
 
 const BASE_EVENT: PublishedEvent = {
   id: 'e1',
@@ -18,13 +22,20 @@ const BASE_EVENT: PublishedEvent = {
  * Only `route.params.event` and `navigation.navigate` are used by this
  * screen -- same `as never` convention as SongDetailScreen.test.tsx for
  * the rest of NativeStackScreenProps' shape.
+ *
+ * Wrapped in AuthProvider/PreferencesProvider since the screen now reads
+ * useTheme() -- same reasoning as EventsListScreen.test.tsx.
  */
 async function renderScreen(event: PublishedEvent, navigate = jest.fn()) {
   const utils = await render(
-    <EventDetailScreen
-      navigation={{ navigate } as never}
-      route={{ key: 'EventDetail', name: 'EventDetail', params: { event } } as never}
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <EventDetailScreen
+          navigation={{ navigate } as never}
+          route={{ key: 'EventDetail', name: 'EventDetail', params: { event } } as never}
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
   return { ...utils, navigate };
 }

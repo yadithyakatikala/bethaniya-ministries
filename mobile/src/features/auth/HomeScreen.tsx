@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../theme';
+import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -10,6 +13,10 @@ import {
   subscribeToChurchSettings,
   type ChurchSettings,
 } from '../../services/firebase/settings';
+import {
+  subscribeToPublishedEvents,
+  type PublishedEvent,
+} from '../../services/firebase/events';
 
 const DEFAULT_CHURCH_NAME = 'Bethaniya Ministries';
 const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowship.';
@@ -36,8 +43,21 @@ const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowshi
  * ../../services/firebase/settings.ts's doc comment). The logo only
  * renders once a settings document with a non-empty logoUrl has actually
  * loaded -- there is no default/placeholder logo image.
+ *
+ * Visually restyled for the "Vespers" design system (see
+ * mobile/src/theme/) -- a branded header row (logo or an evergreen
+ * monogram fallback, church name, greeting) instead of a plain stacked
+ * title, but the settings subscription and its testID/text contract are
+ * unchanged.
  */
-function ChurchBranding() {
+function ChurchBranding({
+  displayLabel,
+  onPressNotifications,
+}: {
+  displayLabel: string;
+  onPressNotifications: () => void;
+}) {
+  const { colors, radii } = useTheme();
   const [settings, setSettings] = useState<ChurchSettings | null>(null);
 
   useEffect(() => {
@@ -52,18 +72,90 @@ function ChurchBranding() {
   const description = settings?.description || DEFAULT_CHURCH_DESCRIPTION;
 
   return (
-    <View style={styles.branding} testID="church-branding">
+    <View style={styles.brandingRow} testID="church-branding">
       {settings?.logoUrl ? (
         <Image
           source={{ uri: settings.logoUrl }}
-          style={styles.logo}
+          style={[styles.logo, { borderRadius: radii.control }]}
           testID="church-logo"
           accessibilityIgnoresInvertColors
         />
-      ) : null}
-      <Text style={styles.churchName}>{churchName}</Text>
-      <Text style={styles.churchDescription}>{description}</Text>
+      ) : (
+        <View
+          style={[
+            styles.monogram,
+            { backgroundColor: colors.primary, borderRadius: radii.control },
+          ]}
+        >
+          <Text style={styles.monogramText}>{churchName.charAt(0)}</Text>
+        </View>
+      )}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[styles.greeting, { color: colors.secondaryText }]}>
+          Welcome, {displayLabel}
+        </Text>
+        <Text style={[styles.churchName, { color: colors.text }]}>{churchName}</Text>
+        <Text style={[styles.churchDescription, { color: colors.secondaryText }]}>
+          {description}
+        </Text>
+      </View>
+      <Pressable
+        testID="notifications-nav-button"
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+        onPress={onPressNotifications}
+        style={[
+          styles.iconButton,
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            borderRadius: radii.control,
+          },
+        ]}
+      >
+        <View style={[styles.iconButtonDot, { backgroundColor: colors.primary }]} />
+      </Pressable>
     </View>
+  );
+}
+
+/**
+ * Quick-links row -- Songs / Events / Bible / Profile. Replaces the
+ * original stack of five identical full-width <Button>s ("Home is a
+ * stack of five identical buttons... deserve a tab bar", per the UI
+ * audit) with a themed card grid. A real tab bar
+ * (@react-navigation/bottom-tabs, a new dependency, or a hand-rolled
+ * equivalent) is a bigger navigation-structure change, deliberately left
+ * for a follow-up phase; every button below keeps its original testID
+ * and navigation target unchanged, so this is a pure visual/layout
+ * change over the same five destinations Day 6-9 already wired up.
+ */
+function QuickLink({
+  label,
+  testID,
+  onPress,
+}: {
+  label: string;
+  testID: string;
+  onPress: () => void;
+}) {
+  const { colors, radii } = useTheme();
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[
+        styles.quickLink,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          borderRadius: radii.card,
+        },
+      ]}
+    >
+      <Text style={[styles.quickLinkLabel, { color: colors.text }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -85,51 +177,147 @@ function ChurchBranding() {
  * directly) and Bible Search is reached from the Bible books list (not
  * from Home directly either), per the decision to keep Home from
  * accumulating an entry point for every new screen.
+ *
+ * Restyled for the approved "Vespers" direction (see the UI audit and
+ * its follow-up visual prototype): a live banner when a published event
+ * is currently live, reusing the same subscribeToPublishedEvents()
+ * EventsListScreen already relies on (see
+ * ../../services/firebase/events.ts) rather than a new query shape, and
+ * a themed quick-links grid in place of the plain button stack. Every
+ * existing testID, navigation target, and visible "Welcome, ..." /
+ * church-name/description text is unchanged -- see
+ * __tests__/HomeScreen.test.tsx.
  */
 export function HomeScreen() {
   const { user, signOut } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors, radii } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const [events, setEvents] = useState<PublishedEvent[] | null>(null);
+  useEffect(() => {
+    const unsubscribe = subscribeToPublishedEvents(
+      (next) => setEvents(next),
+      () => setEvents([])
+    );
+    return unsubscribe;
+  }, []);
+
+  const liveEvent = events?.find((event) => event.isLive) ?? null;
+  const nextEvent = events?.find((event) => !event.isLive) ?? null;
 
   const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
 
   return (
-    <ScrollView contentContainerStyle={styles.container} testID="home-screen">
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome, {displayLabel}</Text>
-        <Button
-          title="Sign out"
-          onPress={() => void signOut()}
-          testID="sign-out-button"
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: colors.background, paddingTop: insets.top + 12 },
+      ]}
+      testID="home-screen"
+    >
+      <ChurchBranding
+        displayLabel={displayLabel}
+        onPressNotifications={() => navigation.navigate('NotificationCenter')}
+      />
+
+      {liveEvent ? (
+        <Pressable
+          testID="home-live-banner"
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('EventDetail', { event: liveEvent })}
+          style={[
+            styles.liveBanner,
+            { backgroundColor: colors.live, borderRadius: radii.card },
+          ]}
+        >
+          <View style={styles.liveBadgeRow}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveLabel}>LIVE NOW</Text>
+          </View>
+          <Text style={styles.liveTitle}>{liveEvent.title}</Text>
+          <View style={[styles.liveCta, { borderRadius: radii.control }]}>
+            <Text style={styles.liveCtaLabel}>Watch live</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      <View style={styles.section}>
+        <SectionHeader
+          title="Verse of the day"
+          actionLabel="See all"
+          onAction={() => navigation.navigate('DailyVerse')}
         />
+        <DailyVerseCard />
       </View>
-      <ChurchBranding />
-      <Button
-        title="Songs"
-        onPress={() => navigation.navigate('SongsList')}
-        testID="songs-nav-button"
-      />
-      <Button
-        title="Events"
-        onPress={() => navigation.navigate('EventsList')}
-        testID="events-nav-button"
-      />
-      <Button
-        title="Bible"
-        onPress={() => navigation.navigate('BibleBooks')}
-        testID="bible-nav-button"
-      />
-      <Button
-        title="Profile"
-        onPress={() => navigation.navigate('Profile')}
-        testID="profile-nav-button"
-      />
-      <Button
-        title="Notifications"
-        onPress={() => navigation.navigate('NotificationCenter')}
-        testID="notifications-nav-button"
-      />
-      <DailyVerseCard />
-      <AnnouncementsList />
+
+      <View style={styles.section}>
+        <SectionHeader title="Announcements" />
+        <AnnouncementsList />
+      </View>
+
+      {nextEvent ? (
+        <View style={styles.section}>
+          <SectionHeader title="Upcoming events" />
+          <Pressable
+            testID="home-next-event"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('EventDetail', { event: nextEvent })}
+            style={[
+              styles.eventRow,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radii.card,
+              },
+            ]}
+          >
+            <Text style={[styles.eventTitle, { color: colors.text }]}>
+              {nextEvent.title}
+            </Text>
+            {nextEvent.location ? (
+              <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
+                {nextEvent.location}
+              </Text>
+            ) : null}
+          </Pressable>
+        </View>
+      ) : null}
+
+      <View style={styles.section}>
+        <SectionHeader title="Explore" />
+        <View style={styles.quickLinkGrid}>
+          <QuickLink
+            label="Songs"
+            testID="songs-nav-button"
+            onPress={() => navigation.navigate('SongsList')}
+          />
+          <QuickLink
+            label="Events"
+            testID="events-nav-button"
+            onPress={() => navigation.navigate('EventsList')}
+          />
+          <QuickLink
+            label="Bible"
+            testID="bible-nav-button"
+            onPress={() => navigation.navigate('BibleBooks')}
+          />
+          <QuickLink
+            label="Profile"
+            testID="profile-nav-button"
+            onPress={() => navigation.navigate('Profile')}
+          />
+        </View>
+      </View>
+
+      <Pressable
+        testID="sign-out-button"
+        accessibilityRole="button"
+        onPress={() => void signOut()}
+        style={styles.signOutRow}
+      >
+        <Text style={[styles.signOutLabel, { color: colors.danger }]}>Sign out</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -137,22 +325,59 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: 24,
-    gap: 16,
+    padding: 20,
+    gap: 22,
   },
-  header: {
-    alignItems: 'center',
+  brandingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
-    paddingHorizontal: 24,
   },
-  title: { fontSize: 20, fontWeight: '600', textAlign: 'center' },
-  branding: {
+  logo: { width: 44, height: 44 },
+  monogram: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  monogramText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
+  greeting: { fontSize: 12.5 },
+  churchName: { fontSize: 17, fontWeight: '600' },
+  churchDescription: { fontSize: 13, lineHeight: 18 },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 24,
+    justifyContent: 'center',
   },
-  logo: { width: 96, height: 96, borderRadius: 8, marginBottom: 4 },
-  churchName: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  churchDescription: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
+  iconButtonDot: { width: 8, height: 8, borderRadius: 4 },
+  liveBanner: { padding: 18, gap: 12 },
+  liveBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+  liveLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1.4 },
+  liveTitle: { color: '#FFFFFF', fontSize: 21, fontWeight: '600' },
+  liveCta: {
+    backgroundColor: '#FFFFFF',
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveCtaLabel: { color: '#8E2A1F', fontSize: 15, fontWeight: '700' },
+  section: { gap: 12 },
+  eventRow: { padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
+  eventTitle: { fontSize: 14.5, fontWeight: '600' },
+  eventMeta: { fontSize: 12.5 },
+  quickLinkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  quickLink: {
+    flexGrow: 1,
+    minWidth: '45%',
+    minHeight: 56,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLinkLabel: { fontSize: 14.5, fontWeight: '600' },
+  signOutRow: {
+    alignSelf: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  signOutLabel: { fontSize: 14, fontWeight: '600' },
 });

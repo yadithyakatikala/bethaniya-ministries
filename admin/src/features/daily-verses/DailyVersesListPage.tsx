@@ -17,7 +17,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -26,6 +25,9 @@ import {
   subscribeToDailyVerses,
 } from '../../services/firebase/dailyVerses';
 import { useAuthStore } from '../../store/authStore';
+import { AdminEmptyState } from '../../components/AdminEmptyState';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminTableCard } from '../../components/AdminTableCard';
 import type { DailyVerse } from '../../types';
 
 /** Matches firestore.rules'/storage.rules' isContentAdminOrAbove(). Gating these buttons is a UX convenience only; the rules are the real boundary. */
@@ -75,28 +77,21 @@ export function DailyVersesListPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="daily-verses-list-page">
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-        }}
-      >
-        <Typography variant="h5" component="h1">
-          Daily Verses
-        </Typography>
-        {canManage ? (
-          <Button
-            variant="contained"
-            component={RouterLink}
-            to="/daily-verses/new"
-            data-testid="new-daily-verse-button"
-          >
-            New Daily Verse
-          </Button>
-        ) : null}
-      </Box>
+      <AdminPageHeader
+        title="Daily Verses"
+        action={
+          canManage ? (
+            <Button
+              variant="contained"
+              component={RouterLink}
+              to="/daily-verses/new"
+              data-testid="new-daily-verse-button"
+            >
+              New Daily Verse
+            </Button>
+          ) : undefined
+        }
+      />
 
       {error ? (
         <Alert severity="error" data-testid="daily-verses-error">
@@ -111,51 +106,51 @@ export function DailyVersesListPage() {
       ) : null}
 
       {verses && verses.length === 0 ? (
-        <Typography color="text.secondary" data-testid="daily-verses-empty">
-          No daily verses yet.
-        </Typography>
+        <AdminEmptyState message="No daily verses yet." testId="daily-verses-empty" />
       ) : null}
 
       {verses && verses.length > 0 ? (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Reference</TableCell>
-                {canManage ? <TableCell align="right">Actions</TableCell> : null}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {verses.map((verse) => (
-                <TableRow key={verse.id} data-testid={`daily-verse-row-${verse.id}`}>
-                  <TableCell>{verse.date}</TableCell>
-                  <TableCell>{verse.reference}</TableCell>
-                  {canManage ? (
-                    <TableCell align="right">
-                      <IconButton
-                        component={RouterLink}
-                        to={`/daily-verses/${verse.id}/edit`}
-                        aria-label="Edit"
-                        data-testid={`edit-daily-verse-${verse.id}`}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        aria-label="Delete"
-                        onClick={() => setDeleteTarget(verse)}
-                        disabled={busyId === verse.id}
-                        data-testid={`delete-daily-verse-${verse.id}`}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  ) : null}
+        <AdminTableCard>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Reference</TableCell>
+                  {canManage ? <TableCell align="right">Actions</TableCell> : null}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {verses.map((verse) => (
+                  <TableRow key={verse.id} data-testid={`daily-verse-row-${verse.id}`}>
+                    <TableCell>{verse.date}</TableCell>
+                    <TableCell>{verse.reference}</TableCell>
+                    {canManage ? (
+                      <TableCell align="right">
+                        <IconButton
+                          component={RouterLink}
+                          to={`/daily-verses/${verse.id}/edit`}
+                          aria-label="Edit"
+                          data-testid={`edit-daily-verse-${verse.id}`}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          aria-label="Delete"
+                          onClick={() => setDeleteTarget(verse)}
+                          disabled={busyId === verse.id}
+                          data-testid={`delete-daily-verse-${verse.id}`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </AdminTableCard>
       ) : null}
 
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>

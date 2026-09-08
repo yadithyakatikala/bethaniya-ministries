@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { View } from 'react-native';
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -19,6 +21,20 @@ import { getBookById } from '../features/bible/books';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { NotificationCenterScreen } from '../features/notifications/NotificationCenterScreen';
+import { MoreScreen } from '../features/more/MoreScreen';
+import { AnnouncementDetailScreen } from '../features/announcements/AnnouncementDetailScreen';
+import type { PublishedAnnouncement } from '../services/firebase/announcements';
+import { DailyVerseScreen } from '../features/daily-verses/DailyVerseScreen';
+import { TabBar, type TabRouteName } from './TabBar';
+
+/** The five top-level routes the hand-rolled tab bar switches between -- see TabBar.tsx. */
+const TAB_ROUTE_NAMES: ReadonlySet<string> = new Set([
+  'Home',
+  'BibleBooks',
+  'SongsList',
+  'EventsList',
+  'More',
+]);
 
 /**
  * Real navigation, introduced in Day 6 -- per the user's explicit
@@ -66,6 +82,15 @@ export type RootStackParamList = {
   Profile: undefined;
   Settings: undefined;
   NotificationCenter: undefined;
+  /** The fifth tab -- see ../features/more/MoreScreen.tsx and ./TabBar.tsx. */
+  More: undefined;
+  /** See ../features/announcements/AnnouncementDetailScreen.tsx -- same
+   * "pass the full object, not just an id" reasoning as SongDetail/
+   * EventDetail (AnnouncementsList already holds the complete, real-time
+   * list). */
+  AnnouncementDetail: { announcement: PublishedAnnouncement };
+  /** See ../features/daily-verses/DailyVerseScreen.tsx. */
+  DailyVerse: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -80,78 +105,130 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-export function AppNavigator() {
+/**
+ * Renders as a sibling of the Stack.Navigator, inside the same
+ * NavigationContainer -- see the module doc comment above for why a
+ * hand-rolled bar (not @react-navigation/bottom-tabs) was built. Its
+ * visibility and active tab are driven by NavigationContainer's
+ * onStateChange below, reading navigationRef.getCurrentRoute().name --
+ * the same "navigate without a navigation prop" pattern
+ * notificationService.ts's tap handler already uses.
+ */
+function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
+  if (!activeRoute || !TAB_ROUTE_NAMES.has(activeRoute)) return null;
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-        <Stack.Screen
-          name="SongsList"
-          component={SongsListScreen}
-          options={{ title: 'Songs' }}
-        />
-        <Stack.Screen
-          name="SongDetail"
-          component={SongDetailScreen}
-          options={({ route }) => ({ title: route.params.song.title })}
-        />
-        <Stack.Screen
-          name="EventsList"
-          component={EventsListScreen}
-          options={{ title: 'Events' }}
-        />
-        <Stack.Screen
-          name="EventDetail"
-          component={EventDetailScreen}
-          options={({ route }) => ({ title: route.params.event.title })}
-        />
-        <Stack.Screen
-          name="YouTubePlayer"
-          component={YouTubePlayerScreen}
-          options={{ title: 'Live Stream' }}
-        />
-        <Stack.Screen
-          name="BibleBooks"
-          component={BooksListScreen}
-          options={{ title: 'Bible' }}
-        />
-        <Stack.Screen
-          name="BibleChapters"
-          component={ChaptersListScreen}
-          options={({ route }) => ({
-            title: getBookById(route.params.bookId)?.name ?? 'Chapters',
-          })}
-        />
-        <Stack.Screen
-          name="BibleChapter"
-          component={ChapterScreen}
-          options={({ route }) => ({
-            title: getBookById(route.params.bookId)?.name
-              ? `${getBookById(route.params.bookId)?.name} ${route.params.chapterNumber}`
-              : 'Chapter',
-          })}
-        />
-        <Stack.Screen
-          name="BibleSearch"
-          component={BibleSearchScreen}
-          options={{ title: 'Search' }}
-        />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={{ title: 'Profile' }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ title: 'Settings' }}
-        />
-        <Stack.Screen
-          name="NotificationCenter"
-          component={NotificationCenterScreen}
-          options={{ title: 'Notifications' }}
-        />
-      </Stack.Navigator>
+    <TabBar
+      activeRoute={activeRoute}
+      onNavigate={(route: TabRouteName) => {
+        if (navigationRef.isReady()) navigationRef.navigate(route);
+      }}
+    />
+  );
+}
+
+export function AppNavigator() {
+  const [activeRoute, setActiveRoute] = useState<string | undefined>('Home');
+
+  return (
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => setActiveRoute(navigationRef.getCurrentRoute()?.name)}
+      onStateChange={() => setActiveRoute(navigationRef.getCurrentRoute()?.name)}
+    >
+      <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
+          <Stack.Navigator initialRouteName="Home" screenOptions={{ animation: 'none' }}>
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{ title: 'Home', headerShown: false }}
+            />
+            <Stack.Screen
+              name="SongsList"
+              component={SongsListScreen}
+              options={{ title: 'Songs' }}
+            />
+            <Stack.Screen
+              name="SongDetail"
+              component={SongDetailScreen}
+              options={({ route }) => ({ title: route.params.song.title })}
+            />
+            <Stack.Screen
+              name="EventsList"
+              component={EventsListScreen}
+              options={{ title: 'Events' }}
+            />
+            <Stack.Screen
+              name="EventDetail"
+              component={EventDetailScreen}
+              options={({ route }) => ({ title: route.params.event.title })}
+            />
+            <Stack.Screen
+              name="YouTubePlayer"
+              component={YouTubePlayerScreen}
+              options={{ title: 'Live Stream' }}
+            />
+            <Stack.Screen
+              name="BibleBooks"
+              component={BooksListScreen}
+              options={{ title: 'Bible' }}
+            />
+            <Stack.Screen
+              name="BibleChapters"
+              component={ChaptersListScreen}
+              options={({ route }) => ({
+                title: getBookById(route.params.bookId)?.name ?? 'Chapters',
+              })}
+            />
+            <Stack.Screen
+              name="BibleChapter"
+              component={ChapterScreen}
+              options={({ route }) => ({
+                title: getBookById(route.params.bookId)?.name
+                  ? `${getBookById(route.params.bookId)?.name} ${route.params.chapterNumber}`
+                  : 'Chapter',
+                headerShown: false,
+              })}
+            />
+            <Stack.Screen
+              name="BibleSearch"
+              component={BibleSearchScreen}
+              options={{ title: 'Search' }}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ title: 'Profile' }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ title: 'Settings' }}
+            />
+            <Stack.Screen
+              name="NotificationCenter"
+              component={NotificationCenterScreen}
+              options={{ title: 'Notifications' }}
+            />
+            <Stack.Screen
+              name="More"
+              component={MoreScreen}
+              options={{ title: 'More' }}
+            />
+            <Stack.Screen
+              name="AnnouncementDetail"
+              component={AnnouncementDetailScreen}
+              options={({ route }) => ({ title: route.params.announcement.title })}
+            />
+            <Stack.Screen
+              name="DailyVerse"
+              component={DailyVerseScreen}
+              options={{ title: 'Daily Verse', headerShown: false }}
+            />
+          </Stack.Navigator>
+        </View>
+        <RootTabBar activeRoute={activeRoute} />
+      </View>
     </NavigationContainer>
   );
 }

@@ -105,4 +105,33 @@ describe('NotificationCenterScreen', () => {
     expect(queryByTestId('bible-chapter-stub')).toBeNull();
     expect(queryByTestId('songs-list-stub')).toBeNull();
   });
+
+  it('shows an unread dot for an unread entry', async () => {
+    await addNotificationToHistory({ title: 'Unread one', message: 'M' });
+    const { getByText, getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByText('Unread one')).toBeTruthy());
+
+    const entries = await AsyncStorage.getItem('notification_history');
+    const [entry] = JSON.parse(entries ?? '[]');
+    expect(getByTestId(`notification-unread-dot-${entry.id}`)).toBeTruthy();
+  });
+
+  it('hides the unread dot and persists read state after the entry is pressed', async () => {
+    await addNotificationToHistory({ title: 'Plain', message: 'No payload' });
+    const { getByText, getByTestId, queryByTestId } = await renderScreen();
+    await waitFor(() => expect(getByText('Plain')).toBeTruthy());
+
+    const entries = await AsyncStorage.getItem('notification_history');
+    const [entry] = JSON.parse(entries ?? '[]');
+    expect(getByTestId(`notification-unread-dot-${entry.id}`)).toBeTruthy();
+
+    await fireEvent.press(getByTestId(`notification-item-${entry.id}`));
+
+    await waitFor(() =>
+      expect(queryByTestId(`notification-unread-dot-${entry.id}`)).toBeNull()
+    );
+    const stored = await AsyncStorage.getItem('notification_history');
+    const [updated] = JSON.parse(stored ?? '[]');
+    expect(updated.readAt).toEqual(expect.any(String));
+  });
 });

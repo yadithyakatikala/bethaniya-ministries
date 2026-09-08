@@ -1,6 +1,6 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById } from './books';
 
@@ -13,11 +13,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapters'>;
  * fixed, bounded, at-most-150-item local list, not real-time data, so
  * virtualization buys nothing and only risks windowing chapters out of
  * both the UI and tests.
+ *
+ * Restyled onto the shared Vespers theme -- themed surface cells at the
+ * 44px touch minimum. Every testID is unchanged.
  */
 export function ChaptersListScreen({ route, navigation }: Props) {
   const { bookId } = route.params;
-  const { isDark } = usePreferences();
-  const colors = isDark ? darkColors : lightColors;
+  const { colors, radii } = useTheme();
   const book = getBookById(bookId);
 
   if (!book) {
@@ -45,33 +47,37 @@ export function ChaptersListScreen({ route, navigation }: Props) {
       {chapterNumbers.map((chapterNumber) => (
         <TouchableOpacity
           key={chapterNumber}
-          style={[styles.chapterItem, { borderColor: colors.border }]}
+          style={[
+            styles.chapterItem,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.control,
+            },
+          ]}
           testID={`chapter-${chapterNumber}`}
           onPress={() =>
             navigation.navigate('BibleChapter', { bookId: book.id, chapterNumber })
           }
         >
-          <Text style={{ color: colors.text }}>{chapterNumber}</Text>
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }}>
+            {chapterNumber}
+          </Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
   );
 }
 
-const lightColors = { background: '#F9FAFB', text: '#111827', border: '#E5E7EB' };
-const darkColors = { background: '#1F2937', text: '#F9FAFB', border: '#374151' };
-
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   message: { textAlign: 'center' },
   list: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 8 },
   chapterItem: {
     width: 56,
-    height: 44,
-    margin: 4,
+    height: 48,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },

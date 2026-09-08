@@ -1,5 +1,6 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../theme';
 
 interface AudioPlayerProps {
   /**
@@ -45,6 +46,12 @@ function formatSeconds(totalSeconds: number): string {
  * component reads that field for its error state rather than needing a
  * try/catch -- there's nothing here that throws.
  *
+ * Restyled onto the shared Vespers theme, with a scrubber track filled
+ * from the same real `status.currentTime`/`status.duration` the time
+ * label already reads -- no new/fake state. The `formatSeconds`
+ * output and every testID are unchanged (see AudioPlayer.test.tsx's
+ * `'1:05 / 3:20'` assertion).
+ *
  * Verification note: this project has no way to exercise real native
  * audio playback in its current environment (no device/simulator, no
  * emulator-backed integration harness) -- the tests for this component
@@ -57,13 +64,16 @@ function formatSeconds(totalSeconds: number): string {
  * verification gaps -- see /SECURITY.md.
  */
 export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
+  const { colors, radii } = useTheme();
   const player = useAudioPlayer(audioUrl);
   const status = useAudioPlayerStatus(player);
 
   if (status.error) {
     return (
       <View style={styles.container} testID="audio-player-error">
-        <Text style={styles.message}>Could not load this song&apos;s audio.</Text>
+        <Text style={[styles.message, { color: colors.secondaryText }]}>
+          Could not load this song&apos;s audio.
+        </Text>
       </View>
     );
   }
@@ -76,33 +86,73 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     );
   }
 
+  const progress =
+    status.duration > 0
+      ? Math.min(1, Math.max(0, status.currentTime / status.duration))
+      : 0;
+
   return (
     <View style={styles.container} testID="audio-player">
-      <Text style={styles.time}>
+      <View style={[styles.track, { backgroundColor: colors.border }]}>
+        <View
+          style={[
+            styles.trackFill,
+            { width: `${progress * 100}%`, backgroundColor: colors.primary },
+          ]}
+        />
+      </View>
+      <Text style={[styles.time, { color: colors.secondaryText }]}>
         {formatSeconds(status.currentTime)} / {formatSeconds(status.duration)}
       </Text>
       <View style={styles.controls}>
-        <Button
-          title={status.playing ? 'Pause' : 'Play'}
-          onPress={() => (status.playing ? player.pause() : player.play())}
-          testID="audio-play-pause-button"
-        />
-        <Button
-          title="Restart"
+        <Pressable
+          testID="audio-restart-button"
+          accessibilityRole="button"
           onPress={() => {
             void player.seekTo(0);
             player.play();
           }}
-          testID="audio-restart-button"
-        />
+          style={[styles.secondaryButton, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.secondaryLabel, { color: colors.text }]}>Restart</Text>
+        </Pressable>
+        <Pressable
+          testID="audio-play-pause-button"
+          accessibilityRole="button"
+          onPress={() => (status.playing ? player.pause() : player.play())}
+          style={[
+            styles.playButton,
+            { backgroundColor: colors.primary, borderRadius: radii.control },
+          ]}
+        >
+          <Text style={styles.playLabel}>{status.playing ? 'Pause' : 'Play'}</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { width: '100%', alignItems: 'center', gap: 8, padding: 12 },
-  message: { color: '#666', textAlign: 'center' },
-  time: { fontSize: 14, color: '#374151' },
-  controls: { flexDirection: 'row', gap: 12 },
+  container: { width: '100%', alignItems: 'center', gap: 10 },
+  message: { textAlign: 'center' },
+  track: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden' },
+  trackFill: { height: 4, borderRadius: 2 },
+  time: { fontSize: 13 },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  secondaryButton: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryLabel: { fontSize: 13.5, fontWeight: '600' },
+  playButton: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 });

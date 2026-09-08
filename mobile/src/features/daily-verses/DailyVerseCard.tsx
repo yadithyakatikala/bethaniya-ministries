@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
-import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
 import {
   subscribeToTodaysDailyVerse,
   type TodaysDailyVerse,
@@ -18,8 +18,7 @@ import {
 export function DailyVerseCard() {
   const [verse, setVerse] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
-  const { isDark } = usePreferences();
-  const colors = isDark ? darkColors : lightColors;
+  const { colors } = useTheme();
 
   useEffect(() => {
     const unsubscribe = subscribeToTodaysDailyVerse(
@@ -35,7 +34,10 @@ export function DailyVerseCard() {
   if (hasError) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
         testID="daily-verse-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
@@ -48,7 +50,10 @@ export function DailyVerseCard() {
   if (verse === undefined) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
         testID="daily-verse-loading"
       >
         <ActivityIndicator />
@@ -59,7 +64,10 @@ export function DailyVerseCard() {
   if (verse === null) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
         testID="daily-verse-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
@@ -83,38 +91,25 @@ export function DailyVerseCard() {
         />
       ) : null}
       <Text style={[styles.text, { color: colors.text }]}>{verse.text}</Text>
-      <Text style={[styles.reference, { color: colors.secondaryText }]}>
-        {verse.reference}
-      </Text>
+      <Text style={[styles.reference, { color: colors.accent }]}>{verse.reference}</Text>
     </View>
   );
 }
 
-const lightColors = {
-  background: '#F9FAFB',
-  text: '#111827',
-  secondaryText: '#6B7280',
-};
-
-const darkColors = {
-  background: '#1F2937',
-  text: '#F9FAFB',
-  secondaryText: '#9CA3AF',
-};
-
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 12,
   },
   image: {
     width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: 8,
   },
-  text: { fontSize: 16, fontStyle: 'italic', lineHeight: 22 },
+  text: { fontSize: 18, lineHeight: 29 },
   reference: { fontSize: 14, fontWeight: '600' },
   message: { textAlign: 'center' },
 });

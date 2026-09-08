@@ -36,6 +36,9 @@ import {
   validateNotificationInput,
 } from './validation';
 import { useAuthStore } from '../../store/authStore';
+import { AdminEmptyState } from '../../components/AdminEmptyState';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminTableCard } from '../../components/AdminTableCard';
 import type { NotificationLogEntry, NotificationRecipientGroup } from '../../types';
 
 /**
@@ -220,9 +223,7 @@ export function NotificationsPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="notifications-page">
-      <Typography variant="h5" component="h1" gutterBottom>
-        Notifications
-      </Typography>
+      <AdminPageHeader title="Notifications" />
 
       <Alert
         severity="info"
@@ -352,44 +353,50 @@ export function NotificationsPage() {
       ) : null}
 
       {log && log.length === 0 ? (
-        <Typography color="text.secondary" data-testid="notification-log-empty">
-          No notifications sent yet.
-        </Typography>
+        <AdminEmptyState
+          message="No notifications sent yet."
+          testId="notification-log-empty"
+        />
       ) : null}
 
       {log && log.length > 0 ? (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Sent</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Recipients</TableCell>
-                <TableCell align="right">Count</TableCell>
-                <TableCell>Sent By</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {log.map((entry) => (
-                <TableRow key={entry.id} data-testid={`notification-log-row-${entry.id}`}>
-                  <TableCell>{formatSentAt(entry.sentAt)}</TableCell>
-                  <TableCell>{entry.title}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={RECIPIENT_LABELS[entry.recipientGroup]}
-                      size="small"
-                      color={
-                        entry.recipientGroup === 'admins_only' ? 'warning' : 'default'
-                      }
-                    />
-                  </TableCell>
-                  <TableCell align="right">{entry.recipientCount}</TableCell>
-                  <TableCell>{entry.sentByEmail ?? entry.sentBy}</TableCell>
+        <AdminTableCard>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Sent</TableCell>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Recipients</TableCell>
+                  <TableCell align="right">Count</TableCell>
+                  <TableCell>Sent By</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {log.map((entry) => (
+                  <TableRow
+                    key={entry.id}
+                    data-testid={`notification-log-row-${entry.id}`}
+                  >
+                    <TableCell>{formatSentAt(entry.sentAt)}</TableCell>
+                    <TableCell>{entry.title}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={RECIPIENT_LABELS[entry.recipientGroup]}
+                        size="small"
+                        color={
+                          entry.recipientGroup === 'admins_only' ? 'warning' : 'default'
+                        }
+                      />
+                    </TableCell>
+                    <TableCell align="right">{entry.recipientCount}</TableCell>
+                    <TableCell>{entry.sentByEmail ?? entry.sentBy}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </AdminTableCard>
       ) : null}
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>

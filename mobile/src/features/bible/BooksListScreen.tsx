@@ -1,5 +1,5 @@
 import {
-  Button,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
 import type { BibleBook } from './types';
@@ -27,10 +27,15 @@ const SECTIONS: { title: string; data: BibleBook[] }[] = [
  * Firestore data), so there's no windowing/performance reason to
  * virtualize it, and it keeps every book reliably present for tests and
  * for fast scrolling alike.
+ *
+ * Restyled onto the shared Vespers theme -- the search entry point is
+ * now a prominent, search-field-styled bar (the UI audit's "Bible search
+ * sits behind a small 'Search' button" finding) rather than a bare
+ * platform Button, still navigating to the same BibleSearch screen.
+ * Every testID is unchanged.
  */
 export function BooksListScreen({ navigation }: Props) {
-  const { isDark } = usePreferences();
-  const colors = isDark ? darkColors : lightColors;
+  const { colors, radii } = useTheme();
 
   return (
     <ScrollView
@@ -39,19 +44,32 @@ export function BooksListScreen({ navigation }: Props) {
       contentContainerStyle={styles.listContent}
     >
       <View style={styles.searchRow}>
-        <Button
-          title="Search"
-          onPress={() => navigation.navigate('BibleSearch')}
+        <Pressable
           testID="bible-search-nav-button"
-        />
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('BibleSearch')}
+          style={[
+            styles.searchField,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.control,
+            },
+          ]}
+        >
+          <View style={[styles.searchIcon, { borderColor: colors.secondaryText }]} />
+          <Text style={[styles.searchLabel, { color: colors.secondaryText }]}>
+            Search the Bible
+          </Text>
+        </Pressable>
       </View>
       {SECTIONS.map((section) => (
         <View key={section.title}>
           <View
-            style={[styles.sectionHeader, { backgroundColor: colors.sectionHeaderBg }]}
+            style={[styles.sectionHeader, { backgroundColor: colors.primaryTint }]}
             testID={`bible-section-${section.title}`}
           >
-            <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
+            <Text style={[styles.sectionHeaderText, { color: colors.primaryPressed }]}>
               {section.title}
             </Text>
           </View>
@@ -71,29 +89,30 @@ export function BooksListScreen({ navigation }: Props) {
   );
 }
 
-const lightColors = {
-  background: '#F9FAFB',
-  text: '#111827',
-  border: '#E5E7EB',
-  sectionHeaderBg: '#E5E7EB',
-};
-
-const darkColors = {
-  background: '#1F2937',
-  text: '#F9FAFB',
-  border: '#374151',
-  sectionHeaderBg: '#111827',
-};
-
 const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: 24 },
-  searchRow: { padding: 16 },
-  sectionHeader: { paddingHorizontal: 16, paddingVertical: 8 },
-  sectionHeaderText: { fontWeight: '700', fontSize: 14 },
+  searchRow: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  searchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 46,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  searchIcon: { width: 13, height: 13, borderRadius: 7, borderWidth: 1.6 },
+  searchLabel: { fontSize: 14.5 },
+  sectionHeader: { paddingHorizontal: 20, paddingVertical: 8 },
+  sectionHeaderText: {
+    fontWeight: '700',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   item: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   bookName: { fontSize: 15 },

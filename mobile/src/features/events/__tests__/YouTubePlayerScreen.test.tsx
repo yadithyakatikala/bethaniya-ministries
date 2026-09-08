@@ -1,7 +1,11 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
+import { AuthProvider } from '../../../context/AuthContext';
+import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { YouTubePlayerScreen } from '../YouTubePlayerScreen';
 import { buildYouTubeEmbedUrl } from '../youtube';
+
+jest.mock('../../../services/firebase/app');
 
 /**
  * react-native-webview is mocked at the root (mobile/__mocks__/react-native-webview.js)
@@ -19,12 +23,20 @@ import { buildYouTubeEmbedUrl } from '../youtube';
  */
 async function renderScreen(youtubeUrl: string) {
   return await render(
-    <YouTubePlayerScreen
-      navigation={{} as never}
-      route={
-        { key: 'YouTubePlayer', name: 'YouTubePlayer', params: { youtubeUrl } } as never
-      }
-    />
+    <AuthProvider>
+      <PreferencesProvider>
+        <YouTubePlayerScreen
+          navigation={{} as never}
+          route={
+            {
+              key: 'YouTubePlayer',
+              name: 'YouTubePlayer',
+              params: { youtubeUrl },
+            } as never
+          }
+        />
+      </PreferencesProvider>
+    </AuthProvider>
   );
 }
 

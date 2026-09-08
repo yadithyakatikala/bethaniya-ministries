@@ -18,7 +18,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -28,6 +27,9 @@ import {
   subscribeToAnnouncements,
 } from '../../services/firebase/announcements';
 import { useAuthStore } from '../../store/authStore';
+import { AdminEmptyState } from '../../components/AdminEmptyState';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminTableCard } from '../../components/AdminTableCard';
 import type { Announcement } from '../../types';
 
 /** Matches firestore.rules'/storage.rules' isContentAdminOrAbove() -- Host can read all announcements but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md. Gating these buttons is a UX convenience only; the rules are the real boundary. */
@@ -89,28 +91,21 @@ export function AnnouncementsListPage() {
 
   return (
     <Box sx={{ p: 4 }} data-testid="announcements-list-page">
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-        }}
-      >
-        <Typography variant="h5" component="h1">
-          Announcements
-        </Typography>
-        {canManage ? (
-          <Button
-            variant="contained"
-            component={RouterLink}
-            to="/announcements/new"
-            data-testid="new-announcement-button"
-          >
-            New Announcement
-          </Button>
-        ) : null}
-      </Box>
+      <AdminPageHeader
+        title="Announcements"
+        action={
+          canManage ? (
+            <Button
+              variant="contained"
+              component={RouterLink}
+              to="/announcements/new"
+              data-testid="new-announcement-button"
+            >
+              New Announcement
+            </Button>
+          ) : undefined
+        }
+      />
 
       {error ? (
         <Alert severity="error" data-testid="announcements-error">
@@ -125,68 +120,68 @@ export function AnnouncementsListPage() {
       ) : null}
 
       {announcements && announcements.length === 0 ? (
-        <Typography color="text.secondary" data-testid="announcements-empty">
-          No announcements yet.
-        </Typography>
+        <AdminEmptyState message="No announcements yet." testId="announcements-empty" />
       ) : null}
 
       {announcements && announcements.length > 0 ? (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Status</TableCell>
-                {canManage ? <TableCell align="right">Actions</TableCell> : null}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {announcements.map((announcement) => (
-                <TableRow
-                  key={announcement.id}
-                  data-testid={`announcement-row-${announcement.id}`}
-                >
-                  <TableCell>{announcement.title}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={announcement.published ? 'Published' : 'Draft'}
-                      color={announcement.published ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
-                  {canManage ? (
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        onClick={() => void handleTogglePublished(announcement)}
-                        disabled={busyId === announcement.id}
-                        data-testid={`toggle-published-${announcement.id}`}
-                      >
-                        {announcement.published ? 'Unpublish' : 'Publish'}
-                      </Button>
-                      <IconButton
-                        component={RouterLink}
-                        to={`/announcements/${announcement.id}/edit`}
-                        aria-label="Edit"
-                        data-testid={`edit-announcement-${announcement.id}`}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        aria-label="Delete"
-                        onClick={() => setDeleteTarget(announcement)}
-                        disabled={busyId === announcement.id}
-                        data-testid={`delete-announcement-${announcement.id}`}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  ) : null}
+        <AdminTableCard>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Status</TableCell>
+                  {canManage ? <TableCell align="right">Actions</TableCell> : null}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {announcements.map((announcement) => (
+                  <TableRow
+                    key={announcement.id}
+                    data-testid={`announcement-row-${announcement.id}`}
+                  >
+                    <TableCell>{announcement.title}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={announcement.published ? 'Published' : 'Draft'}
+                        color={announcement.published ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    {canManage ? (
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          onClick={() => void handleTogglePublished(announcement)}
+                          disabled={busyId === announcement.id}
+                          data-testid={`toggle-published-${announcement.id}`}
+                        >
+                          {announcement.published ? 'Unpublish' : 'Publish'}
+                        </Button>
+                        <IconButton
+                          component={RouterLink}
+                          to={`/announcements/${announcement.id}/edit`}
+                          aria-label="Edit"
+                          data-testid={`edit-announcement-${announcement.id}`}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          aria-label="Delete"
+                          onClick={() => setDeleteTarget(announcement)}
+                          disabled={busyId === announcement.id}
+                          data-testid={`delete-announcement-${announcement.id}`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </AdminTableCard>
       ) : null}
 
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>

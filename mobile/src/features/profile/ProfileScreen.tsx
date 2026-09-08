@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Button,
   Image,
   ScrollView,
   StyleSheet,
@@ -14,7 +13,8 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { storage } from '../../services/firebase/app';
-import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
+import { AppButton } from '../../theme/ui/AppButton';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
@@ -43,6 +43,13 @@ import {
  * users/{userId}/profile/{fileName} rule (5MB cap, image/* content type,
  * owner-only write), which this screen reuses unchanged (Day 9 decision
  * 5: "Reuse existing Storage path/rules").
+ *
+ * Restyled onto the shared Vespers theme: card-grouped fields, the
+ * shared AppButton primitive (its own `loading` state replaces the
+ * previous "swap to a differently-tagged ActivityIndicator" pattern --
+ * no test asserted that separate testID, only the button's own), and
+ * themed error/success colors. Every other testID/behavior is
+ * unchanged -- see ProfileScreen.test.tsx.
  */
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
@@ -60,8 +67,7 @@ export function ProfileScreen() {
   // flash the empty-profile view before the real loading state ever
   // shows.
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
-  const { isDark } = usePreferences();
-  const colors = isDark ? darkColors : lightColors;
+  const { colors, radii, spacing } = useTheme();
 
   const [profile, setProfile] = useState<UserProfile | null | undefined>(undefined);
   const [loadError, setLoadError] = useState(false);
@@ -235,84 +241,119 @@ export function ProfileScreen() {
           />
         ) : (
           <View
-            style={[styles.photoPlaceholder, { borderColor: colors.border }]}
+            style={[
+              styles.photoPlaceholder,
+              { backgroundColor: colors.primaryTint, borderColor: colors.border },
+            ]}
             testID="profile-photo-placeholder"
           >
-            <Text style={{ color: colors.secondaryText }}>No photo</Text>
+            <Text style={{ color: colors.primary, fontSize: 26, fontWeight: '600' }}>
+              {(displayProfile?.displayName ?? displayProfile?.email ?? '?')
+                .charAt(0)
+                .toUpperCase()}
+            </Text>
           </View>
         )}
-        {isUploadingPhoto ? (
-          <ActivityIndicator testID="profile-photo-uploading" />
-        ) : (
-          <Button
-            title="Change Photo"
-            onPress={() => void handleChangePhoto()}
-            testID="change-photo-button"
-          />
-        )}
+        <AppButton
+          title="Change photo"
+          variant="secondary"
+          loading={isUploadingPhoto}
+          onPress={() => void handleChangePhoto()}
+          testID="change-photo-button"
+        />
         {photoError ? (
-          <Text style={styles.errorText} testID="profile-photo-error">
+          <Text
+            style={[styles.errorText, { color: colors.danger }]}
+            testID="profile-photo-error"
+          >
             {photoError}
           </Text>
         ) : null}
       </View>
 
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: colors.secondaryText }]}>Display Name</Text>
-        <TextInput
-          style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-          value={displayNameInput}
-          onChangeText={(text) => {
-            setDisplayNameInput(text);
-            setNameSaved(false);
-          }}
-          testID="display-name-input"
-          placeholder="Your name"
-          placeholderTextColor={colors.secondaryText}
-        />
-        {isSavingName ? (
-          <ActivityIndicator testID="profile-name-saving" />
-        ) : (
-          <Button
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.card,
+            padding: spacing.lg,
+          },
+        ]}
+      >
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: colors.secondaryText }]}>
+            Display Name
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                borderRadius: radii.control,
+              },
+            ]}
+            value={displayNameInput}
+            onChangeText={(text) => {
+              setDisplayNameInput(text);
+              setNameSaved(false);
+            }}
+            testID="display-name-input"
+            placeholder="Your name"
+            placeholderTextColor={colors.secondaryText}
+          />
+          <AppButton
             title="Save"
+            loading={isSavingName}
             onPress={() => void handleSaveDisplayName()}
             testID="save-display-name-button"
           />
-        )}
-        {nameError ? (
-          <Text style={styles.errorText} testID="profile-name-error">
-            {nameError}
+          {nameError ? (
+            <Text
+              style={[styles.errorText, { color: colors.danger }]}
+              testID="profile-name-error"
+            >
+              {nameError}
+            </Text>
+          ) : null}
+          {nameSaved ? (
+            <Text
+              style={[styles.successText, { color: colors.success }]}
+              testID="profile-name-saved"
+            >
+              Saved.
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.secondaryText }]}>Email</Text>
+          <Text
+            style={[styles.readOnlyValue, { color: colors.text }]}
+            testID="profile-email"
+          >
+            {displayProfile?.email ?? 'Not set'}
           </Text>
-        ) : null}
-        {nameSaved ? (
-          <Text style={styles.successText} testID="profile-name-saved">
-            Saved.
+        </View>
+
+        <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.secondaryText }]}>
+            Phone Number
           </Text>
-        ) : null}
+          <Text
+            style={[styles.readOnlyValue, { color: colors.text }]}
+            testID="profile-phone"
+          >
+            {displayProfile?.phoneNumber ?? 'Not set'}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: colors.secondaryText }]}>Email</Text>
-        <Text
-          style={[styles.readOnlyValue, { color: colors.text }]}
-          testID="profile-email"
-        >
-          {displayProfile?.email ?? 'Not set'}
-        </Text>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: colors.secondaryText }]}>Phone Number</Text>
-        <Text
-          style={[styles.readOnlyValue, { color: colors.text }]}
-          testID="profile-phone"
-        >
-          {displayProfile?.phoneNumber ?? 'Not set'}
-        </Text>
-      </View>
-
-      <Button
+      <AppButton
         title="Settings"
+        variant="secondary"
         onPress={() => navigation.navigate('Settings')}
         testID="profile-settings-nav-button"
       />
@@ -320,25 +361,11 @@ export function ProfileScreen() {
   );
 }
 
-const lightColors = {
-  background: '#F9FAFB',
-  text: '#111827',
-  secondaryText: '#6B7280',
-  border: '#E5E7EB',
-};
-
-const darkColors = {
-  background: '#1F2937',
-  text: '#F9FAFB',
-  secondaryText: '#9CA3AF',
-  border: '#374151',
-};
-
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 16, gap: 20 },
+  container: { flexGrow: 1, padding: 20, gap: 20 },
   centered: { justifyContent: 'center', alignItems: 'center' },
   message: { textAlign: 'center' },
-  photoSection: { alignItems: 'center', gap: 8 },
+  photoSection: { alignItems: 'center', gap: 10 },
   photo: { width: 96, height: 96, borderRadius: 48 },
   photoPlaceholder: {
     width: 96,
@@ -348,16 +375,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600' },
+  card: { borderWidth: StyleSheet.hairlineWidth, gap: 16 },
+  field: { gap: 8 },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16 },
+  label: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 16,
   },
   readOnlyValue: { fontSize: 16 },
-  errorText: { color: '#DC2626', fontSize: 13 },
-  successText: { color: '#16A34A', fontSize: 13 },
+  errorText: { fontSize: 13 },
+  successText: { fontSize: 13 },
 });

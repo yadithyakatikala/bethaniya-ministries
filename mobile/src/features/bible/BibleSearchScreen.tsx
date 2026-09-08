@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
+import { useTheme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { type BibleSearchResult, searchBible } from './search';
 
@@ -30,8 +31,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleSearch'>;
  * books) already behaves -- immediate, not gated behind a button.
  */
 export function BibleSearchScreen({ navigation }: Props) {
-  const { languagePreference, isDark } = usePreferences();
-  const colors = isDark ? darkColors : lightColors;
+  const { languagePreference } = usePreferences();
+  const { colors, radii, spacing } = useTheme();
   const [query, setQuery] = useState('');
 
   const trimmedQuery = query.trim();
@@ -49,7 +50,14 @@ export function BibleSearchScreen({ navigation }: Props) {
     return (
       <Text style={{ color: colors.text }}>
         {before}
-        <Text style={styles.highlight}>{match}</Text>
+        <Text
+          style={[
+            styles.highlight,
+            { backgroundColor: colors.primaryTint, color: colors.text },
+          ]}
+        >
+          {match}
+        </Text>
         {after}
       </Text>
     );
@@ -61,7 +69,15 @@ export function BibleSearchScreen({ navigation }: Props) {
       testID="bible-search-screen"
     >
       <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+        style={[
+          styles.input,
+          {
+            color: colors.text,
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.control,
+          },
+        ]}
         value={query}
         onChangeText={setQuery}
         placeholder="Search the Bible"
@@ -90,7 +106,15 @@ export function BibleSearchScreen({ navigation }: Props) {
           {results.map((result) => (
             <TouchableOpacity
               key={`${result.bookId}-${result.chapterNumber}-${result.verseNumber}`}
-              style={[styles.resultItem, { borderColor: colors.border }]}
+              style={[
+                styles.resultItem,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderRadius: radii.card,
+                  padding: spacing.md,
+                },
+              ]}
               testID={`search-result-${result.bookId}-${result.chapterNumber}-${result.verseNumber}`}
               onPress={() =>
                 navigation.navigate('BibleChapter', {
@@ -113,37 +137,20 @@ export function BibleSearchScreen({ navigation }: Props) {
   );
 }
 
-const lightColors = {
-  background: '#F9FAFB',
-  text: '#111827',
-  secondaryText: '#6B7280',
-  border: '#E5E7EB',
-};
-
-const darkColors = {
-  background: '#1F2937',
-  text: '#F9FAFB',
-  secondaryText: '#9CA3AF',
-  border: '#374151',
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 12 },
+  container: { flex: 1, padding: 20, gap: 14 },
   input: {
+    height: 46,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
+    paddingHorizontal: 14,
+    fontSize: 15,
   },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 32 },
   message: { textAlign: 'center', fontSize: 14 },
-  resultsContent: { gap: 8, paddingBottom: 24 },
+  resultsContent: { gap: 10, paddingBottom: 24 },
   resultItem: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    padding: 12,
     gap: 4,
   },
-  highlight: { backgroundColor: '#FEF08A', fontWeight: '700' },
+  highlight: { fontWeight: '700', borderRadius: 3 },
 });

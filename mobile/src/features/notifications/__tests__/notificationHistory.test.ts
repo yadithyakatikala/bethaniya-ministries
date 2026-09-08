@@ -3,6 +3,7 @@ import {
   addNotificationToHistory,
   clearNotificationHistory,
   getNotificationHistory,
+  markNotificationRead,
 } from '../notificationHistory';
 
 describe('notificationHistory', () => {
@@ -85,5 +86,34 @@ describe('notificationHistory', () => {
   it('recovers gracefully from corrupted stored JSON', async () => {
     await AsyncStorage.setItem('notification_history', 'not valid json{{{');
     expect(await getNotificationHistory()).toEqual([]);
+  });
+
+  it('defaults readAt to null for a new entry', async () => {
+    await addNotificationToHistory({ title: 'T', message: 'M' });
+    const [entry] = await getNotificationHistory();
+    expect(entry.readAt).toBeNull();
+  });
+
+  it('marks an entry read', async () => {
+    const created = await addNotificationToHistory({ title: 'T', message: 'M' });
+    await markNotificationRead(created.id);
+    const [entry] = await getNotificationHistory();
+    expect(entry.readAt).toEqual(expect.any(String));
+  });
+
+  it('is idempotent -- marking an already-read entry read again keeps the original timestamp', async () => {
+    const created = await addNotificationToHistory({ title: 'T', message: 'M' });
+    await markNotificationRead(created.id);
+    const [firstRead] = await getNotificationHistory();
+    await markNotificationRead(created.id);
+    const [secondRead] = await getNotificationHistory();
+    expect(secondRead.readAt).toEqual(firstRead.readAt);
+  });
+
+  it('does nothing when marking an unknown id read', async () => {
+    await addNotificationToHistory({ title: 'T', message: 'M' });
+    await markNotificationRead('does-not-exist');
+    const [entry] = await getNotificationHistory();
+    expect(entry.readAt).toBeNull();
   });
 });

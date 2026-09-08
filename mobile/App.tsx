@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppStateProvider } from './src/context/AppStateContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
@@ -31,17 +32,29 @@ configureNotificationHandler();
  * know whether/who to sync language/theme/notification preferences to
  * Firestore for -- so every screen (including SignIn/Loading) sees a
  * consistent theme from app start, not just once signed in.
+ *
+ * SafeAreaProvider wraps everything -- required by
+ * react-native-safe-area-context's useSafeAreaInsets(), which the
+ * hand-rolled bottom tab bar (see src/navigation/BottomTabBar.tsx) and
+ * the screens with a hidden native header (Home, the Bible reader, Daily
+ * Verse -- see AppNavigator.tsx's headerShown: false options) use to pad
+ * for the status bar/home indicator instead of a hardcoded constant.
+ * Without this provider those hooks throw at runtime on a real device
+ * (Jest's mock of the package is more forgiving, which is why this was
+ * missing until now).
  */
 export default function App() {
   return (
-    <AppStateProvider>
-      <AuthProvider>
-        <PreferencesProvider>
-          <AuthGate />
-          <StatusBar style="auto" />
-        </PreferencesProvider>
-      </AuthProvider>
-    </AppStateProvider>
+    <SafeAreaProvider>
+      <AppStateProvider>
+        <AuthProvider>
+          <PreferencesProvider>
+            <AuthGate />
+            <StatusBar style="auto" />
+          </PreferencesProvider>
+        </AuthProvider>
+      </AppStateProvider>
+    </SafeAreaProvider>
   );
 }
 

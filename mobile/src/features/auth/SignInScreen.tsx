@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ConfirmationResult } from 'firebase/auth';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../theme';
+import { AppButton } from '../../theme/ui/AppButton';
 import { confirmPhoneCode, startPhoneSignIn } from '../../services/firebase/authService';
 import {
   isAppleSignInAvailable,
@@ -21,9 +23,20 @@ type PhoneStep = 'enter-phone' | 'enter-code';
  * all (Android, or iOS without the capability), and the Google button stays
  * present but disabled until real OAuth client ids are configured (see
  * useGoogleSignIn.ts) rather than silently doing nothing when pressed.
+ *
+ * Restyled onto the shared Vespers theme -- a branded evergreen monogram,
+ * themed provider buttons (the shared AppButton primitive, whose own
+ * `disabled` prop already sets accessibilityState.disabled -- see
+ * SignInScreen.test.tsx's disabled-state assertion), and a themed error
+ * banner. Every provider call, testID, and error-message string is
+ * unchanged. Now reads useTheme(), so it needs PreferencesProvider in
+ * its render tree -- it already gets one in production (App.tsx renders
+ * this inside AuthProvider > PreferencesProvider), and
+ * SignInScreen.test.tsx now wraps it the same way.
  */
 export function SignInScreen() {
   const { authErrorMessage, reportSignInError, clearAuthError } = useAuth();
+  const { colors, radii } = useTheme();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('enter-phone');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -79,28 +92,54 @@ export function SignInScreen() {
   }
 
   return (
-    <View style={styles.container} testID="sign-in-screen">
-      <Text style={styles.title}>Sign in to Bethaniya Ministries</Text>
+    <ScrollView
+      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+      testID="sign-in-screen"
+    >
+      <View style={styles.brandBlock}>
+        <View
+          style={[
+            styles.monogram,
+            { backgroundColor: colors.primary, borderRadius: radii.card },
+          ]}
+        >
+          <Text style={styles.monogramText}>B</Text>
+        </View>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Sign in to Bethaniya Ministries
+        </Text>
+      </View>
 
       {authErrorMessage ? (
-        <Text style={styles.error} testID="auth-error-message">
-          {authErrorMessage}
-        </Text>
+        <View
+          style={[
+            styles.errorBanner,
+            { backgroundColor: colors.liveTint, borderRadius: radii.control },
+          ]}
+        >
+          <Text
+            style={[styles.error, { color: colors.danger }]}
+            testID="auth-error-message"
+          >
+            {authErrorMessage}
+          </Text>
+        </View>
       ) : null}
 
       <View style={styles.section}>
-        <Button
+        <AppButton
           title={
             google.configured
               ? 'Continue with Google'
               : 'Continue with Google (not configured)'
           }
+          variant="secondary"
           onPress={() => void google.promptAsync()}
           disabled={!google.canPrompt || busy}
           testID="google-sign-in-button"
         />
         {!google.configured ? (
-          <Text style={styles.hint}>
+          <Text style={[styles.hint, { color: colors.secondaryText }]}>
             Google sign-in needs a Google Cloud OAuth client id
             (EXPO_PUBLIC_GOOGLE_CLIENT_ID) that hasn’t been configured yet.
           </Text>
@@ -109,8 +148,9 @@ export function SignInScreen() {
 
       {appleAvailable && Platform.OS === 'ios' ? (
         <View style={styles.section}>
-          <Button
+          <AppButton
             title="Continue with Apple"
+            variant="secondary"
             onPress={() => void handleApplePress()}
             disabled={busy}
             testID="apple-sign-in-button"
@@ -118,20 +158,33 @@ export function SignInScreen() {
         </View>
       ) : null}
 
+      <View style={[styles.divider, { borderTopColor: colors.border }]} />
+
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Phone number</Text>
+        <Text style={[styles.sectionLabel, { color: colors.secondaryText }]}>
+          Phone number
+        </Text>
         {phoneStep === 'enter-phone' ? (
           <>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderRadius: radii.control,
+                },
+              ]}
               placeholder="+15555550123"
+              placeholderTextColor={colors.secondaryText}
               autoComplete="tel"
               keyboardType="phone-pad"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               testID="phone-number-input"
             />
-            <Button
+            <AppButton
               title="Send code"
               onPress={() => void handleSendCode()}
               disabled={busy || phoneNumber.trim().length === 0}
@@ -141,21 +194,31 @@ export function SignInScreen() {
         ) : (
           <>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderRadius: radii.control,
+                },
+              ]}
               placeholder="123456"
+              placeholderTextColor={colors.secondaryText}
               keyboardType="number-pad"
               value={otpCode}
               onChangeText={setOtpCode}
               testID="otp-code-input"
             />
-            <Button
+            <AppButton
               title="Verify code"
               onPress={() => void handleConfirmCode()}
               disabled={busy || otpCode.trim().length === 0}
               testID="verify-code-button"
             />
-            <Button
+            <AppButton
               title="Use a different number"
+              variant="secondary"
               onPress={() => {
                 clearAuthError();
                 setPhoneStep('enter-phone');
@@ -167,25 +230,33 @@ export function SignInScreen() {
           </>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 20 },
-  title: { fontSize: 20, fontWeight: '600', textAlign: 'center', marginBottom: 8 },
-  section: { gap: 8 },
-  sectionLabel: { fontSize: 14, fontWeight: '500' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 20 },
+  brandBlock: { alignItems: 'center', gap: 14, marginBottom: 4 },
+  monogram: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  monogramText: { color: '#FFFFFF', fontSize: 24, fontWeight: '600' },
+  title: { fontSize: 21, fontWeight: '600', textAlign: 'center' },
+  errorBanner: { padding: 12 },
+  section: { gap: 10 },
+  sectionLabel: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  hint: { fontSize: 12, color: '#888' },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth },
+  input: {
+    height: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  hint: { fontSize: 12 },
   error: {
-    color: '#B00020',
     textAlign: 'center',
     fontSize: 14,
   },
