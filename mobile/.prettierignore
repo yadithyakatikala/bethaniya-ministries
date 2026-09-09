@@ -2,3 +2,9 @@
 dist
 node_modules
 coverage
+
+# Imported World English Bible dataset (scrollmapper/bible_databases,
+# 2024 branch, json/t_web.json -- see src/features/bible/webBible.ts).
+# Machine-generated/imported data, not hand-authored source; kept minified
+# to avoid roughly doubling its bundled size for no benefit.
+src/features/bible/data/web-en.json

@@ -20,13 +20,13 @@
  * downloading the whole Bible remotely).
  *
  * Matching is plain, case-insensitive substring matching -- against
- * either a verse's text or its reference ("Genesis 1:2"). Reference
- * matching matters especially for today's placeholder content: every
- * verse's *text* looks like "[Development placeholder #037 -- English...]"
- * (see placeholderData.ts), so search by book name is how a user actually
- * finds a specific passage until real scripture text is sourced -- the
- * search architecture itself does not change when that happens; only the
- * strings being matched against will read differently.
+ * either a verse's text or its reference ("Genesis 1:2"). English now
+ * searches real World English Bible text (see webBible.ts); Telugu still
+ * searches synthetic placeholder text (placeholderData.ts) until a
+ * licensed Telugu source is found -- reference matching remains how a
+ * user finds a specific Telugu passage by book name in the meantime. The
+ * search architecture itself never changed when English's text source
+ * did; only the strings being matched against read differently now.
  */
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
 import { getChapter } from './dataSource';

@@ -1,86 +1,136 @@
 # Production Readiness
 
-**Current status: NOT PRODUCTION READY. This is expected and correct at
-this stage — do not read anything in this repo as a production-readiness
-claim.** What Day 1 and this corrections pass verify is that the repo is
-*structured* so production deployment can happen cleanly later, once the
-actual feature work (Day 2–16 per the architecture spec) and a real
-security/testing pass are done.
+**Current status: NOT PRODUCTION READY.** This document was last
+substantially rewritten at the Day 1 checkpoint and had gone stale
+(it still claimed "Day 2–16 NOT STARTED" after all of Days 2–16, the
+Vespers UI pass, and a V1 completion sprint had actually happened) — this
+rewrite brings it in line with the real, current state of the repository.
+Nothing below should be read as a claim that this app is deployed or
+usable by real church members today. It is not.
 
 ## The staged pipeline
 
 ```
-DAY 1 FOUNDATION              ← done, corrected, and verified (this repo, now)
+DAY 1 FOUNDATION                    ← done
         │
         ▼
-Development verified          ← in progress: dev Firebase project exists
-        │                       (bethaniya-ministries-dev-58588, free Spark
-        │                       tier — Blaze intentionally not attached, see
-        │                       ENVIRONMENT.md "Developing without Blaze");
-        │                       emulator-backed rule tests done (SECURITY.md);
-        │                       mobile/admin Firebase SDK wired to the local
-        │                       Emulator Suite (Auth/Firestore/Storage) and
-        │                       proven end-to-end by
-        │                       firebase-tests/client-emulator-smoke.test.ts
+Days 2–16 implementation            ← done: auth, Bible/songs/events UI,
+        │                             admin CRUD, notifications, live
+        │                             streaming, profile, RBAC, security
+        │                             hardening, test coverage
         ▼
-Day 2–16 implementation       ← NOT STARTED. Auth flows, Bible/songs/events
-        │                       UI, admin CRUD, notifications, live streaming,
-        │                       profile, content management (spec Section E)
+Vespers visual design system        ← done: theme tokens, hand-rolled tab
+        │                             bar, every mobile + admin screen
+        │                             restyled, shared admin components
         ▼
-Security + testing            ← NOT STARTED. Full app-level QA, not just the
-        │                       rule-level tests done so far
+V1 completion sprint                ← done, PARTIALLY: real English Bible
+        │                             text imported; Telugu still blocked
+        │                             by licensing; offline persistence
+        │                             investigated, not enabled (real-
+        │                             device-verification gap); local APK
+        │                             build investigated, blocked by
+        │                             environment (no Android SDK access)
         ▼
-Release preparation           ← NOT STARTED. Store listings, EAS builds,
-        │                       staging environment, final content/branding
+Real-device QA                      ← NOT STARTED. No physical device or
+        │                             simulator has ever been available in
+        │                             any development environment used for
+        │                             this project.
+        ▼
+Telugu Bible licensing resolution   ← NOT STARTED (requires a human to
+        │                             contact a rights holder and wait for
+        │                             a reply — see BIBLE_LICENSING.md)
+        ▼
+Release preparation                 ← NOT STARTED. Store listings, EAS/
+        │                             local builds actually produced and
+        │                             installed, staging environment, real
+        │                             church branding/content
         ▼
 PRODUCTION READY
 ```
 
 Nothing in this repository should be read as claiming a position further
-down this pipeline than "Development verified (partial)."
+down this pipeline than "V1 completion sprint (partial)."
 
-## Checklist: is the repo *structured* for a clean eventual production deploy?
+## Final V1 requirements matrix
 
-This checks structure and documentation, not that production deployment has
-happened — none of this creates or requires a production Firebase project.
+Legend: ✅ complete · 🟡 complete but needs configuration · 🔵 ready,
+waiting on an external credential/account · 🟠 requires real-device
+testing · 🔴 blocked by licensing · 💰 blocked by cost (would require
+breaking the ₹0 constraint) · ❌ not complete.
 
-| Requirement | Status | Where |
-| --- | --- | --- |
-| Dev/staging/prod clearly separated | ✅ | `.firebaserc.example` defines separate `development`/`staging`/`production` project aliases; `firebase deploy --project <alias>` always targets one explicitly, never "whatever's active" by accident |
-| Production secrets not in Git | ✅ | `.gitignore` blocks `.env*` (except `.env.example`) and all known service-account-key filename patterns; verified no such file is tracked (`git ls-files \| grep -iE 'env\|serviceAccount\|adminsdk'` returns only `.env.example` files) |
-| Env vars documented | ✅ | `ENVIRONMENT.md` + one `.env.example` per app (`mobile`, `admin`, `functions`) listing every variable with a comment on what it's for |
-| Firebase config documented | ✅ | `ENVIRONMENT.md` "Firebase projects" section — CLI-doable vs. Console-only steps, verified against the installed CLI, not assumed |
-| Deployment steps documented | ✅ | `DEPLOYMENT.md` — one section per deployable piece (Functions, rules, Hosting, mobile/EAS), each with exact commands |
-| Security rules version-controlled | ✅ | `firestore.rules`, `storage.rules` committed at repo root, referenced from `firebase.json` |
-| DB indexes version-controlled | ✅ | `firestore.indexes.json` committed, referenced from `firebase.json` |
-| Cloud Functions version-controlled | ✅ | `functions/src/` committed; `functions/package.json` pins Node 22 and all dependency versions |
-| Admin deployment documented | ✅ | `DEPLOYMENT.md` "Admin dashboard" section (Firebase Hosting primary path, Vercel alternative documented) |
-| Mobile build/release config documented | ⚠️ Partial | `DEPLOYMENT.md` "Mobile app (EAS Build)" documents the exact commands and states plainly that `eas.json` doesn't exist yet and why (no Expo/EAS account tied to this project yet — a Day 8 spec prerequisite, not an oversight) |
-| Another developer could reproduce the environment from docs alone | ✅, with one caveat | `README.md` → `CONTRIBUTING.md` → `ENVIRONMENT.md` walk through clone → install → env setup → Firebase project → run, in that order, with no undocumented step found in this pass. Caveat: this hasn't been tested by an actual second person following the docs cold — it's a documentation-completeness check, not a dry-run confirmation |
+| Area | Item | Status | Why |
+| --- | --- | --- | --- |
+| **Frontend (mobile)** | Vespers visual design system | ✅ | Theme tokens, tab bar, every screen restyled, verified via real react-native-web screenshots |
+| | Navigation (all routes, back behavior, tab visibility) | ✅ | See AppNavigator.tsx; one stale doc-comment and one hardcoded safe-area constant found and fixed this checkpoint |
+| | Loading/error/empty states | ✅ | Present on every async screen; verified by reading each screen's code |
+| | Accessibility (labels, touch targets, contrast) | 🟡 | `accessibilityRole`/`accessibilityLabel`/`accessibilityState` present throughout; 44px touch targets used consistently; never verified with a real screen reader (VoiceOver/TalkBack) — requires a real device |
+| **Frontend (admin)** | Vespers visual design system | ✅ | Sidebar, dashboard, shared `AdminPageHeader`/`AdminTableCard`/`AdminEmptyState` components across every CRUD page |
+| | Responsive layout | 🟡 | CSS-only responsive drawer (documented reason: jsdom has no `matchMedia`); never viewed on a real narrow-viewport device |
+| **Backend** | Firestore rules / RBAC | ✅ | Deny-by-default, four roles, unchanged and re-verified byte-identical across the Vespers + V1 sprint commits |
+| | Cloud Functions (createUserProfile, logAdminAction, sendNotification, updateUserRole) | ✅ code / ❌ deployed | Reviewed, typechecked, built; never deployed (see "Deployment" below) |
+| | Firestore emulator-backed rule tests | ❌ | Blocked: Firebase Emulator Suite cannot start in this environment — `firebase-public.firebaseio.com`/`firebase.google.com` are denied by network policy (re-confirmed this checkpoint by actually attempting `firebase emulators:start`, not just checking one URL) |
+| | `firebase-tests/` integration suite | ❌ | Blocked by both the emulator issue above and a `firebase@^12` vs. `@firebase/rules-unit-testing@^3`'s `peer firebase@^10` dependency conflict |
+| **Mobile functionality** | Auth (Google/Apple/Phone OTP), session persistence, sign-out | ✅ code / 🟠 unverified | Unit-tested against mocks only; never exercised against a real OAuth provider or real device |
+| | Bible reader (English) | ✅ | Real World English Bible text, all 66 books, imported and verified this checkpoint |
+| | Bible reader (Telugu) | 🔴 | Blocked by licensing — see BIBLE_LICENSING.md |
+| | Songs/audio, Events/YouTube Live, Notifications, Profile, Settings | ✅ | Implemented, tested against mocked Firebase; never run against a real backend or device |
+| **Bible** | English text | ✅ | See BIBLE_LICENSING.md |
+| | Telugu text | 🔴 | Blocked by licensing; a specific, promising new lead is documented but unconfirmed |
+| **RBAC** | Role matrix (member/host/content_admin/super_admin) | ✅ | Enforced server-side in rules, mirrored client-side for UX; self-demotion guard tested |
+| **Notifications** | Composition, validation, history, local read/unread | ✅ | |
+| | Real FCM push delivery | ❌ | No device has ever registered a push token in this project's history; nothing to make it work regardless of billing plan |
+| **Live stream** | Host-managed YouTube URL/live-status toggle | ✅ | RBAC-gated, tested |
+| **Testing** | Mobile unit/component tests | ✅ | 284/284 passing, 87.0% statement coverage |
+| | Admin unit/component/RBAC tests | ✅ | 249/249 passing, 88.3% statement coverage |
+| | Functions unit tests | 🟡 | Only `healthCheck.test.ts` runs (4/4); four emulator-backed handler test files are structurally sound but unexecuted (see Backend row above) |
+| **Security** | Rules/RBAC audit | ✅ | Re-confirmed byte-identical to pre-Vespers baseline this checkpoint |
+| | Secrets scan (source + git history) | ✅ | Clean — re-run this checkpoint, only `.env.example` files ever touched `.env*` paths in history |
+| | `npm audit` | 🟡 | Admin: 0. Mobile: 16 moderate (transitive, Expo tooling). Functions: 7 moderate (transitive, `firebase-admin`'s GCP client chain). None exploitable via this app's own code paths; fixing requires breaking downgrades, left as a deliberate, documented decision |
+| **Build/release (Android)** | App identity (name, package id, version, versionCode) | ✅ | `versionCode`/`buildNumber` added this checkpoint (previously missing) |
+| | Real app icon / adaptive icon / splash | ❌ | **All five icon/splash PNG assets in `mobile/assets/` are literal 1×1-pixel placeholder files** — discovered this checkpoint. The app cannot look correct on a real home screen or app store listing until real artwork is supplied |
+| | Local APK/AAB build | ❌ | Blocked: no Android SDK in this environment, and `dl.google.com` (the SDK download host) is denied by network policy — confirmed by direct attempt |
+| **Build/release (iOS)** | Bundle identifier, build number | ✅ | |
+| | TestFlight/App Store submission | 💰🔵 | Requires an Apple Developer Program membership (paid, $99/yr) — explicitly out of scope under the ₹0 constraint until you decide otherwise |
+| **Production deployment** | Real Firebase project (staging/production) | 🔵 | Never created; requires your action (a free-tier Firebase project can be created at ₹0, but doing so is a deliberate step not taken automatically) |
+| | Cloud Functions deployment | 💰 | Firebase requires the **Blaze** plan to deploy Functions at all, even at $0 actual usage — explicitly not attached, per the ₹0 constraint |
+| | Firebase Hosting (admin) / EAS (mobile) | 🔵 | Documented in DEPLOYMENT.md, not yet executed — needs a real Firebase/EAS account, still free-tier-capable |
+| **Documentation** | README/ARCHITECTURE/SECURITY/BIBLE_LICENSING/this file | ✅ | Synced to actual implementation state this checkpoint |
+| | ADMIN_GUIDE.md | 🟡 | Field-accurate to the code, but has no real screenshots (needs a deployed instance to photograph) |
 
-## What would change an item above from ✅ to a real gap
+## What would change an item above from a real gap to ✅
 
-- If a `.env.local` or key file were ever accidentally committed, `git log
-  --all --full-history -- '*.env*' 'google-services.json' '*serviceAccountKey*'`
-  would show it — checked clean as of this pass, re-check before any future
-  release.
-- If `firebase.json`'s emulator/deploy config or the rules files are edited
-  without updating both the rules AND their tests in `firebase-tests/` in
-  the same change, the "version-controlled" checkmarks above stop meaning
-  "verified" and go back to meaning only "committed."
+- **Telugu Bible**: a human confirms a license (see BIBLE_LICENSING.md's
+  "Action needed" section) — this alone unblocks the single largest
+  remaining content gap.
+- **Real-device testing**: a human runs the app on an actual iPhone/
+  Android phone via Expo Go (see "Quick start" in README.md) or a real
+  simulator — nothing in this repository can substitute for that.
+- **App icon/splash**: the church supplies real logo/branding art files,
+  which get dropped into `mobile/assets/` in place of the current 1×1
+  placeholders — no code change needed beyond that.
+- **Local APK build**: run from a real machine with the Android SDK
+  installed (a developer's own Mac/Linux machine, or a CI runner) — the
+  commands are already documented in DEPLOYMENT.md and `app.json` is
+  already configured correctly.
+- **Firestore offline persistence**: once real-device testing is
+  possible, re-attempt `persistentLocalCache()` on an actual device and
+  verify it doesn't crash before enabling it — see the reasoning
+  documented above `db`'s initialization in
+  `mobile/src/services/firebase/app.ts`.
+- If a `.env.local` or key file were ever accidentally committed, `git
+  log --all --full-history -- '*.env*' 'google-services.json'
+  '*serviceAccountKey*'` would show it — re-checked clean this checkpoint.
 
 ## Explicitly not claimed
 
-This document does not claim: that the staging or production Firebase
-projects exist (only dev — `bethaniya-ministries-dev-58588` — does, and it
-stays on the free Spark plan by design, see `ENVIRONMENT.md` "Developing
-without Blaze"); that any app screen beyond the Day 1 placeholder and the
-placeholder Bible screen has been built (the Firebase SDK/emulator wiring
-in `mobile/src/services/firebase/app.ts` and
-`admin/src/services/firebase/app.ts` is plumbing, not a screen or auth
-flow); that Storage rules' allow-path has been end-to-end verified against
-a real Firebase project (see SECURITY.md's documented emulator limitation —
-the client-SDK smoke test proves the emulator path, not the real backend);
-or that Bible content licensing is resolved (see `BIBLE_LICENSING.md`).
-Each of those is tracked in its own document rather than summarized away
-here.
+This document does not claim: that a staging or production Firebase
+project exists (only the free-tier dev project does); that Cloud
+Functions have ever been deployed; that Telugu Bible content is
+licensed or usable; that any screen has been run on a real device or
+against a real (non-emulator) Firebase backend; that an APK or IPA has
+ever been built or installed; that real church branding assets (logo,
+photos, support email) exist anywhere in this repository; or that
+`npm audit`'s outstanding advisories have been fixed rather than
+knowingly accepted. Each of those is tracked in its own document
+(BIBLE_LICENSING.md, SECURITY.md, DEPLOYMENT.md) rather than summarized
+away here.

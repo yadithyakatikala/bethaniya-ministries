@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 
 /**
@@ -43,12 +44,17 @@ export function TabBar({
   onNavigate: (route: TabRouteName) => void;
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <View
       testID="tab-bar"
       style={[
         styles.bar,
-        { backgroundColor: colors.surface, borderTopColor: colors.border },
+        {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, 8),
+        },
       ]}
     >
       {TABS.map((tab) => {
@@ -89,7 +95,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 8,
-    paddingBottom: 22,
+    // paddingBottom is set inline from useSafeAreaInsets() -- see the
+    // component body -- so the home indicator/nav bar on real devices
+    // gets real padding instead of a guessed constant.
     paddingHorizontal: 8,
   },
   item: {

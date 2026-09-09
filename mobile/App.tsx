@@ -35,8 +35,8 @@ configureNotificationHandler();
  *
  * SafeAreaProvider wraps everything -- required by
  * react-native-safe-area-context's useSafeAreaInsets(), which the
- * hand-rolled bottom tab bar (see src/navigation/BottomTabBar.tsx) and
- * the screens with a hidden native header (Home, the Bible reader, Daily
+ * hand-rolled bottom tab bar (see src/navigation/TabBar.tsx) and the
+ * screens with a hidden native header (Home, the Bible reader, Daily
  * Verse -- see AppNavigator.tsx's headerShown: false options) use to pad
  * for the status bar/home indicator instead of a hardcoded constant.
  * Without this provider those hooks throw at runtime on a real device

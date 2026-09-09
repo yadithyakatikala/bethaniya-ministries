@@ -65,6 +65,52 @@ npx eas-cli build --platform android   # requires Google Play Developer account
 `eas.json` exists in this repo yet, intentionally, since EAS project
 configuration is tied to a real Expo/EAS account that doesn't exist yet.
 
+### Local Android APK/AAB build (no EAS account needed)
+
+An alternative to EAS Build that stays entirely local and needs no
+external account — only a machine with the Android SDK installed
+(Android Studio, or just the command-line tools + a platform/build-tools
+version). This was investigated as part of the V1 completion sprint and
+is genuinely **blocked in this repository's development environment**:
+there is no Android SDK installed here, and `dl.google.com` (the host
+`sdkmanager` downloads SDK components from) is denied by this
+environment's network egress policy — confirmed by a direct connection
+attempt, not assumed. `app.json`'s `android.versionCode`/`ios.buildNumber`
+were added during that same sprint so the config is ready the moment a
+real build environment is available.
+
+On a real machine with the Android SDK installed:
+
+```bash
+cd mobile
+npx expo prebuild --platform android   # generates the android/ native project
+cd android
+./gradlew assembleRelease              # unsigned release APK, or:
+./gradlew bundleRelease                # release AAB (Play Store upload format)
+```
+
+The resulting APK lands at
+`android/app/build/outputs/apk/release/app-release-unsigned.apk`. It is
+**unsigned** — installing it on a real device or submitting an AAB to
+Play Console additionally requires generating a signing keystore
+(`keytool -genkeypair ...`, entirely free/local, no account needed) and
+configuring `android/app/build.gradle`'s `signingConfigs` before
+`assembleRelease`/`bundleRelease` will produce something installable
+outside of local testing. None of this requires Blaze, a paid Apple/
+Google developer account, or any billing — only local tooling this
+specific sandboxed environment happens not to have access to.
+
+### Local iOS build
+
+Requires a Mac with Xcode (`npx expo prebuild --platform ios`, then open
+`ios/*.xcworkspace` in Xcode and archive/build). Running the app on a
+physical iPhone, or distributing via TestFlight, additionally requires an
+Apple Developer Program membership (**$99/year, a real cost** — out of
+scope under this project's ₹0 constraint until explicitly approved). A
+free personal Apple ID can build to the simulator or side-load to one's
+own device for a 7-day period without that membership, which is the
+farthest this project can go on iOS at ₹0.
+
 ## Environments
 
 Three Firebase projects are planned (dev/staging/production — see

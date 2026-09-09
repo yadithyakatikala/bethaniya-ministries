@@ -118,6 +118,24 @@ try {
   auth = getAuth(firebaseApp);
 }
 
+// Firestore's persistentLocalCache() (initializeFirestore's IndexedDB-backed
+// offline cache option) was investigated for this module and deliberately
+// NOT enabled: the SDK's own React Native build (dist/index.rn.js) still
+// re-exports enableIndexedDbPersistence/clearIndexedDbPersistence from the
+// same shared implementation chunk the web build uses, with no React
+// Native-specific storage backend or indexedDB-availability guard found in
+// that bundle -- and React Native's JS engine (Hermes/JSC) has no global
+// `indexedDB` by default. A synchronous try/catch around
+// initializeFirestore() itself (as used for initializeAuth above) would
+// NOT protect against a failure that only surfaces later, asynchronously,
+// on the first real read/write deep inside the SDK's persistence layer --
+// which could crash every Firestore-backed screen in the app instead of
+// just silently missing an offline-cache nice-to-have. Enabling this
+// safely requires real-device/simulator verification, which this
+// environment cannot provide (see README.md's "Day 12" real-device-testing
+// gap) -- so this stays a documented, investigated-but-deferred item
+// rather than a blind guess. See PRODUCTION_READINESS.md's offline
+// section.
 export const db: Firestore = getFirestore(firebaseApp);
 export const storage: FirebaseStorage = getStorage(firebaseApp);
 

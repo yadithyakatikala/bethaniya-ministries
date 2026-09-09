@@ -3,51 +3,34 @@
  * "One clean function such as getChapter(bookId, chapterNumber,
  * language). Screens must NOT directly access placeholder/WEB data."
  * BooksListScreen/ChaptersListScreen/ChapterScreen only ever call
- * loadChapter() below; none of them import placeholderData.ts or
- * bibleCache.ts directly. Swapping in a real translation later (WEB, or
- * a licensed Telugu source) means changing getChapter()'s body -- not
- * touching any screen or type.
+ * loadChapter() below; none of them import placeholderData.ts,
+ * webBible.ts, or bibleCache.ts directly. Swapping in a real translation
+ * (or a future licensed Telugu source) is a change to this one
+ * function's body -- not to any screen or type.
  *
- * WHY ENGLISH IS STILL PLACEHOLDER TOO (Day 8 sourcing investigation):
- * /BIBLE_LICENSING.md confirms the World English Bible's *license* is
- * public domain (ebible.org/web/, mirrored via get.bible). Before writing
- * real WEB verse text into this repo, that source was investigated for a
- * genuinely bulk, verifiable data file in this environment:
- *   - WebFetch against ebible.org/web/ and its /find/details.php?id=eng-web
- *     page found no verbatim license statement and no concrete download
- *     URL for a structured (USFM/plain-text) data file in the fetched
- *     content.
- *   - get.bible/bible-data-sets/ and a guessed get.bible/eng-web/ page
- *     were checked; neither yielded a usable bulk endpoint from the
- *     fetched content either (the latter 404s).
- *   - More fundamentally: this environment's WebFetch tool does not
- *     return raw page bytes -- per its own description, it "processes the
- *     content with a small, fast model" and returns that model's
- *     response. That means even a successful fetch cannot be trusted to
- *     reproduce scripture text byte-for-byte, which is exactly the kind
- *     of unverified copy Day 8's licensing-safety requirement rules out.
- *   - Bulk-downloading a zip/USFM archive with curl/wget/a script instead
- *     of WebFetch is explicitly disallowed by this environment's web
- *     content rules, and adding a Bible-data npm package is ruled out by
- *     the Day 8 approval's "no new dependencies" scope decision.
- *   - Reconstructing WEB verse text from training-data memory was ruled
- *     out per Day 8's explicit instruction not to guess at scripture text.
- * Conclusion: no safe, verifiable path to real WEB text exists in this
- * environment today. English renders the same clearly-labeled synthetic
- * placeholder as Telugu (placeholderData.ts) until a real data file can
- * be supplied through a verified, human-reviewed channel (e.g. the WEB
- * USFM/text files downloaded and added to the repo directly, outside
- * this sandboxed fetch path) and wired in here.
+ * ENGLISH: resolved. Real World English Bible (WEB, public domain) verse
+ * text is now imported -- see webBible.ts's doc comment for the exact
+ * source, license, and completeness verification, and
+ * /BIBLE_LICENSING.md for the full writeup.
+ *
+ * TELUGU: still blocked. No Telugu source has been confirmed usable (see
+ * /BIBLE_LICENSING.md's "Telugu Bible" section) -- Telugu continues to
+ * render the same clearly-labeled synthetic placeholder text
+ * (placeholderData.ts) it always has, pending either direct written
+ * confirmation from a rights holder (e.g. the Bible Society of India) or
+ * a verified, licensed alternative source.
  */
 import { getBookById } from './books';
 import { getCachedChapter, setCachedChapter } from './bibleCache';
 import { buildPlaceholderVerses } from './placeholderData';
-import type { BibleChapter, BibleLanguage } from './types';
+import { getWebVerseTexts } from './webBible';
+import type { BibleChapter, BibleLanguage, BibleVerse } from './types';
 
 /**
- * Pure, synchronous lookup against the current data source (placeholder
- * content for both languages today). Returns null for an unknown book id
- * or a chapter number outside that book's valid range.
+ * Pure, synchronous lookup against the current data source -- real WEB
+ * text for English, synthetic placeholder for Telugu (see this module's
+ * doc comment). Returns null for an unknown book id or a chapter number
+ * outside that book's valid range.
  */
 export function getChapter(
   bookId: string,
@@ -62,6 +45,27 @@ export function getChapter(
     chapterNumber > book.chapterCount
   ) {
     return null;
+  }
+
+  if (language === 'en') {
+    const texts = getWebVerseTexts(book.order, chapterNumber);
+    if (texts) {
+      const verses: BibleVerse[] = texts.map((text, index) => ({
+        number: index + 1,
+        text,
+      }));
+      return {
+        bookId: book.id,
+        bookName: book.name,
+        chapterNumber,
+        language,
+        verses,
+        isPlaceholder: false,
+      };
+    }
+    // Defensive fallback only -- every valid book/chapter combination is
+    // covered by the imported WEB dataset (verified at import time), so
+    // this branch should be unreachable in practice.
   }
 
   return {

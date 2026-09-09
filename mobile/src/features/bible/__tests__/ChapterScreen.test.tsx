@@ -54,14 +54,25 @@ describe('ChapterScreen', () => {
     expect(getByTestId('chapter-reference')).toBeTruthy();
   });
 
-  it('labels placeholder content with the development-content banner (folded forward from the retired BibleScreen)', async () => {
+  it('labels still-placeholder (Telugu) content with the development-content banner', async () => {
+    await setLanguagePreference('te');
     const { getByTestId } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByTestId('chapter-placeholder-banner')).toBeTruthy());
   });
 
-  it('defaults to English and shows English placeholder verses', async () => {
-    const { getByText } = await renderScreen('genesis', 1);
+  it('does not show the placeholder banner for English (real WEB text)', async () => {
+    const { getByText, queryByTestId } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
+  });
+
+  it('shows real WEB verse text for English', async () => {
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() =>
+      expect(
+        getByText('In the beginning God created the heavens and the earth.')
+      ).toBeTruthy()
+    );
   });
 
   it('restores a previously saved Telugu preference on mount', async () => {

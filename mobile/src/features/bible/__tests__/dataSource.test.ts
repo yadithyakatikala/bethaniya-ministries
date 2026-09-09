@@ -2,21 +2,41 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChapter, loadChapter } from '../dataSource';
 
 describe('getChapter', () => {
-  it('returns a placeholder chapter for a valid book/chapter/language', () => {
+  it('returns the real WEB text for a valid English book/chapter', () => {
     const chapter = getChapter('genesis', 1, 'en');
     expect(chapter).not.toBeNull();
     expect(chapter?.bookId).toBe('genesis');
     expect(chapter?.bookName).toBe('Genesis');
     expect(chapter?.chapterNumber).toBe(1);
     expect(chapter?.language).toBe('en');
+    expect(chapter?.isPlaceholder).toBe(false);
+    expect(chapter?.verses.length).toBeGreaterThan(0);
+    expect(chapter?.verses[0]?.text).toBe(
+      'In the beginning God created the heavens and the earth.'
+    );
+  });
+
+  it('returns a placeholder chapter for Telugu (still unresolved licensing)', () => {
+    const chapter = getChapter('genesis', 1, 'te');
+    expect(chapter).not.toBeNull();
+    expect(chapter?.language).toBe('te');
     expect(chapter?.isPlaceholder).toBe(true);
     expect(chapter?.verses.length).toBeGreaterThan(0);
   });
 
-  it('returns different placeholder text for English vs Telugu', () => {
+  it('returns different text for English (real) vs Telugu (placeholder)', () => {
     const en = getChapter('genesis', 1, 'en');
     const te = getChapter('genesis', 1, 'te');
     expect(en?.verses[0]?.text).not.toBe(te?.verses[0]?.text);
+  });
+
+  it('returns real WEB text for the last book/chapter/verse (Revelation 22)', () => {
+    const chapter = getChapter('revelation', 22, 'en');
+    expect(chapter).not.toBeNull();
+    expect(chapter?.isPlaceholder).toBe(false);
+    expect(chapter?.verses[chapter!.verses.length - 1]?.text).toBe(
+      'The grace of the Lord Jesus Christ be with all the saints. Amen.'
+    );
   });
 
   it('returns null for an unknown book id', () => {

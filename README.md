@@ -3,9 +3,10 @@
 Bethaniya Ministries is a church digital platform consisting of three parts:
 
 - **Mobile app** — React Native + Expo (iOS + Android): home feed, Bible
-  reader (English + Telugu, foundation only — see "Bible status" below),
-  songs + audio, events with live-stream support, profile/preferences, and
-  a local notification history/center.
+  reader (real World English Bible text for English, Telugu still
+  placeholder — see "Bible status" below), songs + audio, events with
+  live-stream support, profile/preferences, and a local notification
+  history/center.
 - **Admin/host dashboard** — React + Vite web app for content management,
   role-based access control, and notification composition/logging.
 - **Backend** — Firebase (Auth, Firestore, Storage, Cloud Functions), run
@@ -13,11 +14,17 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 
 ## Current checkpoint
 
-- **Checkpoint:** Day 14 complete; this Day 15 + Day 16 pass is being committed on top of it.
-- **Git commit (Day 14):** `b322f36` (`docs: complete day 14 documentation and code review`)
-- **GitHub `main`:** synchronized with `b322f36` as of this write-up.
-- **Working tree at the Day 14 checkpoint:** clean.
-- **Next planned milestone:** Day 17 (not started — see "Do NOT start Day 17" constraints throughout this project's working process).
+- **Checkpoint:** Day 16 complete, followed by a Vespers visual-design-system
+  pass across mobile + admin (commit `b0052a5`, "Implement Vespers design
+  system across mobile and admin UI"), followed by this V1 completion
+  sprint: real World English Bible text imported for English (Telugu
+  licensing remains unresolved — see "Bible status" and
+  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)), a documented Firestore
+  offline-persistence investigation (not enabled — see "Offline behavior"
+  below), navigation/config polish, and this documentation sync.
+- **Next planned milestone:** not yet scoped — see
+  [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md)'s requirements
+  matrix for exactly what's left and why.
 
 ## Current development status
 
@@ -39,6 +46,8 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 | Day 14 | Documentation + code review | ✅ |
 | Day 15 | Unit + integration tests, test coverage reporting | ✅ |
 | Day 16 | Security hardening + final review | ✅ |
+| Vespers | Visual design system across mobile + admin (theme tokens, tab bar, screen redesigns, admin shared components) | ✅ |
+| V1 completion sprint | English Bible text import, licensing re-investigation, offline-persistence investigation, config/nav polish, documentation sync | ✅ partial — see "Bible status" and PRODUCTION_READINESS.md |
 | Day 17 | Not started | ⏳ |
 
 "✅" here means the day's planned scope was implemented and reviewed, not
@@ -56,9 +65,9 @@ actually production-ready within each of these.
 | Songs + audio playback | Implemented | |
 | Events | Implemented | |
 | YouTube Live (host-managed live-stream URL/status) | Implemented | |
-| Bible reader foundation (books/chapters/verses navigation) | Implemented | Content is placeholder data — see "Bible status". |
-| English/Telugu language UI toggle | Implemented | Governs which placeholder text set is shown; not a translation of real scripture yet. |
-| Bible Search (over the current local placeholder dataset) | Implemented | See "Bible status" — searches placeholder text/references only. |
+| Bible reader (books/chapters/verses navigation) | Implemented | English content is real (World English Bible); Telugu is still placeholder — see "Bible status". |
+| English/Telugu language UI toggle | Implemented | English shows real WEB text; Telugu shows placeholder text pending a licensed source. |
+| Bible Search | Implemented | Searches real WEB text for English, placeholder text/references for Telugu — see "Bible status". |
 | Profile (view/edit display name, upload profile photo, view email/phone) | Implemented | |
 | Settings / preferences (language, theme, notifications toggle) | Implemented | Two-tier persistence: AsyncStorage always; Firestore sync when signed in. |
 | Notification Center (on-device notification history) | Implemented | Local history only — see "Notifications status". |
@@ -74,24 +83,31 @@ actually production-ready within each of these.
 
 - The Bible reader **architecture** (book list → chapter list → chapter
   view, language toggle, search) is implemented and working.
-- **Current Bible content is synthetic/local placeholder data** — no real
+- **English now ships real World English Bible (WEB) text** — all 66
+  books, all 1189 chapters, 31,102 verses, imported from
+  `scrollmapper/bible_databases` (public domain, independently
+  corroborated) via a direct, verbatim raw-file fetch. See
+  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s "English: resolved and
+  imported" section for the full source/method/verification writeup, and
+  `mobile/src/features/bible/webBible.ts` for the code.
+- **Telugu remains synthetic/local placeholder data** — no real Telugu
   scripture text, copyrighted or otherwise, exists anywhere in this
   repository. See `mobile/src/features/bible/placeholderData.ts`.
-- **Bible Search** (added Day 9) searches that same local placeholder
-  dataset only, via the existing `getChapter()` data-source seam — no
-  remote Bible API or network call is involved.
-- **English (World English Bible / WEB)** was investigated and confirmed
-  public domain — a usable real-text candidate once real content is
-  sourced.
-- **Telugu licensing/source remains unresolved.** No Telugu source has
-  been confirmed usable; several candidates were investigated and
-  dead-ended (see BIBLE_LICENSING.md for the full list and why).
-- Real Bible text — English or Telugu — **must not be described as
-  production-ready** anywhere in this project until BIBLE_LICENSING.md is
-  updated to reflect a confirmed, usable source.
+  Licensing was re-investigated this checkpoint and a specific, promising
+  new candidate was found (a complete modern "IRV 2019" translation,
+  copyright Bridge Connectivity Solutions, mirrored via an academic NLP
+  corpus) but its exact license terms could not be confirmed — see
+  BIBLE_LICENSING.md's "Telugu" section for the full writeup and exactly
+  what would resolve it.
+- **Bible Search** searches real WEB text for English and the same local
+  placeholder dataset for Telugu, via the existing `getChapter()`
+  data-source seam — no remote Bible API or network call is involved for
+  either language.
+- Telugu Bible text **must not be described as production-ready**
+  anywhere in this project until BIBLE_LICENSING.md is updated to reflect
+  a confirmed, usable source.
 - [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) remains the single source of
-  truth for licensing status; its `BLOCKED FOR PRODUCTION` marker is
-  unchanged by Day 9/10 work.
+  truth for licensing status.
 
 ## Notifications status
 
@@ -123,29 +139,70 @@ actually production-ready within each of these.
   confirmation/success text were corrected during the Day 9+10 review to
   stop implying real delivery).
 
+## Offline behavior & local build status
+
+- **Bible chapters** work fully offline once viewed once — Books/Chapters/
+  Reader all read through `mobile/src/features/bible/bibleCache.ts`
+  (AsyncStorage), and English's real WEB text is bundled directly into
+  the app (not fetched over the network at all), so it's available
+  offline from first launch, unlike other content types.
+- **Language and theme preferences** persist locally (AsyncStorage) and
+  sync to Firestore when signed in — unaffected by this checkpoint.
+- **Firestore's own offline persistence** (`initializeFirestore(...,
+  { localCache: persistentLocalCache() })`) was investigated this
+  checkpoint and **deliberately not enabled**: the SDK's React Native
+  build still re-exports IndexedDB-backed persistence APIs from the same
+  shared implementation the web build uses, with no React Native-specific
+  storage backend found, and React Native's JS engine has no `indexedDB`
+  global by default. Enabling it blind — with no real device available to
+  verify behavior — risked crashing every Firestore-backed screen instead
+  of just missing a nice-to-have. See the comment above `db`'s
+  initialization in `mobile/src/services/firebase/app.ts` for the full
+  reasoning. Announcements/Songs/Events/Daily Verses/Profile stay
+  in-memory-only across app restarts while offline, same as before this
+  checkpoint.
+- **Local Android APK generation was investigated and is genuinely
+  blocked in this development environment**, not by cost: this
+  environment has Java 21 and Gradle installed, but no Android SDK, and
+  `dl.google.com` (the Android SDK component download host) is blocked by
+  the same network egress policy that blocks Firebase's own hosts —
+  confirmed by a direct connection attempt, not assumed. Building a real
+  APK/AAB requires a machine with the Android SDK (a real Mac/Linux dev
+  machine, or a CI runner with it preinstalled) — see DEPLOYMENT.md for
+  the exact `expo prebuild` + Gradle commands once that's available.
+  `app.json`'s Android/iOS identifiers, versioning (`versionCode`/
+  `buildNumber`), and icon/splash config keys are all in place and ready;
+  only the actual build execution is blocked here.
+
 ## Testing status
 
-Verified results as of the Day 15+16 checkpoint (built on commit `b322f36`):
+Verified results as of the V1 completion sprint checkpoint (built on
+commit `b0052a5`, the Vespers checkpoint, plus this sprint's uncommitted
+changes at the time of this write-up — see git log for the actual commit
+this landed in):
 
 | Package | Result |
 | --- | --- |
-| Mobile — Jest | **40/40 suites, 251/251 tests passing** |
+| Mobile — Jest | **44/44 suites, 284/284 tests passing** (+3 tests this checkpoint, from real WEB-text Bible test coverage) |
 | Mobile — typecheck / lint / format | Clean |
-| Admin — Vitest | **34/34 files, 249/249 tests passing** (+2 files/+11 tests this checkpoint: `admin/src/store/__tests__/{authStore,appStore}.test.ts`) |
+| Admin — Vitest | **34/34 files, 249/249 tests passing** (unchanged — admin package untouched this checkpoint) |
 | Admin — typecheck / lint / format / production build | Clean |
-| Functions — typecheck / lint / build | Clean |
+| Functions — typecheck / lint / build | Clean (untouched this checkpoint) |
 | Functions — `healthCheck.test.ts` (the one functions suite that doesn't need the emulator) | **4/4 passing** |
 
 **Not passing — genuinely unexecuted, not failing quietly:**
 
 - **Functions emulator-backed tests** (`createUserProfile.test.ts`,
   `logAdminAction.test.ts`, `sendNotification.test.ts`, `updateUserRole.test.ts`)
-  remain **unexecuted** because the Firestore emulator binary download
-  (`storage.googleapis.com`) is blocked by the current development
-  environment's network allowlist (still `403 Forbidden` /
-  `X-Proxy-Error: blocked-by-allowlist` as of the Day 16 re-check). These
-  tests are structurally/type sound (verified independently) but have not
-  actually run in this environment.
+  remain **unexecuted** because the Firebase Emulator Suite itself cannot
+  start in this environment: re-verified this checkpoint by actually
+  attempting `firebase emulators:start` (not just checking a single
+  download URL) — it times out trying to reach
+  `firebase-public.firebaseio.com` and `firebase.google.com`, both
+  explicitly denied by this environment's egress proxy policy
+  (`connect_rejected`, confirmed via the proxy's own status endpoint, not
+  inferred). These tests are structurally/type sound (verified
+  independently) but have not actually run in this environment.
 - **The `firebase-tests/` security-rule suite**, including Day 15's new
   `announcement-lifecycle.test.ts` integration test, remains **blocked** by
   a pre-existing dependency conflict: `firebase@^12` (used by the app) vs.
@@ -157,12 +214,13 @@ These two are not described as "passing" anywhere in this project's
 documentation, and no test-affecting code has been changed to manufacture
 a passing result around them.
 
-**Test coverage (Day 15, `npm run test:coverage` in each package):**
+**Test coverage (`npm run test:coverage` in each package; mobile re-run
+this checkpoint, admin/functions unchanged since Day 15):**
 
 | Package | Statements | Branches | Functions | Lines |
 | --- | --- | --- | --- | --- |
 | Admin (Vitest, `@vitest/coverage-v8`) | 88.33% | 82.91% | 84.85% | 89.22% |
-| Mobile (Jest, built-in) | 87.30% | 75.43% | 89.13% | 88.48% |
+| Mobile (Jest, built-in) | 87.00% | 76.68% | 86.17% | 88.66% |
 | Functions (Jest, built-in) | 22.77% | 0% | 0% | 23.46% |
 
 Admin and Mobile both clear the spec's 60%+ target with real margin.

@@ -662,3 +662,31 @@ live project) are both blocked by the same two structural facts already
 documented throughout this project — the emulator network block, and no
 live Firebase project existing yet — not by anything Day 16 skipped or
 got wrong.
+
+## Post-Day-16: Vespers UI pass + V1 completion sprint
+
+Two checkpoints landed after Day 16 without touching this file until now:
+the Vespers visual design system pass (commit `b0052a5`) and a V1
+completion sprint (real English Bible text import, Telugu licensing
+re-investigation, offline-persistence investigation, navigation/config
+polish, documentation sync). Re-verified for this addendum, not assumed:
+
+- **`firestore.rules`, `storage.rules`, `functions/` are byte-identical**
+  to their Day 16 state — confirmed via `git diff` across both
+  checkpoints' commits, not just "we didn't mean to touch them." Neither
+  checkpoint was UI-only in the trivial sense (the Bible-content work
+  touched real application code), but neither one had any reason to
+  touch the security boundary, and neither did.
+- **Client-side RBAC gating** (`canManage*`/`canSend*`/`canStream*`
+  helper functions in every admin page) is unchanged — spot-checked
+  directly against the current source, not assumed from memory.
+- **No new secrets, credentials, or paid-service integrations** were
+  introduced. The one new external data source (a public, MIT-compilation-
+  licensed GitHub repository providing public-domain Bible text, fetched
+  at build/import time, not at runtime) is not a credential, an API key,
+  or a paid service — see BIBLE_LICENSING.md.
+- **No new runtime npm dependencies** were added. The imported Bible
+  dataset is a static JSON asset bundled into the app, not a package.
+- **Secrets scan re-run**: clean (see PRODUCTION_READINESS.md's matrix).
+- **`npm audit`**: unchanged counts across all three packages (admin 0,
+  mobile 16 moderate, functions 7 moderate, all transitive/documented).

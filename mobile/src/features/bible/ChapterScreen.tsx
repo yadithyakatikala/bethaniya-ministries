@@ -24,7 +24,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapter'>;
  * Chapter reader -- Day 8 requirement E. Book name/chapter number/verse
  * numbers/verse text/reference, Previous/Next navigation that correctly
  * handles the first/last chapter of a book, a placeholder-content banner
- * (both languages are placeholder today -- see dataSource.ts), and
+ * (shown only for still-placeholder Telugu content -- English now renders
+ * real WEB text, see dataSource.ts), and
  * light/dark-mode-aware colors via the shared usePreferences().isDark
  * (Day 9 -- see ../../context/PreferencesContext.tsx; Day 8 originally
  * used useColorScheme() directly here, same as

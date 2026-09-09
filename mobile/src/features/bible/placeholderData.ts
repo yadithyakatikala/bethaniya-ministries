@@ -1,6 +1,5 @@
 /**
- * SYNTHETIC PLACEHOLDER DATA -- NOT A REAL BIBLE TRANSLATION, in either
- * language.
+ * SYNTHETIC PLACEHOLDER DATA -- NOT A REAL BIBLE TRANSLATION.
  *
  * These are NOT verbatim scripture quotations from any copyrighted or
  * licensed translation, and are not written to resemble scripture --
@@ -8,17 +7,17 @@
  * so this file cannot be mistaken for, or accidentally shipped as,
  * licensed Bible text.
  *
- * Day 8 status (see /BIBLE_LICENSING.md for full detail):
- *   - English (WEB): the TRANSLATION's license is confirmed public
- *     domain, but a verifiable, bulk, license-confirmable source for its
- *     actual verse TEXT could not be safely obtained in this sandboxed
- *     environment -- see dataSource.ts's doc comment for exactly why.
- *     Reconstructing WEB text from memory was explicitly ruled out
- *     (unverifiable, and requirement K forbids guessing at scripture
- *     text). So English still renders placeholder text today, same as
- *     Telugu.
+ * Current status (see /BIBLE_LICENSING.md for full detail):
+ *   - English (WEB): RESOLVED -- real World English Bible (public
+ *     domain) verse text is now sourced and used instead (see
+ *     webBible.ts). The `en` pool below is still generated (this
+ *     function stays generic over BibleLanguage) but dataSource.ts no
+ *     longer reads it in the normal path -- only as an unreachable
+ *     defensive fallback if a future data revision ever omits a
+ *     book/chapter the WEB dataset should cover.
  *   - Telugu: licensing itself remains unresolved (BIBLE_LICENSING.md).
- *     Do not add real Telugu scripture text until that changes.
+ *     Do not add real Telugu scripture text until that changes -- the
+ *     `te` pool below is the one still actively used.
  *
  * PLACEHOLDER DATASET SIZE -- per FINAL_ARCHITECTURE_SPECIFICATION.md's
  * Day 8 section verbatim: "IF Bible source NOT verified: Use 100-200

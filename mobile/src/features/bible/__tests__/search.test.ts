@@ -13,17 +13,17 @@ describe('searchBible', () => {
     expect(searchBible('xyznonexistentquery', 'en')).toEqual([]);
   });
 
-  it('matches verse text case-insensitively and partially', () => {
-    const results = searchBible('DEVELOPMENT placeholder', 'en');
+  it('matches verse text case-insensitively and partially (real WEB text)', () => {
+    const results = searchBible('BEGINNING god created', 'en');
     expect(results.length).toBeGreaterThan(0);
     for (const result of results) {
       expect(result.matchSource).toBe('text');
-      expect(result.text.toLowerCase()).toContain('development placeholder');
+      expect(result.text.toLowerCase()).toContain('beginning god created');
     }
   });
 
   it('caps results at MAX_SEARCH_RESULTS for a very broad query', () => {
-    const results = searchBible('development placeholder', 'en');
+    const results = searchBible('the', 'en');
     expect(results.length).toBe(MAX_SEARCH_RESULTS);
   });
 
@@ -60,12 +60,12 @@ describe('searchBible', () => {
   });
 
   it('reports a correct matchStart/matchLength for a text match', () => {
-    const results = searchBible('placeholder', 'en');
+    const results = searchBible('beginning', 'en');
     const [first] = results;
     expect(first).toBeDefined();
     const extracted = first.text
       .toLowerCase()
       .slice(first.matchStart, first.matchStart + first.matchLength);
-    expect(extracted).toBe('placeholder');
+    expect(extracted).toBe('beginning');
   });
 });
