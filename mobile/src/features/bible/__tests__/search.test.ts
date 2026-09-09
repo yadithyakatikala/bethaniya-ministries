@@ -53,10 +53,15 @@ describe('searchBible', () => {
     }
   });
 
-  it('searches Telugu placeholder text when language is te', () => {
-    const results = searchBible('డెవలప్‌మెంట్', 'te');
+  it('searches real Telugu IRV 2019 text when language is te', () => {
+    const results = searchBible('దేవుడు', 'te');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].matchSource).toBe('text');
+  });
+
+  it('still finds a reference match in Telugu for a gap chapter with no real verse text (Joel 3)', () => {
+    const results = searchBible('joel 3', 'te');
+    expect(results.some((r) => r.bookId === 'joel' && r.chapterNumber === 3)).toBe(true);
   });
 
   it('reports a correct matchStart/matchLength for a text match', () => {

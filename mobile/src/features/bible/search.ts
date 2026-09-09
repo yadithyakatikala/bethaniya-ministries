@@ -20,13 +20,15 @@
  * downloading the whole Bible remotely).
  *
  * Matching is plain, case-insensitive substring matching -- against
- * either a verse's text or its reference ("Genesis 1:2"). English now
- * searches real World English Bible text (see webBible.ts); Telugu still
- * searches synthetic placeholder text (placeholderData.ts) until a
- * licensed Telugu source is found -- reference matching remains how a
- * user finds a specific Telugu passage by book name in the meantime. The
- * search architecture itself never changed when English's text source
- * did; only the strings being matched against read differently now.
+ * either a verse's text or its reference ("Genesis 1:2"). English
+ * searches real World English Bible text (see webBible.ts); Telugu
+ * searches real Indian Revised Version (IRV) 2019 text (see
+ * teluguBible.ts), except for its two documented gap chapters (Joel 3,
+ * Malachi 4), which still search synthetic placeholder text
+ * (placeholderData.ts) -- reference matching remains how a user finds
+ * those specific passages by book name. The search architecture itself
+ * never changed when either language's text source did; only the
+ * strings being matched against read differently now.
  */
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
 import { getChapter } from './dataSource';

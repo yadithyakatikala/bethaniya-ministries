@@ -6,8 +6,8 @@ describe('languagePreference', () => {
     await AsyncStorage.clear();
   });
 
-  it('defaults to English when nothing is stored', async () => {
-    expect(await getLanguagePreference()).toBe('en');
+  it('defaults to Telugu when nothing is stored', async () => {
+    expect(await getLanguagePreference()).toBe('te');
   });
 
   it('persists and restores a Telugu selection', async () => {
@@ -21,8 +21,8 @@ describe('languagePreference', () => {
     expect(await getLanguagePreference()).toBe('en');
   });
 
-  it('falls back to English for a corrupted/unexpected stored value', async () => {
+  it('falls back to the default (Telugu) for a corrupted/unexpected stored value', async () => {
     await AsyncStorage.setItem('bible_language_preference', 'fr');
-    expect(await getLanguagePreference()).toBe('en');
+    expect(await getLanguagePreference()).toBe('te');
   });
 });

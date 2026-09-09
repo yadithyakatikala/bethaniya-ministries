@@ -38,9 +38,9 @@ describe('SettingsScreen', () => {
     (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
   });
 
-  it('defaults to English, Light theme, and notifications on', async () => {
+  it('defaults to Telugu, Light theme, and notifications on', async () => {
     const { getByText, getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
     expect(getByText('Theme: Light')).toBeTruthy();
     expect(getByTestId('settings-theme-switch').props.value).toBe(false);
     expect(getByTestId('settings-notifications-switch').props.value).toBe(true);
@@ -48,12 +48,12 @@ describe('SettingsScreen', () => {
 
   it('toggles the language and persists it to AsyncStorage', async () => {
     const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
 
     await fireEvent.press(getByTestId('settings-language-toggle'));
 
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
-    expect(await AsyncStorage.getItem('bible_language_preference')).toBe('te');
+    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    expect(await AsyncStorage.getItem('bible_language_preference')).toBe('en');
   });
 
   it('toggles the theme and persists it to AsyncStorage', async () => {
@@ -83,14 +83,21 @@ describe('SettingsScreen', () => {
   it('syncs a preference change to Firestore when signed in', async () => {
     mockSignedIn();
     const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
 
     await fireEvent.press(getByTestId('settings-language-toggle'));
 
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
+    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
     expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-      languagePreference: 'te',
+      languagePreference: 'en',
     });
+  });
+
+  it('shows the required CC BY-SA 4.0 Telugu Bible attribution', async () => {
+    const { getByTestId, getByText } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-bible-attribution')).toBeTruthy());
+    expect(getByText(/Bridge Connectivity Solutions/)).toBeTruthy();
+    expect(getByText(/CC BY-SA 4.0/)).toBeTruthy();
   });
 
   it('signs the user out when Log Out is pressed', async () => {

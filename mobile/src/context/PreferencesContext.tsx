@@ -81,7 +81,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const { status, user } = useAuth();
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
 
-  const [languagePreference, setLanguagePreferenceState] = useState<BibleLanguage>('en');
+  // 'te' matches languagePreference.ts's DEFAULT_LANGUAGE -- avoids a
+  // one-frame flash of English before the AsyncStorage read resolves.
+  const [languagePreference, setLanguagePreferenceState] = useState<BibleLanguage>('te');
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(
     systemScheme === 'dark' ? 'dark' : 'light'
   );

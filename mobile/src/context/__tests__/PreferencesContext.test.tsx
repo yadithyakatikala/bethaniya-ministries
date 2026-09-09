@@ -60,10 +60,10 @@ describe('PreferencesContext', () => {
     (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
   });
 
-  it('defaults to English, the system color scheme, and notifications on when signed out with nothing stored', async () => {
+  it('defaults to Telugu, the system color scheme, and notifications on when signed out with nothing stored', async () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
-    expect(getByTestId('language').props.children).toBe('en');
+    expect(getByTestId('language').props.children).toBe('te');
     expect(getByTestId('theme').props.children).toBe('light');
     expect(getByTestId('notifications').props.children).toBe('true');
   });

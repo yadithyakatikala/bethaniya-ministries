@@ -1,15 +1,18 @@
 # Bible Content Licensing
 
-**Status: `ENGLISH: RESOLVED AND IMPORTED` · `TELUGU: BLOCKED FOR PRODUCTION — LICENSING UNVERIFIED`**
+**Status: `ENGLISH: RESOLVED AND IMPORTED` · `TELUGU: RESOLVED AND IMPORTED`**
 
 This is a real, active V1 requirement per
 [FINAL_ARCHITECTURE_SPECIFICATION.md](./FINAL_ARCHITECTURE_SPECIFICATION.md)
-Section C ("English + Telugu Bible, exactly") — it has not been dropped or
-downgraded. This document exists so that requirement isn't quietly lost:
-it records exactly what was investigated, what's confirmed, what isn't, and
-what has to happen before real Telugu Bible text can go into this app or
-repository. English is done; Telugu is not — this is a genuine, partial
-result, not a claim that the whole requirement is closed.
+Section C ("English + Telugu Bible, exactly"). Both halves are now done:
+English (World English Bible, public domain) and Telugu (Indian Revised
+Version 2019, CC BY-SA 4.0) are both imported as real, verbatim,
+licensed verse text. This document records exactly what was
+investigated, what's confirmed, and the two small, disclosed content
+gaps that remain in the Telugu text (see "Telugu: resolved" below) —
+not a claim that every last byte of scripture is present, but a claim
+that nothing here was fabricated or imported without confirmed
+permission.
 
 ## English: resolved and imported
 
@@ -62,97 +65,113 @@ a KJV-style rendering.
 dataset, ~3.9 MB, kept minified/excluded from Prettier — see
 `.prettierignore`), loaded by `mobile/src/features/bible/webBible.ts`,
 wired into `dataSource.ts`'s `getChapter()` for `language === 'en'` only.
-Telugu is unaffected and still uses `placeholderData.ts` (see below).
 
-## Telugu: still blocked, but with a real, specific new lead
+## Telugu: resolved and imported
 
-**No source has been confirmed usable for Telugu.** This is the honest,
-current state — not a placeholder for "will get to it." This pass found a
-genuinely more promising, more specific lead than any prior pass, and it
-is documented in full below precisely *because* it's promising — so the
-next attempt doesn't have to start from zero — but it was **not**
-imported, because its exact license terms could not be confirmed.
+The lead documented in the prior pass — Telugu IRV 2019 (`tel2017`) via
+[BibleNLP/ebible](https://github.com/BibleNLP/ebible) — has now been
+confirmed and imported. The prior pass correctly declined to import it
+because the exact CC-license variant (in particular, whether it carried
+the NoDerivatives restriction that ~70% of that corpus does) could not
+be confirmed at the time. This pass found the missing piece.
 
-### The new lead: Telugu IRV 2019 (`tel2017`) via BibleNLP/ebible
+### The confirmation: `metadata/licences.tsv`
 
-[BibleNLP/ebible](https://github.com/BibleNLP/ebible) is an academic NLP
-research project that mirrors eBible.org's catalog with per-translation
-metadata. Its `metadata/translations.csv` (fetched directly, verbatim)
-lists:
+The prior pass tried (and 404'd on) individual per-translation license
+files under a `metadata/licences/` folder. This pass instead found the
+repository's actual license *table* —
+`raw.githubusercontent.com/BibleNLP/ebible/main/metadata/licences.tsv`
+(note: singular file, not a folder; British spelling) — fetched
+directly, verbatim, structured, tab-separated data. Its row for
+`tel2017` reads:
 
-- **`tel2017`** — "ఇండియన్ రివైజ్డ్ వెర్షన్ (IRV) - తెలుగు - 2019" (Indian
-  Revised Version, Telugu, 2019). Full 66-book canon: 39 OT books / 929
-  chapters / 23,129 verses + 27 NT books / 260 chapters / 7,875 verses.
-  Copyright © 2017, 2019 **Bridge Connectivity Solutions**. The catalog
-  flags it `Redistributable: True`, `Certified: True`, `downloadable:
-  True`, updated 2023.
-- Its actual extracted text (`corpus/tel-tel2017.txt`, ~10 MB, verse-per-
-  line) is genuinely present and fetchable in BibleNLP's distributed
-  corpus — confirming it passed BibleNLP's own inclusion filter (their
-  README states they only include translations that are "redistributable
-  and downloadable").
-- The older `tel2010` ("Telugu Easy Reading Version," World Bible
-  Translation Center, 1992–2010) is explicitly marked
-  `Redistributable: False` in the same catalog — **ruled out**, an
-  improvement in certainty over the prior pass's "unresolved."
+| Field | Value |
+| --- | --- |
+| ID | `tel2017` |
+| Language | తెలుగు (Telugu) |
+| Translation | ఇండియన్ రివైజ్డ్ వెర్షన్ (IRV) - తెలుగు -2019 (Indian Revised Version — Telugu — 2019) |
+| **License Type** | **`by-sa`** |
+| **License Version** | **`4.0`** |
+| **License URL** | **`http://creativecommons.org/licenses/by-sa/4.0/`** |
+| **Copyright Holder** | **Bridge Connectivity Solutions** |
+| Copyright Years | 2017, 2019 |
+| Copyright Notes | "Translation by: Bridge Connectivity Solutions" |
 
-### Why it was not imported despite this
+This is **CC BY-SA 4.0** — Attribution-ShareAlike, *not* NoDerivatives.
+It explicitly permits redistribution **and** adaptation/modification
+(exactly what extracting verses into a structured dataset and rendering
+them in an app's UI requires), conditioned on two things this project
+now satisfies:
+1. **Attribution** to the copyright holder + a link to the license —
+   this document, plus an in-app credit on the Settings screen
+   (`mobile/src/features/settings/SettingsScreen.tsx`, testID
+   `settings-bible-attribution`).
+2. **ShareAlike** — a derivative distribution must carry the same
+   license. This app's own use of the Telugu text (rendering it inside
+   the Bible reader) is disclosed under CC BY-SA 4.0 terms here and in
+   `teluguBible.ts`'s doc comment.
 
-`Redistributable: True` on eBible.org's own metadata means the copyright
-holder has given eBible.org blanket permission to freely distribute
-*copies* of the text — that is eBible.org's specific reason for existing,
-distinct from restricted-display sites. But this app's use is broader
-than copying: extracting verses into a structured dataset and rendering
-them inside an app's own UI is closer to what a **derivative-works**
-restriction would govern, and that specific permission was not confirmed.
+**Cross-check against `tel2010`:** the same `licences.tsv` file's row
+for `tel2010` (the translation the prior pass ruled out) shows License
+Type `Unknown` and a `private_projects/` path — consistent with, and
+reinforcing, the prior pass's decision to rule it out. Two different
+rows in the same authoritative table giving two different, internally
+consistent answers is further evidence the table itself is reliable.
 
-The repository's own top-level `LICENSE` file states: *"This project is a
-compilation and contains multiple licenses. Each copy of scripture
-retains its original licenses, which can be viewed with the matching name
-in the [licenses folder]... At least 699 files are licensed
-CC-BY-NC-ND"* — Attribution-NonCommercial-**NoDerivatives**, the single
-most common license across the corpus's ~1000+ translations. NoDerivatives
-would plausibly restrict exactly the kind of reformatting/embedding this
-app would do. Multiple attempts to fetch `tel2017`'s own specific license
-file (the repository's README points at a `metadata/licences/` folder —
-note the British spelling, which itself cost one round of 404s) did not
-resolve to a real file in this pass; direct `github.com` HTML browsing
-(as opposed to specific known `raw.githubusercontent.com` file paths) is
-not reachable from this environment, and the GitHub API's general search
-endpoints are scoped to this project's own configured repository only, not
-general browsing of `BibleNLP/ebible`.
+### What was imported
 
-**Net effect:** the exact CC-license variant (in particular, whether
-`tel2017` carries the NoDerivatives restriction ~70% of this corpus does)
-could not be confirmed. Per this project's own rule — never import Bible
-text without confirmed permission — Telugu stays on placeholder text.
+- **Source text:** `corpus/tel-tel2017.txt` (BibleNLP/ebible, ~10 MB,
+  verse-per-line), aligned against `metadata/vref.txt`'s canonical
+  reference list — both fetched via direct HTTPS requests to
+  `raw.githubusercontent.com/BibleNLP/ebible/main/...`, verbatim bytes.
+- **Versification remapping:** `vref.txt` uses the Hebrew/"original"
+  versification for Joel and Malachi, which splits differently from the
+  standard English versification `books.ts` (and the WEB dataset)
+  already use — Hebrew Joel has 4 chapters (English 3); Hebrew Malachi's
+  4th-chapter content is numbered as part of chapter 3 (English keeps a
+  distinct chapter 4). This is a well-documented, standard difference
+  between versification traditions, not a data error. References were
+  mechanically remapped (text-preserving, no rewording): Hebrew Joel
+  3:1-5 → English 2:28-32; Hebrew Joel 4:1-21 → English 3:1-21; Hebrew
+  Malachi 3:19-24 → English 4:1-6.
+- **Completeness:** 1187 of 1189 chapters (30,868 verses) carry real
+  IRV 2019 text. Two chapters — Joel (English) chapter 3 and Malachi
+  (English) chapter 4 — are empty at every one of their expected
+  reference lines in the raw source text itself (checked directly), not
+  a transformation bug. Because `ebible.org` itself (which might hold
+  the original USFM confirming why) is unreachable from this
+  environment, whether this is a genuine translation gap or a BibleNLP
+  extraction artifact could not be independently confirmed — so, rather
+  than inventing or silently omitting content, those two chapters (0.17%
+  of the canon) fall back to the same clearly-labeled synthetic
+  placeholder text (`placeholderData.ts`) Telugu always showed, with the
+  same "Development content — not a real Bible translation" banner.
+- **Verse combining:** this translation legitimately combines some
+  verses under one printed verse number (translator's discretion, not a
+  data gap — confirmed by cross-checking every chapter's verse-number
+  set against the already-validated English WEB dataset: no chapter has
+  a missing verse number below its own maximum, i.e. no true mid-chapter
+  holes). The dataset stores explicit `[verseNumber, text]` pairs per
+  chapter (not an implicit sequential index) specifically to preserve
+  this translation's actual verse numbering.
 
-### What would actually resolve this
-
-Any one of:
-1. A human opening `github.com/BibleNLP/ebible/tree/main/metadata/licences`
-   directly in a browser (blocked from this automated environment, not
-   from a real browser) to read `tel2017`'s specific license file.
-2. Direct written contact with **Bridge Connectivity Solutions**
-   (`tel2017`'s stated copyright holder) or with BibleNLP's maintainers
-   (their README explicitly invites licensing questions via GitHub
-   issue/PR) confirming redistribution + modification/import permissions.
-3. Direct written contact with the **Bible Society of India** confirming
-   terms for their "OV" translation (the spec's original Option 1 —
-   still open, still unresolved, still requires a human).
-4. A human opening the eBible.org `tel2010`/Wikimedia Commons
-   `Telugu_Bible.pdf` pages directly (both still unreachable from this
-   environment's network policy, same as `ebible.org` generally — see
-   "Why the Day 8 attempt didn't complete").
+**Where it lives:** `mobile/src/features/bible/data/web-te.json` (the
+raw dataset, ~9.9 MB, kept minified/excluded from Prettier — see
+`.prettierignore`), loaded by `mobile/src/features/bible/teluguBible.ts`
+(full source/license/versification writeup in its doc comment), wired
+into `dataSource.ts`'s `getChapter()` for `language === 'te'`. Telugu is
+now the **default** Bible language on first launch (see
+`languagePreference.ts`'s `DEFAULT_LANGUAGE`); a previously (or newly)
+persisted user choice, English included, is always respected.
 
 | Candidate | Status | Why |
 | --- | --- | --- |
-| Bible Society of India (BSI) "OV" | ❌ Unresolved | No license terms found publicly; requires direct contact (spec's Option 1) |
-| **Telugu IRV 2019 (`tel2017`), Bridge Connectivity Solutions, via BibleNLP/ebible** | ❌ Unresolved (new, specific lead) | Marked redistributable/certified by eBible.org and confirmed present in BibleNLP's actual corpus, but the exact CC-license variant (NC/ND status) could not be retrieved — see above |
-| eBible.org `tel2010` (Telugu Easy Reading Version) | ❌ Ruled out | BibleNLP's own catalog explicitly marks it `Redistributable: False` |
-| Wikimedia Commons `Telugu_Bible.pdf` | ❌ Unresolved | Still unreachable from this environment; edition/translation unconfirmed |
-| Lyman Jewett's 1880s translation | ❌ Unresolved | Plausibly public domain by age, but no source found distributing the original text directly |
-| "Free Bibles India" | ❌ Unresolved | No primary page with explicit license terms reached |
+| **Telugu IRV 2019 (`tel2017`), Bridge Connectivity Solutions, via BibleNLP/ebible** | ✅ **Confirmed usable — now imported, see above** | CC BY-SA 4.0 confirmed via `metadata/licences.tsv`'s structured, per-translation license table |
+| Bible Society of India (BSI) "OV" | Not pursued | No longer needed — `tel2017` satisfies the requirement |
+| eBible.org `tel2010` (Telugu Easy Reading Version) | ❌ Ruled out | `licences.tsv` shows License Type `Unknown`, path under `private_projects/` |
+| Wikimedia Commons `Telugu_Bible.pdf` | Not pursued | No longer needed |
+| Lyman Jewett's 1880s translation | Not pursued | No longer needed |
+| "Free Bibles India" | Not pursued | No longer needed |
 | Telugu Easy-to-Read Version (Bible League Intl., 1992) | ❌ Ruled out | Requires a formal license-agreement process, not self-serve |
 | API.Bible | ❌ Ruled out | No Telugu translation found in searchable results |
 
@@ -190,46 +209,44 @@ tooling limitation). What actually unblocked English was discovering that
 **`raw.githubusercontent.com` is reachable and returns real file bytes**
 for a specific, known, publicly-documented path — a different, verifiable
 retrieval method the original pass didn't have available/didn't try, not
-a change in what's permitted. The same method was tried for Telugu (see
-above) and found real candidates, but not a confirmable license.
+a change in what's permitted. The same method later resolved Telugu too
+(see "Telugu: resolved and imported" above) once the right file —
+`metadata/licences.tsv`, a table rather than per-translation files — was
+found.
 
 ## What ships now
 
 **English:** real World English Bible text, all 66 books, all 1189
 chapters, 31,102 verses (see above).
 
-**Telugu:** the same synthetic, clearly-labeled placeholder text it
-always has — per the spec's own explicitly-sanctioned fallback ("Option
-3: Hardcoded Sample Data," Section C), a bounded pool of 150 synthetic,
-sequentially-numbered placeholder verse entries
-(`PLACEHOLDER_POOL_SIZE` in `mobile/src/features/bible/placeholderData.ts`),
-deterministically distributed across all 66 books' real chapter structure.
-Every entry is explicitly labeled "Development placeholder ... Not
-scripture" in the data itself, and the UI shows a persistent banner
-reading "Development content — not a real Bible translation" — this
-banner is now Telugu-only; English no longer shows it
-(`ChapterScreen.tsx`'s `isPlaceholder` check is unchanged, only the value
-it reads for English changed from `true` to `false`).
+**Telugu:** real Indian Revised Version (IRV) 2019 text, all 66 books,
+1187 of 1189 chapters (30,868 verses) — the remaining 2 chapters (Joel
+3, Malachi 4, both empty in the source itself) fall back to the same
+synthetic, clearly-labeled placeholder text Telugu always used for
+unresolved content, per the spec's own explicitly-sanctioned fallback
+("Option 3: Hardcoded Sample Data," Section C). The UI's "Development
+content — not a real Bible translation" banner now shows only for those
+2 chapters, in either language (`ChapterScreen.tsx`'s `isPlaceholder`
+check is unchanged, only which chapters resolve to `true` changed).
 
-Swapping in a confirmed Telugu source later is a data-layer change to
-`getChapter()` in `mobile/src/features/bible/dataSource.ts` — mirroring
-exactly how English's text was swapped in without touching any screen,
-navigation, search, or caching code (`webBible.ts` is the new seam;
-`placeholderData.ts`, `dataSource.ts`'s branching, and every screen/test
-already anticipated exactly this "real for some languages, not others"
-shape — see `types.ts`'s `isPlaceholder` field doc comment).
+Telugu is the **default** Bible language on first launch, per the V1
+completion sprint's requirement; English remains fully available as a
+one-tap toggle, and any user's explicit choice always persists.
 
-## Action needed (from you, not from further research)
+**Required attribution (CC BY-SA 4.0):** the Settings screen shows a
+permanent "Bible translations" card crediting the World English Bible
+(public domain) and the IRV 2019 (© Bridge Connectivity Solutions,
+CC BY-SA 4.0, with the license URL) — see
+`SettingsScreen.tsx`'s `settings-bible-attribution` card.
 
-1. Decide whether to pursue Bridge Connectivity Solutions/BibleNLP (the
-   new, more specific `tel2017` lead) or the Bible Society of India (the
-   original Option 1) for Telugu licensing confirmation — both require a
-   human sending an actual message and waiting for a reply; neither can
-   be automated from this environment.
-2. Optionally: open
-   `https://github.com/BibleNLP/ebible/tree/main/metadata/licences` in a
-   regular browser to check for `tel2017`'s specific license file
-   directly — this environment's network policy blocks general GitHub
-   HTML browsing (only specific known raw-file paths work), so this is a
-   five-minute check a human browser can do that this environment
-   couldn't.
+## Remaining, honestly disclosed gap
+
+The two empty chapters (Joel 3, Malachi 4 in English numbering) are the
+only remaining Bible-content gap in this app. They are disclosed, not
+hidden: labeled with the same placeholder banner as any other
+unresolved content, and documented here and in `teluguBible.ts`'s doc
+comment. Resolving whether this is a genuine translation gap or a
+BibleNLP extraction artifact would require reaching `ebible.org`
+directly (blocked from this environment) or contacting Bridge
+Connectivity Solutions — optional, low-priority, since it affects 2 of
+1189 chapters (~0.17%) and both are already handled safely.

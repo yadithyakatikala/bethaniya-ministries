@@ -2,13 +2,16 @@
  * Bible module types -- Day 8, updated once English text was sourced.
  *
  * See /BIBLE_LICENSING.md at the repo root for the current licensing
- * status. English now renders real World English Bible (public domain)
- * verse text -- see webBible.ts's doc comment for the source/license.
- * Telugu still renders synthetic placeholder text (placeholderData.ts);
- * no Telugu source has been confirmed usable yet. Book names, canonical
- * ordering, and chapter counts (books.ts) are NOT scripture text --
- * they're factual/structural metadata -- so those have always been real
- * and accurate, independent of verse-text sourcing.
+ * status. English renders real World English Bible (public domain) verse
+ * text -- see webBible.ts's doc comment for the source/license. Telugu
+ * renders real Indian Revised Version (IRV) 2019 verse text (CC BY-SA
+ * 4.0) -- see teluguBible.ts's doc comment for the source/license. Two
+ * Telugu chapters (Joel 3, Malachi 4) have no real verse text in the
+ * source and still render synthetic placeholder text (placeholderData.ts)
+ * for just those chapters. Book names, canonical ordering, and chapter
+ * counts (books.ts) are NOT scripture text -- they're factual/structural
+ * metadata -- so those have always been real and accurate, independent of
+ * verse-text sourcing.
  *
  * `getChapter()`/`loadChapter()` in dataSource.ts are the single seam
  * every screen goes through; a future licensed Telugu translation is a

@@ -27,6 +27,12 @@ import { subscribeToChurchSettings } from '../../services/firebase/settings';
  * than inventing an address when the church hasn't configured one. Every
  * existing testID and the exact "Language: .../Theme: ..." label text
  * are unchanged -- see SettingsScreen.test.tsx.
+ *
+ * The "Bible translations" card is required, non-decorative attribution:
+ * the Telugu text is licensed CC BY-SA 4.0, which conditions
+ * redistribution on attribution to the copyright holder -- see
+ * /BIBLE_LICENSING.md and teluguBible.ts's doc comment for the full
+ * source/license writeup this card summarizes.
  */
 export function SettingsScreen() {
   const { signOut } = useAuth();
@@ -135,6 +141,31 @@ export function SettingsScreen() {
         </View>
       </View>
 
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.card,
+          },
+        ]}
+        testID="settings-bible-attribution"
+      >
+        <View style={[styles.row, { padding: spacing.md }]}>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Text style={[styles.label, { color: colors.text }]}>Bible translations</Text>
+            <Text style={[styles.attributionText, { color: colors.secondaryText }]}>
+              English: World English Bible (public domain).
+            </Text>
+            <Text style={[styles.attributionText, { color: colors.secondaryText }]}>
+              Telugu: Indian Revised Version (IRV) 2019, © Bridge Connectivity Solutions,
+              licensed under CC BY-SA 4.0 (creativecommons.org/licenses/by-sa/4.0/).
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <Pressable
         testID="settings-logout-button"
         accessibilityRole="button"
@@ -162,6 +193,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: '500' },
   action: { fontSize: 14, fontWeight: '600' },
   supportEmail: { fontSize: 13 },
+  attributionText: { fontSize: 12.5, lineHeight: 18 },
   logoutButton: {
     minHeight: 48,
     borderWidth: 1.5,
