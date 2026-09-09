@@ -53,10 +53,10 @@ export interface AnnouncementFormInput {
  *
  * `date` is a plain "YYYY-MM-DD" string, not a Firestore Timestamp -- this
  * models a calendar date ("applies to mobile app on that date", per the
- * spec), not a moment in time, and sorts correctly with
- * firestore.indexes.json's existing `daily_verses` (date DESCENDING) index
- * since zero-padded ISO dates compare lexicographically the same as
- * chronologically.
+ * spec), not a moment in time, and sorts correctly under Firestore's
+ * automatic single-field index for `date` (no firestore.indexes.json
+ * entry needed -- see services/firebase/dailyVerses.ts) since zero-padded
+ * ISO dates compare lexicographically the same as chronologically.
  */
 export interface DailyVerse {
   id: string;

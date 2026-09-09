@@ -12,10 +12,16 @@
  * just in the UI" shape ../announcements.ts uses, applied to the field
  * that actually matters for this collection. `date` is a plain
  * "YYYY-MM-DD" string (see admin/src/types/index.ts), so this is a plain
- * equality query -- no composite index is required for it (Firestore
- * auto-indexes single-field equality); the existing
- * firestore.indexes.json `daily_verses` (date DESCENDING) index remains
- * for the admin dashboard's "list all, newest date first" query.
+ * equality query on a single field -- Firestore auto-indexes every
+ * field's equality AND ascending/descending order by default, so this
+ * needs no entry in firestore.indexes.json at all. A `daily_verses`
+ * composite-index entry existed there from Day 1 through a production
+ * deploy attempt, which is exactly what surfaced the mistake: Firestore
+ * rejects a composite index declaration that names only one field
+ * ("this index is not necessary, configure using single field index
+ * controls"). It's been removed; every daily_verses query (this file
+ * and admin/src/services/firebase/dailyVerses.ts) has always worked off
+ * Firestore's automatic single-field indexes.
  */
 import {
   type FirestoreError,
@@ -84,10 +90,9 @@ export function subscribeToTodaysDailyVerse(
  * subscribeToTodaysDailyVerse above (firestore.rules already allows any
  * signed-in role to read every daily_verses document -- see that
  * function's doc comment), just without the `date == today` filter;
- * ordered by the existing `daily_verses` (date DESCENDING) index
- * declared in firestore.indexes.json for the admin dashboard's own
- * "list all, newest first" query, reused here rather than adding a new
- * one.
+ * ordered by `date` descending -- a single-field sort, covered by
+ * Firestore's automatic index for that field, no entry in
+ * firestore.indexes.json needed (see this file's top comment).
  */
 export function subscribeToDailyVerseArchive(
   onNext: (verses: TodaysDailyVerse[]) => void,

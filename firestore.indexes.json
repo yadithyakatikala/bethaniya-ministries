@@ -23,13 +23,6 @@
         { "fieldPath": "published", "order": "ASCENDING" },
         { "fieldPath": "title", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "daily_verses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

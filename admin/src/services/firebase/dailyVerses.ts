@@ -10,9 +10,12 @@
  * Do not add a publish/unpublish action for this collection.
  *
  * `date` is stored as a plain "YYYY-MM-DD" string (see types/index.ts),
- * queried with the composite index already declared in
- * firestore.indexes.json (added Day 1, unused until now, same pattern
- * Day 4 noted for announcements' index).
+ * ordered by that single field below -- Firestore auto-indexes
+ * single-field ascending/descending order, so no firestore.indexes.json
+ * entry is needed (a `daily_verses` composite-index entry existed there
+ * from Day 1; a production Firestore deploy rejected it as unnecessary,
+ * which is what caught the mistake -- see mobile's
+ * services/firebase/dailyVerses.ts for the full explanation).
  */
 import {
   type FirestoreError,
