@@ -70,14 +70,39 @@ configuration is tied to a real Expo/EAS account that doesn't exist yet.
 An alternative to EAS Build that stays entirely local and needs no
 external account — only a machine with the Android SDK installed
 (Android Studio, or just the command-line tools + a platform/build-tools
-version). This was investigated as part of the V1 completion sprint and
-is genuinely **blocked in this repository's development environment**:
-there is no Android SDK installed here, and `dl.google.com` (the host
-`sdkmanager` downloads SDK components from) is denied by this
-environment's network egress policy — confirmed by a direct connection
-attempt, not assumed. `app.json`'s `android.versionCode`/`ios.buildNumber`
-were added during that same sprint so the config is ready the moment a
-real build environment is available.
+version). This was investigated across two V1 completion sprints and is
+genuinely **blocked in this repository's development environment**, at
+two independent points, both confirmed by actually attempting the build
+(not assumed):
+
+1. `npx expo prebuild --platform android` **succeeds** — it generates a
+   real, correctly-configured native `android/` project
+   (`applicationId 'com.bethaniyaministries.app'`, `versionCode 1`,
+   `versionName "1.0.0"`, matching `app.json`) without needing the
+   Android SDK at all. This step works fine here.
+2. `./gradlew assembleRelease` reaches Gradle itself (it downloads and
+   starts Gradle 9.3.1 successfully — `services.gradle.org` is
+   reachable), then fails at dependency resolution: React Native's
+   Android Gradle plugin requires a **Java 17** toolchain, this
+   environment only has **Java 21** installed
+   (`/usr/lib/jvm/java-21-openjdk-amd64`, no JDK 17 present), and
+   Gradle's automatic toolchain provisioner (`foojay-resolver`) —
+   which would otherwise download a matching JDK 17 on the fly — is
+   itself blocked: `Unable to tunnel through proxy. Proxy returns
+   "HTTP/1.1 403 Forbidden"`. Even past that, the next step would need
+   Android SDK platform/build-tools components, and `dl.google.com`
+   (the host `sdkmanager` downloads those from) is separately denied by
+   this environment's network egress policy — confirmed by a direct
+   `curl` connection attempt (`CONNECT tunnel failed, response 403`),
+   the same class of block as `firebase.google.com`.
+
+Two independent, confirmed blockers, not a guess: a missing JDK 17
+whose auto-provisioner is network-blocked, and a separately
+network-blocked Android SDK component host. `app.json`'s
+`android.versionCode`/`ios.buildNumber` were added during the first V1
+completion sprint so the config is ready the moment a real build
+environment is available — verified correct again this pass via an
+actual (then-cleaned-up) `prebuild` run, not just by reading the file.
 
 On a real machine with the Android SDK installed:
 
@@ -114,10 +139,26 @@ farthest this project can go on iOS at ₹0.
 ## Environments
 
 Three Firebase projects are planned (dev/staging/production — see
-ENVIRONMENT.md). Only `dev` needs to exist for Day 2+ work; staging and
-production can be created later, right before they're actually needed
-(Week 3 per the spec's 21-day plan). Each environment gets its own
-`.firebaserc` target alias and its own `.env.local` values per app.
+ENVIRONMENT.md). Only `dev` exists today
+(`bethaniya-ministries-dev-58588`, set up via
+`scripts/firebase-dev-setup.sh`); staging and production can be created
+when actually needed. Each environment gets its own `.firebaserc` target
+alias and its own env file per app (`.env.local` for local dev,
+`.env.production` for production — never commit either; both are
+gitignored).
+
+**Production, when you're ready:** run
+`./scripts/firebase-production-setup.sh <project-id>` (mirrors the dev
+script exactly — same free-Spark-tier-only steps: project creation,
+Firestore database, Web app registration, rules/indexes deploy — plus an
+explicit "yes" confirmation before touching anything, since this creates
+the real project real church member data will eventually live in). It
+cannot be run from this development environment (no Google account
+login is possible here); run it from a machine where you can complete
+the `firebase login` browser flow. It intentionally does not touch
+Storage or Cloud Functions (both require the Blaze plan) — the script's
+own output tells you exactly what to do when you're ready to attach
+billing.
 
 ## CI/CD
 

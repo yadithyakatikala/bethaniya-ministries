@@ -690,3 +690,39 @@ polish, documentation sync). Re-verified for this addendum, not assumed:
 - **Secrets scan re-run**: clean (see PRODUCTION_READINESS.md's matrix).
 - **`npm audit`**: unchanged counts across all three packages (admin 0,
   mobile 16 moderate, functions 7 moderate, all transitive/documented).
+
+## Post-Day-16, round 2: Telugu Bible import + production Firebase script
+
+A second V1 completion sprint landed after the above (Telugu Bible
+licensing resolved and imported as the default language, a production
+Firebase setup script added, a re-attempted Android APK build). Same
+re-verification discipline applied, not assumed:
+
+- **`firestore.rules`, `storage.rules`, `functions/` are still
+  byte-identical** to Day 16 — re-confirmed via `git diff` against the
+  Day 16 commit, not just against the round-1 sprint.
+- **No new secrets, credentials, or paid-service integrations.** The
+  Telugu Bible dataset (CC BY-SA 4.0, see BIBLE_LICENSING.md) is the
+  same kind of static, build-time-fetched, no-runtime-dependency asset
+  as the English WEB dataset before it — same reasoning applies. The new
+  `scripts/firebase-production-setup.sh` only calls `firebase-tools` CLI
+  commands that stay on the free Spark plan (project creation, Firestore
+  database creation, Web app registration, rules/indexes deploy); it
+  never touches Storage, Functions, or billing, and requires an explicit
+  typed "yes" before doing anything.
+- **Secrets scan re-run**: clean — `git grep` for API key/private-key
+  patterns across tracked files, and `git log --all --full-history` for
+  `.env*`/`google-services.json`/`GoogleService-Info.plist`/
+  `*serviceAccountKey*` paths, both re-run this checkpoint with the same
+  result as every prior checkpoint (only `.env.example` template files
+  ever matched).
+- **`npm audit` re-run**: same counts as round 1 (admin 0, mobile 16
+  moderate, functions 7 moderate, all transitive/documented) —
+  `functions/node_modules` needed a clean `npm ci` this checkpoint (not
+  previously installed in this environment), after which typecheck,
+  lint, and build all ran clean.
+- **Firebase Emulator Suite re-confirmed blocked**: a direct
+  `firebase emulators:start --only firestore` attempt, and direct `curl`
+  checks against `firebase.google.com` and
+  `firebase-public.firebaseio.com`, both still return a proxy-level 403
+  — unchanged from every prior checkpoint.
