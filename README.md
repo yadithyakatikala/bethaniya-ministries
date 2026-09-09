@@ -3,10 +3,10 @@
 Bethaniya Ministries is a church digital platform consisting of three parts:
 
 - **Mobile app** — React Native + Expo (iOS + Android): home feed, Bible
-  reader (real World English Bible text for English, Telugu still
-  placeholder — see "Bible status" below), songs + audio, events with
-  live-stream support, profile/preferences, and a local notification
-  history/center.
+  reader (real Telugu — Indian Revised Version 2019 — text by default,
+  real World English Bible text as the alternate language; see "Bible
+  status" below), songs + audio, events with live-stream support,
+  profile/preferences, and a local notification history/center.
 - **Admin/host dashboard** — React + Vite web app for content management,
   role-based access control, and notification composition/logging.
 - **Backend** — Firebase (Auth, Firestore, Storage, Cloud Functions), run
@@ -15,13 +15,22 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 ## Current checkpoint
 
 - **Checkpoint:** Day 16 complete, followed by a Vespers visual-design-system
-  pass across mobile + admin (commit `b0052a5`, "Implement Vespers design
-  system across mobile and admin UI"), followed by this V1 completion
-  sprint: real World English Bible text imported for English (Telugu
-  licensing remains unresolved — see "Bible status" and
-  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)), a documented Firestore
-  offline-persistence investigation (not enabled — see "Offline behavior"
-  below), navigation/config polish, and this documentation sync.
+  pass across mobile + admin (commit `b0052a5`), a first V1 completion
+  sprint (commit `523f8fa`: real World English Bible text imported for
+  English; Telugu licensing left unresolved; a documented Firestore
+  offline-persistence investigation, not enabled), a second V1 completion
+  sprint (Telugu Bible licensing resolved and imported as the default
+  language, IRV 2019, CC BY-SA 4.0, 1187/1189 chapters — see "Bible
+  status" and [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) — plus a
+  production Firebase setup script and a re-attempted Android APK build
+  with two precise confirmed blockers documented), and a third V1
+  completion sprint: **the owner formally moved the V1 Bible requirement
+  to English (WEB) only** (Telugu ships as-is, still the default
+  language, no longer a completeness gate), a real church logo was
+  requested at `assets/branding/church-logo.png` but the file does not
+  exist in this repository or environment (no logo was fabricated), and
+  a 20-point real-Android-device QA checklist was added
+  ([QA_CHECKLIST.md](./QA_CHECKLIST.md)).
 - **Next planned milestone:** not yet scoped — see
   [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md)'s requirements
   matrix for exactly what's left and why.
@@ -47,7 +56,9 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
 | Day 15 | Unit + integration tests, test coverage reporting | ✅ |
 | Day 16 | Security hardening + final review | ✅ |
 | Vespers | Visual design system across mobile + admin (theme tokens, tab bar, screen redesigns, admin shared components) | ✅ |
-| V1 completion sprint | English Bible text import, licensing re-investigation, offline-persistence investigation, config/nav polish, documentation sync | ✅ partial — see "Bible status" and PRODUCTION_READINESS.md |
+| V1 completion sprint (round 1) | English Bible text import, licensing re-investigation, offline-persistence investigation, config/nav polish, documentation sync | ✅ partial — see "Bible status" and PRODUCTION_READINESS.md |
+| V1 completion sprint (round 2) | Telugu Bible licensing resolved and imported as default language (1187/1189 chapters — 2-chapter gap unresolved), production Firebase setup script, Android APK re-attempt, documentation sync | 🟡 partial — see "Bible status" and PRODUCTION_READINESS.md |
+| V1 completion sprint (round 3) | Telugu formally descoped from V1 (owner decision; ships as-is), church-logo request (file not found, not fabricated), QA_CHECKLIST.md added | ✅ — see "Bible status" and PRODUCTION_READINESS.md |
 | Day 17 | Not started | ⏳ |
 
 "✅" here means the day's planned scope was implemented and reviewed, not
@@ -65,9 +76,9 @@ actually production-ready within each of these.
 | Songs + audio playback | Implemented | |
 | Events | Implemented | |
 | YouTube Live (host-managed live-stream URL/status) | Implemented | |
-| Bible reader (books/chapters/verses navigation) | Implemented | English content is real (World English Bible); Telugu is still placeholder — see "Bible status". |
-| English/Telugu language UI toggle | Implemented | English shows real WEB text; Telugu shows placeholder text pending a licensed source. |
-| Bible Search | Implemented | Searches real WEB text for English, placeholder text/references for Telugu — see "Bible status". |
+| Bible reader (books/chapters/verses navigation) | Implemented | English (WEB) is complete and is the V1 requirement; Telugu (IRV 2019) ships as-is (real for 1187/1189 chapters) but is out of V1 scope — see "Bible status". |
+| English/Telugu language UI toggle | Implemented | Telugu is the default on first launch; English is a one-tap toggle; a persisted user choice is always respected. |
+| Bible Search | Implemented | Searches real text in both languages — see "Bible status" for the two documented exceptions. |
 | Profile (view/edit display name, upload profile photo, view email/phone) | Implemented | |
 | Settings / preferences (language, theme, notifications toggle) | Implemented | Two-tier persistence: AsyncStorage always; Firestore sync when signed in. |
 | Notification Center (on-device notification history) | Implemented | Local history only — see "Notifications status". |
@@ -83,29 +94,37 @@ actually production-ready within each of these.
 
 - The Bible reader **architecture** (book list → chapter list → chapter
   view, language toggle, search) is implemented and working.
-- **English now ships real World English Bible (WEB) text** — all 66
-  books, all 1189 chapters, 31,102 verses, imported from
-  `scrollmapper/bible_databases` (public domain, independently
-  corroborated) via a direct, verbatim raw-file fetch. See
-  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s "English: resolved and
-  imported" section for the full source/method/verification writeup, and
+- **English ships real World English Bible (WEB) text — this is the V1
+  Bible requirement, and it is complete.** All 66 books, all 1189
+  chapters, 31,102 verses, imported from `scrollmapper/bible_databases`
+  (public domain, independently corroborated) via a direct, verbatim
+  raw-file fetch. See [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s
+  "English: resolved and imported" section for the full
+  source/method/verification writeup, and
   `mobile/src/features/bible/webBible.ts` for the code.
-- **Telugu remains synthetic/local placeholder data** — no real Telugu
-  scripture text, copyrighted or otherwise, exists anywhere in this
-  repository. See `mobile/src/features/bible/placeholderData.ts`.
-  Licensing was re-investigated this checkpoint and a specific, promising
-  new candidate was found (a complete modern "IRV 2019" translation,
-  copyright Bridge Connectivity Solutions, mirrored via an academic NLP
-  corpus) but its exact license terms could not be confirmed — see
-  BIBLE_LICENSING.md's "Telugu" section for the full writeup and exactly
-  what would resolve it.
-- **Bible Search** searches real WEB text for English and the same local
-  placeholder dataset for Telugu, via the existing `getChapter()`
-  data-source seam — no remote Bible API or network call is involved for
-  either language.
-- Telugu Bible text **must not be described as production-ready**
-  anywhere in this project until BIBLE_LICENSING.md is updated to reflect
-  a confirmed, usable source.
+- **Telugu is out of V1 scope** (owner decision) but ships anyway,
+  unchanged, as the default Bible language on first launch: real Indian
+  Revised Version (IRV) 2019 text, **CC BY-SA 4.0** (confirmed via
+  BibleNLP/ebible's structured `metadata/licences.tsv`, copyright Bridge
+  Connectivity Solutions), 1187 of 1189 chapters real (30,868 verses); 2
+  (Joel 3, Malachi 4 in English versification) have no real text in the
+  only legally-usable source found — investigated exhaustively (the full
+  BibleNLP/ebible repository was cloned and checked byte-by-byte, ruling
+  out a versification-mapping mistake) but never fabricated,
+  reconstructed, or filled in from another translation. Since Telugu
+  completeness is no longer a V1 requirement, the strict completeness
+  test that previously kept this failing on purpose was removed; the
+  gap remains documented. See
+  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s "Telugu: licensed and
+  imported" and "Investigation: are Joel 3 / Malachi 4 hiding elsewhere?"
+  sections for the full writeup, and
+  `mobile/src/features/bible/teluguBible.ts` for the code. Required CC
+  BY-SA attribution is shown in-app (Settings screen) as well as in that
+  document.
+- **Bible Search** searches real text in both languages via the existing
+  `getChapter()` data-source seam — no remote Bible API or network call
+  is involved for either language. The 2 Telugu gap chapters are still
+  reachable by reference search (e.g. book name + chapter number).
 - [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) remains the single source of
   truth for licensing status.
 
@@ -183,7 +202,7 @@ this landed in):
 
 | Package | Result |
 | --- | --- |
-| Mobile — Jest | **44/44 suites, 284/284 tests passing** (+3 tests this checkpoint, from real WEB-text Bible test coverage) |
+| Mobile — Jest | **45/45 suites, 295/295 tests passing.** (The exception-free Telugu completeness test that previously kept this at 295/296 was removed once Telugu left V1 scope — see "Bible status"; the tests documenting the 2-chapter gap itself remain.) |
 | Mobile — typecheck / lint / format | Clean |
 | Admin — Vitest | **34/34 files, 249/249 tests passing** (unchanged — admin package untouched this checkpoint) |
 | Admin — typecheck / lint / format / production build | Clean |
@@ -326,7 +345,8 @@ bethaniya-ministries/
 ├── CONTRIBUTING.md    Code conventions, commit style, how to run checks
 ├── DEPLOYMENT.md      How to deploy each part
 ├── PRODUCTION_READINESS.md  Explicit staged pipeline; NOT production ready yet
-└── BIBLE_LICENSING.md  What's confirmed, what's not, for English + Telugu
+├── BIBLE_LICENSING.md  What's confirmed, what's not, for English + Telugu
+└── QA_CHECKLIST.md     20-point real-Android-device QA checklist (unexecuted)
 ```
 
 `mobile`, `admin`, and `functions` are three independent npm packages (no

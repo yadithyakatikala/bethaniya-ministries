@@ -16,15 +16,17 @@ describe('getChapter', () => {
     );
   });
 
-  it('returns a placeholder chapter for Telugu (still unresolved licensing)', () => {
+  it('returns the real Telugu IRV 2019 text for a valid Telugu book/chapter', () => {
     const chapter = getChapter('genesis', 1, 'te');
     expect(chapter).not.toBeNull();
+    expect(chapter?.bookId).toBe('genesis');
     expect(chapter?.language).toBe('te');
-    expect(chapter?.isPlaceholder).toBe(true);
+    expect(chapter?.isPlaceholder).toBe(false);
     expect(chapter?.verses.length).toBeGreaterThan(0);
+    expect(chapter?.verses[0]?.text).toBe('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.');
   });
 
-  it('returns different text for English (real) vs Telugu (placeholder)', () => {
+  it('returns different text for English (WEB) vs Telugu (IRV 2019)', () => {
     const en = getChapter('genesis', 1, 'en');
     const te = getChapter('genesis', 1, 'te');
     expect(en?.verses[0]?.text).not.toBe(te?.verses[0]?.text);
@@ -37,6 +39,23 @@ describe('getChapter', () => {
     expect(chapter?.verses[chapter!.verses.length - 1]?.text).toBe(
       'The grace of the Lord Jesus Christ be with all the saints. Amen.'
     );
+  });
+
+  it('falls back to the labeled placeholder for the two documented Telugu source gaps (Joel 3, Malachi 4)', () => {
+    const joel3 = getChapter('joel', 3, 'te');
+    expect(joel3).not.toBeNull();
+    expect(joel3?.isPlaceholder).toBe(true);
+
+    const malachi4 = getChapter('malachi', 4, 'te');
+    expect(malachi4).not.toBeNull();
+    expect(malachi4?.isPlaceholder).toBe(true);
+  });
+
+  it('returns real (non-placeholder) Telugu text for the chapter preceding a documented gap (Joel 2)', () => {
+    const joel2 = getChapter('joel', 2, 'te');
+    expect(joel2).not.toBeNull();
+    expect(joel2?.isPlaceholder).toBe(false);
+    expect(joel2?.verses.length).toBeGreaterThan(0);
   });
 
   it('returns null for an unknown book id', () => {

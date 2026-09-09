@@ -36,10 +36,11 @@ functions/lib/
 functions/*.log
 .firebaserc
 
-# Environment secrets (never commit real values)
-.env
-.env.local
-.env.*.local
+# Environment secrets (never commit real values) -- broad .env* glob so a
+# new per-environment file (.env.production, .env.staging, ...) is safe by
+# default and never needs a new gitignore line added after the fact; only
+# the checked-in *.example templates are re-included below.
+.env*
 !.env.example
 
 # Service account keys — NEVER commit these

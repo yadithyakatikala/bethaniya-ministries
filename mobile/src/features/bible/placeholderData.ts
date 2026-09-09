@@ -15,9 +15,13 @@
  *     longer reads it in the normal path -- only as an unreachable
  *     defensive fallback if a future data revision ever omits a
  *     book/chapter the WEB dataset should cover.
- *   - Telugu: licensing itself remains unresolved (BIBLE_LICENSING.md).
- *     Do not add real Telugu scripture text until that changes -- the
- *     `te` pool below is the one still actively used.
+ *   - Telugu (IRV 2019): RESOLVED -- real, CC BY-SA 4.0-licensed verse
+ *     text is now sourced and used instead (see teluguBible.ts). The
+ *     `te` pool below is still generated, and dataSource.ts still reads
+ *     it for exactly two chapters (Joel 3, Malachi 4) that have no real
+ *     verse text in the imported source -- see teluguBible.ts's doc
+ *     comment for why -- so it is not purely a defensive fallback the
+ *     way the `en` pool is.
  *
  * PLACEHOLDER DATASET SIZE -- per FINAL_ARCHITECTURE_SPECIFICATION.md's
  * Day 8 section verbatim: "IF Bible source NOT verified: Use 100-200

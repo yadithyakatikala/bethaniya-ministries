@@ -54,19 +54,28 @@ describe('ChapterScreen', () => {
     expect(getByTestId('chapter-reference')).toBeTruthy();
   });
 
-  it('labels still-placeholder (Telugu) content with the development-content banner', async () => {
+  it('labels the two documented Telugu source gaps (e.g. Joel 3) with the development-content banner', async () => {
     await setLanguagePreference('te');
-    const { getByTestId } = await renderScreen('genesis', 1);
+    const { getByTestId } = await renderScreen('joel', 3);
     await waitFor(() => expect(getByTestId('chapter-placeholder-banner')).toBeTruthy());
   });
 
   it('does not show the placeholder banner for English (real WEB text)', async () => {
+    await setLanguagePreference('en');
     const { getByText, queryByTestId } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
     expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
   });
 
+  it('does not show the placeholder banner for Telugu outside the two documented gap chapters', async () => {
+    await setLanguagePreference('te');
+    const { getByText, queryByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
+    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
+  });
+
   it('shows real WEB verse text for English', async () => {
+    await setLanguagePreference('en');
     const { getByText } = await renderScreen('genesis', 1);
     await waitFor(() =>
       expect(
@@ -75,14 +84,22 @@ describe('ChapterScreen', () => {
     );
   });
 
-  it('restores a previously saved Telugu preference on mount', async () => {
-    await setLanguagePreference('te');
-    const { getByText, getByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
-    expect(getByTestId('chapter-placeholder-banner')).toBeTruthy();
+  it('shows real Telugu IRV 2019 verse text by default (Telugu is the default language)', async () => {
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() =>
+      expect(getByText('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.')).toBeTruthy()
+    );
+  });
+
+  it('restores a previously saved English preference on mount', async () => {
+    await setLanguagePreference('en');
+    const { getByText, queryByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
   });
 
   it('toggles the language and persists the new preference to AsyncStorage', async () => {
+    await setLanguagePreference('en');
     const { getByTestId, getByText } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
 

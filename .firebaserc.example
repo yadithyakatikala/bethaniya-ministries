@@ -3,6 +3,6 @@
     "default": "bethaniya-ministries-dev-58588",
     "development": "bethaniya-ministries-dev-58588",
     "staging": "bethaniya-ministries-staging",
-    "production": "bethaniya-ministries-prod"
+    "production": "bethaniyaministries-production"
   }
 }

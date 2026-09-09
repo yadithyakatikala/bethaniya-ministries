@@ -13,17 +13,19 @@
  * source, license, and completeness verification, and
  * /BIBLE_LICENSING.md for the full writeup.
  *
- * TELUGU: still blocked. No Telugu source has been confirmed usable (see
- * /BIBLE_LICENSING.md's "Telugu Bible" section) -- Telugu continues to
- * render the same clearly-labeled synthetic placeholder text
- * (placeholderData.ts) it always has, pending either direct written
- * confirmation from a rights holder (e.g. the Bible Society of India) or
- * a verified, licensed alternative source.
+ * TELUGU: resolved. Real Indian Revised Version (IRV) 2019 verse text
+ * (CC BY-SA 4.0) is now imported -- see teluguBible.ts's doc comment for
+ * the exact source, license, and completeness verification, and
+ * /BIBLE_LICENSING.md for the full writeup. Two chapters (Joel 3,
+ * Malachi 4) have no real verse text in the source and fall back to the
+ * clearly-labeled synthetic placeholder (placeholderData.ts) -- see
+ * teluguBible.ts for why.
  */
 import { getBookById } from './books';
 import { getCachedChapter, setCachedChapter } from './bibleCache';
 import { buildPlaceholderVerses } from './placeholderData';
 import { getWebVerseTexts } from './webBible';
+import { getTeluguVerses } from './teluguBible';
 import type { BibleChapter, BibleLanguage, BibleVerse } from './types';
 
 /**
@@ -66,6 +68,24 @@ export function getChapter(
     // Defensive fallback only -- every valid book/chapter combination is
     // covered by the imported WEB dataset (verified at import time), so
     // this branch should be unreachable in practice.
+  }
+
+  if (language === 'te') {
+    const verses = getTeluguVerses(book.order, chapterNumber);
+    if (verses) {
+      return {
+        bookId: book.id,
+        bookName: book.name,
+        chapterNumber,
+        language,
+        verses,
+        isPlaceholder: false,
+      };
+    }
+    // Reached for exactly 2 of 1189 chapters (Joel 3, Malachi 4) which
+    // have no real verse text in the source itself -- see teluguBible.ts's
+    // doc comment. Falls through to the labeled placeholder below rather
+    // than fabricating content.
   }
 
   return {

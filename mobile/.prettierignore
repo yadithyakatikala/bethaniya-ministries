@@ -8,3 +8,8 @@ coverage
 # Machine-generated/imported data, not hand-authored source; kept minified
 # to avoid roughly doubling its bundled size for no benefit.
 src/features/bible/data/web-en.json
+
+# Imported Telugu Indian Revised Version (IRV) 2019 dataset (BibleNLP/ebible
+# mirror, corpus/tel-tel2017.txt -- see src/features/bible/teluguBible.ts).
+# Machine-generated/imported data, not hand-authored source; kept minified.
+src/features/bible/data/web-te.json
