@@ -1,24 +1,23 @@
 # Bible Content Licensing
 
-**Status: `ENGLISH: RESOLVED AND IMPORTED, COMPLETE` · `TELUGU: LICENSED AND IMPORTED, 1187/1189 CHAPTERS — 2 CHAPTERS REMAIN AN UNRESOLVED CONTENT GAP`**
+**Status: `ENGLISH: RESOLVED AND IMPORTED, COMPLETE — THE V1 BIBLE REQUIREMENT` · `TELUGU: OUT OF V1 SCOPE (owner decision) — LICENSED AND IMPORTED, 1187/1189 CHAPTERS, SHIPPED AS-IS BUT NOT A V1 GATE`**
 
-This is a real, active V1 requirement per
-[FINAL_ARCHITECTURE_SPECIFICATION.md](./FINAL_ARCHITECTURE_SPECIFICATION.md)
-Section C ("English + Telugu Bible, exactly"). English is fully done.
-Telugu's *licensing* is resolved (Indian Revised Version 2019, CC BY-SA
-4.0) and its text is imported and used as the default Bible language,
-but it is **not** complete: Joel (English) chapter 3 and Malachi
-(English) chapter 4 have no real verse text in the only legally-usable
-source found, and — after an exhaustive investigation documented below —
-could not be recovered from any source reachable from this project's
-development environment. This is reported as an open gap, not glossed
-over as an "acceptable placeholder": `teluguBible.test.ts` carries a
-strict, exception-free completeness test that is committed **deliberately
-failing** for exactly these two chapters, so this state cannot be
-silently mistaken for "done." Nothing here was fabricated, reconstructed,
-or substituted from another translation to make that test pass.
+V1's Bible requirement is now **English (WEB) only** — the owner made an
+explicit decision that Telugu Bible completeness is no longer part of
+V1, closing out the investigation below rather than continuing to block
+on it. This is a genuine scope change, not a quiet downgrade: everything
+below about Telugu's licensing, import, and the Joel 3 / Malachi 4 gap
+remains accurate and is kept as the historical record of what was
+actually investigated and why the gap exists — Telugu is still real,
+licensed (CC BY-SA 4.0), imported text for 1187 of 1189 chapters, still
+the default Bible language in the app, and still not deleted or reverted.
+It simply no longer has to be complete for V1 to ship. The strict,
+exception-free completeness test that previously kept the mobile test
+suite red (`teluguBible.test.ts`) has been removed for exactly this
+reason — see that file's own comment history and the commit that removed
+it — while the tests documenting the two known gap chapters remain.
 
-## English: resolved and imported
+## English: resolved and imported — the V1 requirement
 
 The World English Bible (WEB) — already confirmed public domain in the
 "English Bible" section below — has now been imported for real. Two
@@ -70,7 +69,7 @@ dataset, ~3.9 MB, kept minified/excluded from Prettier — see
 `.prettierignore`), loaded by `mobile/src/features/bible/webBible.ts`,
 wired into `dataSource.ts`'s `getChapter()` for `language === 'en'` only.
 
-## Telugu: licensed and imported — 1187/1189 chapters (2-chapter gap unresolved)
+## Telugu: licensed and imported, shipped, but OUT OF V1 SCOPE — 1187/1189 chapters (2-chapter gap left unresolved by owner decision)
 
 The lead documented in the prior pass — Telugu IRV 2019 (`tel2017`) via
 [BibleNLP/ebible](https://github.com/BibleNLP/ebible) — has now been
@@ -300,20 +299,19 @@ see that section for why.
 chapters, 31,102 verses (see above).
 
 **Telugu:** real Indian Revised Version (IRV) 2019 text, all 66 books,
-1187 of 1189 chapters (30,868 verses) — **not complete**. 2 chapters
-(Joel 3, Malachi 4 in English numbering) have no real verse text in the
-source, an unresolved gap investigated in depth above, and fall back to
-the same synthetic, clearly-labeled placeholder text Telugu always used
-for unresolved content. This is a known shortfall against the V1
-requirement of "complete 1,189 chapters, no placeholder Bible content,"
-not a substitute considered equivalent to it. The UI's "Development
+1187 of 1189 chapters (30,868 verses) — **not content-complete, and no
+longer required to be, per the owner's decision that Telugu is out of
+V1 scope.** 2 chapters (Joel 3, Malachi 4 in English numbering) have no
+real verse text in the source, an unresolved gap investigated in depth
+above, and fall back to the same synthetic, clearly-labeled placeholder
+text Telugu always used for unresolved content. The UI's "Development
 content — not a real Bible translation" banner shows for those 2
 chapters, in either language (`ChapterScreen.tsx`'s `isPlaceholder`
 check is unchanged, only which chapters resolve to `true` changed).
 
-Telugu is the **default** Bible language on first launch, per the V1
-completion sprint's requirement; English remains fully available as a
-one-tap toggle, and any user's explicit choice always persists.
+Telugu remains the **default** Bible language on first launch (this
+was not reverted); English remains fully available as a one-tap toggle,
+and any user's explicit choice always persists.
 
 **Required attribution (CC BY-SA 4.0):** the Settings screen shows a
 permanent "Bible translations" card crediting the World English Bible
@@ -323,14 +321,18 @@ CC BY-SA 4.0, with the license URL) — see
 
 ## Remaining, unresolved gap — Telugu Bible is NOT complete
 
-The two empty chapters (Joel 3, Malachi 4 in English numbering) are the
-only remaining Bible-content gap in this app, and this section is not a
-sign-off — it's an open item. They are disclosed, not hidden: labeled
-with the same placeholder banner as any other unresolved content,
-documented here and in `teluguBible.ts`'s doc comment, and enforced by
-a test (`teluguBible.test.ts`'s exception-free completeness test) that
-is committed **failing** so this cannot be mistaken for resolved by
-anyone who only checks whether the suite is green.
+**Update: Telugu is out of V1 scope as of the owner's explicit decision,
+so this gap no longer blocks anything.** It remains disclosed here, not
+hidden, and the shipped Telugu content is unchanged (still real for
+1187/1189 chapters, still the default language) — only the requirement
+that it be *complete* was dropped. The two empty chapters (Joel 3,
+Malachi 4 in English numbering) still fall back to the same placeholder
+banner as any other unresolved content, still documented in
+`teluguBible.ts`'s doc comment. The exception-free completeness test
+that previously kept this failing on purpose (`teluguBible.test.ts`) has
+been removed, per that same decision — its own comment named removal by
+human decision as the one valid reason to delete it, and that's what
+happened; the two documented-gap tests remain.
 
 An exhaustive investigation (see "Investigation: are Joel 3 / Malachi 4
 hiding elsewhere?" above) ruled out a versification-mapping error and a
@@ -341,10 +343,9 @@ legally-usable source found, not this project's error. It could not be
 resolved because the two sources that might hold the completed text —
 `ebible.org` directly, and the repository's stated Hugging Face
 mirror — are both unreachable from every development environment this
-project has had access to (re-confirmed this pass). Closing this gap
-requires either a human reaching `ebible.org` from a real browser to
-check whether Stage 5 has since completed, or Bridge Connectivity
-Solutions supplying the completed text directly. Fabricating,
-reconstructing, or substituting another translation's text for these 27
-verses was considered and explicitly rejected — that would be a worse
-outcome than an honestly-disclosed, tested-as-failing gap.
+project has had access to. Should Telugu completeness ever become a
+requirement again, closing this gap requires either a human reaching
+`ebible.org` from a real browser to check whether Stage 5 has since
+completed, or Bridge Connectivity Solutions supplying the completed
+text directly — fabricating, reconstructing, or substituting another
+translation's text for these 27 verses remains explicitly rejected.
