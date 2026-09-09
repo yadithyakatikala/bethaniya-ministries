@@ -52,7 +52,10 @@ Real-device QA                      ← NOT STARTED. No physical device or
         │                             any development environment used for
         │                             this project.
         ▼
-Real production Firebase project    ← NOT STARTED. Requires a human to run
+Real production Firebase project    ← CREATED (bethaniyaministries-
+        │                             production, Spark plan) but not yet
+        │                             connected from this environment.
+        │                             Requires a human to run
         │                             scripts/firebase-production-setup.sh
         │                             with their own Google account (this
         │                             environment cannot log into Google).
@@ -108,7 +111,7 @@ breaking the ₹0 constraint) · ❌ not complete.
 | | Local APK/AAB build | ❌ | `expo prebuild` succeeds (native project generates correctly); `gradlew assembleRelease` then fails at two independent, confirmed points: no JDK 17 (only JDK 21 present) and its auto-provisioner is network-blocked, and separately `dl.google.com` (the Android SDK download host) is denied by network policy — see DEPLOYMENT.md |
 | **Build/release (iOS)** | Bundle identifier, build number | ✅ | |
 | | TestFlight/App Store submission | 💰🔵 | Requires an Apple Developer Program membership (paid, $99/yr) — explicitly out of scope under the ₹0 constraint until you decide otherwise |
-| **Production deployment** | Real Firebase project (production) | 🔵 | Never created; `scripts/firebase-production-setup.sh` (new this checkpoint, mirrors the existing dev script) does everything possible at ₹0 once you run it with your own Google account — this environment cannot log into Google to run it for you |
+| **Production deployment** | Real Firebase project (production) | 🔵 | **Created** (`bethaniyaministries-production`, Spark plan). Not yet connected/deployed from this environment — running `scripts/firebase-production-setup.sh bethaniyaministries-production` (Firestore database, Web app registration, rules/indexes deploy, all Spark-tier) requires your own Google account login, which this environment cannot perform |
 | | Cloud Functions deployment | 💰 | Firebase requires the **Blaze** plan to deploy Functions at all, even at $0 actual usage — explicitly not attached, per the ₹0 constraint |
 | | Firebase Hosting (admin) / EAS (mobile) | 🔵 | Documented in DEPLOYMENT.md, not yet executed — needs a real Firebase/EAS account, still free-tier-capable |
 | **Documentation** | README/ARCHITECTURE/SECURITY/BIBLE_LICENSING/this file | ✅ | Synced to actual implementation state this checkpoint |
@@ -127,10 +130,12 @@ breaking the ₹0 constraint) · ❌ not complete.
   both blockers found this checkpoint) — the commands are already
   documented in DEPLOYMENT.md and `app.json` is already configured
   correctly (verified again this checkpoint via an actual `prebuild` run).
-- **Production Firebase project**: run
-  `scripts/firebase-production-setup.sh <project-id>` with your own
-  Google account (new this checkpoint) — everything it does stays on the
-  free Spark plan.
+- **Production Firebase project**: the project itself now exists
+  (`bethaniyaministries-production`) — run
+  `scripts/firebase-production-setup.sh bethaniyaministries-production`
+  with your own Google account to actually connect this repo to it
+  (Firestore database, Web app registration, rules/indexes deploy);
+  everything it does stays on the free Spark plan.
 - **Firestore offline persistence**: once real-device testing is
   possible, re-attempt `persistentLocalCache()` on an actual device and
   verify it doesn't crash before enabling it — see the reasoning
@@ -144,11 +149,14 @@ breaking the ₹0 constraint) · ❌ not complete.
 
 This document does not claim: that the Telugu Bible is content-complete
 (1187/1189 chapters; 2 remain an unresolved, investigated gap, not an
-accepted substitute for real text); that a production Firebase project
-exists (only the free-tier dev project does — a setup script exists,
-running it is your action); that Cloud Functions have ever been
-deployed; that any screen has been run on a real device or against a
-real (non-emulator) Firebase backend; that an APK or IPA has ever been
+accepted substitute for real text); that this repository is actually
+*connected* to the production Firebase project (the project itself
+exists — `bethaniyaministries-production`, Spark plan — but running the
+setup script to wire this repo to it, and filling in
+`mobile/.env.production`/`admin/.env.production`, is your action, since
+it needs your Google account login); that Cloud Functions have ever
+been deployed; that any screen has been run on a real device or against
+a real (non-emulator) Firebase backend; that an APK or IPA has ever been
 built or installed; that real church branding assets (logo, photos,
 support email) exist anywhere in this repository; or that `npm audit`'s
 outstanding advisories have been fixed rather than knowingly accepted.

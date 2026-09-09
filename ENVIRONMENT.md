@@ -193,6 +193,55 @@ apps" → the web app you registered → SDK setup and configuration → Config.
 These values are not secret (see SECURITY.md) but `.env.local` is gitignored
 regardless, to keep each developer's/environment's config independent.
 
+### Production project — `bethaniyaministries-production`
+
+A real production Firebase project now exists (created by the project
+owner, not by Claude — creating a Google/Firebase project requires an
+account login this development environment cannot perform), on the free
+Spark plan, alongside the existing dev project. `.firebaserc.example`'s
+`production` alias already points at it.
+
+```bash
+npm install -g firebase-tools   # if not already installed
+./scripts/firebase-production-setup.sh bethaniyaministries-production "BethaniyaMinistries Production"
+```
+
+This mirrors `firebase-dev-setup.sh` exactly (see its own header and
+"CLI-doable" section above) — Firestore database creation, Web app
+registration, and `firestore.rules`/`firestore.indexes.json` deploy all
+work on Spark with no billing prompt. It asks for an explicit "yes"
+before doing anything, since this is the real project real church
+member data will eventually live in. It must be run from a machine
+where you can complete the `firebase login` browser flow — this cannot
+be run from an environment with no Google account access, which is why
+it has not been run automatically as part of this setup.
+
+Copy the config it prints into `mobile/.env.production` and
+`admin/.env.production` (**not** `.env.local` — that stays pointed at
+the dev project for everyday local development):
+
+```bash
+cp mobile/.env.example mobile/.env.production
+cp admin/.env.example admin/.env.production
+# fill in the FIREBASE_* values from the script's output, plus:
+#   EXPO_PUBLIC_APP_ENV=production / VITE_APP_ENV=production
+#   EXPO_PUBLIC_USE_FIREBASE_EMULATORS=false / VITE_USE_FIREBASE_EMULATORS=false
+```
+
+Both files are gitignored by the root `.env*` pattern, same as
+`.env.local`. Expo's and Vite's built-in dotenv loading (no extra config
+needed in this repo — verified against the installed `expo@~57` and
+`vite` versions, which both include this by default) automatically pick
+up `.env.production` for a production-mode build/export, so a production
+Android build picks up the production project's config without any
+code change, as long as it's built in production mode
+(`NODE_ENV=production`, which `expo export`/a release Gradle build sets).
+
+**Still Console-only, not done by the script** (see the script's own
+printed output for direct links): enabling Auth sign-in providers
+(Google/Apple/Phone), and everything Blaze-gated (Storage, Cloud
+Functions) — see "Blaze-gated" above; none of that is attempted here.
+
 ## Apple Developer account (needed before real device testing / TestFlight)
 
 - https://developer.apple.com/programs/ — $99/year

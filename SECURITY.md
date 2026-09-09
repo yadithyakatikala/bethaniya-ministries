@@ -726,3 +726,43 @@ re-verification discipline applied, not assumed:
   checks against `firebase.google.com` and
   `firebase-public.firebaseio.com`, both still return a proxy-level 403
   — unchanged from every prior checkpoint.
+
+## Post-Day-16, round 3: production Firebase project connection scaffolding
+
+A real production Firebase project (`bethaniyaministries-production`,
+Spark plan) now exists, created by the project owner (not by Claude —
+this environment cannot log into Google). This checkpoint prepared the
+repository to safely connect to it, without actually connecting (no
+Google account access from here) and without touching any security
+boundary:
+
+- **`firestore.rules`, `storage.rules`, `functions/src` are still
+  byte-identical** to Day 16 — re-confirmed via `git diff` against the
+  Day 16 commit; zero lines changed. No rule was loosened, and none was
+  needed to be — the same deny-by-default rules apply to every project
+  alias equally, since Firestore/Storage rules are not project-specific
+  files.
+- **`.gitignore` fixed, not weakened**: the env-file exclusion pattern
+  was `.env`, `.env.local`, `.env.*.local` — which did **not** actually
+  cover a plain `.env.production` file (a real gap: gitignore glob
+  patterns without a leading `.` wildcard don't match prefix-only).
+  Broadened to `.env*` with a `!.env.example` re-inclusion, verified
+  with `git check-ignore -v` against `.env.production`,
+  `mobile/.env.production`, `admin/.env.production`, and every existing
+  `.example` file, both before (gap confirmed) and after (gap closed)
+  the fix.
+- **No secrets were added.** Only `.firebaserc.example` (a template;
+  `.firebaserc` itself stays gitignored),
+  `mobile/.env.example`/`admin/.env.example` (blank-value templates,
+  same as always), and prose documentation changed. Firebase Web config
+  values (`apiKey`/`authDomain`/`projectId`/`appId`) are not secrets
+  (see this file's own "Secrets" section) and none were entered anyway
+  — this environment has no way to fetch them without a live
+  `firebase login` session.
+- **No service-account keys, private keys, or admin SDK credentials**
+  were created, requested, or referenced anywhere in this change.
+- **Billing/Blaze**: not enabled, not requested, not referenced except
+  in existing documentation explaining what remains Blaze-gated (Storage,
+  Cloud Functions) — unchanged from prior checkpoints.
+- **Secrets scan re-run**: clean, same method and result as every prior
+  checkpoint.

@@ -139,26 +139,35 @@ farthest this project can go on iOS at ₹0.
 ## Environments
 
 Three Firebase projects are planned (dev/staging/production — see
-ENVIRONMENT.md). Only `dev` exists today
-(`bethaniya-ministries-dev-58588`, set up via
-`scripts/firebase-dev-setup.sh`); staging and production can be created
-when actually needed. Each environment gets its own `.firebaserc` target
-alias and its own env file per app (`.env.local` for local dev,
-`.env.production` for production — never commit either; both are
-gitignored).
+ENVIRONMENT.md). `dev` (`bethaniya-ministries-dev-58588`) and
+`production` (`bethaniyaministries-production`) both exist today, both
+on the free Spark plan; `staging` can be created later, when actually
+needed. Each environment gets its own `.firebaserc` target alias
+(`.firebaserc.example`'s `production` alias already points at the real
+production project id) and its own env file per app (`.env.local` for
+local dev, `.env.production` for production — never commit either;
+both are gitignored by the root `.env*` pattern).
 
-**Production, when you're ready:** run
-`./scripts/firebase-production-setup.sh <project-id>` (mirrors the dev
-script exactly — same free-Spark-tier-only steps: project creation,
-Firestore database, Web app registration, rules/indexes deploy — plus an
-explicit "yes" confirmation before touching anything, since this creates
-the real project real church member data will eventually live in). It
-cannot be run from this development environment (no Google account
-login is possible here); run it from a machine where you can complete
-the `firebase login` browser flow. It intentionally does not touch
-Storage or Cloud Functions (both require the Blaze plan) — the script's
-own output tells you exactly what to do when you're ready to attach
-billing.
+**Connecting the production project:** run
+`./scripts/firebase-production-setup.sh bethaniyaministries-production` (mirrors the dev
+script exactly — same free-Spark-tier-only steps: project creation or
+reuse, Firestore database, Web app registration, rules/indexes deploy —
+plus an explicit "yes" confirmation before touching anything, since
+this is the real project real church member data will eventually live
+in). It cannot be run from this development environment (no Google
+account login is possible here); run it from a machine where you can
+complete the `firebase login` browser flow — see ENVIRONMENT.md's
+"Production project" section for the full walkthrough, including where
+to copy its output. It intentionally does not touch Storage or Cloud
+Functions (both require the Blaze plan) — the script's own output tells
+you exactly what to do when you're ready to attach billing.
+
+**Android production builds** pick up `mobile/.env.production`
+automatically (Expo's built-in dotenv loading selects it in production
+mode, no extra config in this repo) — once that file has the production
+project's real config values and `EXPO_PUBLIC_USE_FIREBASE_EMULATORS=false`,
+a release build (see "Local Android APK/AAB build" above) talks to
+`bethaniyaministries-production`, not the dev project or the emulator.
 
 ## CI/CD
 

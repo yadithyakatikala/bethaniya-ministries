@@ -29,6 +29,11 @@
 #   <project-id> may be a NEW id to request, or the ACTUAL id of a project
 #   that already exists (e.g. one Firebase previously created with a
 #   suffix) -- either way this script does the right thing.
+#
+#   The real production project already exists:
+#     ./scripts/firebase-production-setup.sh bethaniyaministries-production "BethaniyaMinistries Production"
+#   Since it already exists, step 2/6 below detects that and reuses it
+#   rather than trying to create a second one.
 set -euo pipefail
 
 PROJECT_ID="${1:?Usage: $0 <project-id> [display-name]}"
