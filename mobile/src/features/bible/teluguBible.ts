@@ -41,18 +41,53 @@
  *
  * COMPLETENESS: 1187 of 1189 chapters have real, non-empty verse text.
  * The two exceptions -- Joel (English) chapter 3 and Malachi (English)
- * chapter 4 -- are verifiably empty in the raw source text itself at
- * every one of their expected reference lines (checked directly, not
- * assumed), not a transformation bug. Since ebible.org's own site
- * (which might hold the original USFM confirming why) is unreachable
- * from this development environment, whether this reflects a genuine
- * gap in the IRV 2019 translation or an extraction artifact on
- * BibleNLP's part could not be independently confirmed -- so, per
- * /BIBLE_LICENSING.md's "no fabricated content" rule, those two chapters
- * fall back to the existing, clearly-labeled synthetic placeholder
- * (isPlaceholder: true) via dataSource.ts, rather than being silently
- * left empty or invented. All other 1187 chapters -- 30,868 real
- * verses -- are genuine IRV 2019 text.
+ * chapter 4 -- were investigated exhaustively (not accepted at face
+ * value) before being treated as a genuine, unrecoverable-from-here gap
+ * rather than a mapping error:
+ *   1. Byte-level: the full BibleNLP/ebible repository was cloned
+ *      (not just individual raw files) and every one of the 27 expected
+ *      lines (Joel Hebrew-ch.4:1-21, Malachi Hebrew-ch.3:19-24) is
+ *      exactly 1 byte (a bare newline) in `corpus/tel-tel2017.txt` --
+ *      confirmed directly, not inferred.
+ *   2. Structural: `metadata/vref.txt` (the reference list this corpus
+ *      is aligned to) has NO other entry anywhere that could hold this
+ *      content under a different numbering -- there is no "MAL 4:x" row
+ *      at all (Hebrew Malachi has only 3 chapters), and the "JOL 4:x"
+ *      rows that do exist are exactly the 21 blank lines above. The
+ *      versification remapping applied elsewhere in this file (see
+ *      above) is therefore already the correct, complete mapping --
+ *      there is nowhere else in this specific source file for this
+ *      content to be hiding.
+ *   3. Documentary: the repository's own README states plainly, under
+ *      "Missing Verses": "Blank lines in the Bible text file indicate
+ *      that the verse was not part of the source Bible." This is the
+ *      extraction pipeline's own direct claim (via SIL's
+ *      `bulk_extract_corpora.py`, which uses the `machine` library's
+ *      standard versification-mapping tables, not naive positional
+ *      alignment) -- not a guess about what a blank line might mean.
+ *   4. Root-cause evidence: `metadata/licenses/tel-tel2017-copr.htm`
+ *      (eBible.org's own generated copyright/status page for this exact
+ *      publication, source files dated 29 Jan 2022) lists this
+ *      translation's status as "Stage 5 - Further Quality Checking --
+ *      In Progress" (stages 1-4 complete). A translation whose final QA
+ *      pass was still in progress at the time this edition was
+ *      published is a credible, sourced explanation for isolated
+ *      missing chapters in an otherwise complete 66-book translation --
+ *      not this app's error, and not evidence of a better mapping being
+ *      available.
+ * `ebible.org` itself (which might have since completed Stage 5 and
+ * published newer, complete source files) remains unreachable from
+ * every development environment this project has had access to, so
+ * this could not be checked directly. Per /BIBLE_LICENSING.md's "no
+ * fabricated content" rule, this text was NOT reconstructed, guessed,
+ * or substituted from another translation. Those two chapters fall back
+ * to the existing, clearly-labeled synthetic placeholder
+ * (isPlaceholder: true) via dataSource.ts. This is a known,
+ * intentionally NOT-yet-satisfied requirement, not a resolved one --
+ * see `__tests__/teluguBible.test.ts`'s strict, exception-free
+ * completeness test, which is committed deliberately failing for
+ * exactly these two chapters rather than weakened to pass. All other
+ * 1187 chapters -- 30,868 real verses -- are genuine IRV 2019 text.
  *
  * VERSE COMBINING: unlike the WEB English dataset (implicit sequential
  * verse numbering), this translation legitimately combines some verses

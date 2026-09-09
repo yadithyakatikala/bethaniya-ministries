@@ -1,18 +1,22 @@
 # Bible Content Licensing
 
-**Status: `ENGLISH: RESOLVED AND IMPORTED` · `TELUGU: RESOLVED AND IMPORTED`**
+**Status: `ENGLISH: RESOLVED AND IMPORTED, COMPLETE` · `TELUGU: LICENSED AND IMPORTED, 1187/1189 CHAPTERS — 2 CHAPTERS REMAIN AN UNRESOLVED CONTENT GAP`**
 
 This is a real, active V1 requirement per
 [FINAL_ARCHITECTURE_SPECIFICATION.md](./FINAL_ARCHITECTURE_SPECIFICATION.md)
-Section C ("English + Telugu Bible, exactly"). Both halves are now done:
-English (World English Bible, public domain) and Telugu (Indian Revised
-Version 2019, CC BY-SA 4.0) are both imported as real, verbatim,
-licensed verse text. This document records exactly what was
-investigated, what's confirmed, and the two small, disclosed content
-gaps that remain in the Telugu text (see "Telugu: resolved" below) —
-not a claim that every last byte of scripture is present, but a claim
-that nothing here was fabricated or imported without confirmed
-permission.
+Section C ("English + Telugu Bible, exactly"). English is fully done.
+Telugu's *licensing* is resolved (Indian Revised Version 2019, CC BY-SA
+4.0) and its text is imported and used as the default Bible language,
+but it is **not** complete: Joel (English) chapter 3 and Malachi
+(English) chapter 4 have no real verse text in the only legally-usable
+source found, and — after an exhaustive investigation documented below —
+could not be recovered from any source reachable from this project's
+development environment. This is reported as an open gap, not glossed
+over as an "acceptable placeholder": `teluguBible.test.ts` carries a
+strict, exception-free completeness test that is committed **deliberately
+failing** for exactly these two chapters, so this state cannot be
+silently mistaken for "done." Nothing here was fabricated, reconstructed,
+or substituted from another translation to make that test pass.
 
 ## English: resolved and imported
 
@@ -66,7 +70,7 @@ dataset, ~3.9 MB, kept minified/excluded from Prettier — see
 `.prettierignore`), loaded by `mobile/src/features/bible/webBible.ts`,
 wired into `dataSource.ts`'s `getChapter()` for `language === 'en'` only.
 
-## Telugu: resolved and imported
+## Telugu: licensed and imported — 1187/1189 chapters (2-chapter gap unresolved)
 
 The lead documented in the prior pass — Telugu IRV 2019 (`tel2017`) via
 [BibleNLP/ebible](https://github.com/BibleNLP/ebible) — has now been
@@ -136,16 +140,20 @@ consistent answers is further evidence the table itself is reliable.
   Malachi 3:19-24 → English 4:1-6.
 - **Completeness:** 1187 of 1189 chapters (30,868 verses) carry real
   IRV 2019 text. Two chapters — Joel (English) chapter 3 and Malachi
-  (English) chapter 4 — are empty at every one of their expected
-  reference lines in the raw source text itself (checked directly), not
-  a transformation bug. Because `ebible.org` itself (which might hold
-  the original USFM confirming why) is unreachable from this
-  environment, whether this is a genuine translation gap or a BibleNLP
-  extraction artifact could not be independently confirmed — so, rather
-  than inventing or silently omitting content, those two chapters (0.17%
-  of the canon) fall back to the same clearly-labeled synthetic
-  placeholder text (`placeholderData.ts`) Telugu always showed, with the
-  same "Development content — not a real Bible translation" banner.
+  (English) chapter 4 — have no real verse text in this source. This is
+  an **open, unresolved gap**, investigated exhaustively (see
+  "Investigation: are Joel 3 / Malachi 4 hiding elsewhere?" below), not
+  something accepted at face value or waved through as an "acceptable
+  placeholder." Those two chapters fall back to the same clearly-labeled
+  synthetic placeholder text (`placeholderData.ts`) Telugu always showed
+  for unresolved content, with the same "Development content — not a
+  real Bible translation" banner — but the underlying requirement
+  ("complete 1,189 chapters, no placeholder Bible content") is **not
+  met** for these two chapters, and this document does not claim
+  otherwise. `mobile/src/features/bible/__tests__/teluguBible.test.ts`
+  carries a strict test with no carve-out for these two chapters,
+  committed **deliberately failing**, so this gap cannot be silently
+  mistaken for resolved by anyone reading test results alone.
 - **Verse combining:** this translation legitimately combines some
   verses under one printed verse number (translator's discretion, not a
   data gap — confirmed by cross-checking every chapter's verse-number
@@ -163,6 +171,77 @@ into `dataSource.ts`'s `getChapter()` for `language === 'te'`. Telugu is
 now the **default** Bible language on first launch (see
 `languagePreference.ts`'s `DEFAULT_LANGUAGE`); a previously (or newly)
 persisted user choice, English included, is always respected.
+
+### Investigation: are Joel 3 / Malachi 4 hiding elsewhere?
+
+A first pass accepted the two empty chapters as "probably a
+versification issue or an extraction artifact, can't tell from here."
+That was not good enough — the possibility that the real text exists
+elsewhere in the same licensed source, under different numbering, had
+to actually be ruled out, not just raised and left open. It was: the
+full `BibleNLP/ebible` repository was cloned (not just individual raw
+files fetched, as before), so the investigation could check things a
+handful of `raw.githubusercontent.com` fetches couldn't.
+
+1. **Byte-level check.** Every one of the 27 expected lines — Hebrew
+   Joel 4:1-21 (→ English 3:1-21) and Hebrew Malachi 3:19-24 (→ English
+   4:1-6) — is exactly 1 byte (a bare newline) in
+   `corpus/tel-tel2017.txt`. Confirmed directly with `sed`/byte-length
+   checks, not inferred from chapter-level absence.
+2. **Is there another slot for this content?** `metadata/vref.txt` (the
+   reference list `corpus/tel-tel2017.txt` is line-aligned to) was
+   checked in full for Malachi and Joel. There is **no `MAL 4:x` entry
+   anywhere in the file** — Hebrew/Original versification's Malachi has
+   only 3 chapters, and the file jumps directly from `MAL 3:24` to
+   `MAT 1:1`. The `JOL 4:x` entries that do exist are exactly the 21
+   blank lines above. In other words: the versification remapping this
+   project already applies (Hebrew Joel 4 → English Joel 3; Hebrew
+   Malachi 3:19-24 → English Malachi 4) is the *complete, correct*
+   mapping for this reference scheme — there is no second, undiscovered
+   location in this file where this content could be sitting under a
+   different chapter number. This directly rules out "it's just a
+   mapping bug on this project's side."
+3. **What does a blank line actually mean here?** The repository's own
+   `README.md`, under "Missing Verses", states: *"Blank lines in the
+   Bible text file indicate that the verse was not part of the source
+   Bible."* This is the extraction pipeline's own documented claim, not
+   a guess. The extraction itself (`bulk_extract_corpora.py`, per that
+   same README, from SIL's NLP tooling) uses the `machine` library's
+   canon/versification-mapping utilities (`code/python/vrs_diffs.py`
+   imports `machine.scripture.canon`) — standard, purpose-built
+   versification infrastructure used broadly in Bible-translation NLP
+   work, not a naive line-position match. That makes "blank = not in
+   the source" a credible claim from the tooling, not merely a
+   convenient one.
+4. **Why would a complete, certified translation have two blank
+   chapters?** `metadata/licenses/tel-tel2017-copr.htm` — eBible.org's
+   own generated copyright/status page for this exact publication
+   (source files dated 29 Jan 2022) — lists this translation's
+   checking status as **"Stage 5 - Further Quality Checking — In
+   Progress"** (Stages 1-4: Initial Drafting, Community Checking, Local
+   Consultant Checking, Church Network Leaders Checking — all marked
+   Completed). A translation whose final quality-checking pass was
+   still in progress as of its published source files is a plausible,
+   sourced explanation for two isolated incomplete chapters in an
+   otherwise complete 66-book translation — not proof, but real
+   evidence pointing at "genuine gap in this edition," not "this
+   project's mapping is wrong."
+
+**Conclusion:** this is a genuine, unresolved content gap in the only
+legally-usable Telugu source found — not a versification-mapping
+mistake (ruled out structurally), not something this project's
+extraction script got wrong (ruled out at the byte level), and credibly
+explained by the translation's own in-progress QA status at publication
+time. `ebible.org` itself — which might hold updated source files if
+Stage 5 has since completed — remains unreachable from every
+development environment this project has had access to (confirmed
+again this pass: direct `curl` attempts against both `ebible.org` and
+`huggingface.co`, the repo's stated Hugging Face mirror, both fail with
+a proxy-level `403`). Recovering the real text for these 27 verses
+requires either a human reaching `ebible.org` directly from a real
+browser, or Bridge Connectivity Solutions supplying the completed text
+directly. This project will not fabricate, reconstruct, or substitute
+another translation's text to close this gap.
 
 | Candidate | Status | Why |
 | --- | --- | --- |
@@ -209,10 +288,11 @@ tooling limitation). What actually unblocked English was discovering that
 **`raw.githubusercontent.com` is reachable and returns real file bytes**
 for a specific, known, publicly-documented path — a different, verifiable
 retrieval method the original pass didn't have available/didn't try, not
-a change in what's permitted. The same method later resolved Telugu too
-(see "Telugu: resolved and imported" above) once the right file —
-`metadata/licences.tsv`, a table rather than per-translation files — was
-found.
+a change in what's permitted. The same method later resolved Telugu's
+*licensing* too (see "Telugu: licensed and imported" above) once the
+right file — `metadata/licences.tsv`, a table rather than
+per-translation files — was found; its *content* is still not complete,
+see that section for why.
 
 ## What ships now
 
@@ -220,13 +300,15 @@ found.
 chapters, 31,102 verses (see above).
 
 **Telugu:** real Indian Revised Version (IRV) 2019 text, all 66 books,
-1187 of 1189 chapters (30,868 verses) — the remaining 2 chapters (Joel
-3, Malachi 4, both empty in the source itself) fall back to the same
-synthetic, clearly-labeled placeholder text Telugu always used for
-unresolved content, per the spec's own explicitly-sanctioned fallback
-("Option 3: Hardcoded Sample Data," Section C). The UI's "Development
-content — not a real Bible translation" banner now shows only for those
-2 chapters, in either language (`ChapterScreen.tsx`'s `isPlaceholder`
+1187 of 1189 chapters (30,868 verses) — **not complete**. 2 chapters
+(Joel 3, Malachi 4 in English numbering) have no real verse text in the
+source, an unresolved gap investigated in depth above, and fall back to
+the same synthetic, clearly-labeled placeholder text Telugu always used
+for unresolved content. This is a known shortfall against the V1
+requirement of "complete 1,189 chapters, no placeholder Bible content,"
+not a substitute considered equivalent to it. The UI's "Development
+content — not a real Bible translation" banner shows for those 2
+chapters, in either language (`ChapterScreen.tsx`'s `isPlaceholder`
 check is unchanged, only which chapters resolve to `true` changed).
 
 Telugu is the **default** Bible language on first launch, per the V1
@@ -239,14 +321,30 @@ permanent "Bible translations" card crediting the World English Bible
 CC BY-SA 4.0, with the license URL) — see
 `SettingsScreen.tsx`'s `settings-bible-attribution` card.
 
-## Remaining, honestly disclosed gap
+## Remaining, unresolved gap — Telugu Bible is NOT complete
 
 The two empty chapters (Joel 3, Malachi 4 in English numbering) are the
-only remaining Bible-content gap in this app. They are disclosed, not
-hidden: labeled with the same placeholder banner as any other
-unresolved content, and documented here and in `teluguBible.ts`'s doc
-comment. Resolving whether this is a genuine translation gap or a
-BibleNLP extraction artifact would require reaching `ebible.org`
-directly (blocked from this environment) or contacting Bridge
-Connectivity Solutions — optional, low-priority, since it affects 2 of
-1189 chapters (~0.17%) and both are already handled safely.
+only remaining Bible-content gap in this app, and this section is not a
+sign-off — it's an open item. They are disclosed, not hidden: labeled
+with the same placeholder banner as any other unresolved content,
+documented here and in `teluguBible.ts`'s doc comment, and enforced by
+a test (`teluguBible.test.ts`'s exception-free completeness test) that
+is committed **failing** so this cannot be mistaken for resolved by
+anyone who only checks whether the suite is green.
+
+An exhaustive investigation (see "Investigation: are Joel 3 / Malachi 4
+hiding elsewhere?" above) ruled out a versification-mapping error and a
+mapping mistake on this project's part, and found credible evidence
+(the translation's own "Stage 5 — Further Quality Checking: In
+Progress" status at publication) that this is a genuine gap in the only
+legally-usable source found, not this project's error. It could not be
+resolved because the two sources that might hold the completed text —
+`ebible.org` directly, and the repository's stated Hugging Face
+mirror — are both unreachable from every development environment this
+project has had access to (re-confirmed this pass). Closing this gap
+requires either a human reaching `ebible.org` from a real browser to
+check whether Stage 5 has since completed, or Bridge Connectivity
+Solutions supplying the completed text directly. Fabricating,
+reconstructing, or substituting another translation's text for these 27
+verses was considered and explicitly rejected — that would be a worse
+outcome than an honestly-disclosed, tested-as-failing gap.

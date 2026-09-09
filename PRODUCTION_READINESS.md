@@ -32,15 +32,20 @@ V1 completion sprint (round 1)       ← done, PARTIALLY: real English Bible
         │                             blocked by environment (no Android
         │                             SDK access)
         ▼
-V1 completion sprint (round 2)       ← done: Telugu Bible licensing
-        │                             resolved and imported (IRV 2019,
-        │                             CC BY-SA 4.0) and made the default
-        │                             language; Android APK build
-        │                             re-attempted with two more precise,
-        │                             confirmed blockers found (JDK 17 +
-        │                             SDK download, both network-blocked);
-        │                             a production Firebase setup script
-        │                             added (Spark-tier only, no billing)
+V1 completion sprint (round 2)       ← done, PARTIALLY: Telugu Bible
+        │                             licensing resolved and imported
+        │                             (IRV 2019, CC BY-SA 4.0) as the
+        │                             default language, but NOT content-
+        │                             complete -- 1187/1189 chapters real,
+        │                             2 (Joel 3, Malachi 4) an exhaustively
+        │                             investigated, unresolved gap (not a
+        │                             mapping error, see BIBLE_LICENSING.md);
+        │                             Android APK build re-attempted with
+        │                             two more precise, confirmed blockers
+        │                             found (JDK 17 + SDK download, both
+        │                             network-blocked); a production
+        │                             Firebase setup script added
+        │                             (Spark-tier only, no billing)
         ▼
 Real-device QA                      ← NOT STARTED. No physical device or
         │                             simulator has ever been available in
@@ -84,15 +89,15 @@ breaking the ₹0 constraint) · ❌ not complete.
 | | `firebase-tests/` integration suite | ❌ | Blocked by both the emulator issue above and a `firebase@^12` vs. `@firebase/rules-unit-testing@^3`'s `peer firebase@^10` dependency conflict |
 | **Mobile functionality** | Auth (Google/Apple/Phone OTP), session persistence, sign-out | ✅ code / 🟠 unverified | Unit-tested against mocks only; never exercised against a real OAuth provider or real device |
 | | Bible reader (English) | ✅ | Real World English Bible text, all 66 books, 1189 chapters, 31,102 verses |
-| | Bible reader (Telugu, default language) | ✅ | Real Indian Revised Version (IRV) 2019 text (CC BY-SA 4.0), all 66 books, 1187/1189 chapters real (2 documented source gaps use the labeled placeholder) — see BIBLE_LICENSING.md |
+| | Bible reader (Telugu, default language) | 🟡 | Real Indian Revised Version (IRV) 2019 text (CC BY-SA 4.0), all 66 books, **1187/1189 chapters real — 2 chapters (Joel 3, Malachi 4) are an investigated, unresolved content gap, not an accepted placeholder substitute** — see BIBLE_LICENSING.md |
 | | Songs/audio, Events/YouTube Live, Notifications, Profile, Settings | ✅ | Implemented, tested against mocked Firebase; never run against a real backend or device |
 | **Bible** | English text | ✅ | See BIBLE_LICENSING.md |
-| | Telugu text | ✅ | Resolved — CC BY-SA 4.0 confirmed via BibleNLP/ebible's `metadata/licences.tsv`; see BIBLE_LICENSING.md |
+| | Telugu text | 🟡 | Licensing resolved (CC BY-SA 4.0, confirmed via BibleNLP/ebible's `metadata/licences.tsv`); content is **not** complete — 1187/1189 chapters, 2-chapter gap unresolved after exhaustive investigation, see BIBLE_LICENSING.md |
 | **RBAC** | Role matrix (member/host/content_admin/super_admin) | ✅ | Enforced server-side in rules, mirrored client-side for UX; self-demotion guard tested |
 | **Notifications** | Composition, validation, history, local read/unread | ✅ | |
 | | Real FCM push delivery | ❌ | No device has ever registered a push token in this project's history; nothing to make it work regardless of billing plan |
 | **Live stream** | Host-managed YouTube URL/live-status toggle | ✅ | RBAC-gated, tested |
-| **Testing** | Mobile unit/component tests | ✅ | 295/295 passing (up from 284 — Telugu Bible tests added), 87.1% statement coverage |
+| **Testing** | Mobile unit/component tests | 🟡 | 295/296 passing, 44/45 suites. The 1 failure is deliberate (`teluguBible.test.ts`'s exception-free completeness check, failing on exactly the 2 gap chapters) — see "Bible" row above. 87.1% statement coverage |
 | | Admin unit/component/RBAC tests | ✅ | 249/249 passing, 87.8% statement coverage |
 | | Functions unit tests | 🟡 | Only `healthCheck.test.ts` runs (4/4); four emulator-backed handler test files are structurally sound but unexecuted (see Backend row above) |
 | **Security** | Rules/RBAC audit | ✅ | Re-confirmed byte-identical to pre-Vespers baseline this checkpoint |
@@ -137,13 +142,15 @@ breaking the ₹0 constraint) · ❌ not complete.
 
 ## Explicitly not claimed
 
-This document does not claim: that a production Firebase project exists
-(only the free-tier dev project does — a setup script exists, running it
-is your action); that Cloud Functions have ever been deployed; that any
-screen has been run on a real device or against a real (non-emulator)
-Firebase backend; that an APK or IPA has ever been built or installed;
-that real church branding assets (logo, photos, support email) exist
-anywhere in this repository; or that `npm audit`'s outstanding advisories
-have been fixed rather than knowingly accepted. Each of those is tracked
-in its own document (BIBLE_LICENSING.md, SECURITY.md, DEPLOYMENT.md)
-rather than summarized away here.
+This document does not claim: that the Telugu Bible is content-complete
+(1187/1189 chapters; 2 remain an unresolved, investigated gap, not an
+accepted substitute for real text); that a production Firebase project
+exists (only the free-tier dev project does — a setup script exists,
+running it is your action); that Cloud Functions have ever been
+deployed; that any screen has been run on a real device or against a
+real (non-emulator) Firebase backend; that an APK or IPA has ever been
+built or installed; that real church branding assets (logo, photos,
+support email) exist anywhere in this repository; or that `npm audit`'s
+outstanding advisories have been fixed rather than knowingly accepted.
+Each of those is tracked in its own document (BIBLE_LICENSING.md,
+SECURITY.md, DEPLOYMENT.md) rather than summarized away here.
