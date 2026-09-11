@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bethaniyaministries.app",
@@ -37,7 +36,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#273456"
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-audio",
+      "expo-web-browser"
     ],
     "extra": {}
   }
