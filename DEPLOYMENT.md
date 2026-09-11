@@ -70,60 +70,164 @@ configuration is tied to a real Expo/EAS account that doesn't exist yet.
 An alternative to EAS Build that stays entirely local and needs no
 external account — only a machine with the Android SDK installed
 (Android Studio, or just the command-line tools + a platform/build-tools
-version). This was investigated across two V1 completion sprints and is
-genuinely **blocked in this repository's development environment**, at
-two independent points, both confirmed by actually attempting the build
-(not assumed):
+version). This was investigated across three V1 completion sprints, most
+recently the "FINAL V1 RELEASE" checkpoint, which narrowed the blocker
+down to exactly one remaining point (the other two are now solved):
 
 1. `npx expo prebuild --platform android` **succeeds** — it generates a
    real, correctly-configured native `android/` project
    (`applicationId 'com.bethaniyaministries.app'`, `versionCode 1`,
    `versionName "1.0.0"`, matching `app.json`) without needing the
-   Android SDK at all. This step works fine here.
-2. `./gradlew assembleRelease` reaches Gradle itself (it downloads and
-   starts Gradle 9.3.1 successfully — `services.gradle.org` is
-   reachable), then fails at dependency resolution: React Native's
-   Android Gradle plugin requires a **Java 17** toolchain, this
-   environment only has **Java 21** installed
-   (`/usr/lib/jvm/java-21-openjdk-amd64`, no JDK 17 present), and
-   Gradle's automatic toolchain provisioner (`foojay-resolver`) —
-   which would otherwise download a matching JDK 17 on the fly — is
-   itself blocked: `Unable to tunnel through proxy. Proxy returns
-   "HTTP/1.1 403 Forbidden"`. Even past that, the next step would need
-   Android SDK platform/build-tools components, and `dl.google.com`
-   (the host `sdkmanager` downloads those from) is separately denied by
-   this environment's network egress policy — confirmed by a direct
-   `curl` connection attempt (`CONNECT tunnel failed, response 403`),
-   the same class of block as `firebase.google.com`.
+   Android SDK at all. Also verified this checkpoint: `compileSdk`/
+   `targetSdk` resolve to `36`, `minSdk` to `24` (Expo SDK 57 defaults,
+   comfortably meets Play Store's current target-API-level requirement).
+2. **JDK 17 and `adb` are now both solvable without any network access
+   to Google's own hosts** — this checkpoint found and verified that
+   Ubuntu's own package archive (`archive.ubuntu.com`, not a Google
+   host) carries both directly:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y openjdk-17-jdk-headless adb
+   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # or wherever it installed
+   ```
+   (On macOS, the equivalent is `brew install openjdk@17 android-platform-tools`,
+   or Android Studio's own bundled JDK 17 + SDK Manager — either works;
+   this repo doesn't require the sandbox's exact apt path, just *a* JDK
+   17 and *an* `adb`.)
+3. **The one remaining, confirmed-real blocker in this sandboxed
+   environment**: the Android Gradle Plugin still can't compile,
+   because it resolves `android.jar`, build-tools, and its own
+   dependencies via Google's Maven repository — `maven.google.com`,
+   which redirects to `dl.google.com` — and `dl.google.com` is denied
+   by this sandbox's egress proxy under an **explicit organization
+   policy** (not a generic timeout): confirmed three independent ways
+   this checkpoint — a direct `curl` to `dl.google.com` (`403`), a
+   `curl -L` follow of `maven.google.com`'s redirect landing on the
+   same denied host, and a live `apt-get install` of Ubuntu's own
+   `google-android-cmdline-tools` package, whose postinstall script
+   itself tried to `wget` from `dl.google.com` and failed identically.
+   No local mirror or alternate host fixes this — it's a named-host
+   policy block, not a missing tool. **This is why the actual Gradle
+   build has to run on your own machine**, not in this sandbox.
 
-Two independent, confirmed blockers, not a guess: a missing JDK 17
-whose auto-provisioner is network-blocked, and a separately
-network-blocked Android SDK component host. `app.json`'s
-`android.versionCode`/`ios.buildNumber` were added during the first V1
-completion sprint so the config is ready the moment a real build
-environment is available — verified correct again this pass via an
-actual (then-cleaned-up) `prebuild` run, not just by reading the file.
+`app.json`'s `android.versionCode`/`ios.buildNumber` are ready; nothing
+about the JS/TS side of this project is what's blocking a build.
 
-On a real machine with the Android SDK installed:
+**On your own machine** (Mac, Linux, or a CI runner — anywhere with
+outbound access to Google's Maven/SDK hosts), once JDK 17 + the Android
+SDK (via Android Studio's SDK Manager, or `sdkmanager` directly) are
+installed:
+
+#### One-time: generate a release signing key
+
+Play Store rejects debug-signed builds outright, and the native project
+Expo generates (`android/`) is **not committed to this repo** — every
+`expo prebuild` regenerates it from scratch, wiping any hand-edit to
+`android/app/build.gradle`. So: run `prebuild` exactly once, apply the
+signing edit below exactly once, and don't run `expo prebuild` again
+afterwards unless you're prepared to redo this step.
 
 ```bash
 cd mobile
-npx expo prebuild --platform android   # generates the android/ native project
-cd android
-./gradlew assembleRelease              # unsigned release APK, or:
-./gradlew bundleRelease                # release AAB (Play Store upload format)
+npx expo prebuild --platform android   # generates android/ — do this ONCE
+
+# Generate a real release keystore (entirely free/local, no account
+# needed, never expires by default with -validity 10000 ~= 27 years).
+# Keep the resulting file and both passwords somewhere safe outside git
+# -- losing them means you can NEVER publish an update to the same Play
+# Store listing again, Google cannot recover or reset this for you.
+mkdir -p android-signing
+keytool -genkeypair -v \
+  -keystore android-signing/release.keystore \
+  -alias bethaniya-release \
+  -keyalg RSA -keysize 2048 -validity 10000
+# (prompts for a keystore password, then organization/name details, then
+#  a key password -- you can reuse the same password for both)
+
+cat > android-signing/keystore.properties <<'EOF'
+storeFile=../android-signing/release.keystore
+storePassword=REPLACE_WITH_YOUR_KEYSTORE_PASSWORD
+keyAlias=bethaniya-release
+keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD
+EOF
 ```
 
-The resulting APK lands at
-`android/app/build/outputs/apk/release/app-release-unsigned.apk`. It is
-**unsigned** — installing it on a real device or submitting an AAB to
-Play Console additionally requires generating a signing keystore
-(`keytool -genkeypair ...`, entirely free/local, no account needed) and
-configuring `android/app/build.gradle`'s `signingConfigs` before
-`assembleRelease`/`bundleRelease` will produce something installable
-outside of local testing. None of this requires Blaze, a paid Apple/
-Google developer account, or any billing — only local tooling this
-specific sandboxed environment happens not to have access to.
+`mobile/.gitignore` already excludes `*.keystore` and
+`keystore.properties` anywhere in the project, so neither can be
+accidentally committed.
+
+Now edit `android/app/build.gradle` (inside the `android { }` block) —
+this is the standard, official React Native signing pattern
+(reactnative.dev/docs/signed-apk-android), applied once:
+
+```diff
+     signingConfigs {
+         debug {
+             storeFile file('debug.keystore')
+             storePassword 'android'
+             keyAlias 'androiddebugkey'
+             keyPassword 'android'
+         }
++        release {
++            def keystorePropertiesFile = rootProject.file('../android-signing/keystore.properties')
++            def keystoreProperties = new Properties()
++            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
++            storeFile rootProject.file(keystoreProperties['storeFile'])
++            storePassword keystoreProperties['storePassword']
++            keyAlias keystoreProperties['keyAlias']
++            keyPassword keystoreProperties['keyPassword']
++        }
+     }
+     buildTypes {
+         debug {
+             signingConfig signingConfigs.debug
+         }
+         release {
+-            // Caution! In production, you need to generate your own keystore file.
+-            // see https://reactnative.dev/docs/signed-apk-android.
+-            signingConfig signingConfigs.debug
++            signingConfig signingConfigs.release
+             def enableShrinkResources = ...
+```
+
+#### Every build after that
+
+```bash
+cd mobile
+export JAVA_HOME=/path/to/jdk-17          # must be 17, not 21 or newer
+export ANDROID_HOME=/path/to/android/sdk  # wherever Android Studio installed it
+
+# Confirm the release build targets PRODUCTION Firebase, not the emulator:
+grep EXPO_PUBLIC_USE_FIREBASE_EMULATORS .env.production   # must read "false"
+grep EXPO_PUBLIC_FIREBASE_PROJECT_ID .env.production      # must read bethaniyaministries-production
+
+cd android
+./gradlew assembleRelease   # -> app/build/outputs/apk/release/app-release.apk
+./gradlew bundleRelease     # -> app/build/outputs/bundle/release/app-release.aab
+```
+
+Both commands now produce **signed**, installable, Play-Store-ready
+artifacts — `assembleRelease` an APK for direct device install/testing,
+`bundleRelease` the `.aab` Play Console actually requires for
+submission. **Building and side-loading either one for real-device QA
+costs nothing** — no Blaze, no paid Apple/Google developer account, no
+billing of any kind.
+
+**Flagging a real, unavoidable cost, separate from this project's ₹0
+Firebase constraint, that needs your explicit decision before Phase
+11/submission, not something to wave through:** actually *submitting*
+to the Google Play Store requires a Google Play Console developer
+account, which carries a one-time, non-refundable **$25 USD**
+registration fee charged by Google directly (a Play Console account
+fee, unrelated to Firebase/GCP billing — enabling it never touches this
+project's Firebase project or its Spark-plan status). This has been
+true of Play Console for years and isn't something this project can
+build around technically. Building the AAB, installing/testing the
+APK, and preparing every Play Store listing asset all cost nothing; the
+$25 is specifically for the Play Console account needed to click
+"submit." Do not pay this, or create/use a Play Console account, without
+saying so explicitly first — everything through Phase 10 (signed AAB in
+hand) is achievable at true ₹0.
 
 ### Local iOS build
 

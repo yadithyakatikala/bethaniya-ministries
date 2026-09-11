@@ -63,23 +63,64 @@ V1 completion sprint (round 3)       ← done: Telugu Bible formally
         │                             device QA checklist added
         │                             (QA_CHECKLIST.md)
         ▼
+New V1 features checkpoint          ← done: Reading Plans, Prayers,
+        │                             Community added (owner decision,
+        │                             beyond the original spec), official
+        │                             church logo integrated into every
+        │                             icon/splash asset, this sandbox's
+        │                             network policy changed and every
+        │                             emulator-backed test suite that was
+        │                             previously "blocked" now actually
+        │                             runs and passes
+        ▼
+FINAL V1 RELEASE PHASE checkpoint   ← done, PARTIALLY: full audit +
+        │                             re-verification of everything above
+        │                             (still green); JDK 17 + adb SOLVED in
+        │                             this sandbox (Ubuntu's own apt
+        │                             archive, no Google host needed);
+        │                             the Android Gradle Plugin itself
+        │                             confirmed genuinely blocked by an
+        │                             EXPLICIT organization-policy denial
+        │                             of dl.google.com/maven.google.com
+        │                             (verified 3 independent ways, not a
+        │                             generic timeout); release-signing
+        │                             gap found and documented with exact
+        │                             fix (DEPLOYMENT.md); Play Store
+        │                             readiness audited end-to-end
+        │                             (PLAY_STORE_READINESS.md) with every
+        │                             declaration derived from actual app
+        │                             behavior; a real, unapproved $25
+        │                             Play Console fee flagged, not
+        │                             assumed-and-proceeded-past
+        ▼
 Real-device QA                      ← NOT STARTED. No physical device or
         │                             simulator has ever been available in
         │                             any development environment used for
-        │                             this project.
+        │                             this project. QA_CHECKLIST.md
+        │                             rewritten this checkpoint to target
+        │                             the release APK against PRODUCTION
+        │                             Firebase specifically (not dev/
+        │                             emulator, per this checkpoint's
+        │                             explicit instruction).
         ▼
 Real production Firebase project    ← CREATED (bethaniyaministries-
-        │                             production, Spark plan) but not yet
-        │                             connected from this environment.
-        │                             Requires a human to run
-        │                             scripts/firebase-production-setup.sh
-        │                             with their own Google account (this
-        │                             environment cannot log into Google).
+        │                             production, Spark plan). Connectivity
+        │                             independently confirmed reachable by
+        │                             the owner from their own machine
+        │                             (Auth + Firestore both reachable,
+        │                             unauthenticated access correctly
+        │                             denied) — this environment still
+        │                             cannot log into Google itself to
+        │                             verify it directly.
         ▼
-Release preparation                 ← NOT STARTED. Store listings, EAS/
-        │                             local builds actually produced and
-        │                             installed, real church branding/
-        │                             content
+Release preparation                 ← PARTIALLY STARTED. Signing/build
+        │                             runbook and Play Store metadata
+        │                             audited and documented; the actual
+        │                             signed APK/AAB have not been built
+        │                             anywhere (needs a real machine —
+        │                             see above), and no store listing
+        │                             creative assets (screenshots,
+        │                             feature graphic, final copy) exist.
         ▼
 PRODUCTION READY
 ```
@@ -127,29 +168,36 @@ breaking the ₹0 constraint) · ❌ not complete.
 | | `npm audit` | 🟡 | Admin: 0. Mobile: 16 moderate (transitive, Expo tooling). Functions: 7 moderate (transitive, `firebase-admin`'s GCP client chain). None exploitable via this app's own code paths; fixing requires breaking downgrades, left as a deliberate, documented decision |
 | **Build/release (Android)** | App identity (name, package id, version, versionCode) | ✅ | `applicationId 'com.bethaniyaministries.app'`, `versionCode 1` — verified again this checkpoint via an actual `expo prebuild` run |
 | | Real app icon / adaptive icon / splash | ✅ | The owner supplied the real church logo at `assets/branding/church-logo.png`. All six icon/splash PNGs in `mobile/assets/` are now derived from it (icon, Android adaptive-icon foreground/background/monochrome layers, splash icon, web favicon), with `app.json`'s `backgroundColor`/`expo-splash-screen` config wired to match — verified via `expo prebuild` regenerating the native project correctly |
-| | Local APK/AAB build | ❌ | Re-verified this checkpoint: `expo prebuild` still succeeds (native project regenerates correctly with the new icon/splash config); `gradlew assembleRelease` still fails at the same two independent, confirmed points as every prior checkpoint: no JDK 17 (only JDK 21 present) and its `foojay` auto-provisioner is network-blocked (HTTP 403 via the proxy), and separately `dl.google.com` (the Android SDK component download host) is still denied by network policy (confirmed via a direct `curl`, HTTP 403) — see DEPLOYMENT.md |
+| | Local APK/AAB build | ❌ | Re-verified this checkpoint with genuinely new findings, not a repeat: **JDK 17 and `adb` are now solved** in this sandbox — installed via `apt` from Ubuntu's own archive (`archive.ubuntu.com`), no Google host needed. The Android Gradle Plugin itself is still blocked, but more precisely characterized now: it resolves `android.jar`/build-tools/its own dependencies via `maven.google.com` (redirects to `dl.google.com`), and `dl.google.com` is denied under an **explicit organization policy** at this sandbox's proxy — confirmed 3 independent ways (direct `curl`, following `maven.google.com`'s redirect, and a live `apt-get install` of Ubuntu's own `google-android-cmdline-tools` package whose own postinstall `wget` failed identically). Not a missing-tool problem anymore — a named-host policy block only your own machine can get past. See DEPLOYMENT.md for the exact runbook |
+| | Release signing configuration | ❌ new finding | The native project's generated `android/app/build.gradle` currently signs **release** builds with the **debug** keystore (template default — no keystore has ever been generated). Play Store rejects debug-signed uploads outright. Exact fix (keystore generation + a 3-line `build.gradle` edit, the standard `reactnative.dev`-documented pattern) is now in DEPLOYMENT.md; `mobile/.gitignore` was extended to cover `*.keystore`/`keystore.properties` before any such file could ever be created near a commit |
 | **Build/release (iOS)** | Bundle identifier, build number | ✅ | |
 | | TestFlight/App Store submission | 💰🔵 | Requires an Apple Developer Program membership (paid, $99/yr) — explicitly out of scope under the ₹0 constraint until you decide otherwise |
-| **Production deployment** | Real Firebase project (production) | 🔵 | **Created** (`bethaniyaministries-production`, Spark plan). Not yet connected/deployed from this environment — running `scripts/firebase-production-setup.sh bethaniyaministries-production` (Firestore database, Web app registration, rules/indexes deploy, all Spark-tier) requires your own Google account login, which this environment cannot perform |
+| **Production deployment** | Real Firebase project (production) | 🔵 | **Created** (`bethaniyaministries-production`, Spark plan). Connectivity independently confirmed reachable from the owner's own machine this checkpoint (Auth + Firestore reachable, unauthenticated access correctly denied) — running `scripts/firebase-production-setup.sh` end-to-end still requires your own Google account login, which this environment cannot perform |
 | | Cloud Functions deployment | 💰 | Firebase requires the **Blaze** plan to deploy Functions at all, even at $0 actual usage — explicitly not attached, per the ₹0 constraint |
 | | Firebase Hosting (admin) / EAS (mobile) | 🔵 | Documented in DEPLOYMENT.md, not yet executed — needs a real Firebase/EAS account, still free-tier-capable |
+| **Play Store** | Readiness audit (app identity, permissions, Data Safety, privacy policy draft) | 🟡 new | PLAY_STORE_READINESS.md added this checkpoint — every declaration derived from actual app behavior (verified: no analytics/crash SDK, no location, no ad tracking; real: auth identifiers, profile photo, private prayer text). Store creative assets (screenshots, feature graphic, final listing copy) and a published privacy-policy URL still need your input — not something to fabricate |
+| | Play Console account / actual submission | 💰🔵 | **Real, unapproved cost**: one-time $25 USD Play Console registration fee, charged by Google directly — separate from and unrelated to the Firebase ₹0 constraint, but flagged rather than assumed. Not created; nothing submitted; will not proceed without your explicit approval |
 | **Documentation** | README/ARCHITECTURE/SECURITY/BIBLE_LICENSING/this file | ✅ | Synced to actual implementation state this checkpoint |
-| | QA_CHECKLIST.md | ✅ new | 20-point real-Android-device checklist added this checkpoint; explicitly not executed (no device available) |
+| | QA_CHECKLIST.md | ✅ rewritten | Re-targeted this checkpoint to test the release APK against **production** Firebase specifically (previous version targeted dev/emulator) — 38 items now, including every new V1 feature and a dedicated Android-specific-behavior section (back button, keyboard, scrolling, slow/lost network, screen transitions); explicitly not executed (no device available here) |
+| | PLAY_STORE_READINESS.md | ✅ new | See "Play Store" row above |
+| | DEPLOYMENT.md | ✅ | "Local Android APK/AAB build" section rewritten this checkpoint with the exact, verified-current runbook (JDK17/adb install, signing setup, production-env verification, build commands) |
 | | ADMIN_GUIDE.md | 🟡 | Field-accurate to the code, but has no real screenshots (needs a deployed instance to photograph) |
 
 ## What would change an item above from a real gap to ✅
 
-- **Real-device testing**: a human runs the app on an actual iPhone/
-  Android phone via Expo Go (see "Quick start" in README.md) or a real
-  simulator — nothing in this repository can substitute for that.
-- **App icon/splash**: the church supplies real logo/branding art files,
-  which get dropped into `mobile/assets/` in place of the current 1×1
-  placeholders — no code change needed beyond that.
-- **Local APK build**: run from a real machine with Android Studio
-  installed (it bundles a compatible JDK and the Android SDK, resolving
-  both blockers found this checkpoint) — the commands are already
-  documented in DEPLOYMENT.md and `app.json` is already configured
-  correctly (verified again this checkpoint via an actual `prebuild` run).
+- **Real-device testing**: a human runs the signed release APK on an
+  actual Android phone — QA_CHECKLIST.md's 38 items, against production
+  Firebase specifically. Nothing in this repository (or this sandboxed
+  session) can substitute for that.
+- **App icon/splash**: done — the church supplied the real logo, and
+  every icon/splash asset in `mobile/assets/` is derived from it.
+- **Local APK/AAB build + signing**: run from a real machine with
+  Android Studio installed (it bundles a compatible JDK and the Android
+  SDK, resolving the one remaining blocker — this sandbox's `dl.google.com`
+  policy block doesn't apply to your own network) — the exact commands,
+  including the one-time keystore/signing setup this checkpoint added,
+  are in DEPLOYMENT.md; `app.json` is already configured correctly
+  (verified again this checkpoint via an actual `prebuild` run).
 - **Production Firebase project**: the project itself now exists
   (`bethaniyaministries-production`) — run
   `scripts/firebase-production-setup.sh bethaniyaministries-production`
@@ -171,22 +219,31 @@ This document does not claim: that the Telugu Bible (shipped but out of
 V1 scope) is content-complete (1187/1189 chapters; 2 remain an
 unresolved, investigated gap, not an accepted substitute for real text
 — just no longer a V1 requirement); that this repository is actually
-*connected* to the production Firebase project (the project itself
-exists — `bethaniyaministries-production`, Spark plan — but running the
-setup script to wire this repo to it, and filling in
-`mobile/.env.production`/`admin/.env.production`, is your action, since
-it needs your Google account login); that Cloud Functions have ever
-been deployed; that any screen — including the three new V1 features
-added this checkpoint (Reading Plans, Prayers, Community) — has been
-run on a real device or against a real (non-emulator, non-production)
-Firebase backend; that an APK or IPA has ever been built or installed;
-or that `npm audit`'s outstanding advisories have been fixed rather
-than knowingly accepted. Each of those is tracked in its own document
-(BIBLE_LICENSING.md, SECURITY.md, DEPLOYMENT.md) rather than summarized
-away here.
+*connected* to the production Firebase project from this environment
+(the project exists and is independently confirmed reachable from your
+own machine — see the "Production deployment" row above — but this
+sandboxed session has never held real production credentials and cannot
+verify it directly); that Cloud Functions have ever been deployed; that
+any screen — including Reading Plans, Prayers, and Community — has been
+run on a real device or against real production data; that a release
+keystore has been generated or an APK/AAB has ever been built anywhere
+(a working, verified runbook exists in DEPLOYMENT.md — the artifacts
+themselves do not yet exist); that a Play Console account exists or
+that anything has been submitted to the Play Store; that a privacy
+policy is published at a real URL (a factual draft exists in
+PLAY_STORE_READINESS.md, not yet hosted); or that `npm audit`'s
+outstanding advisories have been fixed rather than knowingly accepted.
+Each of those is tracked in its own document (BIBLE_LICENSING.md,
+SECURITY.md, DEPLOYMENT.md, PLAY_STORE_READINESS.md, QA_CHECKLIST.md)
+rather than summarized away here.
 
-The official church logo **has** been integrated (a prior checkpoint's
-"not claimed" note above is now out of date): the owner supplied
+The official church logo **has** been integrated: the owner supplied
 `assets/branding/church-logo.png`, and every icon/splash asset in
-`mobile/assets/` is now derived from it — see the requirements matrix's
-"Real app icon / adaptive icon / splash" row above.
+`mobile/assets/` is derived from it — see the requirements matrix's
+"Real app icon / adaptive icon / splash" row above. **JDK 17 and `adb`
+are also now solved** in this sandbox specifically (a prior checkpoint's
+framing of "needs Android Studio" as the only path is now out of date
+for those two pieces) — only the Android Gradle Plugin's dependency on
+the explicitly policy-blocked `dl.google.com` remains, and that
+specifically requires your own machine's network, not more local
+tooling.
