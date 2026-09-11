@@ -119,12 +119,30 @@ try {
   if (res.status === 200 && body && typeof body.projectId === 'string') {
     console.log(`PASS: Auth project reachable (HTTP 200, projectId present).`);
     if (body.projectId !== projectId) {
-      console.log(
-        `WARNING: the project id this API key resolves to does not match ` +
-          `${prefix}_PROJECT_ID in ${envPath}. This usually means the API ` +
-          `key and project id were copied from different projects.`
-      );
-      failures++;
+      // The legacy v3 getProjectConfig endpoint has a well-known quirk:
+      // for many projects it returns the numeric PROJECT NUMBER in the
+      // `projectId` field, not the string project ID slug -- e.g.
+      // "123456789012" instead of "bethaniyaministries-production". A
+      // pure-digit value here is that quirk, not a real key/project
+      // mismatch, so it's reported as an informational note, not a
+      // WARNING, and does not count as a failure. A non-numeric value
+      // that still doesn't match the env file's PROJECT_ID is the
+      // genuine mismatch case this check exists to catch.
+      if (/^\d+$/.test(body.projectId)) {
+        console.log(
+          `INFO: the discovery endpoint returned a numeric project NUMBER ` +
+            `(${body.projectId}) rather than the project ID string -- this is ` +
+            `a known quirk of the legacy v3 getProjectConfig endpoint, not a ` +
+            `mismatch. Not treated as a failure.`
+        );
+      } else {
+        console.log(
+          `WARNING: the project id this API key resolves to does not match ` +
+            `${prefix}_PROJECT_ID in ${envPath}. This usually means the API ` +
+            `key and project id were copied from different projects.`
+        );
+        failures++;
+      }
     }
   } else {
     console.log(`FAIL: unexpected response -- HTTP ${res.status}.`);
