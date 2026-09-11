@@ -17,7 +17,7 @@
       "package": "com.bethaniyaministries.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#2E5347",
+        "backgroundColor": "#273456",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -27,7 +27,18 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-apple-authentication"],
+    "plugins": [
+      "expo-apple-authentication",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#273456"
+        }
+      ]
+    ],
     "extra": {}
   }
 }
