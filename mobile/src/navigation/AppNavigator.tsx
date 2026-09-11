@@ -25,6 +25,14 @@ import { MoreScreen } from '../features/more/MoreScreen';
 import { AnnouncementDetailScreen } from '../features/announcements/AnnouncementDetailScreen';
 import type { PublishedAnnouncement } from '../services/firebase/announcements';
 import { DailyVerseScreen } from '../features/daily-verses/DailyVerseScreen';
+import { PrayersScreen } from '../features/prayers/PrayersScreen';
+import { CommunityListScreen } from '../features/community/CommunityListScreen';
+import { CommunityPostDetailScreen } from '../features/community/CommunityPostDetailScreen';
+import type { PublishedCommunityPost } from '../services/firebase/communityPosts';
+import { PlansListScreen } from '../features/plans/PlansListScreen';
+import { PlanDetailScreen } from '../features/plans/PlanDetailScreen';
+import { PlanDayScreen } from '../features/plans/PlanDayScreen';
+import type { PublishedPlan } from '../services/firebase/plans';
 import { TabBar, type TabRouteName } from './TabBar';
 
 /** The five top-level routes the hand-rolled tab bar switches between -- see TabBar.tsx. */
@@ -91,6 +99,19 @@ export type RootStackParamList = {
   AnnouncementDetail: { announcement: PublishedAnnouncement };
   /** See ../features/daily-verses/DailyVerseScreen.tsx. */
   DailyVerse: undefined;
+  /** New V1 feature -- see ../features/prayers/PrayersScreen.tsx. Reached
+   * from the More tab, not the bottom tab bar (existing
+   * Home/Bible/Songs/Events/More navigation is kept unchanged per
+   * explicit owner decision). */
+  Prayers: undefined;
+  /** New V1 feature -- see ../features/community/. Same "pass the full
+   * object, not just an id" reasoning as AnnouncementDetail. */
+  CommunityList: undefined;
+  CommunityPostDetail: { post: PublishedCommunityPost };
+  /** New V1 feature -- see ../features/plans/. */
+  PlansList: undefined;
+  PlanDetail: { plan: PublishedPlan };
+  PlanDay: { plan: PublishedPlan; dayNumber: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -224,6 +245,38 @@ export function AppNavigator() {
               name="DailyVerse"
               component={DailyVerseScreen}
               options={{ title: 'Daily Verse', headerShown: false }}
+            />
+            <Stack.Screen
+              name="Prayers"
+              component={PrayersScreen}
+              options={{ title: 'Prayers' }}
+            />
+            <Stack.Screen
+              name="CommunityList"
+              component={CommunityListScreen}
+              options={{ title: 'Community' }}
+            />
+            <Stack.Screen
+              name="CommunityPostDetail"
+              component={CommunityPostDetailScreen}
+              options={({ route }) => ({ title: route.params.post.title })}
+            />
+            <Stack.Screen
+              name="PlansList"
+              component={PlansListScreen}
+              options={{ title: 'Reading Plans' }}
+            />
+            <Stack.Screen
+              name="PlanDetail"
+              component={PlanDetailScreen}
+              options={({ route }) => ({ title: route.params.plan.title })}
+            />
+            <Stack.Screen
+              name="PlanDay"
+              component={PlanDayScreen}
+              options={({ route }) => ({
+                title: `${route.params.plan.title} • Day ${route.params.dayNumber}`,
+              })}
             />
           </Stack.Navigator>
         </View>

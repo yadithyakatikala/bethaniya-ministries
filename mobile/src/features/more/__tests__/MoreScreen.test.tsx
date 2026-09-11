@@ -27,6 +27,15 @@ function NotificationCenterStub() {
 function SettingsStub() {
   return <Text testID="settings-stub">Settings stub</Text>;
 }
+function PlansStub() {
+  return <Text testID="plans-stub">Plans stub</Text>;
+}
+function PrayersStub() {
+  return <Text testID="prayers-stub">Prayers stub</Text>;
+}
+function CommunityStub() {
+  return <Text testID="community-stub">Community stub</Text>;
+}
 
 function mockSignedIn() {
   (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
@@ -45,6 +54,9 @@ async function renderScreen() {
             <Stack.Screen name="Profile" component={ProfileStub} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
             <Stack.Screen name="Settings" component={SettingsStub} />
+            <Stack.Screen name="PlansList" component={PlansStub} />
+            <Stack.Screen name="Prayers" component={PrayersStub} />
+            <Stack.Screen name="CommunityList" component={CommunityStub} />
           </Stack.Navigator>
         </PreferencesProvider>
       </AuthProvider>
@@ -86,5 +98,29 @@ describe('MoreScreen', () => {
     await waitFor(() => expect(getByTestId('more-settings-link')).toBeTruthy());
     fireEvent.press(getByTestId('more-settings-link'));
     await waitFor(() => expect(getByTestId('settings-stub')).toBeTruthy());
+  });
+
+  it('navigates to Reading Plans when the plans row is pressed', async () => {
+    mockSignedIn();
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('more-plans-link')).toBeTruthy());
+    fireEvent.press(getByTestId('more-plans-link'));
+    await waitFor(() => expect(getByTestId('plans-stub')).toBeTruthy());
+  });
+
+  it('navigates to Prayers when the prayers row is pressed', async () => {
+    mockSignedIn();
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('more-prayers-link')).toBeTruthy());
+    fireEvent.press(getByTestId('more-prayers-link'));
+    await waitFor(() => expect(getByTestId('prayers-stub')).toBeTruthy());
+  });
+
+  it('navigates to Community when the community row is pressed', async () => {
+    mockSignedIn();
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('more-community-link')).toBeTruthy());
+    fireEvent.press(getByTestId('more-community-link'));
+    await waitFor(() => expect(getByTestId('community-stub')).toBeTruthy());
   });
 });

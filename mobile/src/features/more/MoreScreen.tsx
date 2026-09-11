@@ -53,6 +53,48 @@ export function MoreScreen() {
       </Pressable>
 
       <View style={styles.section}>
+        <SectionHeader title="Grow" />
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.card,
+            },
+          ]}
+        >
+          <Pressable
+            testID="more-plans-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('PlansList')}
+            style={[styles.row, { padding: spacing.md }]}
+          >
+            <Text style={[styles.rowLabel, { color: colors.text }]}>Reading Plans</Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Pressable>
+          <Pressable
+            testID="more-prayers-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Prayers')}
+            style={[styles.row, styles.divider, { borderTopColor: colors.border, padding: spacing.md }]}
+          >
+            <Text style={[styles.rowLabel, { color: colors.text }]}>Prayers</Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Pressable>
+          <Pressable
+            testID="more-community-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('CommunityList')}
+            style={[styles.row, styles.divider, { borderTopColor: colors.border, padding: spacing.md }]}
+          >
+            <Text style={[styles.rowLabel, { color: colors.text }]}>Community</Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <SectionHeader title="General" />
         <View
           style={[

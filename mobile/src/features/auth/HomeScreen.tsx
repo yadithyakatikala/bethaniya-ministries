@@ -17,6 +17,10 @@ import {
   subscribeToPublishedEvents,
   type PublishedEvent,
 } from '../../services/firebase/events';
+import {
+  subscribeToMostRecentPlanProgress,
+  type ActivePlanSummary,
+} from '../../services/firebase/plans';
 
 const DEFAULT_CHURCH_NAME = 'Bethaniya Ministries';
 const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowship.';
@@ -203,6 +207,21 @@ export function HomeScreen() {
     return unsubscribe;
   }, []);
 
+  const [activePlan, setActivePlan] = useState<ActivePlanSummary | null>(null);
+  useEffect(() => {
+    // No setState for the signed-out case -- HomeScreen only ever renders
+    // post-authentication, so `user` is absent only transiently; see
+    // ../prayers/PrayersScreen.tsx's identical comment for why this
+    // avoids react-hooks/set-state-in-effect.
+    if (!user?.uid) return;
+    const unsubscribe = subscribeToMostRecentPlanProgress(
+      user.uid,
+      (next) => setActivePlan(next),
+      () => setActivePlan(null)
+    );
+    return unsubscribe;
+  }, [user?.uid]);
+
   const liveEvent = events?.find((event) => event.isLive) ?? null;
   const nextEvent = events?.find((event) => !event.isLive) ?? null;
 
@@ -256,6 +275,37 @@ export function HomeScreen() {
         <AnnouncementsList />
       </View>
 
+      {activePlan ? (
+        <View style={styles.section}>
+          <SectionHeader title="Your reading plan" />
+          <Pressable
+            testID="home-active-plan"
+            accessibilityRole="button"
+            onPress={() =>
+              navigation.navigate('PlanDay', {
+                plan: activePlan.plan,
+                dayNumber: activePlan.progress.currentDay,
+              })
+            }
+            style={[
+              styles.eventRow,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radii.card,
+              },
+            ]}
+          >
+            <Text style={[styles.eventTitle, { color: colors.text }]}>
+              {activePlan.plan.title}
+            </Text>
+            <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
+              Day {activePlan.progress.currentDay} of {activePlan.plan.dayCount}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {nextEvent ? (
         <View style={styles.section}>
           <SectionHeader title="Upcoming events" />
@@ -301,6 +351,21 @@ export function HomeScreen() {
             label="Bible"
             testID="bible-nav-button"
             onPress={() => navigation.navigate('BibleBooks')}
+          />
+          <QuickLink
+            label="Reading Plans"
+            testID="plans-nav-button"
+            onPress={() => navigation.navigate('PlansList')}
+          />
+          <QuickLink
+            label="Prayers"
+            testID="prayers-nav-button"
+            onPress={() => navigation.navigate('Prayers')}
+          />
+          <QuickLink
+            label="Community"
+            testID="community-nav-button"
+            onPress={() => navigation.navigate('CommunityList')}
           />
           <QuickLink
             label="Profile"
