@@ -28,6 +28,8 @@ describe('AdminLayout', () => {
       'sidebar-daily-verses-link',
       'sidebar-songs-link',
       'sidebar-events-link',
+      'sidebar-community-link',
+      'sidebar-plans-link',
       'sidebar-notifications-link',
       'sidebar-users-link',
       'sidebar-settings-link',

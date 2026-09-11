@@ -66,7 +66,11 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 /** The collections admin/host actions are actually logged for, per the
  * spec's "What is Logged" list (content creation/modification, role
  * changes, settings changes). Does not include `notifications_log` or
- * `audit_log` itself -- neither is a spec-listed audit subject. */
+ * `audit_log` itself -- neither is a spec-listed audit subject.
+ * `community`/`plans` were added alongside those new V1 features (not
+ * part of the original spec -- see PRODUCTION_READINESS.md's "New V1
+ * features" section) with the same content-admin-write audit-log
+ * treatment as every other content collection above. */
 export const AUDIT_COLLECTIONS = [
   'users',
   'announcements',
@@ -74,6 +78,8 @@ export const AUDIT_COLLECTIONS = [
   'songs',
   'events',
   'settings',
+  'community',
+  'plans',
 ] as const;
 export type AuditCollection = (typeof AUDIT_COLLECTIONS)[number];
 

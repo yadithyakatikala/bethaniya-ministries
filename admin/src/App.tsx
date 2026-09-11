@@ -8,6 +8,15 @@ import { DashboardPage } from './features/auth/DashboardPage';
 import { AnnouncementsListPage } from './features/announcements/AnnouncementsListPage';
 import { AnnouncementForm } from './features/announcements/AnnouncementForm';
 import { EditAnnouncementPage } from './features/announcements/EditAnnouncementPage';
+import { CommunityPostsListPage } from './features/community/CommunityPostsListPage';
+import { CommunityPostForm } from './features/community/CommunityPostForm';
+import { EditCommunityPostPage } from './features/community/EditCommunityPostPage';
+import { PlansListPage } from './features/plans/PlansListPage';
+import { PlanForm } from './features/plans/PlanForm';
+import { EditPlanPage } from './features/plans/EditPlanPage';
+import { PlanDaysPage } from './features/plans/PlanDaysPage';
+import { PlanDayForm } from './features/plans/PlanDayForm';
+import { EditPlanDayPage } from './features/plans/EditPlanDayPage';
 import { DailyVersesListPage } from './features/daily-verses/DailyVersesListPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
@@ -98,6 +107,96 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <EditAnnouncementPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <CommunityPostsListPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <CommunityPostForm mode="create" />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EditCommunityPostPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <PlansListPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <PlanForm mode="create" />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EditPlanPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans/:planId/days"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <PlanDaysPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans/:planId/days/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <PlanDayForm mode="create" />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans/:planId/days/:dayId/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EditPlanDayPage />
                 </AdminLayout>
               </ProtectedRoute>
             }

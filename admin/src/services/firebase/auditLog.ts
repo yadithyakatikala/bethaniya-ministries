@@ -21,7 +21,14 @@ import { functions } from './app';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'publish' | 'unpublish';
 export type AuditCollection =
-  'users' | 'announcements' | 'daily_verses' | 'songs' | 'events' | 'settings';
+  | 'users'
+  | 'announcements'
+  | 'daily_verses'
+  | 'songs'
+  | 'events'
+  | 'settings'
+  | 'community'
+  | 'plans';
 
 export interface LogAdminActionInput {
   action: AuditAction;

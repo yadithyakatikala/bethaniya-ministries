@@ -67,6 +67,8 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
   { label: 'Daily Verses', path: '/daily-verses', testId: 'sidebar-daily-verses-link' },
   { label: 'Songs', path: '/songs', testId: 'sidebar-songs-link' },
   { label: 'Events', path: '/events', testId: 'sidebar-events-link' },
+  { label: 'Community', path: '/community', testId: 'sidebar-community-link' },
+  { label: 'Plans', path: '/plans', testId: 'sidebar-plans-link' },
   {
     label: 'Notifications',
     path: '/notifications',
