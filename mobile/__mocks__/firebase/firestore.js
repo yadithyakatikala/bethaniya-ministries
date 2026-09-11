@@ -29,6 +29,7 @@ export const collection = jest.fn();
 export const query = jest.fn((...args) => args[0]);
 export const where = jest.fn();
 export const orderBy = jest.fn();
+export const limit = jest.fn();
 export const onSnapshot = jest.fn(() => jest.fn());
 
 // Day 9: mobile/src/services/firebase/userProfile.ts is the first mobile
@@ -40,3 +41,10 @@ export const getDoc = jest.fn();
 export const setDoc = jest.fn();
 export const updateDoc = jest.fn();
 export const serverTimestamp = jest.fn(() => new MockTimestamp(0));
+
+// New V1 features (Prayers/Plans -- see services/firebase/prayers.ts,
+// services/firebase/plans.ts): the first mobile modules that create or
+// delete documents client-side (every prior write-capable module only
+// ever updated an existing one).
+export const addDoc = jest.fn();
+export const deleteDoc = jest.fn();
