@@ -6,9 +6,11 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
   reader (real Telugu — Indian Revised Version 2019 — text by default,
   real World English Bible text as the alternate language; see "Bible
   status" below), songs + audio, events with live-stream support,
+  reading plans, a private prayer journal, a community post feed,
   profile/preferences, and a local notification history/center.
-- **Admin/host dashboard** — React + Vite web app for content management,
-  role-based access control, and notification composition/logging.
+- **Admin/host dashboard** — React + Vite web app for content management
+  (including reading plans and community posts), role-based access
+  control, and notification composition/logging.
 - **Backend** — Firebase (Auth, Firestore, Storage, Cloud Functions), run
   entirely on the free Spark plan today (see "Cost constraint" below).
 
@@ -30,7 +32,16 @@ Bethaniya Ministries is a church digital platform consisting of three parts:
   requested at `assets/branding/church-logo.png` but the file does not
   exist in this repository or environment (no logo was fabricated), and
   a 20-point real-Android-device QA checklist was added
-  ([QA_CHECKLIST.md](./QA_CHECKLIST.md)).
+  ([QA_CHECKLIST.md](./QA_CHECKLIST.md)). A fourth checkpoint integrated
+  the real church logo (added by the owner) into app icons/splash, and
+  added three genuinely new V1 features beyond the original spec —
+  **Reading Plans, Prayers, and Community** (see "New V1 features"
+  above) — per an explicit owner decision; the existing
+  `Home/Bible/Songs/Events/More` bottom navigation was kept unchanged,
+  per the same decision. This checkpoint also re-verified, with a real
+  running Firebase Emulator Suite (previously network-blocked in this
+  sandbox), every emulator-backed test suite this project has — see
+  "Testing status".
 - **Next planned milestone:** not yet scoped — see
   [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md)'s requirements
   matrix for exactly what's left and why.
@@ -87,8 +98,46 @@ actually production-ready within each of these.
 | Admin Settings page (church name, logo URL, description, support email) | Implemented | Super Admin can edit + save; Content Admin/Host see the same data read-only; Member cannot reach the admin route at all. Saved settings drive the mobile app's church-branding header in real time. See SECURITY.md's "Day 13" section. |
 | Admin dashboard sidebar navigation (responsive) | Implemented | Replaces the earlier per-page dashboard nav-button row; same routes, same `ProtectedRoute` gate. |
 | Firestore security rules / RBAC foundation | Implemented | Deny-by-default, four roles (member/host/content_admin/super_admin); emulator-tested where the emulator is reachable (see "Testing status"). |
+| Prayers (private prayer journal: add, mark answered, delete) | Implemented | New V1 feature, added after the original spec — see "New V1 features" below. Fully private per-member (`users/{uid}/prayers`); never admin-managed. |
+| Community (admin-authored posts: testimonies, church-family updates) | Implemented | New V1 feature. Admin CRUD (mirrors Announcements) + mobile read; deliberately **not** an open member-posting feed. |
+| Reading Plans (admin-authored multi-day Bible reading plans, mobile library + progress tracking) | Implemented | New V1 feature. Admin manages plan metadata and per-day content; mobile members browse, start, and track day-by-day progress. |
 | Real push notification delivery (FCM device tokens) | **Not implemented** | No token registration exists anywhere in this project. |
 | Store submission / production deployment prep | **Not started** | |
+
+## New V1 features (Plans, Prayers, Community)
+
+Added after `FINAL_ARCHITECTURE_SPECIFICATION.md` was written, per an
+explicit owner decision at a later checkpoint — that spec's own "Current
+V1 feature status" table above does not list these three, and the
+document itself is left unedited as the historical record of what was
+originally scoped. All three follow the same architectural conventions
+as every pre-existing feature (deny-by-default `firestore.rules`,
+`logAdminAction()` audit-logging on every admin write, the shared
+Vespers theme, real-time Firestore listeners, Jest/Vitest coverage):
+
+- **Prayers** — a fully private, per-member prayer journal at
+  `users/{uid}/prayers/{id}` (text, answered flag, timestamps). Never
+  admin-managed or shared with anyone else, including admins — see
+  `firestore.rules`' `users/{userId}/prayers` rule. Reached from the
+  mobile More tab and the Home quick-links grid.
+- **Community** — admin-authored posts (testimonies, church-family
+  updates) at `community/{id}`, modeled directly on Announcements
+  (title/content/image, draft→publish workflow, member-read-when-
+  published). Deliberately **not** an open member-posting social feed.
+- **Reading Plans** — `plans/{id}` (title, description, category, cover
+  image, day count, display order, publish state) plus a
+  `plans/{id}/days/{id}` subcollection so an admin can add/edit/remove
+  individual days without rewriting the whole plan. A member's progress
+  lives at `users/{uid}/planProgress/{planId}` (current day, completed
+  days, timestamps) — fully private per-owner, same as Prayers. The Home
+  screen surfaces a "Continue your plan" card once a member has started
+  one.
+
+The existing mobile bottom navigation (`Home / Bible / Songs / Events /
+More`) is **unchanged** — these three features are reached through the
+More tab and Home's quick-links grid, not new bottom-tab destinations,
+per explicit owner decision to keep the existing, working navigation
+structure intact.
 
 ## Bible status
 
@@ -195,43 +244,33 @@ actually production-ready within each of these.
 
 ## Testing status
 
-Verified results as of the V1 completion sprint checkpoint (built on
-commit `b0052a5`, the Vespers checkpoint, plus this sprint's uncommitted
-changes at the time of this write-up — see git log for the actual commit
-this landed in):
+Verified results as of the "New V1 features" checkpoint (Plans, Prayers,
+Community added — see above; this is the first checkpoint where this
+sandbox's network policy allowed the Firebase Emulator Suite itself to
+start, so the emulator-backed suites below could finally be executed
+directly rather than only reasoned about):
 
 | Package | Result |
 | --- | --- |
-| Mobile — Jest | **45/45 suites, 295/295 tests passing.** (The exception-free Telugu completeness test that previously kept this at 295/296 was removed once Telugu left V1 scope — see "Bible status"; the tests documenting the 2-chapter gap itself remain.) |
+| Mobile — Jest | **48/48 suites, 314/314 tests passing.** Includes new suites for the Prayers/Community/Plans Firestore services and updated More-tab/AdminLayout navigation tests. |
 | Mobile — typecheck / lint / format | Clean |
-| Admin — Vitest | **34/34 files, 249/249 tests passing** (unchanged — admin package untouched this checkpoint) |
-| Admin — typecheck / lint / format / production build | Clean |
-| Functions — typecheck / lint / build | Clean (untouched this checkpoint) |
-| Functions — `healthCheck.test.ts` (the one functions suite that doesn't need the emulator) | **4/4 passing** |
+| Admin — Vitest | **36/36 files, 263/263 tests passing.** Includes new suites for the Community/Plans admin Firestore services. |
+| Admin — typecheck / lint / production build | Clean |
+| Functions — typecheck / lint / build | Clean |
+| Functions — full suite, run under a real emulator (`firebase emulators:exec --only firestore,auth,functions "npm --prefix functions test"`) | **5/5 suites, 49/49 tests passing** — `healthCheck.test.ts` plus the four previously-unexecuted emulator-backed suites (`createUserProfile`, `logAdminAction`, `sendNotification`, `updateUserRole`), all now genuinely run, not just type-checked. |
+| `firebase-tests/` security-rule suite, run under a real emulator (`firebase emulators:exec --only firestore,storage,auth "npm --prefix firebase-tests test"`) | **129/131 tests passing, 2 intentionally skipped**, across `firestore.rules.test.ts` (114/114 — includes every new Prayers/Community/Plans rule case below), `storage.rules.test.ts`, and `client-emulator-smoke.test.ts`. One pre-existing, unrelated suite (`announcement-lifecycle.test.ts`) fails to compile (`adminReadBack.exists()` — a `DocumentSnapshot.exists` typing mismatch against the currently-installed `firebase`/`@firebase/rules-unit-testing` versions) — this predates this checkpoint (last touched in a prior commit, untouched here) and is unrelated to the new collections; left as a known issue rather than fixed opportunistically outside this sprint's scope. |
 
-**Not passing — genuinely unexecuted, not failing quietly:**
+New Firestore rule coverage this checkpoint (all passing under the real
+emulator): private per-owner access for `users/{uid}/prayers` and
+`users/{uid}/planProgress`, publish-gated member read for `community` and
+`plans` (mirroring `announcements`), and `plans/{id}/days/{id}`'s
+visibility correctly following its parent plan's `published` flag rather
+than a field of its own.
 
-- **Functions emulator-backed tests** (`createUserProfile.test.ts`,
-  `logAdminAction.test.ts`, `sendNotification.test.ts`, `updateUserRole.test.ts`)
-  remain **unexecuted** because the Firebase Emulator Suite itself cannot
-  start in this environment: re-verified this checkpoint by actually
-  attempting `firebase emulators:start` (not just checking a single
-  download URL) — it times out trying to reach
-  `firebase-public.firebaseio.com` and `firebase.google.com`, both
-  explicitly denied by this environment's egress proxy policy
-  (`connect_rejected`, confirmed via the proxy's own status endpoint, not
-  inferred). These tests are structurally/type sound (verified
-  independently) but have not actually run in this environment.
-- **The `firebase-tests/` security-rule suite**, including Day 15's new
-  `announcement-lifecycle.test.ts` integration test, remains **blocked** by
-  a pre-existing dependency conflict: `firebase@^12` (used by the app) vs.
-  `@firebase/rules-unit-testing@^3.0.4`'s `peer firebase@^10.0.0`
-  requirement. `node_modules` has never been installed for this package;
-  the suite has never run.
-
-These two are not described as "passing" anywhere in this project's
-documentation, and no test-affecting code has been changed to manufacture
-a passing result around them.
+`firebase-tests/` requires `npm install --legacy-peer-deps` (its own
+pre-existing `firebase@^12` vs. `@firebase/rules-unit-testing@^3.0.4`
+peer-dependency conflict, unrelated to this checkpoint) before its first
+run in a fresh checkout — see that package's own `package.json`.
 
 **Test coverage (`npm run test:coverage` in each package; mobile re-run
 this checkpoint, admin/functions unchanged since Day 15):**

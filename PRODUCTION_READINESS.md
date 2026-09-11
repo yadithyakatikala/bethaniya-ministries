@@ -102,29 +102,32 @@ breaking the ₹0 constraint) · ❌ not complete.
 | | Accessibility (labels, touch targets, contrast) | 🟡 | `accessibilityRole`/`accessibilityLabel`/`accessibilityState` present throughout; 44px touch targets used consistently; never verified with a real screen reader (VoiceOver/TalkBack) — requires a real device |
 | **Frontend (admin)** | Vespers visual design system | ✅ | Sidebar, dashboard, shared `AdminPageHeader`/`AdminTableCard`/`AdminEmptyState` components across every CRUD page |
 | | Responsive layout | 🟡 | CSS-only responsive drawer (documented reason: jsdom has no `matchMedia`); never viewed on a real narrow-viewport device |
-| **Backend** | Firestore rules / RBAC | ✅ | Deny-by-default, four roles, unchanged and re-verified byte-identical across the Vespers + V1 sprint commits |
-| | Cloud Functions (createUserProfile, logAdminAction, sendNotification, updateUserRole) | ✅ code / ❌ deployed | Reviewed, typechecked, built; never deployed (see "Deployment" below) |
-| | Firestore emulator-backed rule tests | ❌ | Blocked: Firebase Emulator Suite cannot start in this environment — `firebase-public.firebaseio.com`/`firebase.google.com` are denied by network policy (re-confirmed this checkpoint by actually attempting `firebase emulators:start`, not just checking one URL) |
-| | `firebase-tests/` integration suite | ❌ | Blocked by both the emulator issue above and a `firebase@^12` vs. `@firebase/rules-unit-testing@^3`'s `peer firebase@^10` dependency conflict |
+| **Backend** | Firestore rules / RBAC | ✅ | Deny-by-default, five roles' worth of collections now including `community`/`plans`/per-owner `prayers`/`planProgress` — see "New V1 features" in README.md |
+| | Cloud Functions (createUserProfile, logAdminAction, sendNotification, updateUserRole) | ✅ code / ❌ deployed | Reviewed, typechecked, built, and — this checkpoint — actually run under a real emulator (see below); never deployed to a live project (see "Deployment" below) |
+| | Firestore emulator-backed rule tests | ✅ | **This sandbox's network policy changed this checkpoint** — the Firebase Emulator Suite now starts successfully (previously blocked; see prior checkpoints' notes, left below for history). Run via `firebase emulators:exec --only firestore,storage,auth "npm --prefix firebase-tests test"`: 129/131 passing (2 intentionally skipped) |
+| | `firebase-tests/` integration suite | 🟡 | Runs now (see row above). `firestore.rules.test.ts` (114/114, includes every new Prayers/Community/Plans case) and `storage.rules.test.ts` pass fully; one pre-existing, unrelated suite (`announcement-lifecycle.test.ts`) fails to compile against the currently-installed `firebase`/`@firebase/rules-unit-testing` versions — predates this checkpoint, untouched here, left as a known issue. Requires `npm install --legacy-peer-deps` in `firebase-tests/` first (its own pre-existing peer-dependency conflict) |
 | **Mobile functionality** | Auth (Google/Apple/Phone OTP), session persistence, sign-out | ✅ code / 🟠 unverified | Unit-tested against mocks only; never exercised against a real OAuth provider or real device |
 | | Bible reader (English) | ✅ | Real World English Bible text, all 66 books, 1189 chapters, 31,102 verses |
 | | Bible reader (Telugu, default language, OUT OF V1 SCOPE) | ✅ | Not a V1 requirement (owner decision). Ships as-is: real IRV 2019 text (CC BY-SA 4.0), all 66 books, 1187/1189 chapters real — 2 chapters (Joel 3, Malachi 4) fall back to the labeled placeholder — see BIBLE_LICENSING.md |
 | | Songs/audio, Events/YouTube Live, Notifications, Profile, Settings | ✅ | Implemented, tested against mocked Firebase; never run against a real backend or device |
+| | Reading Plans (new V1 feature) | ✅ code / 🟠 unverified | Library, plan detail, day reader, per-owner progress tracking (`users/{uid}/planProgress`), Home "Continue your plan" card; tested against mocked Firebase, never run against a real backend or device |
+| | Prayers (new V1 feature) | ✅ code / 🟠 unverified | Fully private per-owner journal (`users/{uid}/prayers`); same unverified-against-real-backend caveat as above |
+| | Community (new V1 feature) | ✅ code / 🟠 unverified | Admin-authored posts, publish-gated member read (mirrors Announcements); same caveat |
 | **Bible** | English text | ✅ | See BIBLE_LICENSING.md |
 | | Telugu text (OUT OF V1 SCOPE) | ✅ | Not required for V1. Licensing resolved (CC BY-SA 4.0, confirmed via BibleNLP/ebible's `metadata/licences.tsv`); 1187/1189 chapters real, ships as the default language regardless of the 2-chapter gap — see BIBLE_LICENSING.md |
 | **RBAC** | Role matrix (member/host/content_admin/super_admin) | ✅ | Enforced server-side in rules, mirrored client-side for UX; self-demotion guard tested |
 | **Notifications** | Composition, validation, history, local read/unread | ✅ | |
 | | Real FCM push delivery | ❌ | No device has ever registered a push token in this project's history; nothing to make it work regardless of billing plan |
 | **Live stream** | Host-managed YouTube URL/live-status toggle | ✅ | RBAC-gated, tested |
-| **Testing** | Mobile unit/component tests | ✅ | 295/295 passing, 45/45 suites (Telugu's exception-free completeness test was removed along with Telugu leaving V1 scope — see "Bible" rows above). 87.1% statement coverage |
-| | Admin unit/component/RBAC tests | ✅ | 249/249 passing, 87.8% statement coverage |
-| | Functions unit tests | 🟡 | Only `healthCheck.test.ts` runs (4/4); four emulator-backed handler test files are structurally sound but unexecuted (see Backend row above) |
+| **Testing** | Mobile unit/component tests | ✅ | 314/314 passing, 48/48 suites (adds Prayers/Community/Plans service tests and updated navigation tests this checkpoint) |
+| | Admin unit/component/RBAC tests | ✅ | 263/263 passing, 36/36 files (adds Community/Plans admin service tests this checkpoint) |
+| | Functions unit tests | ✅ | All 5 suites now genuinely run under a real emulator, not just `healthCheck.test.ts`: 49/49 passing (see Backend row above) |
 | **Security** | Rules/RBAC audit | ✅ | Re-confirmed byte-identical to pre-Vespers baseline this checkpoint |
 | | Secrets scan (source + git history) | ✅ | Clean — re-run this checkpoint, only `.env.example` files ever touched `.env*` paths in history |
 | | `npm audit` | 🟡 | Admin: 0. Mobile: 16 moderate (transitive, Expo tooling). Functions: 7 moderate (transitive, `firebase-admin`'s GCP client chain). None exploitable via this app's own code paths; fixing requires breaking downgrades, left as a deliberate, documented decision |
 | **Build/release (Android)** | App identity (name, package id, version, versionCode) | ✅ | `applicationId 'com.bethaniyaministries.app'`, `versionCode 1` — verified again this checkpoint via an actual `expo prebuild` run |
-| | Real app icon / adaptive icon / splash | ❌ | **All six icon/splash PNG assets in `mobile/assets/` are literal 1×1-pixel placeholder files.** A real church logo was requested at `assets/branding/church-logo.png` this checkpoint but **the file does not exist anywhere in this repository or development environment** — checked directly, not assumed. No logo was fabricated in its place, per this project's own hard rule. The app cannot look correct on a real home screen or app store listing until the actual logo file is supplied and this integration is redone |
-| | Local APK/AAB build | ❌ | `expo prebuild` succeeds (native project generates correctly); `gradlew assembleRelease` then fails at two independent, confirmed points: no JDK 17 (only JDK 21 present) and its auto-provisioner is network-blocked, and separately `dl.google.com` (the Android SDK download host) is denied by network policy — see DEPLOYMENT.md |
+| | Real app icon / adaptive icon / splash | ✅ | The owner supplied the real church logo at `assets/branding/church-logo.png`. All six icon/splash PNGs in `mobile/assets/` are now derived from it (icon, Android adaptive-icon foreground/background/monochrome layers, splash icon, web favicon), with `app.json`'s `backgroundColor`/`expo-splash-screen` config wired to match — verified via `expo prebuild` regenerating the native project correctly |
+| | Local APK/AAB build | ❌ | Re-verified this checkpoint: `expo prebuild` still succeeds (native project regenerates correctly with the new icon/splash config); `gradlew assembleRelease` still fails at the same two independent, confirmed points as every prior checkpoint: no JDK 17 (only JDK 21 present) and its `foojay` auto-provisioner is network-blocked (HTTP 403 via the proxy), and separately `dl.google.com` (the Android SDK component download host) is still denied by network policy (confirmed via a direct `curl`, HTTP 403) — see DEPLOYMENT.md |
 | **Build/release (iOS)** | Bundle identifier, build number | ✅ | |
 | | TestFlight/App Store submission | 💰🔵 | Requires an Apple Developer Program membership (paid, $99/yr) — explicitly out of scope under the ₹0 constraint until you decide otherwise |
 | **Production deployment** | Real Firebase project (production) | 🔵 | **Created** (`bethaniyaministries-production`, Spark plan). Not yet connected/deployed from this environment — running `scripts/firebase-production-setup.sh bethaniyaministries-production` (Firestore database, Web app registration, rules/indexes deploy, all Spark-tier) requires your own Google account login, which this environment cannot perform |
@@ -167,19 +170,23 @@ breaking the ₹0 constraint) · ❌ not complete.
 This document does not claim: that the Telugu Bible (shipped but out of
 V1 scope) is content-complete (1187/1189 chapters; 2 remain an
 unresolved, investigated gap, not an accepted substitute for real text
-— just no longer a V1 requirement); that the official church logo has
-been integrated anywhere (the file `assets/branding/church-logo.png`
-does not exist in this repository or anywhere in this development
-environment — every screen listed in the branding request still shows
-the same placeholder assets it always has; see "Branding" below); that
-this repository is actually *connected* to the production Firebase
-project (the project itself exists — `bethaniyaministries-production`,
-Spark plan — but running the setup script to wire this repo to it, and
-filling in `mobile/.env.production`/`admin/.env.production`, is your
-action, since it needs your Google account login); that Cloud Functions
-have ever been deployed; that any screen has been run on a real device
-or against a real (non-emulator) Firebase backend; that an APK or IPA
-has ever been built or installed; or that `npm audit`'s outstanding
-advisories have been fixed rather than knowingly accepted. Each of
-those is tracked in its own document (BIBLE_LICENSING.md, SECURITY.md,
-DEPLOYMENT.md) rather than summarized away here.
+— just no longer a V1 requirement); that this repository is actually
+*connected* to the production Firebase project (the project itself
+exists — `bethaniyaministries-production`, Spark plan — but running the
+setup script to wire this repo to it, and filling in
+`mobile/.env.production`/`admin/.env.production`, is your action, since
+it needs your Google account login); that Cloud Functions have ever
+been deployed; that any screen — including the three new V1 features
+added this checkpoint (Reading Plans, Prayers, Community) — has been
+run on a real device or against a real (non-emulator, non-production)
+Firebase backend; that an APK or IPA has ever been built or installed;
+or that `npm audit`'s outstanding advisories have been fixed rather
+than knowingly accepted. Each of those is tracked in its own document
+(BIBLE_LICENSING.md, SECURITY.md, DEPLOYMENT.md) rather than summarized
+away here.
+
+The official church logo **has** been integrated (a prior checkpoint's
+"not claimed" note above is now out of date): the owner supplied
+`assets/branding/church-logo.png`, and every icon/splash asset in
+`mobile/assets/` is now derived from it — see the requirements matrix's
+"Real app icon / adaptive icon / splash" row above.

@@ -339,3 +339,68 @@ in this project already uses (`announcements.ts`, `songs.ts`, `events.ts`,
   row removed — see that file's own doc comment).
 - `mobile/src/features/auth/HomeScreen.tsx` (`ChurchBranding`, rewritten
   from static text to a live subscription), `mobile/src/services/firebase/{settings,__tests__/settings.test.ts}.ts`.
+
+## New V1 features: Reading Plans, Prayers, Community — code patterns
+
+Added at a later checkpoint than everything above, per an explicit owner
+decision (see PRODUCTION_READINESS.md's "New V1 features" note) — not
+part of this project's original day-by-day plan. Each follows an
+existing pattern from the sections above rather than inventing a new one:
+
+### Community mirrors Announcements exactly
+
+`admin/src/services/firebase/communityPosts.ts` and
+`mobile/src/services/firebase/communityPosts.ts` are structural clones of
+`announcements.ts` (same converter/subscribe/create/update/delete/
+setPublished shape, same `logAdminAction` call after every admin write,
+same `where('published', '==', true)` mobile-side query). Deliberately
+**not** an open member-posting feed — there is no client code path for a
+member to write to `community/{id}` at all, enforced by
+`firestore.rules`' `isContentAdminOrAbove()` write gate.
+
+### Plans: a subcollection, not an array field, for days
+
+`plans/{id}` holds metadata only; each day is its own document at
+`plans/{id}/days/{id}`. This lets an admin add, edit, or remove a single
+day (`admin/src/features/plans/PlanDaysPage.tsx`) without reading and
+rewriting the entire plan document — the same reasoning behind every
+other subcollection-shaped feature in this project. The tradeoff:
+`plans/{id}.dayCount` can't be validated against the real number of
+`days` documents by a Firestore rule alone (rules can't count a
+subcollection without an unbounded read), so
+`admin/src/services/firebase/plans.ts` recomputes and writes it after
+every day create/delete (`syncPlanDayCount`) instead. A day's read
+visibility follows its *parent* plan's `published` flag via a `get()` in
+`firestore.rules` (`plans/{planId}/days/{dayId}`'s rule), rather than
+duplicating a `published` field onto every day — one extra read per rule
+evaluation, the same tradeoff `callerRole()` already accepts elsewhere in
+this file.
+
+### Prayers and plan progress: private-per-owner, no admin path at all
+
+`users/{uid}/prayers/{id}` and `users/{uid}/planProgress/{planId}` are
+both gated purely on `isOwner(userId)` in `firestore.rules` — unlike
+every other collection in this project, there is **no**
+`isContentAdminOrAbove()` read branch on either one. An admin cannot read
+another member's prayers or plan progress through this app, by design
+(verified in `firebase-tests/src/firestore.rules.test.ts`). Both live as
+subcollections under the existing `/users/{userId}` document rather than
+top-level collections, reusing that document's existing
+authorization boundary instead of introducing a new one.
+
+### Where this code lives
+
+- Rules/indexes: `firestore.rules` (new `isValidPrayer`/
+  `isValidCommunityPost`/`isValidPlan`/`isValidPlanDay`/
+  `isValidPlanProgress` validators and match blocks),
+  `firestore.indexes.json` (`community`, `plans` composite indexes).
+- Admin: `admin/src/services/firebase/{communityPosts,plans}.ts`,
+  `admin/src/features/{community,plans}/*`, `admin/src/types/index.ts`
+  (`CommunityPost`, `Plan`, `PlanDay` + form-input types).
+- Mobile: `mobile/src/services/firebase/{prayers,communityPosts,plans}.ts`,
+  `mobile/src/features/{prayers,community,plans}/*`, wired into
+  `mobile/src/navigation/AppNavigator.tsx`, `mobile/src/features/more/MoreScreen.tsx`,
+  and `mobile/src/features/auth/HomeScreen.tsx` (a "Continue your plan"
+  card). The existing `Home/Bible/Songs/Events/More` bottom tab bar is
+  unchanged — these are reached via More and Home's quick-links grid, not
+  new bottom-tab destinations.

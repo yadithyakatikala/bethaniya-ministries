@@ -44,10 +44,10 @@ on that role — see "Who can do what" below.
 
 Every page shares the same sidebar down the left side (on a phone or
 narrow window, tap the menu icon in the top-left corner to open it): links
-to the Dashboard, Announcements, Daily Verses, Songs, Events, Notifications,
-Users, and Settings. The page you're currently on is highlighted. Selecting
-any link takes you straight there — nothing here requires remembering a
-web address.
+to the Dashboard, Announcements, Daily Verses, Songs, Events, Community,
+Plans, Notifications, Users, and Settings. The page you're currently on
+is highlighted. Selecting any link takes you straight there — nothing
+here requires remembering a web address.
 
 To sign out, go back to the Dashboard and select **Sign out**.
 
@@ -56,7 +56,7 @@ To sign out, go back to the Dashboard and select **Sign out**.
 | You are a... | You can |
 | --- | --- |
 | **Host** | Manage the live-stream link/status on Events, and send notifications. Everything else below is view-only or hidden. |
-| **Content Admin** | Everything a Host can do, plus create/edit/publish Announcements, Daily Verses, Songs, and Events. Settings are visible but not editable. |
+| **Content Admin** | Everything a Host can do, plus create/edit/publish Announcements, Daily Verses, Songs, Events, Community posts, and Reading Plans. Settings are visible but not editable. |
 | **Super Admin** | Everything, plus manage other users' accounts/roles and edit Settings. |
 
 If a page or button isn't there for your role, that's expected — it isn't
@@ -107,6 +107,36 @@ cannot edit an event's title, description, or other details, only whether
 it's live and where. When an event is live, its row shows a **LIVE**
 label in the list so it's obvious at a glance which event (if any) is
 currently streaming.
+
+## Community (Content Admin and Super Admin)
+
+Community posts (testimonies, church-family updates) work the same way as
+Announcements: a list with **Published**/**Draft** status and
+edit/delete/publish controls, a "New Post" button, and a form collecting
+Title, Content, and an optional image. A new post always starts as a
+**Draft** until you publish it. This is deliberately admin-authored
+content only — members can read published posts in the mobile app, but
+there is no way for a member to post here themselves.
+
+## Reading Plans (Content Admin and Super Admin)
+
+Reading Plans are multi-day Bible reading plans members can browse and
+work through in the mobile app. Managing one has two steps:
+
+1. **The plan itself** — from the Plans list, select "New Plan" to set
+   its Title, Description, Category (e.g. "Devotional", "Topical"), an
+   optional cover image, and its Display Order (lower numbers appear
+   first in the mobile library). A new plan starts as a **Draft** and
+   with zero days — publish it once its days are ready.
+2. **The plan's days** — from the Plans list, select the list icon on a
+   plan's row to manage its days. Each day has a Day Number, Title,
+   Scripture Reference, Devotional text, and an optional Prayer Prompt.
+   Add, edit, or remove days one at a time; the plan's day count on the
+   main Plans list updates automatically to match.
+
+A plan only becomes visible to members once you publish it from the main
+Plans list — adding days to an unpublished plan is safe to do ahead of
+time.
 
 ## Notifications
 

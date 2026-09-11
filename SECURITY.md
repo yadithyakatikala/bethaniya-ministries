@@ -28,7 +28,7 @@ Four roles, stored on `/users/{uid}.role` in Firestore:
 | --------------- | ------------------------------------------------------------- |
 | `member`        | Read published content only                                   |
 | `host`          | Toggle live-stream fields on events, send notifications       |
-| `content_admin` | Full content CRUD (announcements, songs, events, daily verse) |
+| `content_admin` | Full content CRUD (announcements, songs, events, daily verse, community posts, reading plans) |
 | `super_admin`   | Everything, including changing other users' roles             |
 
 Enforced in `firestore.rules` via a `callerRole()` helper that reads the
@@ -40,8 +40,18 @@ caller's own user document. A user can never set their own `role` field —
 
 `firestore.rules` and `storage.rules` implement deny-by-default rules for:
 `users`, `announcements`, `daily_verses`, `songs`, `events`,
-`notifications_log`, `audit_log`, `settings`, plus Storage paths for content
-images and user profile photos.
+`notifications_log`, `audit_log`, `settings`, `community`, `plans`
+(+ its `days` subcollection), `users/{uid}/prayers`, and
+`users/{uid}/planProgress`, plus Storage paths for content images and
+user profile photos. `community`/`plans`/`prayers`/`planProgress` are new
+V1 features added after this document's original Day-by-day sections
+below were written — see PRODUCTION_READINESS.md's "New V1 features"
+note and this file's own later "Post-Day-16" sections for provenance;
+they follow the exact same deny-by-default, role-gated pattern as every
+collection that came before them (`community`/`plans` mirror
+`announcements`'s admin-write/published-gated-member-read shape exactly;
+`prayers`/`planProgress` are fully private per-owner, mirroring the
+`users/{uid}` document's own `isOwner(userId)` boundary).
 
 **Status: tested against real, running Firebase emulators.** The
 `firebase-tests/` package contains an emulator-backed test suite
@@ -61,8 +71,17 @@ npx firebase-tools emulators:exec --only auth,firestore,storage "npm --prefix fi
 reach `storage.googleapis.com` to auto-download the emulator jars — see
 `firebase-tests/README.md`.)
 
-**Result as of the last run: 55 passed, 0 failed, 2 explicitly skipped
-(documented below).** Coverage includes, for every collection: unauthenticated
+**Result as of the "New V1 features" checkpoint — this sandbox's network
+policy changed and the emulator finally starts here, so this is a real,
+freshly re-run result, not carried forward from an earlier checkpoint:
+`firestore.rules.test.ts` 114/114 passed, `storage.rules.test.ts` and
+`client-emulator-smoke.test.ts` all passing, 129/131 across the whole
+`firebase-tests/` package (2 intentionally skipped; one pre-existing,
+unrelated suite — `announcement-lifecycle.test.ts` — fails to compile
+against the currently-installed `firebase`/`@firebase/rules-unit-testing`
+versions, predates this checkpoint, and is tracked as a known issue
+rather than fixed opportunistically here).** Coverage includes, for every
+collection: unauthenticated
 denial, wrong-role denial, correct-role success, the `users.role`
 self-elevation block (a member cannot set their own role, on create or
 update), the super_admin-only + single-field-only role update rule, the
@@ -72,8 +91,14 @@ disallowed field, and still subject to the same `isValidEvent()` field
 validation as a content_admin's write -- see `firestore.rules`), the
 `notifications_log`/`audit_log` client-write-always-false
 rule, Storage's 5MB size cap and image-content-type check on both the
-`content/` and per-user profile-photo paths, and users being unable to
-write another user's profile path. Full test list: `firebase-tests/src/*.test.ts`.
+`content/` and per-user profile-photo paths, users being unable to
+write another user's profile path, the new `community`/`plans`
+publish-gated read rules (mirroring `announcements`), a plan day's
+visibility correctly following its *parent* plan's `published` flag, and
+full private-per-owner isolation for `prayers`/`planProgress` (including
+a content_admin being unable to read another user's prayers -- there is
+no admin override on that collection, by design). Full test list:
+`firebase-tests/src/*.test.ts`.
 
 **Also verified: the actual client-SDK connection path the apps use.**
 `firebase-tests/src/client-emulator-smoke.test.ts` signs in through the Auth
