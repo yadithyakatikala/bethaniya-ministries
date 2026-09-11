@@ -80,7 +80,11 @@ describe('plans service', () => {
         })
       );
       expect(mockLogAdminAction).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'create', collection: 'plans', documentId: 'plan-1' })
+        expect.objectContaining({
+          action: 'create',
+          collection: 'plans',
+          documentId: 'plan-1',
+        })
       );
     });
   });
@@ -95,9 +99,7 @@ describe('plans service', () => {
         order: 5,
       });
       const payload = vi.mocked(updateDoc).mock.calls[0]?.[1];
-      expect(payload).toEqual(
-        expect.objectContaining({ title: 'New title', order: 5 })
-      );
+      expect(payload).toEqual(expect.objectContaining({ title: 'New title', order: 5 }));
       expect(payload).not.toHaveProperty('dayCount');
     });
   });
@@ -119,7 +121,9 @@ describe('plans service', () => {
         expect.anything(),
         expect.objectContaining({ published: true })
       );
-      expect(mockLogAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'publish' }));
+      expect(mockLogAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'publish' })
+      );
     });
   });
 

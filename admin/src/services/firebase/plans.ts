@@ -57,7 +57,8 @@ function toPlanDay(id: string, data: Record<string, unknown>): PlanDay {
     id,
     dayNumber: typeof data.dayNumber === 'number' ? data.dayNumber : 0,
     title: typeof data.title === 'string' ? data.title : '',
-    scriptureReference: typeof data.scriptureReference === 'string' ? data.scriptureReference : '',
+    scriptureReference:
+      typeof data.scriptureReference === 'string' ? data.scriptureReference : '',
     devotional: typeof data.devotional === 'string' ? data.devotional : '',
     prayerPrompt: typeof data.prayerPrompt === 'string' ? data.prayerPrompt : '',
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
@@ -139,7 +140,11 @@ export async function deletePlan(id: string, title: string): Promise<void> {
   // without any client-side change.
 }
 
-export async function setPlanPublished(id: string, title: string, published: boolean): Promise<void> {
+export async function setPlanPublished(
+  id: string,
+  title: string,
+  published: boolean
+): Promise<void> {
   await updateDoc(doc(db, PLANS_COLLECTION, id), {
     published,
     updatedAt: serverTimestamp(),
@@ -189,7 +194,11 @@ async function syncPlanDayCount(planId: string): Promise<void> {
   });
 }
 
-export async function createPlanDay(planId: string, planTitle: string, input: PlanDayFormInput): Promise<string> {
+export async function createPlanDay(
+  planId: string,
+  planTitle: string,
+  input: PlanDayFormInput
+): Promise<string> {
   const docRef = await addDoc(daysCollection(planId), {
     dayNumber: input.dayNumber,
     title: input.title.trim(),

@@ -30,7 +30,11 @@ describe('subscribeToPublishedCommunityPosts', () => {
     subscribeToPublishedCommunityPosts(onNext, onError);
 
     expect(onNext).toHaveBeenCalledWith([
-      expect.objectContaining({ id: 'c1', title: 'Baptism Testimony', content: 'God is good.' }),
+      expect.objectContaining({
+        id: 'c1',
+        title: 'Baptism Testimony',
+        content: 'God is good.',
+      }),
     ]);
   });
 

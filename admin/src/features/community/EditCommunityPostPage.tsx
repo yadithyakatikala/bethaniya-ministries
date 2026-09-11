@@ -24,7 +24,10 @@ export function EditCommunityPostPage() {
 
   if (!posts) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }} data-testid="edit-community-post-loading">
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}
+        data-testid="edit-community-post-loading"
+      >
         <CircularProgress />
       </Box>
     );

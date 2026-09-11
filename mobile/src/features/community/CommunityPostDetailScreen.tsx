@@ -47,14 +47,23 @@ export function CommunityPostDetailScreen({ route }: Props) {
 
       <View style={styles.body}>
         {post.createdAt ? (
-          <Text style={[styles.date, { color: colors.secondaryText }]} testID="community-post-detail-date">
+          <Text
+            style={[styles.date, { color: colors.secondaryText }]}
+            testID="community-post-detail-date"
+          >
             {formatDate(post.createdAt)}
           </Text>
         ) : null}
-        <Text style={[styles.title, { color: colors.text }]} testID="community-post-detail-title">
+        <Text
+          style={[styles.title, { color: colors.text }]}
+          testID="community-post-detail-title"
+        >
           {post.title}
         </Text>
-        <Text style={[styles.content, { color: colors.text }]} testID="community-post-detail-content">
+        <Text
+          style={[styles.content, { color: colors.text }]}
+          testID="community-post-detail-content"
+        >
           {post.content}
         </Text>
       </View>

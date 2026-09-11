@@ -45,7 +45,10 @@ export function PlansListScreen({ navigation }: Props) {
 
   if (hasError) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]} testID="plans-error">
+      <View
+        style={[styles.container, { backgroundColor: colors.background }]}
+        testID="plans-error"
+      >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
           Could not load reading plans.
         </Text>
@@ -55,7 +58,10 @@ export function PlansListScreen({ navigation }: Props) {
 
   if (!plans) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]} testID="plans-loading">
+      <View
+        style={[styles.container, { backgroundColor: colors.background }]}
+        testID="plans-loading"
+      >
         <ActivityIndicator />
       </View>
     );
@@ -63,7 +69,10 @@ export function PlansListScreen({ navigation }: Props) {
 
   if (plans.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]} testID="plans-empty">
+      <View
+        style={[styles.container, { backgroundColor: colors.background }]}
+        testID="plans-empty"
+      >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
           No reading plans yet.
         </Text>
@@ -111,7 +120,10 @@ export function PlansListScreen({ navigation }: Props) {
             <Text style={[styles.meta, { color: colors.secondaryText }]}>
               {item.category} • {item.dayCount} {item.dayCount === 1 ? 'day' : 'days'}
             </Text>
-            <Text style={[styles.description, { color: colors.secondaryText }]} numberOfLines={2}>
+            <Text
+              style={[styles.description, { color: colors.secondaryText }]}
+              numberOfLines={2}
+            >
               {item.description}
             </Text>
           </View>

@@ -68,7 +68,8 @@ function toPublishedPlanDay(id: string, data: Record<string, unknown>): Publishe
     id,
     dayNumber: typeof data.dayNumber === 'number' ? data.dayNumber : 0,
     title: typeof data.title === 'string' ? data.title : '',
-    scriptureReference: typeof data.scriptureReference === 'string' ? data.scriptureReference : '',
+    scriptureReference:
+      typeof data.scriptureReference === 'string' ? data.scriptureReference : '',
     devotional: typeof data.devotional === 'string' ? data.devotional : '',
     prayerPrompt: typeof data.prayerPrompt === 'string' ? data.prayerPrompt : '',
   };
@@ -90,7 +91,11 @@ export function subscribeToPublishedPlans(
   onNext: (plans: PublishedPlan[]) => void,
   onError: (error: FirestoreError) => void
 ): Unsubscribe {
-  const q = query(collection(db, 'plans'), where('published', '==', true), orderBy('order', 'asc'));
+  const q = query(
+    collection(db, 'plans'),
+    where('published', '==', true),
+    orderBy('order', 'asc')
+  );
   return onSnapshot(
     q,
     (snapshot) => onNext(snapshot.docs.map((d) => toPublishedPlan(d.id, d.data()))),

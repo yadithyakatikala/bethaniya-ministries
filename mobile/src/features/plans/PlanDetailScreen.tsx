@@ -66,7 +66,10 @@ export function PlanDetailScreen({ route, navigation }: Props) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]} testID="plan-detail-screen">
+    <View
+      style={[styles.container, { backgroundColor: colors.background }]}
+      testID="plan-detail-screen"
+    >
       {plan.coverImageUrl ? (
         <Image
           source={{ uri: plan.coverImageUrl }}
@@ -85,7 +88,9 @@ export function PlanDetailScreen({ route, navigation }: Props) {
         <Text style={[styles.title, { color: colors.text }]} testID="plan-detail-title">
           {plan.title}
         </Text>
-        <Text style={[styles.description, { color: colors.text }]}>{plan.description}</Text>
+        <Text style={[styles.description, { color: colors.text }]}>
+          {plan.description}
+        </Text>
 
         <AppButton
           title={progress ? `Continue • Day ${progress.currentDay}` : 'Start Plan'}
@@ -122,12 +127,16 @@ export function PlanDetailScreen({ route, navigation }: Props) {
                 <Text style={[styles.dayNumber, { color: colors.primary }]}>
                   Day {item.dayNumber}
                 </Text>
-                <Text style={[styles.dayTitle, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.dayTitle, { color: colors.text }]}>
+                  {item.title}
+                </Text>
                 <Text style={[styles.dayScripture, { color: colors.secondaryText }]}>
                   {item.scriptureReference}
                 </Text>
                 {completed ? (
-                  <Text style={[styles.dayComplete, { color: colors.success }]}>Completed</Text>
+                  <Text style={[styles.dayComplete, { color: colors.success }]}>
+                    Completed
+                  </Text>
                 ) : null}
               </View>
             );
@@ -142,7 +151,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   cover: { width: '100%', aspectRatio: 16 / 9 },
   body: { gap: 6 },
-  meta: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  meta: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   title: { fontSize: 22, fontWeight: '700' },
   description: { fontSize: 15, lineHeight: 22 },
   dayRow: { borderWidth: StyleSheet.hairlineWidth, gap: 2 },

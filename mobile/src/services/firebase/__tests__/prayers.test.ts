@@ -1,5 +1,10 @@
 import { addDoc, deleteDoc, onSnapshot, Timestamp, updateDoc } from 'firebase/firestore';
-import { createPrayer, deletePrayer, setPrayerAnswered, subscribeToPrayers } from '../prayers';
+import {
+  createPrayer,
+  deletePrayer,
+  setPrayerAnswered,
+  subscribeToPrayers,
+} from '../prayers';
 
 jest.mock('../app');
 
@@ -30,7 +35,11 @@ describe('prayers service', () => {
       subscribeToPrayers('uid-1', onNext, onError);
 
       expect(onNext).toHaveBeenCalledWith([
-        expect.objectContaining({ id: 'p1', text: 'Please pray for healing.', answered: false }),
+        expect.objectContaining({
+          id: 'p1',
+          text: 'Please pray for healing.',
+          answered: false,
+        }),
       ]);
     });
 
@@ -56,7 +65,11 @@ describe('prayers service', () => {
       expect(id).toBe('new-id');
       expect(addDoc).toHaveBeenCalledWith(
         undefined,
-        expect.objectContaining({ text: 'Thank you Lord.', answered: false, answeredAt: null })
+        expect.objectContaining({
+          text: 'Thank you Lord.',
+          answered: false,
+          answeredAt: null,
+        })
       );
     });
   });

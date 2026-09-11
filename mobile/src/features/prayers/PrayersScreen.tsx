@@ -25,7 +25,11 @@ const PRAYER_TEXT_MAX_LENGTH = 2000;
 
 function formatDate(date: Date | null): string {
   if (!date) return '';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 /**
@@ -104,7 +108,10 @@ export function PrayersScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]} testID="prayers-screen">
+    <View
+      style={[styles.container, { backgroundColor: colors.background }]}
+      testID="prayers-screen"
+    >
       <View style={[styles.composer, { padding: spacing.lg, gap: spacing.sm }]}>
         <SectionHeader title="New Prayer Request" />
         <TextInput
@@ -201,7 +208,9 @@ export function PrayersScreen() {
                   disabled={busyId === item.id}
                   onPress={() => void handleDelete(item)}
                 >
-                  <Text style={[styles.actionLabel, { color: colors.danger }]}>Delete</Text>
+                  <Text style={[styles.actionLabel, { color: colors.danger }]}>
+                    Delete
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -214,8 +223,16 @@ export function PrayersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  composer: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'transparent' },
-  input: { minHeight: 80, fontSize: 15, textAlignVertical: 'top', borderWidth: StyleSheet.hairlineWidth },
+  composer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'transparent',
+  },
+  input: {
+    minHeight: 80,
+    fontSize: 15,
+    textAlignVertical: 'top',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   row: { borderWidth: StyleSheet.hairlineWidth },
   prayerText: { fontSize: 15, lineHeight: 22 },
   meta: { fontSize: 12.5 },

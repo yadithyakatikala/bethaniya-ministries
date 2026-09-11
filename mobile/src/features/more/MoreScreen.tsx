@@ -77,7 +77,11 @@ export function MoreScreen() {
             testID="more-prayers-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('Prayers')}
-            style={[styles.row, styles.divider, { borderTopColor: colors.border, padding: spacing.md }]}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Prayers</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
@@ -86,7 +90,11 @@ export function MoreScreen() {
             testID="more-community-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('CommunityList')}
-            style={[styles.row, styles.divider, { borderTopColor: colors.border, padding: spacing.md }]}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Community</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />

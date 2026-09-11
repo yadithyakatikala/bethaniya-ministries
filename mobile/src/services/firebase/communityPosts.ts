@@ -55,7 +55,8 @@ export function subscribeToPublishedCommunityPosts(
   );
   return onSnapshot(
     q,
-    (snapshot) => onNext(snapshot.docs.map((d) => toPublishedCommunityPost(d.id, d.data()))),
+    (snapshot) =>
+      onNext(snapshot.docs.map((d) => toPublishedCommunityPost(d.id, d.data()))),
     onError
   );
 }

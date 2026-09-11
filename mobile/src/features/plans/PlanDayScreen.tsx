@@ -58,7 +58,13 @@ export function PlanDayScreen({ route }: Props) {
     if (!uid || !progress) return;
     setMarking(true);
     try {
-      await markDayComplete(uid, plan.id, dayNumber, progress.currentDay, progress.completedDays);
+      await markDayComplete(
+        uid,
+        plan.id,
+        dayNumber,
+        progress.currentDay,
+        progress.completedDays
+      );
     } finally {
       setMarking(false);
     }
@@ -66,7 +72,10 @@ export function PlanDayScreen({ route }: Props) {
 
   if (days === null) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]} testID="plan-day-loading">
+      <View
+        style={[styles.center, { backgroundColor: colors.background }]}
+        testID="plan-day-loading"
+      >
         <ActivityIndicator />
       </View>
     );
@@ -74,7 +83,10 @@ export function PlanDayScreen({ route }: Props) {
 
   if (!day) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]} testID="plan-day-not-found">
+      <View
+        style={[styles.center, { backgroundColor: colors.background }]}
+        testID="plan-day-not-found"
+      >
         <Text style={{ color: colors.secondaryText }}>This day could not be found.</Text>
       </View>
     );
@@ -82,10 +94,15 @@ export function PlanDayScreen({ route }: Props) {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background, padding: spacing.lg, gap: spacing.md }]}
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: colors.background, padding: spacing.lg, gap: spacing.md },
+      ]}
       testID="plan-day-screen"
     >
-      <Text style={[styles.scripture, { color: colors.primary }]}>{day.scriptureReference}</Text>
+      <Text style={[styles.scripture, { color: colors.primary }]}>
+        {day.scriptureReference}
+      </Text>
       <Text style={[styles.title, { color: colors.text }]} testID="plan-day-title">
         {day.title}
       </Text>
@@ -98,8 +115,12 @@ export function PlanDayScreen({ route }: Props) {
             { backgroundColor: colors.primaryTint, padding: spacing.md, gap: spacing.xs },
           ]}
         >
-          <Text style={[styles.promptLabel, { color: colors.primary }]}>Prayer Prompt</Text>
-          <Text style={[styles.promptText, { color: colors.text }]}>{day.prayerPrompt}</Text>
+          <Text style={[styles.promptLabel, { color: colors.primary }]}>
+            Prayer Prompt
+          </Text>
+          <Text style={[styles.promptText, { color: colors.text }]}>
+            {day.prayerPrompt}
+          </Text>
         </View>
       ) : null}
 
@@ -117,10 +138,20 @@ export function PlanDayScreen({ route }: Props) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { flexGrow: 1 },
-  scripture: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  scripture: {
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   title: { fontSize: 22, fontWeight: '700' },
   devotional: { fontSize: 16, lineHeight: 25 },
   promptCard: { borderRadius: 12 },
-  promptLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  promptLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   promptText: { fontSize: 15, lineHeight: 22 },
 });

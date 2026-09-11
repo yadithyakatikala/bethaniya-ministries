@@ -20,7 +20,10 @@ export function EditPlanPage() {
 
   if (!plans) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }} data-testid="edit-plan-loading">
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}
+        data-testid="edit-plan-loading"
+      >
         <CircularProgress />
       </Box>
     );

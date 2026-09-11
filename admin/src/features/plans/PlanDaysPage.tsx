@@ -21,7 +21,11 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { deletePlanDay, subscribeToPlanDays, subscribeToPlans } from '../../services/firebase/plans';
+import {
+  deletePlanDay,
+  subscribeToPlanDays,
+  subscribeToPlans,
+} from '../../services/firebase/plans';
 import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
@@ -170,12 +174,18 @@ export function PlanDaysPage() {
         <DialogTitle>Delete day?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {deleteTarget ? `Day ${deleteTarget.dayNumber} ("${deleteTarget.title}") will be permanently deleted.` : null}
+            {deleteTarget
+              ? `Day ${deleteTarget.dayNumber} ("${deleteTarget.title}") will be permanently deleted.`
+              : null}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button color="error" onClick={() => void handleConfirmDelete()} data-testid="confirm-delete-day-button">
+          <Button
+            color="error"
+            onClick={() => void handleConfirmDelete()}
+            data-testid="confirm-delete-day-button"
+          >
             Delete
           </Button>
         </DialogActions>

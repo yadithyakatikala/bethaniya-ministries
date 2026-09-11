@@ -118,7 +118,10 @@ export function CommunityListScreen({ navigation }: Props) {
           )}
           <View style={styles.textColumn}>
             <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-            <Text style={[styles.content, { color: colors.secondaryText }]} numberOfLines={2}>
+            <Text
+              style={[styles.content, { color: colors.secondaryText }]}
+              numberOfLines={2}
+            >
               {item.content}
             </Text>
           </View>

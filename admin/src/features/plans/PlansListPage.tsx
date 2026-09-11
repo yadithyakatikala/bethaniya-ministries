@@ -22,7 +22,11 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ViewListIcon from '@mui/icons-material/ViewList';
-import { deletePlan, setPlanPublished, subscribeToPlans } from '../../services/firebase/plans';
+import {
+  deletePlan,
+  setPlanPublished,
+  subscribeToPlans,
+} from '../../services/firebase/plans';
 import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
@@ -89,7 +93,12 @@ export function PlansListPage() {
         title="Reading Plans"
         action={
           canManage ? (
-            <Button variant="contained" component={RouterLink} to="/plans/new" data-testid="new-plan-button">
+            <Button
+              variant="contained"
+              component={RouterLink}
+              to="/plans/new"
+              data-testid="new-plan-button"
+            >
               New Plan
             </Button>
           ) : undefined
@@ -193,7 +202,11 @@ export function PlansListPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button color="error" onClick={() => void handleConfirmDelete()} data-testid="confirm-delete-button">
+          <Button
+            color="error"
+            onClick={() => void handleConfirmDelete()}
+            data-testid="confirm-delete-button"
+          >
             Delete
           </Button>
         </DialogActions>

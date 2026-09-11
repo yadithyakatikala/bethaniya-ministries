@@ -36,7 +36,11 @@ describe('plans service', () => {
       subscribeToPublishedPlans(onNext, jest.fn());
 
       expect(onNext).toHaveBeenCalledWith([
-        expect.objectContaining({ id: 'plan-1', title: '7 Days of Gratitude', dayCount: 7 }),
+        expect.objectContaining({
+          id: 'plan-1',
+          title: '7 Days of Gratitude',
+          dayCount: 7,
+        }),
       ]);
     });
   });

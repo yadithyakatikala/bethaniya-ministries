@@ -32,7 +32,9 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
   const [imageUrl] = useState<string | null>(post?.imageUrl ?? null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ title?: string; content?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ title?: string; content?: string }>(
+    {}
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -71,7 +73,11 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
       if (mode === 'create') {
         await createCommunityPost({ title, content, imageUrl: resolvedImageUrl });
       } else if (post) {
-        await updateCommunityPost(post.id, { title, content, imageUrl: resolvedImageUrl });
+        await updateCommunityPost(post.id, {
+          title,
+          content,
+          imageUrl: resolvedImageUrl,
+        });
       }
       navigate('/community');
     } catch {
@@ -128,7 +134,11 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
             data-testid="community-post-image-input"
           />
           {imageError ? (
-            <Typography variant="body2" color="error" data-testid="community-post-image-error">
+            <Typography
+              variant="body2"
+              color="error"
+              data-testid="community-post-image-error"
+            >
               {imageError}
             </Typography>
           ) : null}

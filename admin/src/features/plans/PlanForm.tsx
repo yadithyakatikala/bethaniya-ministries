@@ -1,8 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
-import { createPlan, updatePlan, uploadPlanCoverImage } from '../../services/firebase/plans';
-import { hasValidationErrors, validatePlanCoverImage, validatePlanInput } from './validation';
+import {
+  createPlan,
+  updatePlan,
+  uploadPlanCoverImage,
+} from '../../services/firebase/plans';
+import {
+  hasValidationErrors,
+  validatePlanCoverImage,
+  validatePlanInput,
+} from './validation';
 import type { Plan } from '../../types';
 
 interface PlanFormProps {
@@ -162,7 +170,11 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
             data-testid="plan-cover-image-input"
           />
           {imageError ? (
-            <Typography variant="body2" color="error" data-testid="plan-cover-image-error">
+            <Typography
+              variant="body2"
+              color="error"
+              data-testid="plan-cover-image-error"
+            >
               {imageError}
             </Typography>
           ) : null}
@@ -182,7 +194,11 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
         >
           {mode === 'create' ? 'Create' : 'Save changes'}
         </Button>
-        <Button sx={{ mt: 2, ml: 1 }} onClick={() => navigate('/plans')} data-testid="plan-form-cancel">
+        <Button
+          sx={{ mt: 2, ml: 1 }}
+          onClick={() => navigate('/plans')}
+          data-testid="plan-form-cancel"
+        >
           Cancel
         </Button>
       </Paper>

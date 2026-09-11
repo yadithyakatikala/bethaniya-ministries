@@ -35,7 +35,13 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn(),
 }));
 
-import { addDoc, deleteDoc, onSnapshot, updateDoc, type FirestoreError } from 'firebase/firestore';
+import {
+  addDoc,
+  deleteDoc,
+  onSnapshot,
+  updateDoc,
+  type FirestoreError,
+} from 'firebase/firestore';
 import {
   createCommunityPost,
   deleteCommunityPost,
@@ -70,7 +76,11 @@ describe('communityPosts service', () => {
         })
       );
       expect(mockLogAdminAction).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'create', collection: 'community', documentId: 'new-id' })
+        expect.objectContaining({
+          action: 'create',
+          collection: 'community',
+          documentId: 'new-id',
+        })
       );
     });
   });
@@ -78,7 +88,11 @@ describe('communityPosts service', () => {
   describe('updateCommunityPost', () => {
     it('updates the trimmed fields and logs the action', async () => {
       vi.mocked(updateDoc).mockResolvedValue(undefined);
-      await updateCommunityPost('c1', { title: 'New title', content: 'New content', imageUrl: null });
+      await updateCommunityPost('c1', {
+        title: 'New title',
+        content: 'New content',
+        imageUrl: null,
+      });
       expect(updateDoc).toHaveBeenCalledWith(
         { id: 'c1' },
         expect.objectContaining({ title: 'New title', content: 'New content' })
@@ -107,8 +121,13 @@ describe('communityPosts service', () => {
     it('logs a "publish" action when publishing', async () => {
       vi.mocked(updateDoc).mockResolvedValue(undefined);
       await setCommunityPostPublished('c1', 'Baptism Testimony', true);
-      expect(updateDoc).toHaveBeenCalledWith({ id: 'c1' }, expect.objectContaining({ published: true }));
-      expect(mockLogAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'publish' }));
+      expect(updateDoc).toHaveBeenCalledWith(
+        { id: 'c1' },
+        expect.objectContaining({ published: true })
+      );
+      expect(mockLogAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'publish' })
+      );
     });
   });
 

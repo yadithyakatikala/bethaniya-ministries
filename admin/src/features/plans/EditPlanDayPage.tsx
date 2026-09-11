@@ -22,7 +22,10 @@ export function EditPlanDayPage() {
 
   if (!days) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }} data-testid="edit-plan-day-loading">
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}
+        data-testid="edit-plan-day-loading"
+      >
         <CircularProgress />
       </Box>
     );

@@ -53,7 +53,9 @@ export function subscribeToCommunityPosts(
 }
 
 /** New community posts always start unpublished -- publishing is a separate, explicit action (see setCommunityPostPublished). */
-export async function createCommunityPost(input: CommunityPostFormInput): Promise<string> {
+export async function createCommunityPost(
+  input: CommunityPostFormInput
+): Promise<string> {
   const title = input.title.trim();
   const docRef = await addDoc(collection(db, COMMUNITY_COLLECTION), {
     title,

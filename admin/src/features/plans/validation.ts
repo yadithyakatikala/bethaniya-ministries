@@ -80,7 +80,9 @@ export interface PlanDayValidationErrors {
   prayerPrompt?: string;
 }
 
-export function validatePlanDayInput(input: PlanDayValidationInput): PlanDayValidationErrors {
+export function validatePlanDayInput(
+  input: PlanDayValidationInput
+): PlanDayValidationErrors {
   const errors: PlanDayValidationErrors = {};
 
   if (!Number.isInteger(input.dayNumber) || input.dayNumber < 1) {

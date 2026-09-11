@@ -1,7 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
-import { createPlanDay, subscribeToPlans, updatePlanDay } from '../../services/firebase/plans';
+import {
+  createPlanDay,
+  subscribeToPlans,
+  updatePlanDay,
+} from '../../services/firebase/plans';
 import { hasValidationErrors, validatePlanDayInput } from './validation';
 import type { Plan, PlanDay } from '../../types';
 
@@ -26,10 +30,14 @@ export function PlanDayForm({ mode, day }: PlanDayFormProps) {
 
   const [dayNumber, setDayNumber] = useState(String(day?.dayNumber ?? ''));
   const [title, setTitle] = useState(day?.title ?? '');
-  const [scriptureReference, setScriptureReference] = useState(day?.scriptureReference ?? '');
+  const [scriptureReference, setScriptureReference] = useState(
+    day?.scriptureReference ?? ''
+  );
   const [devotional, setDevotional] = useState(day?.devotional ?? '');
   const [prayerPrompt, setPrayerPrompt] = useState(day?.prayerPrompt ?? '');
-  const [fieldErrors, setFieldErrors] = useState<ReturnType<typeof validatePlanDayInput>>({});
+  const [fieldErrors, setFieldErrors] = useState<ReturnType<typeof validatePlanDayInput>>(
+    {}
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
