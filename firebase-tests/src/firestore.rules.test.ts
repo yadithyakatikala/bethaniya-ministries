@@ -1040,4 +1040,210 @@ describe('firestore.rules', () => {
       );
     });
   });
+
+  // ---- New V1 features (Plans/Prayers/Community) -------------------------
+  // Added per explicit owner decision after this project's original
+  // FINAL_ARCHITECTURE_SPECIFICATION.md scope -- see
+  // PRODUCTION_READINESS.md's "New V1 features" section.
+
+  describe('users/{userId}/prayers (fully private per-owner)', () => {
+    it('blocks a different member from reading another member\'s prayers', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+        await db
+          .doc('users/member-1/prayers/p1')
+          .set({ text: 'Please pray for my family.', answered: false });
+      });
+      await assertFails(dbFor('member-2').doc('users/member-1/prayers/p1').get());
+    });
+
+    it('blocks a content_admin from reading another user\'s prayers (fully private, no admin override)', async () => {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db
+          .doc('users/member-1/prayers/p1')
+          .set({ text: 'Please pray for my family.', answered: false });
+      });
+      await assertFails(dbFor('admin-1').doc('users/member-1/prayers/p1').get());
+    });
+
+    it('allows a member to create/read/update/delete their own prayer', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(
+        db.doc('users/member-1/prayers/p1').set({ text: 'Thank you Lord.', answered: false })
+      );
+      await assertSucceeds(db.doc('users/member-1/prayers/p1').get());
+      await assertSucceeds(db.doc('users/member-1/prayers/p1').update({ answered: true }));
+      await assertSucceeds(db.doc('users/member-1/prayers/p1').delete());
+    });
+
+    it('blocks creating a prayer under a different uid', async () => {
+      await assertFails(
+        dbFor('member-1')
+          .doc('users/member-2/prayers/p1')
+          .set({ text: 'x', answered: false })
+      );
+    });
+
+    it('blocks a prayer write with empty text', async () => {
+      await assertFails(
+        dbFor('member-1').doc('users/member-1/prayers/p1').set({ text: '', answered: false })
+      );
+    });
+  });
+
+  describe('community (published-content restriction, mirrors announcements)', () => {
+    it('blocks a signed-in member from reading an unpublished community post', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('community/c1').set({ published: false });
+      });
+      await assertFails(dbFor('member-1').doc('community/c1').get());
+    });
+
+    it('allows a signed-in member to read a published community post', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('community/c1').set({ published: true });
+      });
+      await assertSucceeds(dbFor('member-1').doc('community/c1').get());
+    });
+
+    it('blocks a member from writing community posts', async () => {
+      await seed(async (db) => db.doc('users/member-1').set({ role: 'member' }));
+      await assertFails(
+        dbFor('member-1').doc('community/c2').set({ title: 'x', content: 'y', published: true })
+      );
+    });
+
+    it('allows a content_admin to write a valid community post', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('community/c2')
+          .set({ title: 'Baptism Testimony', content: 'God is good.', published: true, imageUrl: null })
+      );
+    });
+
+    it('blocks a content_admin write missing content', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('community/c3').set({ title: 'Title', published: true })
+      );
+    });
+  });
+
+  describe('plans + plans/{id}/days (published-content restriction, day visibility follows parent)', () => {
+    it('blocks a signed-in member from reading an unpublished plan', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('plans/p1').set({ published: false });
+      });
+      await assertFails(dbFor('member-1').doc('plans/p1').get());
+    });
+
+    it('allows a signed-in member to read a published plan', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('plans/p1').set({ published: true });
+      });
+      await assertSucceeds(dbFor('member-1').doc('plans/p1').get());
+    });
+
+    it('blocks a member from writing plans', async () => {
+      await seed(async (db) => db.doc('users/member-1').set({ role: 'member' }));
+      await assertFails(
+        dbFor('member-1')
+          .doc('plans/p2')
+          .set({ title: 't', description: 'd', category: 'c', dayCount: 0, order: 0, published: true })
+      );
+    });
+
+    it('allows a content_admin to write a valid plan', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(
+        dbFor('admin-1')
+          .doc('plans/p2')
+          .set({
+            title: '7 Days of Gratitude',
+            description: 'A short devotional plan.',
+            category: 'Devotional',
+            dayCount: 7,
+            order: 0,
+            published: true,
+            coverImageUrl: null,
+          })
+      );
+    });
+
+    it("blocks a member from reading a day under an unpublished plan", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('plans/p3').set({ published: false });
+        await db
+          .doc('plans/p3/days/d1')
+          .set({ dayNumber: 1, title: 'Day 1', scriptureReference: 'John 3:16', devotional: 'x' });
+      });
+      await assertFails(dbFor('member-1').doc('plans/p3/days/d1').get());
+    });
+
+    it('allows a member to read a day under a published plan', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('plans/p3').set({ published: true });
+        await db
+          .doc('plans/p3/days/d1')
+          .set({ dayNumber: 1, title: 'Day 1', scriptureReference: 'John 3:16', devotional: 'x' });
+      });
+      await assertSucceeds(dbFor('member-1').doc('plans/p3/days/d1').get());
+    });
+
+    it('blocks a member from writing a plan day', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('plans/p3').set({ published: true });
+      });
+      await assertFails(
+        dbFor('member-1')
+          .doc('plans/p3/days/d2')
+          .set({ dayNumber: 2, title: 'Day 2', scriptureReference: 'x', devotional: 'y' })
+      );
+    });
+  });
+
+  describe('users/{userId}/planProgress (fully private per-owner)', () => {
+    it('blocks a different member from reading another member\'s plan progress', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+        await db
+          .doc('users/member-1/planProgress/p1')
+          .set({ startedAt: new Date(), currentDay: 1, completedDays: [] });
+      });
+      await assertFails(dbFor('member-2').doc('users/member-1/planProgress/p1').get());
+    });
+
+    it('allows a member to create/read/update their own plan progress', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(
+        db
+          .doc('users/member-1/planProgress/p1')
+          .set({ startedAt: new Date(), currentDay: 1, completedDays: [] })
+      );
+      await assertSucceeds(db.doc('users/member-1/planProgress/p1').get());
+      await assertSucceeds(
+        db.doc('users/member-1/planProgress/p1').update({ currentDay: 2, completedDays: [1] })
+      );
+    });
+
+    it('blocks creating plan progress under a different uid', async () => {
+      await assertFails(
+        dbFor('member-1')
+          .doc('users/member-2/planProgress/p1')
+          .set({ startedAt: new Date(), currentDay: 1, completedDays: [] })
+      );
+    });
+  });
 });

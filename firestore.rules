@@ -168,6 +168,80 @@ service cloud.firestore {
             || data.notificationsEnabled is bool);
     }
 
+    // Prayer request field-level validation -- new V1 feature, added per
+    // explicit owner decision (Plans/Prayers/Community are genuine new V1
+    // features, not part of FINAL_ARCHITECTURE_SPECIFICATION.md's original
+    // scope -- see PRODUCTION_READINESS.md). Same reasoning as
+    // isValidAnnouncement() above, applied to a member's own prayer
+    // requests -- fully private, never admin-managed (see the
+    // /users/{userId}/prayers subcollection rule below).
+    function isValidPrayer(data) {
+      return data.text is string
+        && data.text.size() > 0 && data.text.size() <= 2000
+        && data.answered is bool
+        && (!('answeredAt' in data) || data.answeredAt == null || data.answeredAt is timestamp);
+    }
+
+    // Community post field-level validation -- new V1 feature. Same shape
+    // and reasoning as isValidAnnouncement() (admin-authored, member-read
+    // when published -- see the RBAC/scope note above isValidPrayer()).
+    function isValidCommunityPost(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.content is string
+        && data.content.size() > 0 && data.content.size() <= 5000
+        && data.published is bool
+        && (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string);
+    }
+
+    // Reading plan field-level validation -- new V1 feature. `dayCount`
+    // must match the actual number of /plans/{planId}/days documents an
+    // admin has created; that cross-collection invariant is enforced by
+    // admin/src/services/firebase/plans.ts (which derives dayCount from
+    // the real days subcollection rather than accepting it as free-typed
+    // input), not by this rule -- Firestore rules cannot count a
+    // subcollection's documents without an unbounded read, so this only
+    // validates dayCount's shape (a non-negative integer), the same
+    // boundary FINAL_ARCHITECTURE_SPECIFICATION.md's "client validates,
+    // rules re-validate shape" principle uses elsewhere in this file.
+    function isValidPlan(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.description is string
+        && data.description.size() > 0 && data.description.size() <= 2000
+        && data.category is string
+        && data.category.size() > 0 && data.category.size() <= 100
+        && data.dayCount is int && data.dayCount >= 0
+        && data.order is int
+        && data.published is bool
+        && (!('coverImageUrl' in data) || data.coverImageUrl == null || data.coverImageUrl is string);
+    }
+
+    // A single day within a reading plan -- see the
+    // /plans/{planId}/days/{dayId} rule below for why read access is
+    // gated on the parent plan's own published flag rather than a
+    // separate published field per day.
+    function isValidPlanDay(data) {
+      return data.dayNumber is int && data.dayNumber >= 1
+        && data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.scriptureReference is string
+        && data.scriptureReference.size() > 0 && data.scriptureReference.size() <= 200
+        && data.devotional is string
+        && data.devotional.size() > 0 && data.devotional.size() <= 5000
+        && (!('prayerPrompt' in data) || data.prayerPrompt is string && data.prayerPrompt.size() <= 1000);
+    }
+
+    // A member's own progress through a reading plan -- fully private,
+    // same isOwner(userId)-only shape as prayers (see
+    // /users/{userId}/planProgress/{planId} below).
+    function isValidPlanProgress(data) {
+      return data.startedAt is timestamp
+        && data.currentDay is int && data.currentDay >= 1
+        && data.completedDays is list
+        && (!('lastReadAt' in data) || data.lastReadAt == null || data.lastReadAt is timestamp);
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -219,6 +293,23 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // ---- users/{userId}/prayers -----------------------------------------
+    // New V1 feature (Prayers) -- fully private per-owner, never
+    // admin-managed. isOwner(userId) is the entire authorization boundary,
+    // same as the parent /users/{userId} document itself.
+    match /users/{userId}/prayers/{prayerId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidPrayer(request.resource.data);
+    }
+
+    // ---- users/{userId}/planProgress -------------------------------------
+    // New V1 feature (Plans) -- a member's own progress through a reading
+    // plan, fully private per-owner, same shape as prayers above.
+    match /users/{userId}/planProgress/{planId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidPlanProgress(request.resource.data);
+    }
+
     // ---- announcements -----------------------------------------------
     // Day 4: create/update additionally re-validated via isValidAnnouncement().
     match /announcements/{announcementId} {
@@ -263,6 +354,45 @@ service cloud.firestore {
                .affectedKeys().hasOnly(['isLive', 'youtubeUrl'])
           && isValidEvent(request.resource.data));
       allow delete: if isContentAdminOrAbove();
+    }
+
+    // ---- community -----------------------------------------------------
+    // New V1 feature -- admin-authored posts (testimonies, updates), member-
+    // read when published. Same read/write shape as announcements above
+    // (deliberately NOT an open member-posting social feed -- see
+    // PRODUCTION_READINESS.md's Community section for why).
+    match /community/{postId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.published == true);
+      allow create, update: if isContentAdminOrAbove()
+        && isValidCommunityPost(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
+    }
+
+    // ---- plans -----------------------------------------------------------
+    // New V1 feature -- admin-authored Bible-reading plans, member-read
+    // when published. Same read/write shape as announcements/community.
+    match /plans/{planId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.published == true);
+      allow create, update: if isContentAdminOrAbove()
+        && isValidPlan(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
+
+      // A day's own visibility follows its PARENT plan's published flag,
+      // not a separate field -- get() the parent doc rather than
+      // duplicating `published` onto every day (avoids the two ever
+      // drifting out of sync, at the cost of one extra read per day-list
+      // rule evaluation, the same read-quota tradeoff callerRole() above
+      // already accepts for this project's V1 scale).
+      match /days/{dayId} {
+        allow read: if isContentAdminOrAbove()
+          || (isSignedIn()
+              && get(/databases/$(database)/documents/plans/$(planId)).data.published == true);
+        allow create, update: if isContentAdminOrAbove()
+          && isValidPlanDay(request.resource.data);
+        allow delete: if isContentAdminOrAbove();
+      }
     }
 
     // ---- notifications_log --------------------------------------------
