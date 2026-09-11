@@ -254,3 +254,92 @@ export interface ChurchSettingsFormInput {
   description: string;
   supportEmail: string;
 }
+
+/**
+ * A community post document at /community/{id} -- a new V1 feature added
+ * per explicit owner decision (Plans/Prayers/Community are genuine new V1
+ * features, not part of FINAL_ARCHITECTURE_SPECIFICATION.md's original
+ * scope -- see PRODUCTION_READINESS.md's "New V1 features" section).
+ * Same shape as Announcement (admin-authored, published-gated member
+ * read) -- deliberately NOT an open member-posting social feed.
+ */
+export interface CommunityPost {
+  id: string;
+  title: string;
+  content: string;
+  /** Storage download URL, or null until an image is uploaded/if none is set. */
+  imageUrl: string | null;
+  /** Controls visibility to members -- see firestore.rules' community read rule. */
+  published: boolean;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin form actually collects -- id/createdAt/updatedAt/published are set elsewhere (see services/firebase/communityPosts.ts). */
+export interface CommunityPostFormInput {
+  title: string;
+  content: string;
+  imageUrl: string | null;
+}
+
+/**
+ * A Bible reading plan document at /plans/{id} -- a new V1 feature (see
+ * CommunityPost's doc comment above for provenance). `dayCount` is
+ * derived server-side from the real /plans/{id}/days subcollection (see
+ * services/firebase/plans.ts) rather than accepted as free-typed admin
+ * input, so it can never drift from the actual number of days created.
+ * `order` controls display order in the mobile library (ascending,
+ * lower first) -- there's no drag-and-drop reordering UI in V1, admins
+ * set it as a plain number field.
+ */
+export interface Plan {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  /** Storage download URL, or null until a cover is uploaded/if none is set. */
+  coverImageUrl: string | null;
+  dayCount: number;
+  order: number;
+  /** Controls visibility to members -- see firestore.rules' plans read rule. */
+  published: boolean;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin plan form actually collects -- id/dayCount/createdAt/updatedAt/published are set elsewhere (see services/firebase/plans.ts). */
+export interface PlanFormInput {
+  title: string;
+  description: string;
+  category: string;
+  coverImageUrl: string | null;
+  order: number;
+}
+
+/**
+ * A single day within a reading plan, at /plans/{planId}/days/{id}. A
+ * subcollection (rather than an array field on the plan document) so an
+ * admin can add/edit/delete one day without rewriting the entire plan
+ * document -- see firestore.rules' isValidPlanDay() for the
+ * server-enforced shape.
+ */
+export interface PlanDay {
+  id: string;
+  dayNumber: number;
+  title: string;
+  scriptureReference: string;
+  devotional: string;
+  /** Optional prompt shown alongside the day's reading -- '' if none set. */
+  prayerPrompt: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+/** Fields the admin plan-day form actually collects -- id/createdAt/updatedAt are set elsewhere (see services/firebase/plans.ts). */
+export interface PlanDayFormInput {
+  dayNumber: number;
+  title: string;
+  scriptureReference: string;
+  devotional: string;
+  prayerPrompt: string;
+}
