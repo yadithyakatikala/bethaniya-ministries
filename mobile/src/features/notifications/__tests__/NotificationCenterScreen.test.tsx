@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { addNotificationToHistory } from '../notificationHistory';
+import * as notificationHistory from '../notificationHistory';
 import { NotificationCenterScreen } from '../NotificationCenterScreen';
 
 jest.mock('../../../services/firebase/app');
@@ -133,5 +134,35 @@ describe('NotificationCenterScreen', () => {
     const stored = await AsyncStorage.getItem('notification_history');
     const [updated] = JSON.parse(stored ?? '[]');
     expect(updated.readAt).toEqual(expect.any(String));
+  });
+  // --- A failed read must not spin forever -------------------------------
+  // getNotificationHistory() reads AsyncStorage. Its promise used to be
+  // consumed with a bare .then(), so a rejection left `history` at
+  // undefined and the screen sat on its spinner with no explanation and
+  // no way out -- see ../NotificationCenterScreen.tsx.
+
+  it('shows an error state, not an endless spinner, when the history cannot be read', async () => {
+    jest
+      .spyOn(notificationHistory, 'getNotificationHistory')
+      .mockRejectedValueOnce(new Error('AsyncStorage unavailable'));
+
+    const { getByTestId, queryByTestId } = await renderScreen();
+
+    await waitFor(() => expect(getByTestId('notification-center-error')).toBeTruthy());
+    expect(queryByTestId('notification-center-loading')).toBeNull();
+  });
+
+  it('offers a retry that recovers once the read succeeds', async () => {
+    const spy = jest
+      .spyOn(notificationHistory, 'getNotificationHistory')
+      .mockRejectedValueOnce(new Error('AsyncStorage unavailable'));
+
+    const { getByTestId, getByText } = await renderScreen();
+    await waitFor(() => expect(getByTestId('notification-center-error')).toBeTruthy());
+
+    spy.mockResolvedValueOnce([]);
+    await fireEvent.press(getByText('Try again'));
+
+    await waitFor(() => expect(getByTestId('notification-center-empty')).toBeTruthy());
   });
 });

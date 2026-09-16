@@ -1,8 +1,14 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -26,7 +32,7 @@ export function MoreScreen() {
       contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
       testID="more-screen"
     >
-      <Pressable
+      <Tappable
         testID="more-profile-link"
         accessibilityRole="button"
         onPress={() => navigation.navigate('Profile')}
@@ -41,7 +47,9 @@ export function MoreScreen() {
         ]}
       >
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={styles.avatarLabel}>{displayLabel.charAt(0).toUpperCase()}</Text>
+          <Text style={[styles.avatarLabel, { color: colors.onPrimary }]}>
+            {displayLabel.charAt(0).toUpperCase()}
+          </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileName, { color: colors.text }]}>{displayLabel}</Text>
@@ -50,7 +58,7 @@ export function MoreScreen() {
           </Text>
         </View>
         <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-      </Pressable>
+      </Tappable>
 
       <View style={styles.section}>
         <SectionHeader title="Grow" />
@@ -64,7 +72,7 @@ export function MoreScreen() {
             },
           ]}
         >
-          <Pressable
+          <Tappable
             testID="more-plans-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('PlansList')}
@@ -72,8 +80,8 @@ export function MoreScreen() {
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Reading Plans</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Pressable>
-          <Pressable
+          </Tappable>
+          <Tappable
             testID="more-prayers-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('Prayers')}
@@ -85,8 +93,8 @@ export function MoreScreen() {
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Prayers</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Pressable>
-          <Pressable
+          </Tappable>
+          <Tappable
             testID="more-community-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('CommunityList')}
@@ -98,7 +106,7 @@ export function MoreScreen() {
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Community</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Pressable>
+          </Tappable>
         </View>
       </View>
 
@@ -114,7 +122,7 @@ export function MoreScreen() {
             },
           ]}
         >
-          <Pressable
+          <Tappable
             testID="more-notifications-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('NotificationCenter')}
@@ -122,8 +130,8 @@ export function MoreScreen() {
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Notifications</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Pressable>
-          <Pressable
+          </Tappable>
+          <Tappable
             testID="more-settings-link"
             accessibilityRole="button"
             onPress={() => navigation.navigate('Settings')}
@@ -135,7 +143,7 @@ export function MoreScreen() {
           >
             <Text style={[styles.rowLabel, { color: colors.text }]}>Settings</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Pressable>
+          </Tappable>
         </View>
       </View>
     </ScrollView>
@@ -157,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLabel: { color: '#FFFFFF', fontSize: 19, fontWeight: '600' },
+  avatarLabel: { fontSize: 19, fontWeight: '600' },
   profileName: { fontSize: 16, fontWeight: '600' },
   profileHint: { fontSize: 12.5, marginTop: 2 },
   section: { gap: 12 },

@@ -70,4 +70,24 @@ describe('BibleSearchScreen', () => {
     await fireEvent.changeText(getByTestId('bible-search-input'), '');
     await waitFor(() => expect(getByTestId('bible-search-empty-query')).toBeTruthy());
   });
+
+  /**
+   * A ScrollView/FlatList defaults to keyboardShouldPersistTaps="never":
+   * while a TextInput inside it has focus, the FIRST touch anywhere in the
+   * scroll view is consumed dismissing the keyboard and never reaches the
+   * control under the finger. The search field keeps focus while
+   * results are showing, so the first tap on a result went nowhere.
+   *
+   * The native scroll view is what implements that, so there is nothing in
+   * the JS test environment to simulate; what this pins is that the screen
+   * never silently reverts to the broken default.
+   */
+  it('keeps taps alive so the first tap on a result navigates', async () => {
+    const { getByTestId } = await renderScreen();
+    await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
+    await waitFor(() => expect(getByTestId('bible-search-results')).toBeTruthy());
+    expect(getByTestId('bible-search-results').props.keyboardShouldPersistTaps).toBe(
+      'handled'
+    );
+  });
 });

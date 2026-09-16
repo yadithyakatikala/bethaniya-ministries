@@ -34,7 +34,30 @@ export function AppButton({
         ? colors.danger
         : 'transparent';
   const borderColor = variant === 'secondary' ? colors.primary : 'transparent';
-  const textColor = variant === 'secondary' ? colors.primary : '#FFFFFF';
+  // NOT '#FFFFFF'. The dark palette's `primary` is a light sage and its
+  // `danger` a light coral, so a white label measured 2.04:1 and 2.80:1
+  // against its own button -- on the primitive that every screen's main
+  // CTA is built from. The on- tokens are dark ink in dark mode, which
+  // measures 8.66:1 and 6.31:1; light mode is unchanged. See ../tokens.ts.
+  const textColor =
+    variant === 'secondary'
+      ? colors.primary
+      : variant === 'destructive'
+        ? colors.onDanger
+        : colors.onPrimary;
+
+  /**
+   * Pressed feedback. The button had no press state at all, so tapping a
+   * CTA that waits on Firebase looked like nothing had happened until the
+   * spinner appeared. Colour only -- no scale or translate, so there is
+   * no animation to drop frames.
+   */
+  function pressedBackground(pressed: boolean): string {
+    if (!pressed || isDisabled) return backgroundColor;
+    if (variant === 'primary') return colors.primaryPressed;
+    if (variant === 'secondary') return colors.primaryTint;
+    return backgroundColor;
+  }
 
   return (
     <Pressable
@@ -42,14 +65,18 @@ export function AppButton({
       accessibilityState={{ disabled: isDisabled }}
       disabled={isDisabled}
       testID={testID}
-      style={[
+      style={({ pressed }) => [
         styles.base,
         {
-          backgroundColor,
+          backgroundColor: pressedBackground(pressed),
           borderColor,
           borderWidth: variant === 'secondary' ? 1.5 : 0,
           borderRadius: radii.control,
-          opacity: isDisabled ? 0.5 : 1,
+          opacity: isDisabled
+            ? 0.5
+            : pressed && variant === 'destructive'
+              ? 0.8
+              : 1,
         },
       ]}
       {...props}

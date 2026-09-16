@@ -102,6 +102,10 @@ export function BibleSearchScreen({ navigation }: Props) {
         <ScrollView
           testID="bible-search-results"
           contentContainerStyle={styles.resultsContent}
+          // The search field keeps focus while results are showing, so
+          // without this the first tap on a result is consumed dismissing
+          // the keyboard -- see SignInScreen.tsx.
+          keyboardShouldPersistTaps="handled"
         >
           {results.map((result) => (
             <TouchableOpacity

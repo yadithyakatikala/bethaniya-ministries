@@ -115,8 +115,10 @@ export function EventsListScreen({ navigation }: Props) {
               style={[styles.liveBadge, { backgroundColor: colors.live }]}
               testID={`live-badge-${item.id}`}
             >
-              <View style={styles.liveDot} />
-              <Text style={styles.liveBadgeText}>LIVE NOW</Text>
+              <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
+              <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>
+                LIVE NOW
+              </Text>
             </View>
           ) : null}
           <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
@@ -149,9 +151,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginBottom: 4,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveBadgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.6,

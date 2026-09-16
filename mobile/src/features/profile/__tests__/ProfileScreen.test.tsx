@@ -419,4 +419,26 @@ describe('ProfileScreen', () => {
     await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
     expect(queryByTestId('profile-email-verified-status')).toBeNull();
   });
+
+  /**
+   * A ScrollView/FlatList defaults to keyboardShouldPersistTaps="never":
+   * while a TextInput inside it has focus, the FIRST touch anywhere in the
+   * scroll view is consumed dismissing the keyboard and never reaches the
+   * control under the finger. Editing the display name and tapping
+   * Save therefore did nothing the first time.
+   *
+   * The native scroll view is what implements that, so there is nothing in
+   * the JS test environment to simulate; what this pins is that the screen
+   * never silently reverts to the broken default.
+   */
+  it('keeps taps alive so the first tap on Save applies the edit', async () => {
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-screen')).toBeTruthy());
+    expect(getByTestId('profile-screen').props.keyboardShouldPersistTaps).toBe(
+      'handled'
+    );
+  });
 });

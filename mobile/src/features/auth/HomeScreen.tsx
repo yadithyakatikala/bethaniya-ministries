@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
@@ -99,7 +99,9 @@ function ChurchBranding({
             { backgroundColor: colors.primary, borderRadius: radii.control },
           ]}
         >
-          <Text style={styles.monogramText}>{churchName.charAt(0)}</Text>
+          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>
+            {churchName.charAt(0)}
+          </Text>
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>
@@ -111,7 +113,7 @@ function ChurchBranding({
           {description}
         </Text>
       </View>
-      <Pressable
+      <Tappable
         testID="notifications-nav-button"
         accessibilityRole="button"
         accessibilityLabel="Notifications"
@@ -126,7 +128,7 @@ function ChurchBranding({
         ]}
       >
         <View style={[styles.iconButtonDot, { backgroundColor: colors.primary }]} />
-      </Pressable>
+      </Tappable>
     </View>
   );
 }
@@ -153,7 +155,7 @@ function QuickLink({
 }) {
   const { colors, radii } = useTheme();
   return (
-    <Pressable
+    <Tappable
       testID={testID}
       accessibilityRole="button"
       onPress={onPress}
@@ -167,7 +169,7 @@ function QuickLink({
       ]}
     >
       <Text style={[styles.quickLinkLabel, { color: colors.text }]}>{label}</Text>
-    </Pressable>
+    </Tappable>
   );
 }
 
@@ -244,10 +246,20 @@ export function HomeScreen() {
   // do something the real-time architecture doesn't need, satisfying the
   // spec's "pull-to-refresh to reload content" without pretending.
   const [refreshing, setRefreshing] = useState(false);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => setRefreshing(false), 400);
   }, []);
+  // Cleared on unmount, so a pull immediately followed by a tab switch
+  // doesn't leave a timer running against a screen that is gone.
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    []
+  );
 
   return (
     <ScrollView
@@ -271,7 +283,7 @@ export function HomeScreen() {
       />
 
       {liveEvent ? (
-        <Pressable
+        <Tappable
           testID="home-live-banner"
           accessibilityRole="button"
           onPress={() => navigation.navigate('EventDetail', { event: liveEvent })}
@@ -281,14 +293,19 @@ export function HomeScreen() {
           ]}
         >
           <View style={styles.liveBadgeRow}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveLabel}>LIVE NOW</Text>
+            <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
+            <Text style={[styles.liveLabel, { color: colors.onLive }]}>LIVE NOW</Text>
           </View>
-          <Text style={styles.liveTitle}>{liveEvent.title}</Text>
-          <View style={[styles.liveCta, { borderRadius: radii.control }]}>
-            <Text style={styles.liveCtaLabel}>Watch live</Text>
+          <Text style={[styles.liveTitle, { color: colors.onLive }]}>{liveEvent.title}</Text>
+          <View
+            style={[
+              styles.liveCta,
+              { borderRadius: radii.control, backgroundColor: colors.onLive },
+            ]}
+          >
+            <Text style={[styles.liveCtaLabel, { color: colors.live }]}>Watch live</Text>
           </View>
-        </Pressable>
+        </Tappable>
       ) : null}
 
       <View style={styles.section}>
@@ -308,7 +325,7 @@ export function HomeScreen() {
       {activePlan ? (
         <View style={styles.section}>
           <SectionHeader title="Your reading plan" />
-          <Pressable
+          <Tappable
             testID="home-active-plan"
             accessibilityRole="button"
             onPress={() =>
@@ -332,14 +349,14 @@ export function HomeScreen() {
             <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
               Day {activePlan.progress.currentDay} of {activePlan.plan.dayCount}
             </Text>
-          </Pressable>
+          </Tappable>
         </View>
       ) : null}
 
       {nextEvent ? (
         <View style={styles.section}>
           <SectionHeader title="Upcoming events" />
-          <Pressable
+          <Tappable
             testID="home-next-event"
             accessibilityRole="button"
             onPress={() => navigation.navigate('EventDetail', { event: nextEvent })}
@@ -360,7 +377,7 @@ export function HomeScreen() {
                 {nextEvent.location}
               </Text>
             ) : null}
-          </Pressable>
+          </Tappable>
         </View>
       ) : null}
 
@@ -405,14 +422,14 @@ export function HomeScreen() {
         </View>
       </View>
 
-      <Pressable
+      <Tappable
         testID="sign-out-button"
         accessibilityRole="button"
         onPress={() => void signOut()}
         style={styles.signOutRow}
       >
         <Text style={[styles.signOutLabel, { color: colors.danger }]}>Sign out</Text>
-      </Pressable>
+      </Tappable>
     </ScrollView>
   );
 }
@@ -430,7 +447,7 @@ const styles = StyleSheet.create({
   },
   logo: { width: 44, height: 44 },
   monogram: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  monogramText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
+  monogramText: { fontSize: 18, fontWeight: '600' },
   greeting: { fontSize: 12.5 },
   churchName: { fontSize: 17, fontWeight: '600' },
   churchDescription: { fontSize: 13, lineHeight: 18 },
@@ -444,16 +461,15 @@ const styles = StyleSheet.create({
   iconButtonDot: { width: 8, height: 8, borderRadius: 4 },
   liveBanner: { padding: 18, gap: 12 },
   liveBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
-  liveLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 1.4 },
-  liveTitle: { color: '#FFFFFF', fontSize: 21, fontWeight: '600' },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
+  liveLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1.4 },
+  liveTitle: { fontSize: 21, fontWeight: '600' },
   liveCta: {
-    backgroundColor: '#FFFFFF',
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveCtaLabel: { color: '#8E2A1F', fontSize: 15, fontWeight: '700' },
+  liveCtaLabel: { fontSize: 15, fontWeight: '700' },
   section: { gap: 12 },
   eventRow: { padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
   eventTitle: { fontSize: 14.5, fontWeight: '600' },

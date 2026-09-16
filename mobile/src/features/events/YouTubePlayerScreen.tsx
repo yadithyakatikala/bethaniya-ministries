@@ -87,6 +87,8 @@ export function YouTubePlayerScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
-  errorText: { color: '#666', textAlign: 'center' },
+  // Colour comes from the theme in JSX; this hardcoded '#666' was dead
+  // and only invited someone to re-introduce an unthemed colour here.
+  errorText: { textAlign: 'center' },
   webview: { flex: 1 },
 });

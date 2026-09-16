@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { AudioPlayer } from './AudioPlayer';
 import { isFavoriteSong, toggleFavoriteSong } from './favorites';
 
@@ -67,7 +74,7 @@ export function SongDetailScreen({ route }: Props) {
         </Text>
       </View>
 
-      <Pressable
+      <Tappable
         testID="favorite-button"
         accessibilityRole="button"
         accessibilityState={{ selected: isFavorite }}
@@ -84,12 +91,12 @@ export function SongDetailScreen({ route }: Props) {
         <Text
           style={[
             styles.favoriteLabel,
-            { color: isFavorite ? '#FFFFFF' : colors.accent },
+            { color: isFavorite ? colors.onPrimary : colors.accent },
           ]}
         >
           {isFavorite ? 'Favorited' : 'Favorite'}
         </Text>
-      </Pressable>
+      </Tappable>
 
       <AudioPlayer audioUrl={song.audioUrl} />
 

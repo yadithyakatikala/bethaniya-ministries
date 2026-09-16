@@ -15,7 +15,9 @@ export function Badge({
   const { colors } = useTheme();
 
   const palette: Record<BadgeVariant, { bg: string; fg: string }> = {
-    live: { bg: colors.live, fg: '#FFFFFF' },
+    // `onLive`, not '#FFFFFF' -- white on the dark palette's light-coral
+    // `live` measured 2.80:1. See ../tokens.ts.
+    live: { bg: colors.live, fg: colors.onLive },
     success: { bg: colors.primaryTint, fg: colors.primaryPressed },
     draft: { bg: colors.surfaceRaised, fg: colors.inkMuted },
     featured: { bg: colors.liveTint, fg: colors.accent },

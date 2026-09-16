@@ -27,10 +27,28 @@ export interface ThemeColors {
   primary: string;
   primaryPressed: string;
   primaryTint: string;
+  /**
+   * Text/icon colour for content sitting ON `primary`. NOT always white:
+   * `primary` is a dark green in light mode but a LIGHT sage (#8FC0AC) in
+   * dark mode, so hardcoded white fails there.
+   *
+   * Added during the final UI/UX pass, which found seven places painting
+   * `#FFFFFF` straight onto `primary`/`live` -- the church monogram on
+   * Home and Sign In, the More avatar, and every LIVE badge. In dark mode
+   * those measured roughly 1.9:1 and 2.6:1 against their own backgrounds,
+   * well under the 4.5:1 WCAG AA minimum and genuinely hard to read.
+   * These tokens keep ~8.8:1 and ~6.9:1 in dark mode and leave light mode
+   * pixel-identical.
+   */
+  onPrimary: string;
   accent: string;
   live: string;
   liveTint: string;
+  /** Text/icon colour for content sitting ON `live` -- see `onPrimary`. */
+  onLive: string;
   danger: string;
+  /** Text/icon colour for content sitting ON `danger` -- see `onPrimary`. */
+  onDanger: string;
   success: string;
   /** @deprecated alias of `paper` -- kept so pre-existing screens don't need a JSX rewrite */
   background: string;
@@ -50,10 +68,20 @@ const lightBase = {
   primary: '#2E5347',
   primaryPressed: '#24423A',
   primaryTint: '#E4EDE7',
-  accent: '#A96C33',
+  onPrimary: '#FFFFFF',
+  // Darkened from the prototype's #A96C33 during the final UI/UX pass.
+  // `accent` is small text in six places (Bible verse numbers, the Daily
+  // Verse reference and "Today" label, the archive references) and the
+  // favourite-button fill on Song Detail; #A96C33 measured 4.02:1 on
+  // paper, 3.60:1 on primaryTint and 3.69:1 on liveTint -- all under the
+  // 4.5:1 AA minimum for text this size. Same hue, ~7% darker: now
+  // 5.37 / 4.80 / 4.93, and 5.74:1 for white on the favourited pill.
+  accent: '#8F5A26',
   live: '#C0392B',
   liveTint: '#FBEAE7',
+  onLive: '#FFFFFF',
   danger: '#B3261E',
+  onDanger: '#FFFFFF',
   success: '#2F7A4F',
 };
 
@@ -67,10 +95,17 @@ const darkBase = {
   primary: '#8FC0AC',
   primaryPressed: '#7AAE97',
   primaryTint: '#27302B',
+  // Dark ink, not white: dark-mode `primary` is a light sage.
+  onPrimary: '#141A17',
   accent: '#DDA76B',
   live: '#FF6B5A',
   liveTint: '#3B211D',
+  // Dark ink, not white: dark-mode `live` is a light coral.
+  onLive: '#141A17',
   danger: '#FF6B5A',
+  // Dark ink, not white: dark-mode `danger` is the same light coral as
+  // `live` (white measured 2.80:1 on it, dark ink measures 6.31:1).
+  onDanger: '#141A17',
   success: '#8FC0AC',
 };
 

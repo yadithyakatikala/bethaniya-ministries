@@ -7,6 +7,7 @@ import { AppButton } from '../../theme/ui/AppButton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   markDayComplete,
+  startPlan,
   subscribeToPlanDays,
   subscribeToPlanProgress,
   type PlanProgress,
@@ -28,14 +29,21 @@ export function PlanDayScreen({ route }: Props) {
   const uid = user?.uid ?? null;
 
   const [days, setDays] = useState<PublishedPlanDay[] | null>(null);
+  const [daysFailed, setDaysFailed] = useState(false);
   const [progress, setProgress] = useState<PlanProgress | null>(null);
   const [marking, setMarking] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToPlanDays(
       plan.id,
-      (next) => setDays(next),
-      () => setDays([])
+      (next) => {
+        setDays(next);
+        setDaysFailed(false);
+      },
+      // A read failure used to resolve to `[]`, which renders below as
+      // "This day could not be found" -- blaming the content for what is
+      // actually a connection problem, and offering no way to recover.
+      () => setDaysFailed(true)
     );
     return unsubscribe;
   }, [plan.id]);
@@ -54,10 +62,22 @@ export function PlanDayScreen({ route }: Props) {
   const day = days?.find((d) => d.dayNumber === dayNumber) ?? null;
   const completed = progress?.completedDays.includes(dayNumber) ?? false;
 
+  /**
+   * A member can reach a day straight from the plan's day list without
+   * having pressed Start, in which case there is no progress document yet.
+   * "Mark Complete" used to sit permanently disabled in that case -- a
+   * dead button with nothing explaining it. It now starts the plan
+   * instead, using the same startPlan() call PlanDetailScreen makes, and
+   * the label says so.
+   */
   async function handleMarkComplete() {
-    if (!uid || !progress) return;
+    if (!uid) return;
     setMarking(true);
     try {
+      if (!progress) {
+        await startPlan(uid, plan.id);
+        return;
+      }
       await markDayComplete(
         uid,
         plan.id,
@@ -68,6 +88,19 @@ export function PlanDayScreen({ route }: Props) {
     } finally {
       setMarking(false);
     }
+  }
+
+  if (daysFailed) {
+    return (
+      <View
+        style={[styles.center, { backgroundColor: colors.background, gap: spacing.lg }]}
+        testID="plan-day-error"
+      >
+        <Text style={[styles.centerMessage, { color: colors.secondaryText }]}>
+          This reading couldn&apos;t be loaded. Check your connection and try again.
+        </Text>
+      </View>
+    );
   }
 
   if (days === null) {
@@ -125,10 +158,10 @@ export function PlanDayScreen({ route }: Props) {
       ) : null}
 
       <AppButton
-        title={completed ? 'Completed' : 'Mark Complete'}
+        title={completed ? 'Completed' : progress ? 'Mark Complete' : 'Start Plan'}
         onPress={() => void handleMarkComplete()}
         loading={marking}
-        disabled={!uid || !progress || completed}
+        disabled={!uid || completed}
         testID="plan-day-mark-complete"
       />
     </ScrollView>
@@ -136,7 +169,8 @@ export function PlanDayScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  centerMessage: { textAlign: 'center', fontSize: 14, lineHeight: 20 },
   container: { flexGrow: 1 },
   scripture: {
     fontSize: 13,

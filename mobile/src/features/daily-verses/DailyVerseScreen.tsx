@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { EmptyState } from '../../theme/ui/EmptyState';
 import {
@@ -64,7 +64,7 @@ export function DailyVerseScreen() {
       testID="daily-verse-screen"
     >
       <View style={styles.headerRow}>
-        <Pressable
+        <Tappable
           testID="daily-verse-back-button"
           accessibilityRole="button"
           accessibilityLabel="Back"
@@ -72,7 +72,7 @@ export function DailyVerseScreen() {
           style={styles.backButton}
         >
           <View style={[styles.backChevron, { borderColor: colors.text }]} />
-        </Pressable>
+        </Tappable>
         <Text style={[styles.heading, { color: colors.text }]}>Daily Verse</Text>
       </View>
 

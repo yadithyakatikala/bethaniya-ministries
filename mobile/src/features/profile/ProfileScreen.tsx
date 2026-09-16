@@ -268,6 +268,9 @@ export function ProfileScreen() {
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+      // Otherwise the first tap on Save/Cancel with the name field focused
+      // only dismisses the keyboard -- see SignInScreen.tsx.
+      keyboardShouldPersistTaps="handled"
       testID="profile-screen"
     >
       <View style={styles.photoSection}>

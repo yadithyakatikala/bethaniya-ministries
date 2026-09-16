@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -107,12 +108,34 @@ export function PrayersScreen() {
     }
   }
 
+  /**
+   * Deleting a prayer is irreversible and there is no undo, so it asks
+   * first. This is the app's only destructive action on user-authored
+   * content; it uses the platform dialog rather than a bespoke sheet so it
+   * looks and behaves like every other Android confirmation.
+   */
+  function confirmDelete(prayer: Prayer) {
+    Alert.alert('Delete this prayer?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => void handleDelete(prayer),
+      },
+    ]);
+  }
+
   return (
     <View
       style={[styles.container, { backgroundColor: colors.background }]}
       testID="prayers-screen"
     >
-      <View style={[styles.composer, { padding: spacing.lg, gap: spacing.sm }]}>
+      <View
+        style={[
+          styles.composer,
+          { padding: spacing.lg, gap: spacing.sm, borderBottomColor: colors.border },
+        ]}
+      >
         <SectionHeader title="New Prayer Request" />
         <TextInput
           testID="prayer-input"
@@ -172,6 +195,10 @@ export function PrayersScreen() {
           data={prayers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}
+          // The composer sits above the list and keeps focus, so without
+          // this the first tap on a row action only dismisses the
+          // keyboard -- see ../auth/SignInScreen.tsx.
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <View
               testID={`prayer-row-${item.id}`}
@@ -197,6 +224,10 @@ export function PrayersScreen() {
                   accessibilityRole="button"
                   disabled={busyId === item.id}
                   onPress={() => void handleToggleAnswered(item)}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
+                  ]}
                 >
                   <Text style={[styles.actionLabel, { color: colors.primary }]}>
                     {item.answered ? 'Mark unanswered' : 'Mark answered'}
@@ -205,8 +236,15 @@ export function PrayersScreen() {
                 <Pressable
                   testID={`prayer-delete-${item.id}`}
                   accessibilityRole="button"
+                  // "Delete" alone tells a screen-reader user nothing about
+                  // what is being deleted.
+                  accessibilityLabel="Delete this prayer"
                   disabled={busyId === item.id}
-                  onPress={() => void handleDelete(item)}
+                  onPress={() => confirmDelete(item)}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
+                  ]}
                 >
                   <Text style={[styles.actionLabel, { color: colors.danger }]}>
                     Delete
@@ -223,10 +261,10 @@ export function PrayersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  composer: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'transparent',
-  },
+  // The divider colour comes from the theme at render time; it used to be
+  // hardcoded 'transparent', which made the separator between the composer
+  // and the list invisible on both palettes.
+  composer: { borderBottomWidth: StyleSheet.hairlineWidth },
   input: {
     minHeight: 80,
     fontSize: 15,
@@ -236,6 +274,9 @@ const styles = StyleSheet.create({
   row: { borderWidth: StyleSheet.hairlineWidth },
   prayerText: { fontSize: 15, lineHeight: 22 },
   meta: { fontSize: 12.5 },
-  actions: { flexDirection: 'row', marginTop: 4 },
+  actions: { flexDirection: 'row', alignItems: 'center' },
+  // A bare 13px label is an ~18dp tap target. 44 is the smallest target
+  // both Android and iOS accessibility guidance accept.
+  actionButton: { minHeight: 44, justifyContent: 'center' },
   actionLabel: { fontSize: 13, fontWeight: '600' },
 });

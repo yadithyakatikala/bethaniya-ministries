@@ -1,6 +1,12 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 
 interface AudioPlayerProps {
   /**
@@ -105,7 +111,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         {formatSeconds(status.currentTime)} / {formatSeconds(status.duration)}
       </Text>
       <View style={styles.controls}>
-        <Pressable
+        <Tappable
           testID="audio-restart-button"
           accessibilityRole="button"
           onPress={() => {
@@ -115,8 +121,8 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
           style={[styles.secondaryButton, { borderColor: colors.border }]}
         >
           <Text style={[styles.secondaryLabel, { color: colors.text }]}>Restart</Text>
-        </Pressable>
-        <Pressable
+        </Tappable>
+        <Tappable
           testID="audio-play-pause-button"
           accessibilityRole="button"
           onPress={() => (status.playing ? player.pause() : player.play())}
@@ -125,8 +131,10 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
             { backgroundColor: colors.primary, borderRadius: radii.control },
           ]}
         >
-          <Text style={styles.playLabel}>{status.playing ? 'Pause' : 'Play'}</Text>
-        </Pressable>
+          <Text style={[styles.playLabel, { color: colors.onPrimary }]}>
+            {status.playing ? 'Pause' : 'Play'}
+          </Text>
+        </Tappable>
       </View>
     </View>
   );
@@ -154,5 +162,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  playLabel: { fontSize: 14, fontWeight: '700' },
 });

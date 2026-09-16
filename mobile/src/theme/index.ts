@@ -13,3 +13,4 @@ export { AppButton } from './ui/AppButton';
 export { Badge } from './ui/Badge';
 export { EmptyState } from './ui/EmptyState';
 export { SectionHeader } from './ui/SectionHeader';
+export { Tappable, PRESSED_OPACITY } from './ui/Tappable';

@@ -256,4 +256,22 @@ describe('SignInScreen', () => {
     expect(queryByTestId('production-recaptcha-webview')).toBeNull();
   });
 
+  /**
+   * A ScrollView/FlatList defaults to keyboardShouldPersistTaps="never":
+   * while a TextInput inside it has focus, the FIRST touch anywhere in the
+   * scroll view is consumed dismissing the keyboard and never reaches the
+   * control under the finger. Typing a password and tapping
+   * "Sign in" therefore did nothing at all the first time -- the worst
+   * possible first impression of the app.
+   *
+   * The native scroll view is what implements that, so there is nothing in
+   * the JS test environment to simulate; what this pins is that the screen
+   * never silently reverts to the broken default.
+   */
+  it('keeps taps alive so the first tap on Sign in submits the form', async () => {
+    const { getByTestId } = await renderSignInScreen();
+    expect(getByTestId('sign-in-screen').props.keyboardShouldPersistTaps).toBe(
+      'handled'
+    );
+  });
 });

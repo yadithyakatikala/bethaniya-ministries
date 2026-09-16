@@ -1,7 +1,14 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EventDetail'>;
 
@@ -54,8 +61,8 @@ export function EventDetailScreen({ route, navigation }: Props) {
     >
       {event.isLive ? (
         <View style={[styles.liveBadge, { backgroundColor: colors.live }]}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveBadgeText}>LIVE NOW</Text>
+          <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
+          <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>LIVE NOW</Text>
         </View>
       ) : null}
 
@@ -78,7 +85,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
         <Text style={[styles.meta, { color: colors.secondaryText }]}>
           {event.location}
         </Text>
-        <Pressable
+        <Tappable
           testID="open-maps-button"
           accessibilityRole="button"
           onPress={handleOpenMaps}
@@ -90,7 +97,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
           <Text style={[styles.mapsButtonLabel, { color: colors.primary }]}>
             Open in Maps
           </Text>
-        </Pressable>
+        </Tappable>
       </View>
 
       <Text
@@ -101,7 +108,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
       </Text>
 
       {event.isLive ? (
-        <Pressable
+        <Tappable
           testID="watch-live-button"
           accessibilityRole="button"
           onPress={handleWatchLive}
@@ -110,8 +117,10 @@ export function EventDetailScreen({ route, navigation }: Props) {
             { backgroundColor: colors.live, borderRadius: radii.control },
           ]}
         >
-          <Text style={styles.watchLiveLabel}>Watch live on YouTube</Text>
-        </Pressable>
+          <Text style={[styles.watchLiveLabel, { color: colors.onLive }]}>
+            Watch live on YouTube
+          </Text>
+        </Tappable>
       ) : null}
     </ScrollView>
   );
@@ -128,9 +137,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveBadgeText: {
-    color: '#FFFFFF',
     fontSize: 11.5,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -154,5 +162,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  watchLiveLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  watchLiveLabel: { fontSize: 16, fontWeight: '700' },
 });

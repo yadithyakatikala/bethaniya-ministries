@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppStateProvider } from './src/context/AppStateContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
+import { useTheme } from './src/theme';
 import { LoadingScreen } from './src/features/auth/LoadingScreen';
 import { SignInScreen } from './src/features/auth/SignInScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -50,12 +51,26 @@ export default function App() {
         <AuthProvider>
           <PreferencesProvider>
             <AuthGate />
-            <StatusBar style="auto" />
+            <ThemedStatusBar />
           </PreferencesProvider>
         </AuthProvider>
       </AppStateProvider>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * The status bar has to follow the APP's theme, not the OS scheme.
+ * `style="auto"` reads the OS colour scheme, but this app's theme comes
+ * from the user's own Light/Dark/System setting (see
+ * PreferencesContext.tsx). Someone running the app in Dark while the
+ * phone is in Light got dark status-bar icons on a #141A17 header --
+ * effectively invisible. Reading `isDark` makes the two agree in every
+ * combination.
+ */
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
 function AuthGate() {

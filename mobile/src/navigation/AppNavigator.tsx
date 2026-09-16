@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import {
+  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   createNavigationContainerRef,
+  type Theme,
 } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+  type NativeStackNavigationOptions,
+} from '@react-navigation/native-stack';
+import { useTheme } from '../theme';
 import { HomeScreen } from '../features/auth/HomeScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
 import { SongDetailScreen } from '../features/songs/SongDetailScreen';
@@ -158,27 +165,77 @@ function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
   );
 }
 
+/**
+ * The five tab destinations keep `animation: 'none'`. Switching tabs is a
+ * lateral move, not a drill-down, so a slide-in would read as if the app
+ * had pushed a new screen. Everything else gets the platform's own push
+ * transition -- see AppNavigator's screenOptions.
+ */
+const TAB_SCREEN_OPTIONS: NativeStackNavigationOptions = { animation: 'none' };
+
 export function AppNavigator() {
   const [activeRoute, setActiveRoute] = useState<string | undefined>('Home');
+  const { colors, isDark } = useTheme();
+
+  /**
+   * Header theming. Every pushed screen used the native-stack default
+   * header -- white background, black title -- which sat above a
+   * `colors.paper` (#141A17) screen body in dark mode. This was the most
+   * visible dark-mode defect in the app: roughly twenty screens with a
+   * white bar across the top.
+   */
+  const screenOptions = useMemo<NativeStackNavigationOptions>(
+    () => ({
+      // The platform push transition, instead of the blanket
+      // `animation: 'none'` that made every drill-down an instant cut.
+      animation: 'default',
+      headerStyle: { backgroundColor: colors.surface },
+      headerTintColor: colors.ink,
+      headerTitleStyle: { color: colors.ink, fontWeight: '600' },
+      headerShadowVisible: false,
+      contentStyle: { backgroundColor: colors.paper },
+    }),
+    [colors]
+  );
+
+  /**
+   * NavigationContainer paints its own background between screens. Left at
+   * the default it flashes white behind a dark-mode push.
+   */
+  const navigationTheme = useMemo<Theme>(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.primary,
+        background: colors.paper,
+        card: colors.surface,
+        text: colors.ink,
+        border: colors.border,
+      },
+    };
+  }, [colors, isDark]);
 
   return (
     <NavigationContainer
       ref={navigationRef}
+      theme={navigationTheme}
       onReady={() => setActiveRoute(navigationRef.getCurrentRoute()?.name)}
       onStateChange={() => setActiveRoute(navigationRef.getCurrentRoute()?.name)}
     >
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-          <Stack.Navigator initialRouteName="Home" screenOptions={{ animation: 'none' }}>
+          <Stack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{ title: 'Home', headerShown: false }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: 'Home', headerShown: false }}
             />
             <Stack.Screen
               name="SongsList"
               component={SongsListScreen}
-              options={{ title: 'Songs' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: 'Songs' }}
             />
             <Stack.Screen
               name="SongDetail"
@@ -188,7 +245,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="EventsList"
               component={EventsListScreen}
-              options={{ title: 'Events' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: 'Events' }}
             />
             <Stack.Screen
               name="EventDetail"
@@ -203,7 +260,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="BibleBooks"
               component={BooksListScreen}
-              options={{ title: 'Bible' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: 'Bible' }}
             />
             <Stack.Screen
               name="BibleChapters"
@@ -245,7 +302,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="More"
               component={MoreScreen}
-              options={{ title: 'More' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: 'More' }}
             />
             <Stack.Screen
               name="AnnouncementDetail"

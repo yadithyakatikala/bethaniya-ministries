@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { AppButton } from '../../theme/ui/AppButton';
 import { Badge } from '../../theme/ui/Badge';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -115,7 +115,7 @@ export function ChapterScreen({ route, navigation }: Props) {
         ]}
       >
         <View style={styles.headerTop}>
-          <Pressable
+          <Tappable
             testID="chapter-back-button"
             accessibilityRole="button"
             accessibilityLabel="Back"
@@ -123,14 +123,14 @@ export function ChapterScreen({ route, navigation }: Props) {
             style={styles.backButton}
           >
             <View style={[styles.backChevron, { borderColor: colors.text }]} />
-          </Pressable>
+          </Tappable>
           <Text
             style={[styles.reference, { color: colors.text }]}
             testID="chapter-reference"
           >
             {`${book.name} ${chapterNumber}`}
           </Text>
-          <Pressable
+          <Tappable
             testID="language-toggle-button"
             accessibilityRole="button"
             onPress={() => void handleToggleLanguage()}
@@ -142,7 +142,7 @@ export function ChapterScreen({ route, navigation }: Props) {
             <Text style={[styles.languagePillText, { color: colors.primary }]}>
               {`Language: ${language === 'te' ? 'Telugu' : 'English'}`}
             </Text>
-          </Pressable>
+          </Tappable>
         </View>
         {chapter?.isPlaceholder ? (
           <View testID="chapter-placeholder-banner">

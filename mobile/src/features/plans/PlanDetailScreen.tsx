@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { AppButton } from '../../theme/ui/AppButton';
+import { EmptyState } from '../../theme/ui/EmptyState';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   startPlan,
@@ -28,14 +29,22 @@ export function PlanDetailScreen({ route, navigation }: Props) {
   const uid = user?.uid ?? null;
 
   const [days, setDays] = useState<PublishedPlanDay[] | null>(null);
+  const [daysFailed, setDaysFailed] = useState(false);
   const [progress, setProgress] = useState<PlanProgress | null>(null);
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToPlanDays(
       plan.id,
-      (next) => setDays(next),
-      () => setDays([])
+      (next) => {
+        setDays(next);
+        setDaysFailed(false);
+      },
+      // A read failure used to resolve to `[]`, which this screen renders
+      // as "this plan has no days" -- a plausible-looking lie about the
+      // content. A failure and an empty plan are different things and get
+      // different UI.
+      () => setDaysFailed(true)
     );
     return unsubscribe;
   }, [plan.id]);
@@ -96,13 +105,29 @@ export function PlanDetailScreen({ route, navigation }: Props) {
           title={progress ? `Continue • Day ${progress.currentDay}` : 'Start Plan'}
           onPress={() => void handleStartOrContinue()}
           loading={starting}
-          disabled={!uid || days === null || days.length === 0}
+          disabled={!uid || daysFailed || days === null || days.length === 0}
           testID="plan-start-continue-button"
         />
       </View>
 
-      {days === null ? (
+      {daysFailed ? (
+        <View style={{ padding: spacing.lg }}>
+          <EmptyState
+            title="Couldn't load this plan"
+            message="Check your connection and open the plan again."
+            testID="plan-days-error"
+          />
+        </View>
+      ) : days === null ? (
         <ActivityIndicator testID="plan-days-loading" style={{ marginTop: spacing.lg }} />
+      ) : days.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <EmptyState
+            title="No readings yet"
+            message="This plan hasn't had its daily readings added."
+            testID="plan-days-empty"
+          />
+        </View>
       ) : (
         <FlatList
           testID="plan-days-list"

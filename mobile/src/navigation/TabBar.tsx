@@ -63,10 +63,12 @@ export function TabBar({
           <Pressable
             key={tab.route}
             testID={tab.testID}
-            accessibilityRole="button"
+            // "tab", not "button": TalkBack then announces these as
+            // "tab 2 of 5, selected" instead of five unrelated buttons.
+            accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             onPress={() => onNavigate(tab.route)}
-            style={styles.item}
+            style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}
           >
             <View
               style={[
@@ -75,6 +77,10 @@ export function TabBar({
               ]}
             />
             <Text
+              // At the largest Android font scale a wrapped label would
+              // push the bar taller on one item only; clipping one line
+              // keeps all five the same height.
+              numberOfLines={1}
               style={[
                 styles.label,
                 { color: active ? colors.primary : colors.secondaryText },

@@ -1,5 +1,4 @@
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +7,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
 import type { BibleBook } from './types';
@@ -44,7 +44,7 @@ export function BooksListScreen({ navigation }: Props) {
       contentContainerStyle={styles.listContent}
     >
       <View style={styles.searchRow}>
-        <Pressable
+        <Tappable
           testID="bible-search-nav-button"
           accessibilityRole="button"
           onPress={() => navigation.navigate('BibleSearch')}
@@ -61,7 +61,7 @@ export function BooksListScreen({ navigation }: Props) {
           <Text style={[styles.searchLabel, { color: colors.secondaryText }]}>
             Search the Bible
           </Text>
-        </Pressable>
+        </Tappable>
       </View>
       {SECTIONS.map((section) => (
         <View key={section.title}>

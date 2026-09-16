@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
+import { AppButton } from '../../theme/ui/AppButton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getNavigationTargetFromData } from './notificationNavigation';
 import {
@@ -54,15 +55,35 @@ export function NotificationCenterScreen() {
   const [history, setHistory] = useState<NotificationHistoryEntry[] | undefined>(
     undefined
   );
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Bumped by the retry button to re-run the effect below. A counter,
+  // rather than calling the loader directly, because the effect must not
+  // call setState synchronously in its body (react-hooks/set-state-in-effect).
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void getNotificationHistory().then((entries) => {
-      if (!cancelled) setHistory(entries);
-    });
+    void getNotificationHistory()
+      .then((entries) => {
+        if (!cancelled) setHistory(entries);
+      })
+      // Without this catch, a rejected read (a corrupt or unavailable
+      // AsyncStorage) left `history` at undefined forever -- the screen
+      // spun on its loading state with no way out and no explanation.
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.warn('[notifications] could not read the local history:', error);
+        setLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
+  }, [reloadToken]);
+
+  const retryLoad = useCallback(() => {
+    setHistory(undefined);
+    setLoadFailed(false);
+    setReloadToken((token) => token + 1);
   }, []);
 
   function handlePress(entry: NotificationHistoryEntry) {
@@ -80,6 +101,24 @@ export function NotificationCenterScreen() {
     } else {
       navigation.navigate(target.screen as never);
     }
+  }
+
+  if (loadFailed) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centered,
+          { backgroundColor: colors.background, gap: spacing.lg },
+        ]}
+        testID="notification-center-error"
+      >
+        <Text style={[styles.message, { color: colors.secondaryText }]}>
+          Your notification history couldn&apos;t be read on this device.
+        </Text>
+        <AppButton title="Try again" variant="secondary" onPress={retryLoad} />
+      </View>
+    );
   }
 
   if (history === undefined) {

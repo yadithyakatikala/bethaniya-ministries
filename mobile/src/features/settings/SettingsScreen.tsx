@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
+import { Tappable } from '../../theme/ui/Tappable';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -49,6 +56,19 @@ export function SettingsScreen() {
     setNotificationsEnabled,
   } = usePreferences();
   const { colors, radii, spacing } = useTheme();
+
+  /**
+   * React Native's Switch ships with the platform's own accent (iOS green,
+   * Android's Material teal) regardless of the app's palette -- the two
+   * switches on this screen were the only controls in the app not painted
+   * from the theme. `thumbColor` and the Android track are set explicitly;
+   * `ios_backgroundColor` covers the off track on iOS.
+   */
+  const switchColors = {
+    trackColor: { false: colors.border, true: colors.primary },
+    thumbColor: colors.surface,
+    ios_backgroundColor: colors.border,
+  };
   const [supportEmail, setSupportEmail] = useState<string | null>(null);
 
   useEffect(
@@ -83,13 +103,19 @@ export function SettingsScreen() {
           <Text style={[styles.label, { color: colors.text }]}>
             {`Language: ${languagePreference === 'te' ? 'Telugu' : 'English'}`}
           </Text>
-          <Pressable
+          <Tappable
             testID="settings-language-toggle"
             accessibilityRole="button"
+            // "Switch" alone does not say what it switches.
+            accessibilityLabel={`Switch language to ${
+              languagePreference === 'te' ? 'English' : 'Telugu'
+            }`}
+            // A bare 13px label is an ~18dp tap target; 44 is the minimum.
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 8 }}
             onPress={() => void handleToggleLanguage()}
           >
             <Text style={[styles.action, { color: colors.primary }]}>Switch</Text>
-          </Pressable>
+          </Tappable>
         </View>
 
         <View
@@ -104,8 +130,13 @@ export function SettingsScreen() {
           </Text>
           <Switch
             testID="settings-theme-switch"
+            // A Switch is its own focus stop for TalkBack, so without a
+            // label it announces only "switch, on" -- the "Theme:" text
+            // beside it is a separate element and is not read with it.
+            accessibilityLabel="Dark theme"
             value={themePreference === 'dark'}
             onValueChange={(value) => void setThemePreference(value ? 'dark' : 'light')}
+            {...switchColors}
           />
         </View>
 
@@ -119,8 +150,10 @@ export function SettingsScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Notifications</Text>
           <Switch
             testID="settings-notifications-switch"
+            accessibilityLabel="Notifications"
             value={notificationsEnabled}
             onValueChange={(value) => void setNotificationsEnabled(value)}
+            {...switchColors}
           />
         </View>
       </View>
@@ -180,7 +213,7 @@ export function SettingsScreen() {
           },
         ]}
       >
-        <Pressable
+        <Tappable
           testID="settings-privacy-policy-row"
           accessibilityRole="button"
           onPress={() => navigation.navigate('PrivacyPolicy')}
@@ -188,9 +221,9 @@ export function SettingsScreen() {
         >
           <Text style={[styles.label, { color: colors.text }]}>Privacy policy</Text>
           <Text style={[styles.action, { color: colors.primary }]}>View</Text>
-        </Pressable>
+        </Tappable>
 
-        <Pressable
+        <Tappable
           testID="settings-terms-row"
           accessibilityRole="button"
           onPress={() => navigation.navigate('Terms')}
@@ -202,10 +235,10 @@ export function SettingsScreen() {
         >
           <Text style={[styles.label, { color: colors.text }]}>Terms of service</Text>
           <Text style={[styles.action, { color: colors.primary }]}>View</Text>
-        </Pressable>
+        </Tappable>
       </View>
 
-      <Pressable
+      <Tappable
         testID="settings-logout-button"
         accessibilityRole="button"
         onPress={() => void signOut()}
@@ -215,7 +248,7 @@ export function SettingsScreen() {
         ]}
       >
         <Text style={[styles.logoutLabel, { color: colors.danger }]}>Log Out</Text>
-      </Pressable>
+      </Tappable>
     </ScrollView>
   );
 }

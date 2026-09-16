@@ -138,6 +138,10 @@ export function SignInScreen() {
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+      // Without this, the first tap on "Sign in" while the password field
+      // still has focus is swallowed by the ScrollView dismissing the
+      // keyboard, so the user has to tap twice to submit.
+      keyboardShouldPersistTaps="handled"
       testID="sign-in-screen"
     >
       <View style={styles.brandBlock}>
@@ -147,7 +151,7 @@ export function SignInScreen() {
             { backgroundColor: colors.primary, borderRadius: radii.card },
           ]}
         >
-          <Text style={styles.monogramText}>B</Text>
+          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>B</Text>
         </View>
         <Text style={[styles.title, { color: colors.text }]}>
           {mode === 'sign-up'
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 20 },
   brandBlock: { alignItems: 'center', gap: 14, marginBottom: 4 },
   monogram: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  monogramText: { color: '#FFFFFF', fontSize: 24, fontWeight: '600' },
+  monogramText: { fontSize: 24, fontWeight: '600' },
   title: { fontSize: 21, fontWeight: '600', textAlign: 'center' },
   banner: { padding: 12 },
   section: { gap: 10 },

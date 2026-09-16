@@ -151,7 +151,23 @@ exact screen, action, and what happened instead of what was expected.
 23. **Dark mode** — toggle in Settings, and confirm it also follows the
     OS-level dark mode setting when no explicit choice has been made;
     check contrast/readability on the Bible reader specifically
-    (longest-text screen).
+    (longest-text screen). The final UI/UX pass fixed a set of dark-mode
+    contrast failures that a light-mode-only check would miss, so look
+    specifically at: the label on every filled button (it must be dark
+    ink on the sage/coral fills, not white), the LIVE badge on Home and
+    Events, the church monogram, the More avatar initial, and the audio
+    player's Play/Pause button. Also confirm the **status bar icons stay
+    legible when the app's theme disagrees with the phone's** — set the
+    phone to Light and the app to Dark, and back.
+23a. **Screen transitions** — pushing into a detail screen should slide
+    in; switching bottom tabs should not. Every pushed screen's header
+    must be the themed surface colour, never white-on-dark.
+23b. **First tap works** — with the keyboard open, ONE tap on Sign in,
+    on Profile's Save, on a Bible search result, and on a prayer's
+    Mark answered / Delete must act, not merely dismiss the keyboard.
+23c. **Press feedback** — every tappable surface (Home quick links and
+    live banner, More and Settings rows, Bible reader controls, audio
+    transport, favourite toggle) must visibly dim while held.
 
 ### Admin (deployed admin website, tested separately from the APK)
 
