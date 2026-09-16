@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import {
   createAccountWithEmail,
@@ -49,6 +50,7 @@ const MIN_PASSWORD_LENGTH = 6;
 export function SignInScreen() {
   const { authErrorMessage, reportSignInError, clearAuthError } = useAuth();
   const { colors, radii } = useTheme();
+  const { t } = useTranslation();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [mode, setMode] = useState<EmailMode>('sign-in');
   const [email, setEmail] = useState('');
@@ -130,10 +132,10 @@ export function SignInScreen() {
 
   const submitTitle =
     mode === 'sign-in'
-      ? 'Sign in'
+      ? t('auth.signIn')
       : mode === 'sign-up'
-        ? 'Create account'
-        : 'Send reset link';
+        ? t('auth.createAccount')
+        : t('auth.sendResetLink');
 
   return (
     <ScrollView
@@ -208,7 +210,7 @@ export function SignInScreen() {
                 borderRadius: radii.control,
               },
             ]}
-            placeholder="Your name"
+            placeholder={t('auth.namePlaceholder')}
             placeholderTextColor={colors.secondaryText}
             autoComplete="name"
             value={displayName}
@@ -227,7 +229,7 @@ export function SignInScreen() {
               borderRadius: radii.control,
             },
           ]}
-          placeholder="you@example.com"
+          placeholder={t('auth.emailPlaceholder')}
           placeholderTextColor={colors.secondaryText}
           autoComplete="email"
           autoCapitalize="none"
@@ -273,14 +275,14 @@ export function SignInScreen() {
         {mode === 'sign-in' ? (
           <>
             <AppButton
-              title="Forgot your password?"
+              title={t('auth.forgotPassword')}
               variant="secondary"
               onPress={() => switchMode('reset-password')}
               disabled={busy}
               testID="forgot-password-link"
             />
             <AppButton
-              title="New here? Create an account"
+              title={t('auth.newHere')}
               variant="secondary"
               onPress={() => switchMode('sign-up')}
               disabled={busy}
@@ -289,7 +291,7 @@ export function SignInScreen() {
           </>
         ) : (
           <AppButton
-            title="Back to sign in"
+            title={t('auth.backToSignIn')}
             variant="secondary"
             onPress={() => switchMode('sign-in')}
             disabled={busy}
@@ -300,14 +302,15 @@ export function SignInScreen() {
 
       {/* Provider options are only offered on the sign-in step -- they make
           no sense mid-signup or mid-reset. */}
-      {mode === 'sign-in' && (google.configured || (appleAvailable && Platform.OS === 'ios')) ? (
+      {mode === 'sign-in' &&
+      (google.configured || (appleAvailable && Platform.OS === 'ios')) ? (
         <>
           <View style={[styles.divider, { borderTopColor: colors.border }]} />
 
           {google.configured ? (
             <View style={styles.section}>
               <AppButton
-                title="Continue with Google"
+                title={t('auth.continueWithGoogle')}
                 variant="secondary"
                 onPress={() => void google.promptAsync()}
                 disabled={!google.canPrompt || busy}
@@ -319,7 +322,7 @@ export function SignInScreen() {
           {appleAvailable && Platform.OS === 'ios' ? (
             <View style={styles.section}>
               <AppButton
-                title="Continue with Apple"
+                title={t('auth.continueWithApple')}
                 variant="secondary"
                 onPress={() =>
                   void run(async () => {

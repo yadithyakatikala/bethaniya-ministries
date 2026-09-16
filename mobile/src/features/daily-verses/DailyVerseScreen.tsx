@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { EmptyState } from '../../theme/ui/EmptyState';
@@ -46,6 +47,7 @@ function formatDate(dateString: string): string {
 export function DailyVerseScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [today, setToday] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [archive, setArchive] = useState<TodaysDailyVerse[] | undefined>(undefined);
@@ -67,7 +69,7 @@ export function DailyVerseScreen() {
         <Tappable
           testID="daily-verse-back-button"
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('common.back')}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
@@ -81,8 +83,8 @@ export function DailyVerseScreen() {
       ) : today === null ? (
         <EmptyState
           testID="daily-verse-screen-empty"
-          title="No daily verse set for today"
-          message="When your church posts today's verse, it will appear here."
+          title={t('dailyVerse.noneToday')}
+          message={t('dailyVerse.noneTodayMessage')}
         />
       ) : (
         <View
@@ -113,14 +115,14 @@ export function DailyVerseScreen() {
       )}
 
       <View style={styles.archiveSection}>
-        <SectionHeader title="Archive" />
+        <SectionHeader title={t('dailyVerse.archive')} />
         {archive === undefined ? (
           <ActivityIndicator testID="daily-verse-archive-loading" />
         ) : pastVerses.length === 0 ? (
           <EmptyState
             testID="daily-verse-archive-empty"
-            title="No past verses yet"
-            message="Verses will build up here day by day."
+            title={t('dailyVerse.noPast')}
+            message={t('dailyVerse.noPastMessage')}
           />
         ) : (
           <View style={styles.archiveList} testID="daily-verse-archive-list">

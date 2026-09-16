@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -56,6 +51,7 @@ export function SettingsScreen() {
     setNotificationsEnabled,
   } = usePreferences();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
 
   /**
    * React Native's Switch ships with the platform's own accent (iOS green,
@@ -101,20 +97,28 @@ export function SettingsScreen() {
       >
         <View style={[styles.row, { padding: spacing.md }]}>
           <Text style={[styles.label, { color: colors.text }]}>
-            {`Language: ${languagePreference === 'te' ? 'Telugu' : 'English'}`}
+            {`${t('settings.language')}: ${
+              languagePreference === 'te'
+                ? t('settings.languageTelugu')
+                : t('settings.languageEnglish')
+            }`}
           </Text>
           <Tappable
             testID="settings-language-toggle"
             accessibilityRole="button"
             // "Switch" alone does not say what it switches.
-            accessibilityLabel={`Switch language to ${
-              languagePreference === 'te' ? 'English' : 'Telugu'
+            accessibilityLabel={`${t('settings.switchTo')} ${
+              languagePreference === 'te'
+                ? t('settings.languageEnglish')
+                : t('settings.languageTelugu')
             }`}
             // A bare 13px label is an ~18dp tap target; 44 is the minimum.
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 8 }}
             onPress={() => void handleToggleLanguage()}
           >
-            <Text style={[styles.action, { color: colors.primary }]}>Switch</Text>
+            <Text style={[styles.action, { color: colors.primary }]}>
+              {t('settings.switchTo')}
+            </Text>
           </Tappable>
         </View>
 
@@ -126,14 +130,18 @@ export function SettingsScreen() {
           ]}
         >
           <Text style={[styles.label, { color: colors.text }]}>
-            {`Theme: ${themePreference === 'dark' ? 'Dark' : 'Light'}`}
+            {`${t('settings.theme')}: ${
+              themePreference === 'dark'
+                ? t('settings.themeDark')
+                : t('settings.themeLight')
+            }`}
           </Text>
           <Switch
             testID="settings-theme-switch"
             // A Switch is its own focus stop for TalkBack, so without a
             // label it announces only "switch, on" -- the "Theme:" text
             // beside it is a separate element and is not read with it.
-            accessibilityLabel="Dark theme"
+            accessibilityLabel={t('settings.themeDark')}
             value={themePreference === 'dark'}
             onValueChange={(value) => void setThemePreference(value ? 'dark' : 'light')}
             {...switchColors}
@@ -147,10 +155,12 @@ export function SettingsScreen() {
             { borderTopColor: colors.border, padding: spacing.md },
           ]}
         >
-          <Text style={[styles.label, { color: colors.text }]}>Notifications</Text>
+          <Text style={[styles.label, { color: colors.text }]}>
+            {t('settings.notifications')}
+          </Text>
           <Switch
             testID="settings-notifications-switch"
-            accessibilityLabel="Notifications"
+            accessibilityLabel={t('settings.notifications')}
             value={notificationsEnabled}
             onValueChange={(value) => void setNotificationsEnabled(value)}
             {...switchColors}
@@ -170,9 +180,11 @@ export function SettingsScreen() {
       >
         <View style={[styles.row, { padding: spacing.md }]} testID="settings-support-row">
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.label, { color: colors.text }]}>Contact the church</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              {t('settings.contactChurch')}
+            </Text>
             <Text style={[styles.supportEmail, { color: colors.secondaryText }]}>
-              {supportEmail === null ? '' : supportEmail || 'Not set yet'}
+              {supportEmail === null ? '' : supportEmail || t('settings.notSetYet')}
             </Text>
           </View>
         </View>
@@ -191,7 +203,9 @@ export function SettingsScreen() {
       >
         <View style={[styles.row, { padding: spacing.md }]}>
           <View style={{ flex: 1, gap: 6 }}>
-            <Text style={[styles.label, { color: colors.text }]}>Bible translations</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              {t('settings.bibleTranslations')}
+            </Text>
             <Text style={[styles.attributionText, { color: colors.secondaryText }]}>
               English: World English Bible (public domain).
             </Text>
@@ -219,8 +233,12 @@ export function SettingsScreen() {
           onPress={() => navigation.navigate('PrivacyPolicy')}
           style={[styles.row, { padding: spacing.md }]}
         >
-          <Text style={[styles.label, { color: colors.text }]}>Privacy policy</Text>
-          <Text style={[styles.action, { color: colors.primary }]}>View</Text>
+          <Text style={[styles.label, { color: colors.text }]}>
+            {t('settings.privacyPolicy')}
+          </Text>
+          <Text style={[styles.action, { color: colors.primary }]}>
+            {t('settings.view')}
+          </Text>
         </Tappable>
 
         <Tappable
@@ -233,8 +251,12 @@ export function SettingsScreen() {
             { borderTopColor: colors.border, padding: spacing.md },
           ]}
         >
-          <Text style={[styles.label, { color: colors.text }]}>Terms of service</Text>
-          <Text style={[styles.action, { color: colors.primary }]}>View</Text>
+          <Text style={[styles.label, { color: colors.text }]}>
+            {t('settings.terms')}
+          </Text>
+          <Text style={[styles.action, { color: colors.primary }]}>
+            {t('settings.view')}
+          </Text>
         </Tappable>
       </View>
 
@@ -247,7 +269,9 @@ export function SettingsScreen() {
           { borderColor: colors.liveTint, borderRadius: radii.control },
         ]}
       >
-        <Text style={[styles.logoutLabel, { color: colors.danger }]}>Log Out</Text>
+        <Text style={[styles.logoutLabel, { color: colors.danger }]}>
+          {t('settings.logOut')}
+        </Text>
       </Tappable>
     </ScrollView>
   );

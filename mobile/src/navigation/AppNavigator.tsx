@@ -12,6 +12,7 @@ import {
   type NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
+import { useTranslation } from '../i18n';
 import { HomeScreen } from '../features/auth/HomeScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
 import { SongDetailScreen } from '../features/songs/SongDetailScreen';
@@ -24,7 +25,7 @@ import { BooksListScreen } from '../features/bible/BooksListScreen';
 import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
 import { ChapterScreen } from '../features/bible/ChapterScreen';
 import { BibleSearchScreen } from '../features/bible/BibleSearchScreen';
-import { getBookById } from '../features/bible/books';
+import { getBookNameById } from '../features/bible/books';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { NotificationCenterScreen } from '../features/notifications/NotificationCenterScreen';
@@ -176,6 +177,9 @@ const TAB_SCREEN_OPTIONS: NativeStackNavigationOptions = { animation: 'none' };
 export function AppNavigator() {
   const [activeRoute, setActiveRoute] = useState<string | undefined>('Home');
   const { colors, isDark } = useTheme();
+  // Header titles are user-facing text and must follow the app language
+  // -- they were hardcoded English, including the Bible book names.
+  const { t, language } = useTranslation();
 
   /**
    * Header theming. Every pushed screen used the native-stack default
@@ -230,12 +234,16 @@ export function AppNavigator() {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: 'Home', headerShown: false }}
+              options={{
+                ...TAB_SCREEN_OPTIONS,
+                title: t('nav.home'),
+                headerShown: false,
+              }}
             />
             <Stack.Screen
               name="SongsList"
               component={SongsListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: 'Songs' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: t('songs.title') }}
             />
             <Stack.Screen
               name="SongDetail"
@@ -245,7 +253,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="EventsList"
               component={EventsListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: 'Events' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: t('events.title') }}
             />
             <Stack.Screen
               name="EventDetail"
@@ -255,54 +263,55 @@ export function AppNavigator() {
             <Stack.Screen
               name="YouTubePlayer"
               component={YouTubePlayerScreen}
-              options={{ title: 'Live Stream' }}
+              options={{ title: t('events.watchOnYouTube') }}
             />
             <Stack.Screen
               name="BibleBooks"
               component={BooksListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: 'Bible' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: t('bible.title') }}
             />
             <Stack.Screen
               name="BibleChapters"
               component={ChaptersListScreen}
               options={({ route }) => ({
-                title: getBookById(route.params.bookId)?.name ?? 'Chapters',
+                title:
+                  getBookNameById(route.params.bookId, language) ?? t('bible.chapters'),
               })}
             />
             <Stack.Screen
               name="BibleChapter"
               component={ChapterScreen}
               options={({ route }) => ({
-                title: getBookById(route.params.bookId)?.name
-                  ? `${getBookById(route.params.bookId)?.name} ${route.params.chapterNumber}`
-                  : 'Chapter',
+                title: getBookNameById(route.params.bookId, language)
+                  ? `${getBookNameById(route.params.bookId, language)} ${route.params.chapterNumber}`
+                  : t('bible.chapter'),
                 headerShown: false,
               })}
             />
             <Stack.Screen
               name="BibleSearch"
               component={BibleSearchScreen}
-              options={{ title: 'Search' }}
+              options={{ title: t('common.search') }}
             />
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ title: 'Profile' }}
+              options={{ title: t('profile.title') }}
             />
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ title: 'Settings' }}
+              options={{ title: t('settings.title') }}
             />
             <Stack.Screen
               name="NotificationCenter"
               component={NotificationCenterScreen}
-              options={{ title: 'Notifications' }}
+              options={{ title: t('notifications.title') }}
             />
             <Stack.Screen
               name="More"
               component={MoreScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: 'More' }}
+              options={{ ...TAB_SCREEN_OPTIONS, title: t('more.title') }}
             />
             <Stack.Screen
               name="AnnouncementDetail"
@@ -312,17 +321,17 @@ export function AppNavigator() {
             <Stack.Screen
               name="DailyVerse"
               component={DailyVerseScreen}
-              options={{ title: 'Daily Verse', headerShown: false }}
+              options={{ title: t('dailyVerse.title'), headerShown: false }}
             />
             <Stack.Screen
               name="Prayers"
               component={PrayersScreen}
-              options={{ title: 'Prayers' }}
+              options={{ title: t('prayers.title') }}
             />
             <Stack.Screen
               name="CommunityList"
               component={CommunityListScreen}
-              options={{ title: 'Community' }}
+              options={{ title: t('community.title') }}
             />
             <Stack.Screen
               name="CommunityPostDetail"
@@ -332,7 +341,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="PlansList"
               component={PlansListScreen}
-              options={{ title: 'Reading Plans' }}
+              options={{ title: t('plans.title') }}
             />
             <Stack.Screen
               name="PlanDetail"
@@ -343,13 +352,18 @@ export function AppNavigator() {
               name="PlanDay"
               component={PlanDayScreen}
               options={({ route }) => ({
-                title: `${route.params.plan.title} • Day ${route.params.dayNumber}`,
+                title: `${route.params.plan.title} • ${t('plans.day')} ${route.params.dayNumber}`,
               })}
             />
-            <Stack.Screen name="PrivacyPolicy" options={{ title: 'Privacy Policy' }}>
-              {() => <LegalScreen title={PRIVACY_POLICY_TITLE} body={PRIVACY_POLICY_BODY} />}
+            <Stack.Screen
+              name="PrivacyPolicy"
+              options={{ title: t('settings.privacyPolicy') }}
+            >
+              {() => (
+                <LegalScreen title={PRIVACY_POLICY_TITLE} body={PRIVACY_POLICY_BODY} />
+              )}
             </Stack.Screen>
-            <Stack.Screen name="Terms" options={{ title: 'Terms of Service' }}>
+            <Stack.Screen name="Terms" options={{ title: t('settings.terms') }}>
               {() => <LegalScreen title={TERMS_TITLE} body={TERMS_BODY} />}
             </Stack.Screen>
           </Stack.Navigator>

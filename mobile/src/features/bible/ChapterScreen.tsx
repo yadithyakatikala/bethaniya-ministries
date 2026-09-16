@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { AppButton } from '../../theme/ui/AppButton';
 import { Badge } from '../../theme/ui/Badge';
@@ -56,6 +51,7 @@ export function ChapterScreen({ route, navigation }: Props) {
   const { bookId, chapterNumber } = route.params;
   const { languagePreference: language, setLanguagePreference } = usePreferences();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // requestKey identifies "which request a result/error belongs to".
   // chapter/hasError are DERIVED below by comparing this key against the
@@ -118,7 +114,7 @@ export function ChapterScreen({ route, navigation }: Props) {
           <Tappable
             testID="chapter-back-button"
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={t('common.back')}
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
@@ -146,10 +142,7 @@ export function ChapterScreen({ route, navigation }: Props) {
         </View>
         {chapter?.isPlaceholder ? (
           <View testID="chapter-placeholder-banner">
-            <Badge
-              label="Development content — not a real Bible translation"
-              variant="warning"
-            />
+            <Badge label={t('bible.placeholderWarning')} variant="warning" />
           </View>
         ) : null}
       </View>
@@ -167,7 +160,7 @@ export function ChapterScreen({ route, navigation }: Props) {
 
         {hasError ? (
           <Text style={[styles.message, { color: colors.text }]} testID="chapter-error">
-            Could not load this chapter.
+            {t('bible.chapterLoadError')}
           </Text>
         ) : null}
 
@@ -176,7 +169,7 @@ export function ChapterScreen({ route, navigation }: Props) {
             style={[styles.message, { color: colors.text }]}
             testID="chapter-not-found"
           >
-            Chapter not found.
+            {t('bible.chapterNotFound')}
           </Text>
         ) : null}
 
@@ -202,7 +195,7 @@ export function ChapterScreen({ route, navigation }: Props) {
         ]}
       >
         <AppButton
-          title="Previous"
+          title={t('bible.previous')}
           variant="secondary"
           onPress={() =>
             navigation.navigate('BibleChapter', {
@@ -214,7 +207,7 @@ export function ChapterScreen({ route, navigation }: Props) {
           testID="previous-chapter-button"
         />
         <AppButton
-          title="Next"
+          title={t('bible.next')}
           onPress={() =>
             navigation.navigate('BibleChapter', {
               bookId,

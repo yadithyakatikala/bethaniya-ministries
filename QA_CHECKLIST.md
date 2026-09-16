@@ -169,6 +169,32 @@ exact screen, action, and what happened instead of what was expected.
     live banner, More and Settings rows, Bible reader controls, audio
     transport, favourite toggle) must visibly dim while held.
 
+### V1 tester-feedback fixes (verify these specifically)
+
+23d. **Telugu actually changes the UI** — Settings → Language → Switch.
+    Every screen's own text must change, not just the Bible: the bottom
+    tab labels, Home's section headings, More's rows, Settings' own
+    labels, the sign-in form, empty and error states. Then force-quit and
+    reopen: the choice must persist.
+23e. **Telugu Bible book names** — with Telugu selected, the Bible tab
+    must list Telugu book names (ఆదికాండము, నిర్గమకాండము, …), the
+    Old/New Testament headings must be Telugu, chapter text must be
+    Telugu, and search must return Telugu verses. Switch back to English
+    and confirm all four revert.
+23f. **Home is not a navigation menu** — Home must have NO Songs, Bible,
+    Events or Profile cards, and NO sign-out. It should show the header,
+    verse of the day, announcements, the live banner when live, your
+    reading plan, upcoming events, and only Plans/Prayers/Community as
+    discovery.
+23g. **Log out lives in Settings** — More → Settings → Log Out signs out
+    and returns to the sign-in screen.
+23h. **Bottom tab icons** — all five tabs show an icon above the label.
+    The selected tab must be distinguishable by its filled icon and bold
+    label, not colour alone. Check both light and dark mode.
+23i. **Five reading plans** — More → Reading Plans lists exactly five.
+    Open one, start it, mark a day complete, and confirm Home's "your
+    reading plan" card then shows the right day.
+
 ### Admin (deployed admin website, tested separately from the APK)
 
 24. **Admin login** — email/password sign-in succeeds against

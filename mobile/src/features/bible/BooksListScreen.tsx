@@ -1,22 +1,23 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
 import { Tappable } from '../../theme/ui/Tappable';
+import { useTranslation } from '../../i18n';
+import type { StringKey } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS } from './books';
+import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS, getBookName } from './books';
 import type { BibleBook } from './types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleBooks'>;
 
-const SECTIONS: { title: string; data: BibleBook[] }[] = [
-  { title: 'Old Testament', data: OLD_TESTAMENT_BOOKS },
-  { title: 'New Testament', data: NEW_TESTAMENT_BOOKS },
+/**
+ * `id` is a stable, NEVER-LOCALIZED key: it is what the section's testID
+ * is built from, so the testID cannot shift when the language does.
+ * `titleKey` is what the user actually reads.
+ */
+const SECTIONS: { id: string; titleKey: StringKey; data: BibleBook[] }[] = [
+  { id: 'Old Testament', titleKey: 'bible.oldTestament', data: OLD_TESTAMENT_BOOKS },
+  { id: 'New Testament', titleKey: 'bible.newTestament', data: NEW_TESTAMENT_BOOKS },
 ];
 
 /**
@@ -36,6 +37,7 @@ const SECTIONS: { title: string; data: BibleBook[] }[] = [
  */
 export function BooksListScreen({ navigation }: Props) {
   const { colors, radii } = useTheme();
+  const { t, language } = useTranslation();
 
   return (
     <ScrollView
@@ -59,18 +61,18 @@ export function BooksListScreen({ navigation }: Props) {
         >
           <View style={[styles.searchIcon, { borderColor: colors.secondaryText }]} />
           <Text style={[styles.searchLabel, { color: colors.secondaryText }]}>
-            Search the Bible
+            {t('bible.searchPlaceholder')}
           </Text>
         </Tappable>
       </View>
       {SECTIONS.map((section) => (
-        <View key={section.title}>
+        <View key={section.id}>
           <View
             style={[styles.sectionHeader, { backgroundColor: colors.primaryTint }]}
-            testID={`bible-section-${section.title}`}
+            testID={`bible-section-${section.id}`}
           >
             <Text style={[styles.sectionHeaderText, { color: colors.primaryPressed }]}>
-              {section.title}
+              {t(section.titleKey)}
             </Text>
           </View>
           {section.data.map((book) => (
@@ -80,7 +82,13 @@ export function BooksListScreen({ navigation }: Props) {
               testID={`book-${book.id}`}
               onPress={() => navigation.navigate('BibleChapters', { bookId: book.id })}
             >
-              <Text style={[styles.bookName, { color: colors.text }]}>{book.name}</Text>
+              {/* getBookName(), not book.name: reading the English field
+                  directly is what made this screen list 66 English book
+                  names while the Telugu Bible was selected and Telugu
+                  verse text rendered underneath. */}
+              <Text style={[styles.bookName, { color: colors.text }]}>
+                {getBookName(book, language)}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>

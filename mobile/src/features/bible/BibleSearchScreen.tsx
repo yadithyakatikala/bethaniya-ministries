@@ -10,6 +10,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { type BibleSearchResult, searchBible } from './search';
 
@@ -33,6 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleSearch'>;
 export function BibleSearchScreen({ navigation }: Props) {
   const { languagePreference } = usePreferences();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
 
   const trimmedQuery = query.trim();
@@ -80,7 +82,7 @@ export function BibleSearchScreen({ navigation }: Props) {
         ]}
         value={query}
         onChangeText={setQuery}
-        placeholder="Search the Bible"
+        placeholder={t('bible.searchPlaceholder')}
         placeholderTextColor={colors.secondaryText}
         testID="bible-search-input"
         autoFocus
@@ -89,7 +91,7 @@ export function BibleSearchScreen({ navigation }: Props) {
       {trimmedQuery.length === 0 ? (
         <View style={styles.centered} testID="bible-search-empty-query">
           <Text style={[styles.message, { color: colors.secondaryText }]}>
-            Enter a search term to find a passage.
+            {t('bible.searchPrompt')}
           </Text>
         </View>
       ) : results.length === 0 ? (

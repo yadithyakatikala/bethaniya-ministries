@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   subscribeToPublishedAnnouncements,
@@ -41,6 +42,7 @@ import {
 export function AnnouncementsList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<PublishedAnnouncement[] | null>(
     null
   );
@@ -61,7 +63,7 @@ export function AnnouncementsList() {
     return (
       <View style={styles.container} testID="announcements-error">
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load announcements.
+          {t('announcements.loadErrorShort')}
         </Text>
       </View>
     );
@@ -79,7 +81,7 @@ export function AnnouncementsList() {
     return (
       <View style={styles.container} testID="announcements-empty">
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No announcements yet.
+          {t('announcements.emptyShort')}
         </Text>
       </View>
     );

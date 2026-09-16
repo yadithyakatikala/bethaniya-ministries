@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById } from './books';
+import { useTranslation } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapters'>;
 
@@ -20,6 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapters'>;
 export function ChaptersListScreen({ route, navigation }: Props) {
   const { bookId } = route.params;
   const { colors, radii } = useTheme();
+  const { t } = useTranslation();
   const book = getBookById(bookId);
 
   if (!book) {
@@ -28,7 +30,9 @@ export function ChaptersListScreen({ route, navigation }: Props) {
         style={[styles.container, { backgroundColor: colors.background }]}
         testID="chapters-invalid-book"
       >
-        <Text style={[styles.message, { color: colors.text }]}>Book not found.</Text>
+        <Text style={[styles.message, { color: colors.text }]}>
+          {t('plans.dayNotFound')}
+        </Text>
       </View>
     );
   }

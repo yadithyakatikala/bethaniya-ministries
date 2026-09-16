@@ -1,13 +1,9 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -24,6 +20,7 @@ export function MoreScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
 
   const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
 
@@ -54,14 +51,14 @@ export function MoreScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileName, { color: colors.text }]}>{displayLabel}</Text>
           <Text style={[styles.profileHint, { color: colors.secondaryText }]}>
-            View profile
+            {t('more.viewProfile')}
           </Text>
         </View>
         <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
       </Tappable>
 
       <View style={styles.section}>
-        <SectionHeader title="Grow" />
+        <SectionHeader title={t('more.grow')} />
         <View
           style={[
             styles.card,
@@ -78,7 +75,9 @@ export function MoreScreen() {
             onPress={() => navigation.navigate('PlansList')}
             style={[styles.row, { padding: spacing.md }]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Reading Plans</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>
+              {t('more.readingPlans')}
+            </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
           <Tappable
@@ -91,7 +90,9 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Prayers</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>
+              {t('more.prayers')}
+            </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
           <Tappable
@@ -104,14 +105,16 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Community</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>
+              {t('more.community')}
+            </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
         </View>
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title="General" />
+        <SectionHeader title={t('more.general')} />
         <View
           style={[
             styles.card,
@@ -128,7 +131,9 @@ export function MoreScreen() {
             onPress={() => navigation.navigate('NotificationCenter')}
             style={[styles.row, { padding: spacing.md }]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Notifications</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>
+              {t('more.notifications')}
+            </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
           <Tappable
@@ -141,7 +146,9 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Settings</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>
+              {t('more.settings')}
+            </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
         </View>

@@ -437,8 +437,6 @@ describe('ProfileScreen', () => {
 
     const { getByTestId } = await renderScreen();
     await waitFor(() => expect(getByTestId('profile-screen')).toBeTruthy());
-    expect(getByTestId('profile-screen').props.keyboardShouldPersistTaps).toBe(
-      'handled'
-    );
+    expect(getByTestId('profile-screen').props.keyboardShouldPersistTaps).toBe('handled');
   });
 });

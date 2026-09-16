@@ -1,17 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Image,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { BellIcon } from '../../theme/ui/BellIcon';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
@@ -71,6 +65,7 @@ function ChurchBranding({
   onPressNotifications: () => void;
 }) {
   const { colors, radii } = useTheme();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<ChurchSettings | null>(null);
 
   useEffect(() => {
@@ -107,7 +102,7 @@ function ChurchBranding({
       )}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.greeting, { color: colors.secondaryText }]}>
-          Welcome, {displayLabel}
+          {t('home.welcome')}, {displayLabel}
         </Text>
         <Text style={[styles.churchName, { color: colors.text }]}>{churchName}</Text>
         <Text style={[styles.churchDescription, { color: colors.secondaryText }]}>
@@ -120,8 +115,8 @@ function ChurchBranding({
         // "Notifications" alone reads as a label, not an action. This is
         // the only thing a screen-reader user gets here, since the bell
         // itself is marked decorative.
-        accessibilityLabel="Open notifications"
-        accessibilityHint="Shows the notifications you have received"
+        accessibilityLabel={t('home.notificationsLabel')}
+        accessibilityHint={t('home.notificationsHint')}
         onPress={onPressNotifications}
         style={[
           styles.iconButton,
@@ -211,9 +206,10 @@ function QuickLink({
  * __tests__/HomeScreen.test.tsx.
  */
 export function HomeScreen() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const [events, setEvents] = useState<PublishedEvent[] | null>(null);
@@ -302,37 +298,43 @@ export function HomeScreen() {
         >
           <View style={styles.liveBadgeRow}>
             <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
-            <Text style={[styles.liveLabel, { color: colors.onLive }]}>LIVE NOW</Text>
+            <Text style={[styles.liveLabel, { color: colors.onLive }]}>
+              {t('home.liveNow')}
+            </Text>
           </View>
-          <Text style={[styles.liveTitle, { color: colors.onLive }]}>{liveEvent.title}</Text>
+          <Text style={[styles.liveTitle, { color: colors.onLive }]}>
+            {liveEvent.title}
+          </Text>
           <View
             style={[
               styles.liveCta,
               { borderRadius: radii.control, backgroundColor: colors.onLive },
             ]}
           >
-            <Text style={[styles.liveCtaLabel, { color: colors.live }]}>Watch live</Text>
+            <Text style={[styles.liveCtaLabel, { color: colors.live }]}>
+              {t('home.watchLive')}
+            </Text>
           </View>
         </Tappable>
       ) : null}
 
       <View style={styles.section}>
         <SectionHeader
-          title="Verse of the day"
-          actionLabel="See all"
+          title={t('home.verseOfTheDay')}
+          actionLabel={t('common.seeAll')}
           onAction={() => navigation.navigate('DailyVerse')}
         />
         <DailyVerseCard />
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title="Announcements" />
+        <SectionHeader title={t('home.announcements')} />
         <AnnouncementsList />
       </View>
 
       {activePlan ? (
         <View style={styles.section}>
-          <SectionHeader title="Your reading plan" />
+          <SectionHeader title={t('home.yourReadingPlan')} />
           <Tappable
             testID="home-active-plan"
             accessibilityRole="button"
@@ -355,7 +357,10 @@ export function HomeScreen() {
               {activePlan.plan.title}
             </Text>
             <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
-              Day {activePlan.progress.currentDay} of {activePlan.plan.dayCount}
+              {t('home.dayOf', {
+                current: activePlan.progress.currentDay,
+                total: activePlan.plan.dayCount,
+              })}
             </Text>
           </Tappable>
         </View>
@@ -363,7 +368,7 @@ export function HomeScreen() {
 
       {nextEvent ? (
         <View style={styles.section}>
-          <SectionHeader title="Upcoming events" />
+          <SectionHeader title={t('home.upcomingEvents')} />
           <Tappable
             testID="home-next-event"
             accessibilityRole="button"
@@ -389,55 +394,39 @@ export function HomeScreen() {
         </View>
       ) : null}
 
+      {/* Secondary destinations only.
+          Songs / Events / Bible / Profile used to sit here as large
+          cards, duplicating the bottom tab bar (Songs, Events, Bible) and
+          the More tab (Profile) -- Home was acting as a second
+          navigation menu. The three below are NOT reachable from the tab
+          bar, so surfacing them here is discovery rather than
+          duplication; each also remains available under More. */}
       <View style={styles.section}>
-        <SectionHeader title="Explore" />
+        <SectionHeader title={t('home.continueGrowing')} />
         <View style={styles.quickLinkGrid}>
           <QuickLink
-            label="Songs"
-            testID="songs-nav-button"
-            onPress={() => navigation.navigate('SongsList')}
-          />
-          <QuickLink
-            label="Events"
-            testID="events-nav-button"
-            onPress={() => navigation.navigate('EventsList')}
-          />
-          <QuickLink
-            label="Bible"
-            testID="bible-nav-button"
-            onPress={() => navigation.navigate('BibleBooks')}
-          />
-          <QuickLink
-            label="Reading Plans"
+            label={t('more.readingPlans')}
             testID="plans-nav-button"
             onPress={() => navigation.navigate('PlansList')}
           />
           <QuickLink
-            label="Prayers"
+            label={t('more.prayers')}
             testID="prayers-nav-button"
             onPress={() => navigation.navigate('Prayers')}
           />
           <QuickLink
-            label="Community"
+            label={t('more.community')}
             testID="community-nav-button"
             onPress={() => navigation.navigate('CommunityList')}
-          />
-          <QuickLink
-            label="Profile"
-            testID="profile-nav-button"
-            onPress={() => navigation.navigate('Profile')}
           />
         </View>
       </View>
 
-      <Tappable
-        testID="sign-out-button"
-        accessibilityRole="button"
-        onPress={() => void signOut()}
-        style={styles.signOutRow}
-      >
-        <Text style={[styles.signOutLabel, { color: colors.danger }]}>Sign out</Text>
-      </Tappable>
+      {/* No sign-out here. Signing out is an account action and belongs
+          with the other account settings -- see
+          ../settings/SettingsScreen.tsx's `settings-logout-button`,
+          reachable via More -> Settings. Home is content, not account
+          management. */}
     </ScrollView>
   );
 }
@@ -493,11 +482,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickLinkLabel: { fontSize: 14.5, fontWeight: '600' },
-  signOutRow: {
-    alignSelf: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  signOutLabel: { fontSize: 14, fontWeight: '600' },
 });

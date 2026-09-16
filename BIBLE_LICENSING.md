@@ -349,3 +349,33 @@ requirement again, closing this gap requires either a human reaching
 completed, or Bridge Connectivity Solutions supplying the completed
 text directly — fabricating, reconstructing, or substituting another
 translation's text for these 27 verses remains explicitly rejected.
+
+## Telugu book names (added in the V1 tester-feedback pass)
+
+The Telugu VERSE TEXT (IRV 2019, above) shipped without Telugu BOOK
+NAMES: `books.ts` carried only English names, and the BibleNLP/ebible
+corpus this project sources verses from is a verse-per-line file with
+English references, so it contains no localized book names. The Bible
+tab's landing screen therefore listed 66 English book names even with
+the Telugu Bible selected -- which is what a V1 tester reported as "the
+Telugu Bible is not the default".
+
+| Field | Value |
+| --- | --- |
+| **Source** | [`aruljohn/Bible-telugu`](https://github.com/aruljohn/Bible-telugu), `Books.json` |
+| **License** | MIT, Copyright (c) 2021 Arul John |
+| **Retrieved** | Direct HTTPS request to `raw.githubusercontent.com`, V1 tester-feedback pass |
+| **Content** | Explicit `{english, telugu}` pairs for all 66 books |
+| **Verified** | 66/66 entries; all 66 English names matched `books.ts` except one known title variance (that source titles the book "Song of Songs"; `books.ts` uses the equally standard "Song of Solomon" -- the same book, mapped explicitly). Stray trailing whitespace present on a few upstream values was trimmed. |
+| **NOT AI-generated** | The names were fetched from the named source above, not transliterated or produced by any AI tool. |
+
+These are **structural metadata, not scripture text** -- the same
+category as the English book names, canonical ordering and chapter counts
+already in `books.ts`: the names a Telugu Bible prints in its table of
+contents, not translated verses. They are read through
+`getBookName(book, language)`; reading `book.name` directly is the bug
+that was fixed.
+
+A Telugu-speaking reviewer should still confirm the names match the
+edition the congregation uses -- see `TELUGU_REVIEW.md` for the UI-string
+review, which is a separate artifact.

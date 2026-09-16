@@ -44,9 +44,11 @@ function resetEmailAuthMocks() {
   (signInWithEmailAndPassword as jest.Mock).mockImplementation(async (_auth, email) => ({
     user: { uid: 'email-user', email },
   }));
-  (createUserWithEmailAndPassword as jest.Mock).mockImplementation(async (_auth, email) => ({
-    user: { uid: 'new-email-user', email, emailVerified: false },
-  }));
+  (createUserWithEmailAndPassword as jest.Mock).mockImplementation(
+    async (_auth, email) => ({
+      user: { uid: 'new-email-user', email, emailVerified: false },
+    })
+  );
   (sendPasswordResetEmail as jest.Mock).mockResolvedValue(undefined);
   (sendEmailVerification as jest.Mock).mockResolvedValue(undefined);
   (updateProfile as jest.Mock).mockResolvedValue(undefined);
@@ -159,20 +161,26 @@ describe('SignInScreen', () => {
     await fireEvent.press(getByTestId('email-submit-button'));
 
     await waitFor(() => expect(getByTestId('auth-error-message')).toBeTruthy());
-    expect(
-      getByTestId('email-submit-button').props.accessibilityState.disabled
-    ).toBe(false);
+    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(
+      false
+    );
   });
 
   it('disables submit until both fields have something in them', async () => {
     const { getByTestId } = await renderSignInScreen();
-    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(true);
+    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(
+      true
+    );
 
     await fireEvent.changeText(getByTestId('email-input'), 'member@example.com');
-    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(true);
+    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(
+      true
+    );
 
     await fireEvent.changeText(getByTestId('password-input'), 'x');
-    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(false);
+    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(
+      false
+    );
   });
 
   // --- Account creation -------------------------------------------------
@@ -207,7 +215,9 @@ describe('SignInScreen', () => {
     await fireEvent.changeText(getByTestId('email-input'), 'new@example.com');
     await fireEvent.changeText(getByTestId('password-input'), 'short');
 
-    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(true);
+    expect(getByTestId('email-submit-button').props.accessibilityState.disabled).toBe(
+      true
+    );
     expect(createUserWithEmailAndPassword).not.toHaveBeenCalled();
   });
 
@@ -270,8 +280,6 @@ describe('SignInScreen', () => {
    */
   it('keeps taps alive so the first tap on Sign in submits the form', async () => {
     const { getByTestId } = await renderSignInScreen();
-    expect(getByTestId('sign-in-screen').props.keyboardShouldPersistTaps).toBe(
-      'handled'
-    );
+    expect(getByTestId('sign-in-screen').props.keyboardShouldPersistTaps).toBe('handled');
   });
 });

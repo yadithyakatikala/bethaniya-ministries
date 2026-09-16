@@ -2,6 +2,7 @@ import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import App from '../App';
+import { translate } from '../src/i18n';
 
 jest.mock('../src/services/firebase/app');
 jest.mock('../src/features/auth/useGoogleSignIn');
@@ -44,6 +45,8 @@ describe('App', () => {
     });
     const { getByTestId, getByText } = await render(<App />);
     await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
-    expect(getByText('Welcome, Test User')).toBeTruthy();
+    // The greeting is localized now; the default language is Telugu (see
+    // src/features/bible/languagePreference.ts's DEFAULT_LANGUAGE).
+    expect(getByText(`${translate('te', 'home.welcome')}, Test User`)).toBeTruthy();
   });
 });

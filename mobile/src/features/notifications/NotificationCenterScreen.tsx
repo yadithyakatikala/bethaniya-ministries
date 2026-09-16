@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getNavigationTargetFromData } from './notificationNavigation';
@@ -52,6 +53,7 @@ function formatTimestamp(iso: string): string {
 export function NotificationCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [history, setHistory] = useState<NotificationHistoryEntry[] | undefined>(
     undefined
   );
@@ -114,9 +116,9 @@ export function NotificationCenterScreen() {
         testID="notification-center-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Your notification history couldn&apos;t be read on this device.
+          {t('notifications.readError')}
         </Text>
-        <AppButton title="Try again" variant="secondary" onPress={retryLoad} />
+        <AppButton title={t('common.tryAgain')} variant="secondary" onPress={retryLoad} />
       </View>
     );
   }
@@ -147,7 +149,7 @@ export function NotificationCenterScreen() {
         testID="notification-center-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          You have no notifications yet.
+          {t('notifications.empty')}
         </Text>
       </View>
     );

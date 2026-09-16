@@ -12,6 +12,7 @@ import {
 } from '../../../services/firebase/plans';
 import { PlanDetailScreen } from '../PlanDetailScreen';
 import { PlanDayScreen } from '../PlanDayScreen';
+import { translate } from '../../../i18n';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
@@ -132,9 +133,9 @@ describe('PlanDetailScreen states', () => {
     mockDays('error');
     const { getByTestId } = await renderDetail();
     await waitFor(() => expect(getByTestId('plan-days-error')).toBeTruthy());
-    expect(getByTestId('plan-start-continue-button').props.accessibilityState.disabled).toBe(
-      true
-    );
+    expect(
+      getByTestId('plan-start-continue-button').props.accessibilityState.disabled
+    ).toBe(true);
   });
 });
 
@@ -169,7 +170,8 @@ describe('PlanDayScreen states', () => {
     const { getByTestId, getByText } = await renderDay();
     await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
 
-    expect(getByText('Start Plan')).toBeTruthy();
+    // The label is localized; the default language is Telugu.
+    expect(getByText(translate('te', 'plans.start'))).toBeTruthy();
     expect(getByTestId('plan-day-mark-complete').props.accessibilityState.disabled).toBe(
       false
     );

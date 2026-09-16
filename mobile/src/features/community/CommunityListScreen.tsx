@@ -15,6 +15,7 @@ import {
 } from '../../services/firebase/communityPosts';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CommunityList'>;
 
@@ -30,6 +31,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CommunityList'>;
  */
 export function CommunityListScreen({ navigation }: Props) {
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [posts, setPosts] = useState<PublishedCommunityPost[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -51,7 +53,7 @@ export function CommunityListScreen({ navigation }: Props) {
         testID="community-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load community posts.
+          {t('community.loadErrorShort')}
         </Text>
       </View>
     );
@@ -75,7 +77,7 @@ export function CommunityListScreen({ navigation }: Props) {
         testID="community-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No community posts yet.
+          {t('community.emptyShort')}
         </Text>
       </View>
     );

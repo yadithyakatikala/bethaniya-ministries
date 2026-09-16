@@ -1,6 +1,16 @@
+import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
+import {
+  BookIcon,
+  CalendarIcon,
+  HomeIcon,
+  MoreIcon,
+  MusicIcon,
+} from '../theme/ui/TabIcons';
+import { useTranslation } from '../i18n';
+import type { StringKey } from '../i18n';
 
 /**
  * The five destinations the hand-rolled tab bar switches between. Kept as
@@ -12,12 +22,33 @@ import { useTheme } from '../theme';
  */
 export type TabRouteName = 'Home' | 'BibleBooks' | 'SongsList' | 'EventsList' | 'More';
 
-const TABS: { route: TabRouteName; label: string; testID: string }[] = [
-  { route: 'Home', label: 'Home', testID: 'tab-home' },
-  { route: 'BibleBooks', label: 'Bible', testID: 'tab-bible' },
-  { route: 'SongsList', label: 'Songs', testID: 'tab-songs' },
-  { route: 'EventsList', label: 'Events', testID: 'tab-events' },
-  { route: 'More', label: 'More', testID: 'tab-more' },
+interface TabIconProps {
+  color: string;
+  size?: number;
+  filled?: boolean;
+}
+
+/**
+ * `labelKey` rather than a literal: the bar showed hardcoded English even
+ * with the app set to Telugu, because there was no translation layer to
+ * read from -- see ../i18n/strings.ts.
+ */
+const TABS: {
+  route: TabRouteName;
+  labelKey: StringKey;
+  testID: string;
+  Icon: ComponentType<TabIconProps>;
+}[] = [
+  { route: 'Home', labelKey: 'nav.home', testID: 'tab-home', Icon: HomeIcon },
+  { route: 'BibleBooks', labelKey: 'nav.bible', testID: 'tab-bible', Icon: BookIcon },
+  { route: 'SongsList', labelKey: 'nav.songs', testID: 'tab-songs', Icon: MusicIcon },
+  {
+    route: 'EventsList',
+    labelKey: 'nav.events',
+    testID: 'tab-events',
+    Icon: CalendarIcon,
+  },
+  { route: 'More', labelKey: 'nav.more', testID: 'tab-more', Icon: MoreIcon },
 ];
 
 /**
@@ -30,11 +61,21 @@ const TABS: { route: TabRouteName; label: string; testID: string }[] = [
  * Settings, etc. -- hide it, the same "tab bar disappears on drill-down"
  * behavior @react-navigation/bottom-tabs would give for free).
  *
+ * ICON OVER LABEL, per tab. The bar previously showed a 4px dot above a
+ * text label, which read as an unfinished prototype rather than a mobile
+ * navigation bar. Icons come from ../theme/ui/TabIcons.tsx -- drawn from
+ * Views, no new dependency and no emoji; see that file's header.
+ *
+ * The selected tab differs in THREE ways, not just colour: the icon is
+ * filled rather than outlined, the label goes bold, and both take
+ * `colors.primary`. Colour alone would fail the "never colour-only"
+ * rule the Badge primitive already follows.
+ *
  * VERIFICATION NOTE: this project has no device/simulator harness (same
  * documented limitation as AudioPlayer.tsx/YouTubePlayerScreen.tsx) --
- * TabBar.test.tsx proves the active-tab styling and onNavigate wiring in
- * isolation, not that native-stack renders correctly inside the flex
- * layout on a real device.
+ * TabBar.test.tsx proves the active-tab styling, the icons, the
+ * accessibility labels and the onNavigate wiring in isolation, not that
+ * native-stack renders correctly inside the flex layout on a real device.
  */
 export function TabBar({
   activeRoute,
@@ -44,10 +85,14 @@ export function TabBar({
   onNavigate: (route: TabRouteName) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   return (
     <View
       testID="tab-bar"
+      // A tab bar is one control group; TalkBack should present the five
+      // items as tabs within it.
+      accessibilityRole="tablist"
       style={[
         styles.bar,
         {
@@ -59,6 +104,8 @@ export function TabBar({
     >
       {TABS.map((tab) => {
         const active = activeRoute === tab.route;
+        const label = t(tab.labelKey);
+        const tint = active ? colors.primary : colors.inkMuted;
         return (
           <Pressable
             key={tab.route}
@@ -67,27 +114,21 @@ export function TabBar({
             // "tab 2 of 5, selected" instead of five unrelated buttons.
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
+            // The icon is decorative (see TabIcons.tsx), so the label the
+            // screen reader speaks comes from here and is translated.
+            accessibilityLabel={label}
             onPress={() => onNavigate(tab.route)}
             style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <View
-              style={[
-                styles.dot,
-                { backgroundColor: active ? colors.primary : 'transparent' },
-              ]}
-            />
+            <tab.Icon color={tint} size={22} filled={active} />
             <Text
               // At the largest Android font scale a wrapped label would
               // push the bar taller on one item only; clipping one line
               // keeps all five the same height.
               numberOfLines={1}
-              style={[
-                styles.label,
-                { color: active ? colors.primary : colors.secondaryText },
-                active ? styles.labelActive : null,
-              ]}
+              style={[styles.label, { color: tint }, active ? styles.labelActive : null]}
             >
-              {tab.label}
+              {label}
             </Text>
           </Pressable>
         );
@@ -110,10 +151,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: 4,
-    minHeight: 44,
+    // 52, not 44: an icon over a label needs the extra height, and this
+    // is still comfortably above the 44dp accessibility minimum.
+    minHeight: 52,
     justifyContent: 'center',
+    paddingVertical: 2,
   },
-  dot: { width: 4, height: 4, borderRadius: 2, marginBottom: 1 },
   label: { fontSize: 10.5, fontWeight: '500' },
   labelActive: { fontWeight: '700' },
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import {
   subscribeToTodaysDailyVerse,
   type TodaysDailyVerse,
@@ -19,6 +20,7 @@ export function DailyVerseCard() {
   const [verse, setVerse] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const unsubscribe = subscribeToTodaysDailyVerse(
@@ -71,7 +73,7 @@ export function DailyVerseCard() {
         testID="daily-verse-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No daily verse set for today.
+          {t('dailyVerse.noneTodayShort')}
         </Text>
       </View>
     );

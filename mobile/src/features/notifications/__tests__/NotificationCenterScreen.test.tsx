@@ -8,6 +8,7 @@ import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { addNotificationToHistory } from '../notificationHistory';
 import * as notificationHistory from '../notificationHistory';
+import { translate } from '../../../i18n';
 import { NotificationCenterScreen } from '../NotificationCenterScreen';
 
 jest.mock('../../../services/firebase/app');
@@ -161,7 +162,7 @@ describe('NotificationCenterScreen', () => {
     await waitFor(() => expect(getByTestId('notification-center-error')).toBeTruthy());
 
     spy.mockResolvedValueOnce([]);
-    await fireEvent.press(getByText('Try again'));
+    await fireEvent.press(getByText(translate('te', 'common.tryAgain')));
 
     await waitFor(() => expect(getByTestId('notification-center-empty')).toBeTruthy());
   });

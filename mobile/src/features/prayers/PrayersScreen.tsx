@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import { EmptyState } from '../../theme/ui/EmptyState';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
@@ -48,6 +49,7 @@ function formatDate(date: Date | null): string {
 export function PrayersScreen() {
   const { user } = useAuth();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const uid = user?.uid ?? null;
 
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
@@ -115,10 +117,10 @@ export function PrayersScreen() {
    * looks and behaves like every other Android confirmation.
    */
   function confirmDelete(prayer: Prayer) {
-    Alert.alert('Delete this prayer?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('prayers.deleteConfirmTitle'), t('prayers.deleteConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => void handleDelete(prayer),
       },
@@ -136,12 +138,12 @@ export function PrayersScreen() {
           { padding: spacing.lg, gap: spacing.sm, borderBottomColor: colors.border },
         ]}
       >
-        <SectionHeader title="New Prayer Request" />
+        <SectionHeader title={t('prayers.newRequest')} />
         <TextInput
           testID="prayer-input"
           value={draft}
           onChangeText={setDraft}
-          placeholder="What's on your heart?"
+          placeholder={t('prayers.placeholder')}
           placeholderTextColor={colors.secondaryText}
           multiline
           maxLength={PRAYER_TEXT_MAX_LENGTH}
@@ -157,7 +159,7 @@ export function PrayersScreen() {
           ]}
         />
         <AppButton
-          title="Add Prayer"
+          title={t('prayers.add')}
           onPress={() => void handleAdd()}
           disabled={!draft.trim() || submitting}
           loading={submitting}
@@ -168,8 +170,8 @@ export function PrayersScreen() {
       {hasError ? (
         <View style={{ padding: spacing.lg }}>
           <EmptyState
-            title="Couldn't load prayers"
-            message="Check your connection and try again."
+            title={t('prayers.loadError')}
+            message={t('prayers.loadErrorMessage')}
             testID="prayers-error"
           />
         </View>
@@ -182,8 +184,8 @@ export function PrayersScreen() {
       {prayers && prayers.length === 0 && !hasError ? (
         <View style={{ padding: spacing.lg }}>
           <EmptyState
-            title="No prayers yet"
-            message="Add a prayer request above -- only you can see it."
+            title={t('prayers.empty')}
+            message={t('prayers.emptyMessage')}
             testID="prayers-empty"
           />
         </View>
@@ -216,7 +218,7 @@ export function PrayersScreen() {
               <Text style={[styles.prayerText, { color: colors.text }]}>{item.text}</Text>
               <Text style={[styles.meta, { color: colors.secondaryText }]}>
                 {formatDate(item.createdAt)}
-                {item.answered ? ' • Answered' : ''}
+                {item.answered ? ` • ${t('prayers.answered')}` : ''}
               </Text>
               <View style={[styles.actions, { gap: spacing.md }]}>
                 <Pressable
@@ -230,7 +232,9 @@ export function PrayersScreen() {
                   ]}
                 >
                   <Text style={[styles.actionLabel, { color: colors.primary }]}>
-                    {item.answered ? 'Mark unanswered' : 'Mark answered'}
+                    {item.answered
+                      ? t('prayers.markUnanswered')
+                      : t('prayers.markAnswered')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -238,7 +242,7 @@ export function PrayersScreen() {
                   accessibilityRole="button"
                   // "Delete" alone tells a screen-reader user nothing about
                   // what is being deleted.
-                  accessibilityLabel="Delete this prayer"
+                  accessibilityLabel={t('prayers.deleteLabel')}
                   disabled={busyId === item.id}
                   onPress={() => confirmDelete(item)}
                   style={({ pressed }) => [
@@ -247,7 +251,7 @@ export function PrayersScreen() {
                   ]}
                 >
                   <Text style={[styles.actionLabel, { color: colors.danger }]}>
-                    Delete
+                    {t('common.delete')}
                   </Text>
                 </Pressable>
               </View>

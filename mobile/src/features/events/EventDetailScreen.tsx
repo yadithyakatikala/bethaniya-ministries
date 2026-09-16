@@ -1,13 +1,8 @@
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EventDetail'>;
@@ -45,6 +40,7 @@ export function buildMapsSearchUrl(location: string): string {
 export function EventDetailScreen({ route, navigation }: Props) {
   const { event } = route.params;
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
 
   function handleOpenMaps() {
     void Linking.openURL(buildMapsSearchUrl(event.location));
@@ -95,7 +91,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
           ]}
         >
           <Text style={[styles.mapsButtonLabel, { color: colors.primary }]}>
-            Open in Maps
+            {t('events.openInMaps')}
           </Text>
         </Tappable>
       </View>
@@ -118,7 +114,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
           ]}
         >
           <Text style={[styles.watchLiveLabel, { color: colors.onLive }]}>
-            Watch live on YouTube
+            {t('events.watchOnYouTube')}
           </Text>
         </Tappable>
       ) : null}

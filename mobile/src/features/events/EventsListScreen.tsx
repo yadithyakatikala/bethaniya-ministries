@@ -14,6 +14,7 @@ import {
 } from '../../services/firebase/events';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EventsList'>;
 
@@ -37,6 +38,7 @@ function formatStartsAt(date: Date | null): string {
  */
 export function EventsListScreen({ navigation }: Props) {
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [events, setEvents] = useState<PublishedEvent[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -58,7 +60,7 @@ export function EventsListScreen({ navigation }: Props) {
         testID="events-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load events.
+          {t('events.loadErrorShort')}
         </Text>
       </View>
     );
@@ -82,7 +84,7 @@ export function EventsListScreen({ navigation }: Props) {
         testID="events-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No upcoming events.
+          {t('events.emptyShort')}
         </Text>
       </View>
     );

@@ -11,6 +11,7 @@ import {
   type Prayer,
 } from '../../../services/firebase/prayers';
 import { PrayersScreen } from '../PrayersScreen';
+import { translate } from '../../../i18n';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/prayers');
@@ -87,7 +88,7 @@ describe('PrayersScreen', () => {
     await waitFor(() => expect(getByTestId('prayers-error')).toBeTruthy());
   });
 
-  it('renders the member\'s prayers', async () => {
+  it("renders the member's prayers", async () => {
     const { getByTestId } = await renderScreen();
     await waitFor(() => expect(getByTestId('prayer-row-p1')).toBeTruthy());
   });
@@ -109,9 +110,7 @@ describe('PrayersScreen', () => {
 
     await fireEvent.press(getByTestId('prayer-toggle-answered-p1'));
 
-    await waitFor(() =>
-      expect(setPrayerAnswered).toHaveBeenCalledWith('u1', 'p1', true)
-    );
+    await waitFor(() => expect(setPrayerAnswered).toHaveBeenCalledWith('u1', 'p1', true));
   });
 
   // --- Delete asks first ------------------------------------------------
@@ -170,7 +169,7 @@ describe('PrayersScreen', () => {
     const { getByTestId } = await renderScreen();
     await waitFor(() => expect(getByTestId('prayer-delete-p1')).toBeTruthy());
     expect(getByTestId('prayer-delete-p1').props.accessibilityLabel).toBe(
-      'Delete this prayer'
+      translate('te', 'prayers.deleteLabel')
     );
   });
 });

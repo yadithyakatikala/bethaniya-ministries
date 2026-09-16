@@ -25,9 +25,23 @@ export type BibleTestament = 'OT' | 'NT';
 
 /** Structural metadata only -- book names/order/chapter counts, not scripture text. */
 export interface BibleBook {
-  /** Stable slug id, e.g. "genesis", "1-samuel", "song-of-solomon". */
+  /**
+   * Stable slug id, e.g. "genesis", "1-samuel", "song-of-solomon".
+   * INTERNAL IDENTIFIER -- never localized and never shown to a user.
+   * Route params and the verse-data keys depend on it.
+   */
   id: string;
+  /** English display name. */
   name: string;
+  /**
+   * Telugu display name. Added during the V1 tester-feedback pass: the
+   * Bible tab's landing screen listed 66 ENGLISH book names even with the
+   * Telugu Bible selected, which is what made the Telugu Bible look like
+   * it was not being used -- the Telugu verse text underneath had been
+   * correct all along. Read it through books.ts's getBookName(), never
+   * directly, so a third language is one change in one place.
+   */
+  nameTe: string;
   testament: BibleTestament;
   /** 1-66, canonical Protestant-canon order (39 OT + 27 NT). */
   order: number;

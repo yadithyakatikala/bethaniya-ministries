@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
@@ -26,6 +27,7 @@ export function PlanDayScreen({ route }: Props) {
   const { plan, dayNumber } = route.params;
   const { user } = useAuth();
   const { colors, spacing } = useTheme();
+  const { t } = useTranslation();
   const uid = user?.uid ?? null;
 
   const [days, setDays] = useState<PublishedPlanDay[] | null>(null);
@@ -97,7 +99,7 @@ export function PlanDayScreen({ route }: Props) {
         testID="plan-day-error"
       >
         <Text style={[styles.centerMessage, { color: colors.secondaryText }]}>
-          This reading couldn&apos;t be loaded. Check your connection and try again.
+          {t('plans.dayLoadError')}
         </Text>
       </View>
     );
@@ -120,7 +122,7 @@ export function PlanDayScreen({ route }: Props) {
         style={[styles.center, { backgroundColor: colors.background }]}
         testID="plan-day-not-found"
       >
-        <Text style={{ color: colors.secondaryText }}>This day could not be found.</Text>
+        <Text style={{ color: colors.secondaryText }}>{t('plans.dayNotFound')}</Text>
       </View>
     );
   }
@@ -149,7 +151,7 @@ export function PlanDayScreen({ route }: Props) {
           ]}
         >
           <Text style={[styles.promptLabel, { color: colors.primary }]}>
-            Prayer Prompt
+            {t('plans.prayerPrompt')}
           </Text>
           <Text style={[styles.promptText, { color: colors.text }]}>
             {day.prayerPrompt}
@@ -158,7 +160,13 @@ export function PlanDayScreen({ route }: Props) {
       ) : null}
 
       <AppButton
-        title={completed ? 'Completed' : progress ? 'Mark Complete' : 'Start Plan'}
+        title={
+          completed
+            ? t('plans.completed')
+            : progress
+              ? t('plans.markComplete')
+              : t('plans.start')
+        }
         onPress={() => void handleMarkComplete()}
         loading={marking}
         disabled={!uid || completed}

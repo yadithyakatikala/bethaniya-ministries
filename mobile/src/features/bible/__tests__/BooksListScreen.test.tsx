@@ -4,7 +4,8 @@ import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { BooksListScreen } from '../BooksListScreen';
-import { BIBLE_BOOKS } from '../books';
+import { BIBLE_BOOKS, getBookById } from '../books';
+import { translate } from '../../../i18n';
 
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   __esModule: true,
@@ -46,10 +47,49 @@ describe('BooksListScreen', () => {
 
   it('separates Old Testament and New Testament into their own sections', async () => {
     const { getByTestId, getByText } = await renderScreen();
+    // The testIDs are built from a stable, never-localized section id, so
+    // they do NOT change with the language -- that is deliberate.
     expect(getByTestId('bible-section-Old Testament')).toBeTruthy();
     expect(getByTestId('bible-section-New Testament')).toBeTruthy();
-    expect(getByText('Old Testament')).toBeTruthy();
-    expect(getByText('New Testament')).toBeTruthy();
+    // The visible headings DO change. Asserted through the catalogue
+    // rather than a literal, so the test states "the user sees the
+    // translated heading" instead of pinning one language's wording.
+    expect(getByText(translate('te', 'bible.oldTestament'))).toBeTruthy();
+    expect(getByText(translate('te', 'bible.newTestament'))).toBeTruthy();
+  });
+
+  // --- Telugu book names (V1 tester feedback) --------------------------
+  // The tester reported "the Telugu Bible is not the default". The Telugu
+  // VERSE TEXT had been correct all along; this screen -- the Bible tab's
+  // landing screen -- read `book.name` directly and so listed 66 ENGLISH
+  // book names, which is what made the Bible look English. See
+  // ../books.ts's getBookName().
+
+  it('lists Telugu book names when Telugu is selected (the default)', async () => {
+    const { getByTestId } = await renderScreen();
+    const genesis = getBookById('genesis');
+    const psalms = getBookById('psalms');
+    const revelation = getBookById('revelation');
+
+    // Sanity: these are real Telugu strings from the licensed source, not
+    // the English names.
+    expect(genesis?.nameTe).toBe('ఆదికాండము');
+    expect(genesis?.nameTe).not.toBe(genesis?.name);
+
+    // And they are what the row actually renders.
+    for (const book of [genesis, psalms, revelation]) {
+      const row = JSON.stringify(getByTestId(`book-${book?.id}`));
+      expect(row).toContain(book?.nameTe);
+      expect(row).not.toContain(`>${book?.name}<`);
+    }
+  });
+
+  it('every one of the 66 books has a Telugu name distinct from its English one', () => {
+    for (const book of BIBLE_BOOKS) {
+      expect(book.nameTe.length).toBeGreaterThan(0);
+      expect(book.nameTe.trim()).toBe(book.nameTe);
+      expect(book.nameTe).not.toBe(book.name);
+    }
   });
 
   it('navigates to BibleChapters with the tapped book id', async () => {

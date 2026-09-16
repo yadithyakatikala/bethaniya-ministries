@@ -15,6 +15,7 @@ import {
 } from '../../services/firebase/songs';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SongsList'>;
 
@@ -32,6 +33,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SongsList'>;
  */
 export function SongsListScreen({ navigation }: Props) {
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [songs, setSongs] = useState<PublishedSong[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -53,7 +55,7 @@ export function SongsListScreen({ navigation }: Props) {
         testID="songs-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load songs.
+          {t('songs.loadError')}
         </Text>
       </View>
     );
@@ -77,7 +79,7 @@ export function SongsListScreen({ navigation }: Props) {
         testID="songs-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No songs yet.
+          {t('songs.emptyShort')}
         </Text>
       </View>
     );

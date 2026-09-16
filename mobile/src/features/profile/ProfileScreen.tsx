@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { storage } from '../../services/firebase/app';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -75,6 +76,7 @@ export function ProfileScreen() {
   // shows.
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<UserProfile | null | undefined>(undefined);
   const [loadError, setLoadError] = useState(false);
@@ -244,7 +246,7 @@ export function ProfileScreen() {
         testID="profile-load-error"
       >
         <Text style={[styles.message, { color: colors.text }]}>
-          Could not load your profile.
+          {t('profile.loadError')}
         </Text>
       </View>
     );
@@ -297,7 +299,7 @@ export function ProfileScreen() {
           </View>
         )}
         <AppButton
-          title="Change photo"
+          title={t('profile.changePhoto')}
           variant="secondary"
           loading={isUploadingPhoto}
           onPress={() => void handleChangePhoto()}
@@ -326,7 +328,7 @@ export function ProfileScreen() {
       >
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.secondaryText }]}>
-            Display Name
+            {t('profile.displayName')}
           </Text>
           <TextInput
             style={[
@@ -343,11 +345,11 @@ export function ProfileScreen() {
               setNameSaved(false);
             }}
             testID="display-name-input"
-            placeholder="Your name"
+            placeholder={t('auth.namePlaceholder')}
             placeholderTextColor={colors.secondaryText}
           />
           <AppButton
-            title="Save"
+            title={t('common.save')}
             loading={isSavingName}
             onPress={() => void handleSaveDisplayName()}
             testID="save-display-name-button"
@@ -401,7 +403,7 @@ export function ProfileScreen() {
               {!user.emailVerified ? (
                 <>
                   <AppButton
-                    title="Resend verification email"
+                    title={t('profile.resendVerification')}
                     variant="secondary"
                     onPress={() => void handleResendVerification()}
                     loading={resendingVerification}
@@ -443,7 +445,7 @@ export function ProfileScreen() {
         {displayProfile?.phoneNumber ? (
           <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
             <Text style={[styles.label, { color: colors.secondaryText }]}>
-              Phone Number
+              {t('profile.phoneNumber')}
             </Text>
             <Text
               style={[styles.readOnlyValue, { color: colors.text }]}
@@ -456,7 +458,7 @@ export function ProfileScreen() {
       </View>
 
       <AppButton
-        title="Settings"
+        title={t('settings.title')}
         variant="secondary"
         onPress={() => navigation.navigate('Settings')}
         testID="profile-settings-nav-button"

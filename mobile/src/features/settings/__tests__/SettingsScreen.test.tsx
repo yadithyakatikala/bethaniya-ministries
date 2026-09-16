@@ -9,6 +9,7 @@ import { onSnapshot, updateDoc } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { SettingsScreen } from '../SettingsScreen';
+import { translate } from '../../../i18n';
 
 jest.mock('../../../services/firebase/app');
 
@@ -52,6 +53,26 @@ async function renderScreen() {
   );
 }
 
+/**
+ * The Language/Theme rows are themselves localized now, so the expected
+ * text depends on the language the app is in. Building it from the
+ * catalogue keeps these assertions about BEHAVIOUR ("the row names the
+ * current language, written in that language") rather than pinning one
+ * language's wording -- which is what made these tests fail when the UI
+ * correctly started rendering Telugu.
+ */
+const languageRow = (lang: 'en' | 'te') =>
+  `${translate(lang, 'settings.language')}: ${translate(
+    lang,
+    lang === 'te' ? 'settings.languageTelugu' : 'settings.languageEnglish'
+  )}`;
+
+const themeRow = (lang: 'en' | 'te', theme: 'dark' | 'light') =>
+  `${translate(lang, 'settings.theme')}: ${translate(
+    lang,
+    theme === 'dark' ? 'settings.themeDark' : 'settings.themeLight'
+  )}`;
+
 describe('SettingsScreen', () => {
   afterEach(async () => {
     await AsyncStorage.clear();
@@ -62,29 +83,29 @@ describe('SettingsScreen', () => {
 
   it('defaults to Telugu, Light theme, and notifications on', async () => {
     const { getByText, getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
-    expect(getByText('Theme: Light')).toBeTruthy();
+    await waitFor(() => expect(getByText(languageRow('te'))).toBeTruthy());
+    expect(getByText(themeRow('te', 'light'))).toBeTruthy();
     expect(getByTestId('settings-theme-switch').props.value).toBe(false);
     expect(getByTestId('settings-notifications-switch').props.value).toBe(true);
   });
 
   it('toggles the language and persists it to AsyncStorage', async () => {
     const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
+    await waitFor(() => expect(getByText(languageRow('te'))).toBeTruthy());
 
     await fireEvent.press(getByTestId('settings-language-toggle'));
 
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText(languageRow('en'))).toBeTruthy());
     expect(await AsyncStorage.getItem('bible_language_preference')).toBe('en');
   });
 
   it('toggles the theme and persists it to AsyncStorage', async () => {
     const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Theme: Light')).toBeTruthy());
+    await waitFor(() => expect(getByText(themeRow('te', 'light'))).toBeTruthy());
 
     await fireEvent(getByTestId('settings-theme-switch'), 'valueChange', true);
 
-    await waitFor(() => expect(getByText('Theme: Dark')).toBeTruthy());
+    await waitFor(() => expect(getByText(themeRow('te', 'dark'))).toBeTruthy());
     expect(await AsyncStorage.getItem('theme_preference')).toBe('dark');
   });
 
@@ -105,11 +126,11 @@ describe('SettingsScreen', () => {
   it('syncs a preference change to Firestore when signed in', async () => {
     mockSignedIn();
     const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
+    await waitFor(() => expect(getByText(languageRow('te'))).toBeTruthy());
 
     await fireEvent.press(getByTestId('settings-language-toggle'));
 
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText(languageRow('en'))).toBeTruthy());
     expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
       languagePreference: 'en',
     });

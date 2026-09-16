@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Image, StyleSheet, Text, View } from 'reac
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
 import { EmptyState } from '../../theme/ui/EmptyState';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -26,6 +27,7 @@ export function PlanDetailScreen({ route, navigation }: Props) {
   const { plan } = route.params;
   const { user } = useAuth();
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const uid = user?.uid ?? null;
 
   const [days, setDays] = useState<PublishedPlanDay[] | null>(null);
@@ -92,7 +94,8 @@ export function PlanDetailScreen({ route, navigation }: Props) {
 
       <View style={[styles.body, { padding: spacing.lg, gap: spacing.sm }]}>
         <Text style={[styles.meta, { color: colors.secondaryText }]}>
-          {plan.category} • {plan.dayCount} {plan.dayCount === 1 ? 'day' : 'days'}
+          {plan.category} • {plan.dayCount}{' '}
+          {plan.dayCount === 1 ? t('plans.day') : t('plans.days')}
         </Text>
         <Text style={[styles.title, { color: colors.text }]} testID="plan-detail-title">
           {plan.title}
@@ -102,7 +105,11 @@ export function PlanDetailScreen({ route, navigation }: Props) {
         </Text>
 
         <AppButton
-          title={progress ? `Continue • Day ${progress.currentDay}` : 'Start Plan'}
+          title={
+            progress
+              ? `${t('plans.continue')} • ${t('plans.day')} ${progress.currentDay}`
+              : t('plans.start')
+          }
           onPress={() => void handleStartOrContinue()}
           loading={starting}
           disabled={!uid || daysFailed || days === null || days.length === 0}
@@ -113,8 +120,8 @@ export function PlanDetailScreen({ route, navigation }: Props) {
       {daysFailed ? (
         <View style={{ padding: spacing.lg }}>
           <EmptyState
-            title="Couldn't load this plan"
-            message="Check your connection and open the plan again."
+            title={t('plans.loadError')}
+            message={t('plans.loadErrorMessage')}
             testID="plan-days-error"
           />
         </View>
@@ -123,8 +130,8 @@ export function PlanDetailScreen({ route, navigation }: Props) {
       ) : days.length === 0 ? (
         <View style={{ padding: spacing.lg }}>
           <EmptyState
-            title="No readings yet"
-            message="This plan hasn't had its daily readings added."
+            title={t('plans.noReadings')}
+            message={t('plans.noReadingsMessage')}
             testID="plan-days-empty"
           />
         </View>
@@ -150,7 +157,7 @@ export function PlanDetailScreen({ route, navigation }: Props) {
                 ]}
               >
                 <Text style={[styles.dayNumber, { color: colors.primary }]}>
-                  Day {item.dayNumber}
+                  {t('plans.day')} {item.dayNumber}
                 </Text>
                 <Text style={[styles.dayTitle, { color: colors.text }]}>
                   {item.title}
@@ -160,7 +167,7 @@ export function PlanDetailScreen({ route, navigation }: Props) {
                 </Text>
                 {completed ? (
                   <Text style={[styles.dayComplete, { color: colors.success }]}>
-                    Completed
+                    {t('plans.completed')}
                   </Text>
                 ) : null}
               </View>

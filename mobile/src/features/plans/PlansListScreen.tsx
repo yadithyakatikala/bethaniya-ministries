@@ -15,6 +15,7 @@ import {
 } from '../../services/firebase/plans';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlansList'>;
 
@@ -29,6 +30,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlansList'>;
  */
 export function PlansListScreen({ navigation }: Props) {
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PublishedPlan[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -50,7 +52,7 @@ export function PlansListScreen({ navigation }: Props) {
         testID="plans-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load reading plans.
+          {t('plans.loadErrorShort')}
         </Text>
       </View>
     );
@@ -74,7 +76,7 @@ export function PlansListScreen({ navigation }: Props) {
         testID="plans-empty"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          No reading plans yet.
+          {t('plans.emptyShort')}
         </Text>
       </View>
     );

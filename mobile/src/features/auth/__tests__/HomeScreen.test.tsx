@@ -8,6 +8,7 @@ import { onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { lightTokens } from '../../../theme';
+import { translate } from '../../../i18n';
 import { HomeScreen } from '../HomeScreen';
 
 /**
@@ -92,7 +93,9 @@ describe('HomeScreen', () => {
       return jest.fn();
     });
     const { getByText } = await renderHomeScreen();
-    await waitFor(() => expect(getByText('Welcome, Jane Doe')).toBeTruthy());
+    await waitFor(() =>
+      expect(getByText(`${translate('te', 'home.welcome')}, Jane Doe`)).toBeTruthy()
+    );
   });
 
   it('falls back to email, then phone number, when no display name is set', async () => {
@@ -101,63 +104,75 @@ describe('HomeScreen', () => {
       return jest.fn();
     });
     const { getByText } = await renderHomeScreen();
-    await waitFor(() => expect(getByText('Welcome, +15555550123')).toBeTruthy());
+    await waitFor(() =>
+      expect(getByText(`${translate('te', 'home.welcome')}, +15555550123`)).toBeTruthy()
+    );
   });
 
-  it('calls Firebase sign-out when "Sign out" is pressed', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u3', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    mockedSignOut.mockResolvedValue(undefined);
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('sign-out-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('sign-out-button'));
-    await waitFor(() => expect(mockedSignOut).toHaveBeenCalled());
-  });
+  // --- Home is not a second navigation menu (V1 tester feedback) -------
+  // Home used to carry an "Explore" grid of seven large cards -- Songs,
+  // Events, Bible, Reading Plans, Prayers, Community, Profile -- plus a
+  // "Sign out" row. Songs/Events/Bible duplicated the bottom tab bar and
+  // Profile duplicated the More tab, so Home was a second way to navigate
+  // the same places. Signing out is an account action and belongs with
+  // the account settings.
+  //
+  // These assert the ABSENCE of those affordances, which is the actual
+  // fix; the destinations themselves are still reachable (the tab bar for
+  // Songs/Events/Bible, More for Profile, Settings for logout) and are
+  // covered by TabBar.test.tsx, MoreScreen.test.tsx and
+  // SettingsScreen.test.tsx respectively.
 
-  it('navigates to the Songs list when "Songs" is pressed', async () => {
+  it('does not duplicate the bottom tab bar with Songs/Events/Bible cards', async () => {
     mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
       onNext({ uid: 'u4', displayName: 'Sam', email: null, phoneNumber: null });
       return jest.fn();
     });
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('songs-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('songs-nav-button'));
-    await waitFor(() => expect(getByTestId('songs-list-stub')).toBeTruthy());
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+
+    expect(queryByTestId('songs-nav-button')).toBeNull();
+    expect(queryByTestId('events-nav-button')).toBeNull();
+    expect(queryByTestId('bible-nav-button')).toBeNull();
   });
 
-  it('navigates to the Events list when "Events" is pressed', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u5', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('events-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('events-nav-button'));
-    await waitFor(() => expect(getByTestId('events-list-stub')).toBeTruthy());
-  });
-
-  it('navigates to the Bible books list when "Bible" is pressed', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u6', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('bible-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('bible-nav-button'));
-    await waitFor(() => expect(getByTestId('bible-books-stub')).toBeTruthy());
-  });
-
-  it('navigates to Profile when "Profile" is pressed', async () => {
+  it('does not duplicate the More tab with a Profile card', async () => {
     mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
       onNext({ uid: 'u7', displayName: 'Sam', email: null, phoneNumber: null });
       return jest.fn();
     });
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+
+    expect(queryByTestId('profile-nav-button')).toBeNull();
+  });
+
+  it('has no sign-out button -- that lives in Settings', async () => {
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u3', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+
+    expect(queryByTestId('sign-out-button')).toBeNull();
+    // And Firebase sign-out is never reachable from this screen.
+    expect(mockedSignOut).not.toHaveBeenCalled();
+  });
+
+  it('still surfaces the three secondary destinations the tab bar omits', async () => {
+    // Plans / Prayers / Community are NOT in the bottom tab bar, so
+    // offering them on Home is discovery rather than duplication.
+    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'u9', displayName: 'Sam', email: null, phoneNumber: null });
+      return jest.fn();
+    });
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('profile-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('profile-nav-button'));
-    await waitFor(() => expect(getByTestId('profile-stub')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+
+    expect(getByTestId('plans-nav-button')).toBeTruthy();
+    expect(getByTestId('prayers-nav-button')).toBeTruthy();
+    expect(getByTestId('community-nav-button')).toBeTruthy();
   });
 
   it('navigates to Notifications when "Notifications" is pressed', async () => {
@@ -183,7 +198,9 @@ describe('HomeScreen', () => {
     const { getByTestId } = await renderHomeScreen();
     await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
     const button = getByTestId('notifications-nav-button');
-    expect(button.props.accessibilityLabel).toBe('Open notifications');
+    expect(button.props.accessibilityLabel).toBe(
+      translate('te', 'home.notificationsLabel')
+    );
     expect(button.props.accessibilityRole).toBe('button');
   });
 
@@ -209,8 +226,7 @@ describe('HomeScreen', () => {
     const colours = new Set<string>();
     const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
       const style = StyleSheet.flatten(node.props?.style as never) as
-        | Record<string, string>
-        | undefined;
+        Record<string, string> | undefined;
       if (style?.borderColor) colours.add(style.borderColor);
       if (style?.backgroundColor) colours.add(style.backgroundColor);
       for (const child of node.children ?? []) {
