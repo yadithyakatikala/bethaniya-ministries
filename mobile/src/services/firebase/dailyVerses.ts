@@ -23,6 +23,7 @@
  * and admin/src/services/firebase/dailyVerses.ts) has always worked off
  * Firestore's automatic single-field indexes.
  */
+import { AppState } from 'react-native';
 import {
   type FirestoreError,
   type Unsubscribe,
@@ -33,6 +34,11 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './app';
+
+/** How often a foreground app re-checks whether the local date has rolled
+ * over. Cheap: a string comparison, no Firestore read -- the query is only
+ * rebuilt on an actual date change. See subscribeToTodaysDailyVerse(). */
+const DATE_ROLLOVER_CHECK_MS = 60_000;
 
 export interface TodaysDailyVerse {
   id: string;
@@ -70,17 +76,63 @@ function toTodaysDailyVerse(id: string, data: Record<string, unknown>): TodaysDa
  */
 export function subscribeToTodaysDailyVerse(
   onNext: (verse: TodaysDailyVerse | null) => void,
-  onError: (error: FirestoreError) => void
+  onError: (error: FirestoreError) => void,
+  /**
+   * Source of the current local date, injectable purely so the rollover
+   * behaviour below can be tested without faking global time (fake timers
+   * interact badly with the React Native test renderer in this project --
+   * see HomeScreen.test.tsx's note). Production callers
+   * never pass this.
+   */
+  getToday: () => string = todayDateString
 ): Unsubscribe {
-  const q = query(collection(db, 'daily_verses'), where('date', '==', todayDateString()));
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const [first] = snapshot.docs;
-      onNext(first ? toTodaysDailyVerse(first.id, first.data()) : null);
-    },
-    onError
-  );
+  // The query is pinned to one specific date string, so it must be rebuilt
+  // when the local date rolls over. A previous version computed
+  // todayDateString() once, at subscription time, then listened forever:
+  // an app left open or backgrounded across midnight -- the norm on a
+  // phone, not the exception -- kept querying *yesterday's* date and
+  // showed a stale verse, or the empty state once a verse existed for
+  // today but not yesterday, until the user force-restarted the app. Found
+  // during the V1 production-readiness audit.
+  //
+  // Two triggers, because neither alone is sufficient: a JS timer does not
+  // fire reliably while the app is backgrounded, and an AppState change
+  // never arrives if the app simply stays in the foreground past midnight.
+  let currentDate = '';
+  let innerUnsubscribe: Unsubscribe | null = null;
+  let stopped = false;
+
+  function resubscribeIfDateChanged() {
+    if (stopped) return;
+    const today = getToday();
+    if (today === currentDate) return;
+    currentDate = today;
+    innerUnsubscribe?.();
+    const q = query(collection(db, 'daily_verses'), where('date', '==', today));
+    innerUnsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const [first] = snapshot.docs;
+        onNext(first ? toTodaysDailyVerse(first.id, first.data()) : null);
+      },
+      onError
+    );
+  }
+
+  resubscribeIfDateChanged();
+
+  const appStateSubscription = AppState.addEventListener('change', (state) => {
+    if (state === 'active') resubscribeIfDateChanged();
+  });
+  const rolloverTimer = setInterval(resubscribeIfDateChanged, DATE_ROLLOVER_CHECK_MS);
+
+  return () => {
+    stopped = true;
+    clearInterval(rolloverTimer);
+    appStateSubscription.remove();
+    innerUnsubscribe?.();
+    innerUnsubscribe = null;
+  };
 }
 
 /**

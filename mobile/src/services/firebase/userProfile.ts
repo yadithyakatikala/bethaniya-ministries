@@ -21,14 +21,35 @@
  * permission-denied) -- the actual security boundary is firestore.rules,
  * not this file, exactly like admin/src/services/firebase/userProfile.ts's
  * fetchOwnRole() documents for its own read-only case.
+ *
+ * ensureOwnProfileExists (added during the V1 production-readiness audit):
+ * functions/src/createUserProfile.ts's Auth trigger is meant to create this
+ * document automatically on first sign-in, but Cloud Functions cannot
+ * actually be deployed under this project's zero-billing constraint
+ * (deploying any Cloud Function requires the Blaze plan even at $0 usage --
+ * see PRODUCTION_READINESS.md). That means, in the real deployed app, the
+ * trigger never runs at all -- not "rarely delayed" as subscribeToOwnProfile's
+ * comment below used to assume, but *never*. Without this fallback, every
+ * signed-in member would have no /users/{uid} document, forever: Profile/
+ * Settings would never load, updateOwnProfile's updateDoc would fail with
+ * not-found, and every Firestore rule that reads the caller's role
+ * (isHostOrAbove() etc.) would find nothing and default-deny. This function
+ * is the client-side equivalent of the Cloud Function, using the exact same
+ * field shape and role, staying within what firestore.rules already allows
+ * a client to do for its own new document (`allow create: if isOwner(userId)
+ * && request.resource.data.role == 'member'`) -- no elevated role can ever
+ * be granted this way, matching the trigger's own invariant.
  */
 import {
   type FirestoreError,
   type Unsubscribe,
   doc,
   onSnapshot,
+  runTransaction,
+  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
+import type { User } from 'firebase/auth';
 import { db } from './app';
 
 export type LanguagePreference = 'en' | 'te';
@@ -82,11 +103,11 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
 }
 
 /**
- * `onNext` receives `null` if the document doesn't exist yet (shouldn't
- * normally happen post-sign-in, since createUserProfile's auth trigger
- * creates it -- but the trigger's write and the client's first read are
- * two independent, unordered events, so a brief window where the doc
- * isn't there yet is possible and must be handled, not crash).
+ * `onNext` receives `null` if the document doesn't exist yet. AuthContext.tsx
+ * calls ensureOwnProfileExists() (below) right after sign-in specifically so
+ * this stays a brief, one-time window rather than a permanent state -- see
+ * that function's doc comment for why the Cloud Functions trigger this used
+ * to rely on can't be depended on here.
  */
 export function subscribeToOwnProfile(
   uid: string,
@@ -125,4 +146,42 @@ export async function updateOwnProfile(
     update.notificationsEnabled = fields.notificationsEnabled;
 
   await updateDoc(doc(db, 'users', uid), update);
+}
+
+/**
+ * Creates /users/{uid} for the just-signed-in user if (and only if) it
+ * doesn't already exist -- the client-side fallback for
+ * functions/src/createUserProfile.ts's Auth trigger; see this file's header
+ * comment for why that trigger can't be relied on here. Field shape and
+ * `role: 'member'` deliberately mirror the Cloud Function exactly, and stay
+ * inside what firestore.rules' `users/{userId}` create rule already permits
+ * a client to write for itself -- this can never grant an elevated role,
+ * exactly like the trigger it stands in for.
+ *
+ * Safe to call on every sign-in, not just the first: uses a transaction
+ * (get-then-set, matching the Cloud Function's own idempotency strategy) so
+ * an existing document -- including one whose role a Super Admin has since
+ * elevated -- is never touched. Errors are intentionally not thrown to the
+ * caller: a transient failure here shouldn't block sign-in itself, since
+ * subscribeToOwnProfile()'s null case and updateOwnProfile()'s rejected
+ * promise both already degrade safely if the document still doesn't exist
+ * afterward, and the next sign-in (or app open) retries this automatically.
+ */
+export async function ensureOwnProfileExists(user: User): Promise<void> {
+  const userRef = doc(db, 'users', user.uid);
+  try {
+    await runTransaction(db, async (tx) => {
+      const snapshot = await tx.get(userRef);
+      if (snapshot.exists()) return;
+      tx.set(userRef, {
+        role: 'member',
+        displayName: user.displayName ?? null,
+        email: user.email ?? null,
+        phoneNumber: user.phoneNumber ?? null,
+        createdAt: serverTimestamp(),
+      });
+    });
+  } catch (error) {
+    console.warn('[userProfile] ensureOwnProfileExists failed (will retry next sign-in):', error);
+  }
 }

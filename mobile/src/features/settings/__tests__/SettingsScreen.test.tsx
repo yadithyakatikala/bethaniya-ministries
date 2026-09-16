@@ -1,5 +1,8 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
@@ -20,13 +23,32 @@ function mockSignedIn() {
   });
 }
 
+// SettingsScreen navigates to "PrivacyPolicy"/"Terms" (see
+// ../../legal/LegalScreen.tsx) -- useNavigation() needs a real Navigator in
+// the tree, same pattern as ../../auth/__tests__/HomeScreen.test.tsx.
+const Stack = createNativeStackNavigator();
+
+function PrivacyPolicyStub() {
+  return <Text testID="privacy-policy-stub">Privacy policy stub</Text>;
+}
+
+function TermsStub() {
+  return <Text testID="terms-stub">Terms stub</Text>;
+}
+
 async function renderScreen() {
   return render(
-    <AuthProvider>
-      <PreferencesProvider>
-        <SettingsScreen />
-      </PreferencesProvider>
-    </AuthProvider>
+    <NavigationContainer>
+      <AuthProvider>
+        <PreferencesProvider>
+          <Stack.Navigator>
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyStub} />
+            <Stack.Screen name="Terms" component={TermsStub} />
+          </Stack.Navigator>
+        </PreferencesProvider>
+      </AuthProvider>
+    </NavigationContainer>
   );
 }
 
@@ -98,6 +120,20 @@ describe('SettingsScreen', () => {
     await waitFor(() => expect(getByTestId('settings-bible-attribution')).toBeTruthy());
     expect(getByText(/Bridge Connectivity Solutions/)).toBeTruthy();
     expect(getByText(/CC BY-SA 4.0/)).toBeTruthy();
+  });
+
+  it('navigates to the Privacy Policy screen when "Privacy policy" is pressed', async () => {
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-privacy-policy-row')).toBeTruthy());
+    await fireEvent.press(getByTestId('settings-privacy-policy-row'));
+    await waitFor(() => expect(getByTestId('privacy-policy-stub')).toBeTruthy());
+  });
+
+  it('navigates to the Terms screen when "Terms of service" is pressed', async () => {
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-terms-row')).toBeTruthy());
+    await fireEvent.press(getByTestId('settings-terms-row'));
+    await waitFor(() => expect(getByTestId('terms-stub')).toBeTruthy());
   });
 
   it('signs the user out when Log Out is pressed', async () => {

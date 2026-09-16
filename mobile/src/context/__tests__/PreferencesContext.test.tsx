@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '../AuthContext';
 import { PreferencesProvider, usePreferences } from '../PreferencesContext';
 
@@ -37,6 +38,11 @@ function Probe() {
         title="toggle-notifications"
         testID="disable-notifications"
         onPress={() => void prefs.setNotificationsEnabled(false)}
+      />
+      <Button
+        title="enable-notifications"
+        testID="enable-notifications"
+        onPress={() => void prefs.setNotificationsEnabled(true)}
       />
     </View>
   );
@@ -170,5 +176,41 @@ describe('PreferencesContext', () => {
     expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
       notificationsEnabled: false,
     });
+  });
+
+  it('requests OS notification permission when the user turns notifications on', async () => {
+    // Regression test for the V1 production-readiness audit finding: this
+    // toggle used to only flip a stored boolean and never actually call
+    // requestNotificationPermissionsAsync() (services/notifications/
+    // notificationService.ts), so the OS prompt the user needs to see to
+    // ever receive anything never fired.
+    await AsyncStorage.setItem('notifications_enabled_preference', 'false');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('notifications').props.children).toBe('false'));
+
+    await act(async () => {
+      await fireEvent.press(getByTestId('enable-notifications'));
+    });
+
+    await waitFor(() =>
+      expect(getByTestId('notifications').props.children).toBe('true')
+    );
+    await waitFor(() =>
+      expect(Notifications.getPermissionsAsync).toHaveBeenCalled()
+    );
+  });
+
+  it('does not request OS notification permission when turning notifications off', async () => {
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await act(async () => {
+      await fireEvent.press(getByTestId('disable-notifications'));
+    });
+
+    await waitFor(() =>
+      expect(getByTestId('notifications').props.children).toBe('false')
+    );
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
   });
 });

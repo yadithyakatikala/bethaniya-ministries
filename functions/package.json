@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "version": "1.0.0",
-  "description": "Bethaniya Ministries — Firebase Cloud Functions (Node.js/TypeScript)",
+  "description": "Bethaniya Ministries \u2014 Firebase Cloud Functions (Node.js/TypeScript)",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
@@ -16,8 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage"
   },
   "dependencies": {
     "firebase-admin": "^14.3.0",

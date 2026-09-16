@@ -216,4 +216,66 @@ describe('NotificationsPage', () => {
       expect(screen.getByTestId('notification-log-error')).toBeInTheDocument()
     );
   });
+
+  // --- Blaze-gated failures must each name their own real cause ---------
+  // This page can fail three distinguishable ways, and the optional image
+  // upload runs FIRST -- so a missing Cloud Storage bucket aborts before
+  // anything is sent, and must not be reported as a send failure. See
+  // ../../../services/firebase/storageErrors.ts and the handler in
+  // ../NotificationsPage.tsx.
+
+  /** Drives the form through to the confirmation dialog's Send button. */
+  async function submitWithImage(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByTestId('notification-title-input'), 'Title');
+    await user.type(screen.getByTestId('notification-message-input'), 'Message');
+    await user.upload(
+      screen.getByTestId('notification-image-input'),
+      new File(['x'], 'banner.png', { type: 'image/png' })
+    );
+    await user.click(screen.getByTestId('notification-form-submit'));
+    await user.click(await screen.findByTestId('confirm-send-button'));
+  }
+
+  it('reports Cloud Storage as the cause when the image upload is unavailable, not the send', async () => {
+    useAuthStore.setState({ role: 'super_admin' });
+    vi.mocked(notificationsService.subscribeToNotificationLog).mockImplementation(() =>
+      vi.fn()
+    );
+    vi.mocked(notificationsService.estimateRecipientCount).mockResolvedValue(5);
+    vi.mocked(notificationsService.uploadNotificationImage).mockRejectedValue({
+      code: 'storage/unknown',
+    });
+    renderPage();
+
+    await submitWithImage(userEvent.setup());
+
+    const error = await screen.findByTestId('notification-form-error');
+    expect(error).toHaveTextContent(/Cloud Storage/);
+    expect(error).toHaveTextContent(/save without an image/i);
+    // The upload threw first -- nothing should have been sent.
+    expect(notificationsService.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('still reports the Blaze-gated send limitation when the image upload succeeds', async () => {
+    // Regression guard: adding the Storage branch must not shadow the
+    // Cloud-Functions-unavailable message.
+    useAuthStore.setState({ role: 'super_admin' });
+    vi.mocked(notificationsService.subscribeToNotificationLog).mockImplementation(() =>
+      vi.fn()
+    );
+    vi.mocked(notificationsService.estimateRecipientCount).mockResolvedValue(5);
+    vi.mocked(notificationsService.uploadNotificationImage).mockResolvedValue(
+      'https://example.com/banner.png'
+    );
+    vi.mocked(notificationsService.sendNotification).mockRejectedValue(
+      new notificationsService.CloudFunctionsUnavailableError()
+    );
+    renderPage();
+
+    await submitWithImage(userEvent.setup());
+
+    const error = await screen.findByTestId('notification-form-error');
+    expect(error).toHaveTextContent(/Sending is unavailable/);
+    expect(error).toHaveTextContent(/retrying will not help/);
+  });
 });

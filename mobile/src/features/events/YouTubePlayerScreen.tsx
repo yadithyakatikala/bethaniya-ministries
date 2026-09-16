@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
-import { toYouTubeEmbedUrl } from './youtube';
+import { isAllowedPlayerNavigation, toYouTubeEmbedUrl } from './youtube';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
 
@@ -48,12 +49,38 @@ export function YouTubePlayerScreen({ route }: Props) {
     );
   }
 
+  /**
+   * Keeps the WebView on YouTube's own player. The embed page has tappable
+   * links ("Watch on YouTube", the channel name, end-screen cards); before
+   * this guard existed they navigated in place, leaving the member in a
+   * chrome-less in-app browser on an arbitrary page with no URL bar and no
+   * sign they had left the app's content. Those now open in the system
+   * browser, where the user can see where they are and come back.
+   *
+   * See isAllowedPlayerNavigation() in ./youtube.ts for the allow-list and
+   * why non-https schemes are refused outright.
+   */
+  function handleShouldStartLoad(request: ShouldStartLoadRequest): boolean {
+    if (isAllowedPlayerNavigation(request.url)) return true;
+    // Only hand real web URLs to the browser -- never an intent://,
+    // market:// or other scheme an embedded page might try to fire.
+    if (request.url.startsWith('https://')) {
+      void Linking.openURL(request.url).catch(() => undefined);
+    }
+    return false;
+  }
+
   return (
     <WebView
       testID="youtube-webview"
       source={{ uri: embedUrl }}
       style={styles.webview}
       allowsFullscreenVideo
+      // Defence in depth alongside onShouldStartLoadWithRequest below:
+      // originWhitelist governs what the WebView will load at all, the
+      // callback governs each individual navigation.
+      originWhitelist={['https://*.youtube.com', 'https://youtube.com']}
+      onShouldStartLoadWithRequest={handleShouldStartLoad}
     />
   );
 }

@@ -21,12 +21,21 @@
  * whether a real WebView would actually render/play it -- that is a
  * manual, real-device verification item (see YouTubePlayerScreen.tsx's
  * doc comment).
+ *
+ * All original props (not just testID/source) are forwarded onto the
+ * rendered View's own props too -- YouTubePlayerScreen.test.tsx
+ * drives its onMessage/onError/onHttpError callbacks directly via
+ * `getByTestId(...).props.onMessage(...)` etc, the same way
+ * YouTubePlayerScreen.test.tsx already reads back `props.source`/
+ * `accessibilityLabel`. testID/accessibilityLabel are set after the
+ * spread so their existing derived values here are unaffected.
  */
 const React = require('react');
 const { View } = require('react-native');
 
 function WebView(props) {
   return React.createElement(View, {
+    ...props,
     testID: props.testID || 'mock-webview',
     accessibilityLabel: props.source && props.source.uri ? props.source.uri : undefined,
   });

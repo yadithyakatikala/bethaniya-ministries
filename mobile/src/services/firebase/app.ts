@@ -21,10 +21,35 @@
  * acceptable once every SDK instance is connected to a local emulator
  * before its first real use).
  *
- * Toggle: EXPO_PUBLIC_USE_FIREBASE_EMULATORS (default: "true"). Set to
- * "false" only once this app is meant to talk to a real Firebase backend,
- * which requires real values in .env.local and, for Storage/Functions, a
- * Blaze-upgraded project.
+ * Toggle: EXPO_PUBLIC_USE_FIREBASE_EMULATORS. Set to "false" only once this
+ * app is meant to talk to a real Firebase backend, which requires real
+ * values in .env.local and, for Storage/Functions, a Blaze-upgraded project.
+ *
+ * DEFAULT WHEN THE TOGGLE IS ABSENT -- this is build-type dependent, and
+ * deliberately so (changed after a real-device failure; see below):
+ *   - dev build   (__DEV__ true)  -> emulators ON, as before
+ *   - RELEASE build (__DEV__ false) -> emulators OFF (real backend)
+ *
+ * Why: this used to default to "true" unconditionally. That is a
+ * fail-open-to-development default, and it produced a silent, total
+ * production outage that took several rounds of device testing to find.
+ * If a release APK is built without .env.production's values actually
+ * reaching the bundle (a very easy mistake -- Expo picks the env file by
+ * build mode, and nothing fails loudly when it doesn't), then:
+ *   isEmulatorEnabled() returned true -> resolveFirebaseConfig() silently
+ *   substituted DEMO_CONFIG (projectId "demo-bethaniya-ministries",
+ *   authDomain "localhost") -> every SDK instance was pointed at
+ *   10.0.2.2/localhost, which does not exist on a real user's phone.
+ * The visible result was sign-in failing with a generic error on every
+ * device, and -- because SignInScreen only mounts the production reCAPTCHA
+ * verifier when NOT in emulator mode -- no reCAPTCHA UI appearing at all,
+ * which looked exactly like a broken verifier rather than a broken build
+ * configuration. A release build must never silently talk to localhost.
+ *
+ * An explicit EXPO_PUBLIC_USE_FIREBASE_EMULATORS value always wins, in
+ * either direction, so a release build can still be pointed at emulators
+ * on purpose (and assertProductionConfigSane() below shouts about it when
+ * that happens, since it is almost never intended).
  */
 
 import { Platform } from 'react-native';
@@ -59,8 +84,55 @@ const DEMO_CONFIG: FirebaseWebConfig = {
   appId: '1:000000000000:web:0000000000000000000000',
 };
 
+/** True in a Metro dev build, false in a release bundle. Injected by Metro
+ * at bundle time, NOT read from any .env file -- which is exactly why it's
+ * the right signal here: it still tells the truth in the very situation
+ * this guards against (a release build whose env values didn't load).
+ * Read defensively so plain-Node contexts (Jest, scripts) don't throw. */
+export function isDevBuild(): boolean {
+  return typeof __DEV__ !== 'undefined' && __DEV__ === true;
+}
+
 export function isEmulatorEnabled(): boolean {
-  return (process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS ?? 'true') !== 'false';
+  const explicit = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS;
+  // An explicit value always wins, in either direction.
+  if (explicit === 'false') return false;
+  if (explicit === 'true') return true;
+  // Absent/unrecognized: emulators in a dev build, real backend in a
+  // release build -- see this module's header comment for why the old
+  // unconditional "true" default caused a silent production outage.
+  return isDevBuild();
+}
+
+/**
+ * Shouts (console.error, so it lands in `adb logcat`/Xcode console for
+ * release builds too) if a release build is in a configuration that cannot
+ * possibly work against a real backend. Diagnostic only -- deliberately
+ * does not throw, since a hard crash at import time would be a worse
+ * failure mode than a loud log plus the app's normal error handling.
+ */
+export function assertProductionConfigSane(
+  useEmulators: boolean,
+  resolved: FirebaseWebConfig
+): void {
+  if (isDevBuild()) return;
+  if (useEmulators) {
+    console.error(
+      '[firebase/app] RELEASE BUILD IS USING FIREBASE EMULATORS. It will try to ' +
+        'reach a local emulator host that does not exist on a real device, and ' +
+        'every Firebase call (including sign-in) will fail. Set ' +
+        'EXPO_PUBLIC_USE_FIREBASE_EMULATORS=false, and make sure the env file ' +
+        'actually reached this build.'
+    );
+    return;
+  }
+  if (resolved.projectId === DEMO_CONFIG.projectId || !resolved.projectId) {
+    console.error(
+      '[firebase/app] RELEASE BUILD HAS NO REAL FIREBASE PROJECT CONFIG ' +
+        `(projectId: ${resolved.projectId || '<empty>'}). The env values did not ` +
+        'reach this bundle -- see .env.example and ENVIRONMENT.md.'
+    );
+  }
 }
 
 /**
@@ -97,6 +169,7 @@ export function emulatorHost(): string {
 
 const useEmulators = isEmulatorEnabled();
 const config = resolveFirebaseConfig(useEmulators);
+assertProductionConfigSane(useEmulators, config);
 
 // Firebase's app registry (getApps()) persists across Metro Fast Refresh
 // module re-evaluation, so an already-existing app means this module is

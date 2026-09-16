@@ -24,6 +24,7 @@ import {
   setStoredThemePreference,
 } from './preferencesStorage';
 import { useAuth } from './AuthContext';
+import { requestNotificationPermissionsAsync } from '../services/notifications/notificationService';
 
 /**
  * App-wide user preferences (language / theme / notifications) -- Day 9.
@@ -214,6 +215,16 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         setNotificationsEnabledState(enabled);
         await setStoredNotificationsEnabled(enabled);
         if (uid) await updateOwnProfile(uid, { notificationsEnabled: enabled });
+        // Actually asks the OS for permission when the user turns this on
+        // -- added during the V1 production-readiness audit, after this
+        // toggle was found to only ever flip a stored boolean, never call
+        // requestNotificationPermissionsAsync() (services/firebase/
+        // notificationService.ts), so the OS permission prompt the user
+        // needs to see in order to ever receive anything never fired.
+        // Best-effort: a denial or unsupported platform isn't a failure
+        // this toggle needs to react to (see that function's own doc
+        // comment -- it never throws).
+        if (enabled) void requestNotificationPermissionsAsync();
       },
     }),
     [

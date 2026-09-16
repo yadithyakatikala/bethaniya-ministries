@@ -25,5 +25,19 @@ export const OAuthProvider = jest.fn().mockImplementation((providerId) => ({
   credential: jest.fn((opts) => ({ ...opts, providerId })),
 }));
 export const signInWithCredential = jest.fn();
-export const signInWithPhoneNumber = jest.fn();
 export const signOut = jest.fn();
+
+// Email/Password -- the primary V1 sign-in method (see
+// src/services/firebase/authService.ts). These default to resolving with a
+// minimal UserCredential shape so createAccountWithEmail()'s follow-up
+// updateProfile()/sendEmailVerification() calls have a real `user` to act
+// on; individual tests override with mockResolvedValue/mockRejectedValue.
+export const signInWithEmailAndPassword = jest.fn(async (_auth, email) => ({
+  user: { uid: 'email-user', email },
+}));
+export const createUserWithEmailAndPassword = jest.fn(async (_auth, email) => ({
+  user: { uid: 'new-email-user', email, emailVerified: false },
+}));
+export const sendPasswordResetEmail = jest.fn(async () => undefined);
+export const sendEmailVerification = jest.fn(async () => undefined);
+export const updateProfile = jest.fn(async () => undefined);

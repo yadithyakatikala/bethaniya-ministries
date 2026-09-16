@@ -34,6 +34,7 @@
  * neither query -- per the "non-live past events don't need to appear"
  * requirement.
  */
+import { AppState } from 'react-native';
 import {
   type FirestoreError,
   type Unsubscribe,
@@ -45,6 +46,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './app';
+
+/** How often a foreground app rebuilds the "upcoming" query so its
+ * `startsAt >= now` cutoff cannot go stale. Five minutes is well inside
+ * the granularity anyone notices for a service start time, and each
+ * rebuild re-reads only the currently-upcoming events. See
+ * resubscribeUpcoming() in subscribeToPublishedEvents(). */
+const UPCOMING_REFRESH_MS = 5 * 60_000;
 
 export interface PublishedEvent {
   id: string;
@@ -93,6 +101,8 @@ export function subscribeToPublishedEvents(
 ): Unsubscribe {
   let upcoming: PublishedEvent[] | null = null;
   let live: PublishedEvent[] | null = null;
+  let unsubscribeUpcoming: Unsubscribe | null = null;
+  let stopped = false;
 
   function emitIfReady() {
     if (upcoming === null || live === null) return;
@@ -102,26 +112,50 @@ export function subscribeToPublishedEvents(
     onNext(sortByStartsAtAsc(Array.from(merged.values())));
   }
 
-  const upcomingQuery = query(
-    collection(db, 'events'),
-    where('published', '==', true),
-    where('startsAt', '>=', Timestamp.now()),
-    orderBy('startsAt', 'asc')
-  );
+  /**
+   * Rebuilds the "upcoming" query against the CURRENT time.
+   *
+   * `Timestamp.now()` is baked into a query when the query is built, so a
+   * single long-lived listener keeps filtering against whatever "now" was
+   * at subscription time. A previous version built this query exactly
+   * once: an app left open or backgrounded for hours -- ordinary phone
+   * behaviour -- went on showing events that had since started and were
+   * never marked live, the precise opposite of this module's documented
+   * contract above ("A published event whose startsAt has passed and
+   * which is NOT live still correctly disappears"). Found during the V1
+   * production-readiness audit; the same stale-capture bug as
+   * ./dailyVerses.ts's date filter.
+   *
+   * The `live` query needs no such treatment: two equality filters, no
+   * time value that can go stale.
+   */
+  function resubscribeUpcoming() {
+    if (stopped) return;
+    unsubscribeUpcoming?.();
+    const upcomingQuery = query(
+      collection(db, 'events'),
+      where('published', '==', true),
+      where('startsAt', '>=', Timestamp.now()),
+      orderBy('startsAt', 'asc')
+    );
+    unsubscribeUpcoming = onSnapshot(
+      upcomingQuery,
+      (snapshot) => {
+        upcoming = snapshot.docs.map((d) => toPublishedEvent(d.id, d.data()));
+        emitIfReady();
+      },
+      onError
+    );
+  }
+
   const liveQuery = query(
     collection(db, 'events'),
     where('published', '==', true),
     where('isLive', '==', true)
   );
 
-  const unsubscribeUpcoming = onSnapshot(
-    upcomingQuery,
-    (snapshot) => {
-      upcoming = snapshot.docs.map((d) => toPublishedEvent(d.id, d.data()));
-      emitIfReady();
-    },
-    onError
-  );
+  resubscribeUpcoming();
+
   const unsubscribeLive = onSnapshot(
     liveQuery,
     (snapshot) => {
@@ -131,8 +165,20 @@ export function subscribeToPublishedEvents(
     onError
   );
 
+  // Refreshing when the app returns to the foreground covers the case that
+  // actually matters (the app was away for a while); the interval covers an
+  // app that simply stays open.
+  const appStateSubscription = AppState.addEventListener('change', (state) => {
+    if (state === 'active') resubscribeUpcoming();
+  });
+  const refreshTimer = setInterval(resubscribeUpcoming, UPCOMING_REFRESH_MS);
+
   return () => {
-    unsubscribeUpcoming();
+    stopped = true;
+    clearInterval(refreshTimer);
+    appStateSubscription.remove();
+    unsubscribeUpcoming?.();
+    unsubscribeUpcoming = null;
     unsubscribeLive();
   };
 }

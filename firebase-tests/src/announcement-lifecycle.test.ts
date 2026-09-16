@@ -114,7 +114,13 @@ describe('announcement lifecycle: create -> verify Firestore -> verify mobile', 
     //    the rules engine as the same Content Admin who wrote it (allowed
     //    regardless of published state -- content_admin+ can read drafts).
     const adminReadBack = await announcementRef.get();
-    expect(adminReadBack.exists()).toBe(true);
+    // `dbFor()` returns the compat (v8-namespaced) Firestore SDK -- see
+    // RulesTestContext.firestore()'s own return type -- where
+    // DocumentSnapshot.exists is a boolean PROPERTY, not a method like the
+    // modular (v9+) SDK's. `.exists()` here was a pre-existing type error
+    // (found during the V1 production-readiness audit; TS2349 "This
+    // expression is not callable") that also would have thrown at runtime.
+    expect(adminReadBack.exists).toBe(true);
     expect(adminReadBack.data()).toMatchObject({
       title: 'Sunday Service',
       content: 'Join us at 10am for worship and fellowship.',

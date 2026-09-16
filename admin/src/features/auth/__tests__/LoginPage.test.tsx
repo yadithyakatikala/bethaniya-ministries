@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { LoginPage } from '../LoginPage';
 import { useAuthStore } from '../../../store/authStore';
+import { sendPasswordReset } from '../../../services/firebase/authService';
+
+vi.mock('../../../services/firebase/authService');
 
 function renderLoginPage() {
   return render(
@@ -45,5 +48,64 @@ describe('LoginPage', () => {
     useAuthStore.setState({ status: 'unauthenticated', authErrorMessage: null });
     renderLoginPage();
     expect(screen.getByTestId('login-submit-button')).toBeDisabled();
+  });
+
+  describe('password reset', () => {
+    it('switches to the reset-password form when "Forgot password?" is clicked', async () => {
+      useAuthStore.setState({ status: 'unauthenticated', authErrorMessage: null });
+      renderLoginPage();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByTestId('forgot-password-link'));
+
+      expect(screen.getByTestId('reset-email-input')).toBeInTheDocument();
+      expect(screen.queryByTestId('email-input')).not.toBeInTheDocument();
+    });
+
+    it('sends a reset email and shows a success message that does not reveal whether the account exists', async () => {
+      vi.mocked(sendPasswordReset).mockResolvedValue(undefined);
+      useAuthStore.setState({ status: 'unauthenticated', authErrorMessage: null });
+      renderLoginPage();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByTestId('forgot-password-link'));
+      await user.type(screen.getByTestId('reset-email-input'), 'admin@example.com');
+      await user.click(screen.getByTestId('reset-password-submit-button'));
+
+      await waitFor(() =>
+        expect(sendPasswordReset).toHaveBeenCalledWith('admin@example.com')
+      );
+      expect(screen.getByTestId('reset-password-success')).toHaveTextContent(
+        'If an account exists for that email, a password reset link has been sent.'
+      );
+    });
+
+    it('shows a friendly error if sending the reset email fails', async () => {
+      vi.mocked(sendPasswordReset).mockRejectedValue(new Error('network error'));
+      useAuthStore.setState({ status: 'unauthenticated', authErrorMessage: null });
+      renderLoginPage();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByTestId('forgot-password-link'));
+      await user.type(screen.getByTestId('reset-email-input'), 'admin@example.com');
+      await user.click(screen.getByTestId('reset-password-submit-button'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('reset-password-error')).toBeInTheDocument()
+      );
+      expect(screen.queryByTestId('reset-password-success')).not.toBeInTheDocument();
+    });
+
+    it('returns to the sign-in form via "Back to sign in"', async () => {
+      useAuthStore.setState({ status: 'unauthenticated', authErrorMessage: null });
+      renderLoginPage();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByTestId('forgot-password-link'));
+      await user.click(screen.getByTestId('back-to-sign-in-link'));
+
+      expect(screen.getByTestId('login-submit-button')).toBeInTheDocument();
+      expect(screen.queryByTestId('reset-email-input')).not.toBeInTheDocument();
+    });
   });
 });

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '../services/firebase/app';
 import { signOutUser } from '../services/firebase/authService';
-import { toFriendlyAuthMessage } from '../services/firebase/authErrors';
+import { logAuthError, toFriendlyAuthMessage } from '../services/firebase/authErrors';
+import { ensureOwnProfileExists } from '../services/firebase/userProfile';
 
 /**
  * App-wide authentication state, per FINAL_ARCHITECTURE_SPECIFICATION.md's
@@ -51,9 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (nextUser) => {
         setUser(nextUser);
         setStatus(nextUser ? 'authenticated' : 'unauthenticated');
+        if (nextUser) void ensureOwnProfileExists(nextUser);
       },
       (error) => {
         setStatus('error');
+        logAuthError('auth-subsystem', error);
         setAuthErrorMessage(toFriendlyAuthMessage(error));
       }
     );
@@ -65,8 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       authErrorMessage,
-      reportSignInError: (error: unknown) =>
-        setAuthErrorMessage(toFriendlyAuthMessage(error)),
+      reportSignInError: (error: unknown) => {
+        logAuthError('sign-in', error);
+        setAuthErrorMessage(toFriendlyAuthMessage(error));
+      },
       clearAuthError: () => setAuthErrorMessage(null),
       signOut: async () => {
         await signOutUser();

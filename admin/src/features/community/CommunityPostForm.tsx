@@ -12,6 +12,7 @@ import {
   validateCommunityPostInput,
 } from './validation';
 import type { CommunityPost } from '../../types';
+import { describeSaveFailure } from '../../services/firebase/storageErrors';
 
 interface CommunityPostFormProps {
   mode: 'create' | 'edit';
@@ -80,8 +81,16 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
         });
       }
       navigate('/community');
-    } catch {
-      setSubmitError('Something went wrong while saving. Please try again.');
+    } catch (error) {
+      // A missing Cloud Storage bucket is permanent on this project, and
+      // the upload throws BEFORE the Firestore write -- so "saving failed,
+      // please try again" was wrong about what failed and invited a retry
+      // that cannot succeed. The image is optional, so clearing the
+      // selection lets the very next Save go through without one. See
+      // ../../services/firebase/storageErrors.ts.
+      const failure = describeSaveFailure(error);
+      if (failure.clearSelectedImage) {setImageFile(null);}
+      setSubmitError(failure.message);
     } finally {
       setSubmitting(false);
     }

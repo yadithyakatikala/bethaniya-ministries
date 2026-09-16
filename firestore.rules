@@ -54,6 +54,24 @@ service cloud.firestore {
       return isContentAdminOrAbove() || hasRole('host');
     }
 
+    // The complete set of roles this app recognises. Kept in sync with
+    // functions/src/updateUserRole.ts's VALID_ROLES and admin/src/types'
+    // UserRole union.
+    //
+    // Added during the V1 production-readiness audit, when role changes
+    // moved from the updateUserRole callable (undeployable on the Spark
+    // plan -- see admin/src/services/firebase/users.ts) to a direct,
+    // rules-protected client write. The callable validated the incoming
+    // role string itself; rules did not, because nothing untrusted could
+    // reach the field. Now that a client writes it, this is the only thing
+    // standing between a typo'd or malicious value and a `role` field that
+    // matches no branch of hasRole() -- which would silently strip the
+    // target user of every permission, including their own profile access,
+    // with no path back except direct database surgery.
+    function isValidRole(role) {
+      return role in ['member', 'host', 'content_admin', 'super_admin'];
+    }
+
     // Announcement field-level validation (Day 4). Re-validates the
     // client's input server-side, per FINAL_ARCHITECTURE_SPECIFICATION.md's
     // "Server-Side (Cloud Functions): re-validate all inputs (do not trust
@@ -256,8 +274,27 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isContentAdminOrAbove();
 
+      // Self-creation of one's own profile document. This is the app's ONLY
+      // rules-governed path that creates /users/{uid}: the equivalent Cloud
+      // Function trigger (functions/src/createUserProfile.ts) uses the Admin
+      // SDK and bypasses rules entirely, and cannot be deployed at all under
+      // this project's zero-billing constraint -- so in the deployed app it
+      // is mobile's ensureOwnProfileExists() that actually runs (see
+      // mobile/src/services/firebase/userProfile.ts). Nothing in the admin
+      // dashboard creates user documents.
+      //
+      // The role pin has always been here, so no client can grant itself an
+      // elevated role. The keys() allowlist was added during the V1
+      // production-readiness audit: without it a member could create their
+      // own profile carrying any number of arbitrary extra fields, and the
+      // tight update rule below only governs LATER writes -- so anything
+      // smuggled in at creation time would persist unchallenged. The list is
+      // exactly the field set both creators write; hasOnly rather than
+      // hasAll, so a caller may legitimately omit a field.
       allow create: if isOwner(userId)
-        && request.resource.data.role == 'member';
+        && request.resource.data.role == 'member'
+        && request.resource.data.keys().hasOnly(
+             ['role', 'displayName', 'email', 'phoneNumber', 'createdAt']);
 
       // Day 9: an owner's self-update may ONLY touch the profile/
       // preference fields below (never role, email, phoneNumber, or
@@ -288,7 +325,8 @@ service cloud.firestore {
         || (isSuperAdmin()
           && !isOwner(userId)
           && request.resource.data.diff(resource.data)
-               .affectedKeys().hasOnly(['role']));
+               .affectedKeys().hasOnly(['role'])
+          && isValidRole(request.resource.data.role));
 
       allow delete: if isSuperAdmin();
     }
@@ -313,7 +351,13 @@ service cloud.firestore {
     // ---- announcements -----------------------------------------------
     // Day 4: create/update additionally re-validated via isValidAnnouncement().
     match /announcements/{announcementId} {
-      allow read: if isContentAdminOrAbove()
+      // Host gets "read all" (including unpublished) per the RBAC table --
+      // deliberately isHostOrAbove(), not isContentAdminOrAbove(); a prior
+      // version of this rule used isContentAdminOrAbove() here, which left
+      // Hosts seeing only published content, identical to a Member,
+      // contradicting the documented table (found during the V1
+      // production-readiness audit).
+      allow read: if isHostOrAbove()
         || (isSignedIn() && resource.data.published == true);
       allow create, update: if isContentAdminOrAbove()
         && isValidAnnouncement(request.resource.data);
@@ -334,7 +378,9 @@ service cloud.firestore {
     // ---- songs -----------------------------------------------------
     // Day 6: create/update additionally re-validated via isValidSong().
     match /songs/{songId} {
-      allow read: if isContentAdminOrAbove()
+      // Host gets "read all" -- see the announcements rule above for why
+      // this is isHostOrAbove(), not isContentAdminOrAbove().
+      allow read: if isHostOrAbove()
         || (isSignedIn() && resource.data.published == true);
       allow create, update: if isContentAdminOrAbove()
         && isValidSong(request.resource.data);
@@ -344,7 +390,9 @@ service cloud.firestore {
     // ---- events -----------------------------------------------------
     // Day 7: create/update additionally re-validated via isValidEvent().
     match /events/{eventId} {
-      allow read: if isContentAdminOrAbove()
+      // Host gets "read all" -- see the announcements rule above for why
+      // this is isHostOrAbove(), not isContentAdminOrAbove().
+      allow read: if isHostOrAbove()
         || (isSignedIn() && resource.data.published == true);
       // Content Admins manage events; Hosts may only toggle live-stream fields.
       allow create: if isContentAdminOrAbove() && isValidEvent(request.resource.data);
@@ -362,7 +410,9 @@ service cloud.firestore {
     // (deliberately NOT an open member-posting social feed -- see
     // PRODUCTION_READINESS.md's Community section for why).
     match /community/{postId} {
-      allow read: if isContentAdminOrAbove()
+      // Host gets "read all" -- see the announcements rule above for why
+      // this is isHostOrAbove(), not isContentAdminOrAbove().
+      allow read: if isHostOrAbove()
         || (isSignedIn() && resource.data.published == true);
       allow create, update: if isContentAdminOrAbove()
         && isValidCommunityPost(request.resource.data);
@@ -373,7 +423,9 @@ service cloud.firestore {
     // New V1 feature -- admin-authored Bible-reading plans, member-read
     // when published. Same read/write shape as announcements/community.
     match /plans/{planId} {
-      allow read: if isContentAdminOrAbove()
+      // Host gets "read all" -- see the announcements rule above for why
+      // this is isHostOrAbove(), not isContentAdminOrAbove().
+      allow read: if isHostOrAbove()
         || (isSignedIn() && resource.data.published == true);
       allow create, update: if isContentAdminOrAbove()
         && isValidPlan(request.resource.data);
@@ -386,7 +438,9 @@ service cloud.firestore {
       // rule evaluation, the same read-quota tradeoff callerRole() above
       // already accepts for this project's V1 scale).
       match /days/{dayId} {
-        allow read: if isContentAdminOrAbove()
+        // Host gets "read all" -- see the announcements rule above for why
+        // this is isHostOrAbove(), not isContentAdminOrAbove().
+        allow read: if isHostOrAbove()
           || (isSignedIn()
               && get(/databases/$(database)/documents/plans/$(planId)).data.published == true);
         allow create, update: if isContentAdminOrAbove()

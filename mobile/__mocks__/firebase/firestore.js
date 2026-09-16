@@ -25,6 +25,14 @@ class MockTimestamp {
 }
 
 export const Timestamp = MockTimestamp;
+
+// Module-initialization functions, needed so src/services/firebase/app.ts
+// can itself be imported under Jest (see __tests__/app.test.ts and
+// ./app.js's header comment) -- every other test mocks app.ts wholesale
+// via jest.mock('../app') and so never reached these.
+export const getFirestore = jest.fn(() => ({}));
+export const connectFirestoreEmulator = jest.fn();
+
 export const collection = jest.fn();
 export const query = jest.fn((...args) => args[0]);
 export const where = jest.fn();
@@ -48,3 +56,16 @@ export const serverTimestamp = jest.fn(() => new MockTimestamp(0));
 // ever updated an existing one).
 export const addDoc = jest.fn();
 export const deleteDoc = jest.fn();
+
+// userProfile.ts's ensureOwnProfileExists(): the first mobile module to use
+// a transaction (get-then-set, matching functions/src/createUserProfile.ts's
+// own idempotency strategy). Default resolves the updateFunction against a
+// fake transaction whose get() reports "doesn't exist" -- tests override via
+// (runTransaction as jest.Mock).mockImplementation(...), same pattern as
+// onSnapshot above, to simulate the "already exists" branch.
+export const runTransaction = jest.fn((_db, updateFunction) =>
+  updateFunction({
+    get: jest.fn(async () => ({ exists: () => false })),
+    set: jest.fn(),
+  })
+);

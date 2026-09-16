@@ -114,6 +114,62 @@ describe('firestore.rules', () => {
       await assertSucceeds(db.doc('users/member-1').get());
     });
 
+    // --- Self-creation of one's own profile document -------------------
+    // In the deployed app this is the ONLY path that creates /users/{uid}:
+    // the equivalent Cloud Function trigger cannot be deployed under the
+    // zero-billing constraint, so mobile's ensureOwnProfileExists() is what
+    // actually runs. These pin the exact contract that client depends on.
+
+    it('allows a signed-in user to create their own member profile with the expected field shape', async () => {
+      // Exactly what mobile's ensureOwnProfileExists() writes.
+      const db = dbFor('new-member');
+      await assertSucceeds(
+        db.doc('users/new-member').set({
+          role: 'member',
+          displayName: 'New Member',
+          email: 'new@example.com',
+          phoneNumber: null,
+          createdAt: new Date(),
+        })
+      );
+    });
+
+    it('allows omitting optional fields when self-creating a profile', async () => {
+      // hasOnly permits a subset, so a caller need not send every key.
+      const db = dbFor('new-member');
+      await assertSucceeds(
+        db.doc('users/new-member').set({ role: 'member', createdAt: new Date() })
+      );
+    });
+
+    it('blocks self-creating a profile with an elevated role', async () => {
+      const db = dbFor('new-member');
+      await assertFails(
+        db.doc('users/new-member').set({ role: 'super_admin', createdAt: new Date() })
+      );
+    });
+
+    it('blocks creating a profile document for someone else', async () => {
+      const db = dbFor('new-member');
+      await assertFails(
+        db.doc('users/somebody-else').set({ role: 'member', createdAt: new Date() })
+      );
+    });
+
+    it('blocks smuggling arbitrary extra fields in at creation time', async () => {
+      // The tight update rule only governs LATER writes, so without a
+      // keys() allowlist on create, anything injected here would persist
+      // unchallenged.
+      const db = dbFor('new-member');
+      await assertFails(
+        db.doc('users/new-member').set({
+          role: 'member',
+          createdAt: new Date(),
+          isChurchAdmin: true,
+        })
+      );
+    });
+
     it('blocks a member from changing their own role field (self-modification prevention)', async () => {
       await seed(async (db) =>
         db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
@@ -294,6 +350,71 @@ describe('firestore.rules', () => {
       await assertFails(db.doc('users/member-2').update({ role: 'super_admin' }));
     });
 
+    // --- Role-value validation (isValidRole) ---------------------------
+    // These matter more than they used to: admin role changes now go
+    // through a direct client write rather than the (undeployable on
+    // Spark) updateUserRole callable, so rules are the ONLY thing
+    // validating the incoming value. See
+    // admin/src/services/firebase/users.ts.
+
+    it('allows a super_admin to set each of the four recognised roles', async () => {
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/target-1').set({ role: 'member' });
+      });
+      const db = dbFor('super-1');
+      for (const role of ['member', 'host', 'content_admin', 'super_admin']) {
+        await assertSucceeds(db.doc('users/target-1').update({ role }));
+      }
+    });
+
+    it('blocks a super_admin from setting an unrecognised role value', async () => {
+      // Without isValidRole() this succeeded, leaving the target with a
+      // role matching no hasRole() branch -- silently stripping every
+      // permission they had, including access to their own profile, with
+      // no way back short of direct database access.
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/target-1').set({ role: 'member' });
+      });
+      const db = dbFor('super-1');
+      await assertFails(db.doc('users/target-1').update({ role: 'administrator' }));
+      await assertFails(db.doc('users/target-1').update({ role: '' }));
+    });
+
+    it('blocks a non-string role value', async () => {
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/target-1').set({ role: 'member' });
+      });
+      const db = dbFor('super-1');
+      await assertFails(db.doc('users/target-1').update({ role: 42 }));
+      await assertFails(db.doc('users/target-1').update({ role: null }));
+    });
+
+    it('blocks a super_admin from changing their own role even to a valid value (self-demotion guard)', async () => {
+      // The updateUserRole callable enforced this server-side; with the
+      // callable out of the path, rules are the only enforcement left.
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+      });
+      const db = dbFor('super-1');
+      await assertFails(db.doc('users/super-1').update({ role: 'member' }));
+    });
+
+    it('blocks bundling another field into a role change', async () => {
+      // admin/src/services/firebase/users.ts writes ONLY { role } for
+      // exactly this reason -- an updatedAt touch would be rejected.
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/target-1').set({ role: 'member' });
+      });
+      const db = dbFor('super-1');
+      await assertFails(
+        db.doc('users/target-1').update({ role: 'host', displayName: 'Renamed' })
+      );
+    });
+
     it("blocks a host from changing another user's role", async () => {
       await seed(async (db) => {
         await db.doc('users/host-1').set({ role: 'host' });
@@ -379,6 +500,14 @@ describe('firestore.rules', () => {
         await db.doc('announcements/a1').set({ published: false });
       });
       await assertSucceeds(dbFor('admin-1').doc('announcements/a1').get());
+    });
+
+    it('allows a host to read an unpublished announcement (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('announcements/a1').set({ published: false });
+      });
+      await assertSucceeds(dbFor('host-1').doc('announcements/a1').get());
     });
 
     it('blocks a member from writing announcements', async () => {
@@ -595,6 +724,14 @@ describe('firestore.rules', () => {
         await db.doc('songs/s1').set({ published: false });
       });
       await assertFails(dbFor('member-1').doc('songs/s1').get());
+    });
+
+    it('allows a host to read an unpublished song (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('songs/s1').set({ published: false });
+      });
+      await assertSucceeds(dbFor('host-1').doc('songs/s1').get());
     });
 
     it('blocks a member from writing songs', async () => {
@@ -968,6 +1105,14 @@ describe('firestore.rules', () => {
       await assertFails(dbFor('member-1').doc('events/e1').get());
     });
 
+    it('allows a host to read an unpublished event (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('events/e1').set(validEvent({ published: false }));
+      });
+      await assertSucceeds(dbFor('host-1').doc('events/e1').get());
+    });
+
     it('allows a member to read a published event', async () => {
       await seed(async (db) => {
         await db.doc('users/member-1').set({ role: 'member' });
@@ -1103,6 +1248,14 @@ describe('firestore.rules', () => {
       await assertFails(dbFor('member-1').doc('community/c1').get());
     });
 
+    it('allows a host to read an unpublished community post (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('community/c1').set({ published: false });
+      });
+      await assertSucceeds(dbFor('host-1').doc('community/c1').get());
+    });
+
     it('allows a signed-in member to read a published community post', async () => {
       await seed(async (db) => {
         await db.doc('users/member-1').set({ role: 'member' });
@@ -1142,6 +1295,14 @@ describe('firestore.rules', () => {
         await db.doc('plans/p1').set({ published: false });
       });
       await assertFails(dbFor('member-1').doc('plans/p1').get());
+    });
+
+    it('allows a host to read an unpublished plan (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('plans/p1').set({ published: false });
+      });
+      await assertSucceeds(dbFor('host-1').doc('plans/p1').get());
     });
 
     it('allows a signed-in member to read a published plan', async () => {
@@ -1187,6 +1348,17 @@ describe('firestore.rules', () => {
           .set({ dayNumber: 1, title: 'Day 1', scriptureReference: 'John 3:16', devotional: 'x' });
       });
       await assertFails(dbFor('member-1').doc('plans/p3/days/d1').get());
+    });
+
+    it('allows a host to read a day under an unpublished plan (RBAC table promises Host "read all")', async () => {
+      await seed(async (db) => {
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('plans/p3').set({ published: false });
+        await db
+          .doc('plans/p3/days/d1')
+          .set({ dayNumber: 1, title: 'Day 1', scriptureReference: 'John 3:16', devotional: 'x' });
+      });
+      await assertSucceeds(dbFor('host-1').doc('plans/p3/days/d1').get());
     });
 
     it('allows a member to read a day under a published plan', async () => {

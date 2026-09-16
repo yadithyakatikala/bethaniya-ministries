@@ -20,15 +20,19 @@ vi.mock('firebase/firestore', () => ({
   Timestamp: MockTimestamp,
   collection: vi.fn(() => 'users-collection'),
   getDocs: vi.fn(),
+  doc: vi.fn((_db, ...segments: string[]) => ({ path: segments.join('/') })),
+  updateDoc: vi.fn(),
 }));
 
-import { getDocs } from 'firebase/firestore';
+import { doc, getDocs, updateDoc } from 'firebase/firestore';
 import { fetchAllUsers, updateUserRole } from '../users';
 
 describe('users service', () => {
   beforeEach(() => {
     mockCallable.mockReset();
     vi.mocked(getDocs).mockReset();
+    vi.mocked(updateDoc).mockReset();
+    vi.mocked(doc).mockClear();
   });
 
   describe('fetchAllUsers', () => {
@@ -89,23 +93,76 @@ describe('users service', () => {
   });
 
   describe('updateUserRole', () => {
-    it('calls the updateUserRole callable and returns the updated uid/role', async () => {
-      mockCallable.mockResolvedValue({
-        data: { updated: true, uid: 'uid-1', role: 'host' },
-      });
+    // Role changes deliberately do NOT go through the updateUserRole
+    // callable any more: Cloud Functions cannot be deployed on the Spark
+    // plan, so that path made the Users page's role selector a control
+    // that could only ever fail. It is now a direct, rules-protected
+    // write -- see ../users.ts's header comment.
+
+    it('writes the role directly to the target user document', async () => {
+      vi.mocked(updateDoc).mockResolvedValue(undefined);
 
       const result = await updateUserRole('uid-1', 'host');
 
-      expect(mockCallable).toHaveBeenCalledWith({ targetUid: 'uid-1', newRole: 'host' });
+      expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'uid-1');
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ path: 'users/uid-1' }),
+        { role: 'host' }
+      );
       expect(result).toEqual({ uid: 'uid-1', role: 'host' });
     });
 
-    it('propagates a rejection from the callable (e.g. self-demotion, permission-denied)', async () => {
-      mockCallable.mockRejectedValue(new Error('permission-denied'));
+    it('writes ONLY the role field', async () => {
+      // firestore.rules' affectedKeys().hasOnly(['role']) rejects any
+      // other field, including an updatedAt touch -- so adding one here
+      // would turn every role change into permission-denied.
+      vi.mocked(updateDoc).mockResolvedValue(undefined);
+
+      await updateUserRole('uid-1', 'content_admin');
+
+      // Indexed rather than destructured: updateDoc is overloaded, so the
+      // tuple type of mock.calls[0] is a union TypeScript will not spread.
+      const payload = vi.mocked(updateDoc).mock.calls[0]?.[1] as unknown as Record<
+        string,
+        unknown
+      >;
+      expect(Object.keys(payload)).toEqual(['role']);
+    });
+
+    it('does not call any Cloud Function to change a role', async () => {
+      // Regression guard: reintroducing the callable would silently break
+      // role management again on Spark.
+      vi.mocked(updateDoc).mockResolvedValue(undefined);
+
+      await updateUserRole('uid-1', 'host');
+
+      expect(mockCallable).not.toHaveBeenCalledWith(
+        expect.objectContaining({ targetUid: expect.anything() })
+      );
+    });
+
+    it('propagates permission-denied from Firestore (non-super-admin, or self-demotion)', async () => {
+      // Both of those are enforced by firestore.rules, not by this client.
+      vi.mocked(updateDoc).mockRejectedValue(new Error('permission-denied'));
 
       await expect(updateUserRole('uid-1', 'member')).rejects.toThrow(
         'permission-denied'
       );
+    });
+
+    it('still reports success when the Blaze-gated audit log call fails', async () => {
+      // logAdminAction swallows its own failures; a lost audit entry must
+      // not make a completed role change look like a failure.
+      vi.mocked(updateDoc).mockResolvedValue(undefined);
+      mockCallable.mockRejectedValue(new Error('functions/not-found'));
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      await expect(updateUserRole('uid-1', 'host')).resolves.toEqual({
+        uid: 'uid-1',
+        role: 'host',
+      });
+
+      errorSpy.mockRestore();
     });
   });
 });

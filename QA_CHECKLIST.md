@@ -68,12 +68,12 @@ exact screen, action, and what happened instead of what was expected.
 
 ### Auth
 
-3. **Sign in** — Google, Apple, and/or Phone OTP (whichever provider is
+3. **Sign in** — Email/Password (create an account, then sign in) and Google (whichever provider is
    enabled on the connected Firebase project) completes and lands on
    Home, against real production Auth (confirm in Firebase Console →
    Authentication → Users that the sign-in actually created/matched a
    **production** user, not a dev-project one).
-4. **Invalid login** — a wrong password / cancelled OTP / declined
+4. **Invalid login** — a wrong password / cancelled Google sheet / declined
    Google prompt shows a clear error, not a silent hang or crash.
 5. **Sign out** — Settings → Log Out returns to the sign-in screen; a
    subsequent app relaunch does not silently re-authenticate.

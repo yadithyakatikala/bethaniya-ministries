@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — Bethaniya Ministries</title>
+<!--
+  PUBLICLY HOSTED PRIVACY POLICY for the Bethaniya Ministries Android app
+  (package com.bethaniyaministries.app).
+
+  WHY THIS FILE EXISTS: the Google Play Console requires a privacy policy
+  reachable at a public URL. The in-app screen
+  (mobile/src/features/legal/LegalScreen.tsx) does not satisfy that
+  requirement on its own -- a reviewer has to be able to open the policy
+  without installing the app.
+
+  HOW TO PUBLISH IT, FREE (no purchase, no hosting bill):
+  GitHub repository -> Settings -> Pages -> Build and deployment
+    Source: "Deploy from a branch"
+    Branch: main,  Folder: /docs
+  The policy is then served at:
+    https://<github-username>.github.io/bethaniya-ministries/privacy-policy.html
+  Paste that URL into Play Console -> App content -> Privacy policy.
+
+  If the repository is private, GitHub Pages requires a paid plan -- in
+  that case use the church's existing Cloudflare Workers deployment (the
+  same account already serving the admin dashboard) instead, which is also
+  free. Do NOT purchase hosting for this.
+
+  KEEP THIS IN SYNC with LegalScreen.tsx's PRIVACY_POLICY_BODY. The two
+  must not disagree: Play treats the hosted policy as authoritative, and a
+  mismatch between it and in-app behaviour is a review risk.
+
+  STILL PROVISIONAL: this text has not been reviewed by a lawyer. It
+  describes what the app actually does today, which is the part that
+  matters for Play review, but the church should have counsel check it
+  before public launch.
+-->
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f6f7f6;
+    --text: #1f2a25;
+    --muted: #5c6b63;
+    --border: #dfe4e0;
+    --accent: #2e5347;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121714;
+      --surface: #1b211d;
+      --text: #e8ece9;
+      --muted: #a4b0a8;
+      --border: #2b332e;
+      --accent: #7fb79f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121714;
+    --surface: #1b211d;
+    --text: #e8ece9;
+    --muted: #a4b0a8;
+    --border: #2b332e;
+    --accent: #7fb79f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 0 16px;
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 48px 0 64px; }
+  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .25rem; }
+  .updated { color: var(--muted); font-size: .9rem; margin: 0 0 2rem; }
+  h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; color: var(--accent); }
+  .notice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 0 0 2rem;
+    font-size: .95rem;
+    color: var(--muted);
+  }
+  ul { padding-left: 1.25rem; }
+  li { margin: .35rem 0; }
+  footer {
+    margin-top: 3rem; padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted); font-size: .9rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Bethaniya Ministries mobile app · Last updated: 16 September 2026</p>
+
+  <p class="notice">
+    This is a provisional privacy notice and has not yet been reviewed by legal
+    counsel. It accurately describes what the app does today. The church
+    operating this app should have it reviewed before wide public launch.
+  </p>
+
+  <h2>Who this policy covers</h2>
+  <p>
+    This policy applies to the Bethaniya Ministries Android application
+    (package <code>com.bethaniyaministries.app</code>), operated by
+    Bethaniya Ministries.
+  </p>
+
+  <h2>What we collect</h2>
+  <p>
+    You can use the app only after creating an account. Two sign-in methods are
+    offered:
+  </p>
+  <ul>
+    <li><strong>Email address and password.</strong> Firebase Authentication
+      stores your email address and a securely hashed password. We never see or
+      store your password in readable form.</li>
+    <li><strong>Google Sign-In.</strong> Google provides your email address and,
+      if your Google profile has one, your name and profile picture.</li>
+  </ul>
+  <p>
+    Alongside your account we store a profile document containing: your display
+    name, your profile photo if you upload one, your language and theme
+    preferences, whether you have enabled notifications, and your role in the
+    app (ordinary member by default).
+  </p>
+  <p>
+    Content you create in the app — for example private prayer requests, or
+    your progress through a reading plan — is stored against your account.
+  </p>
+
+  <h2>What we do not collect</h2>
+  <ul>
+    <li>We do not collect your location.</li>
+    <li>We do not access your contacts, messages, call logs, camera roll
+      (beyond a photo you deliberately choose to upload), or microphone.</li>
+    <li>We do not use advertising identifiers or any advertising SDK.</li>
+    <li>We do not track you across other apps or websites.</li>
+  </ul>
+
+  <h2>How we use it</h2>
+  <p>
+    Solely to operate the app: to sign you in, to show you your own profile and
+    content, to let church administrators publish announcements, events, songs
+    and reading material, and to remember your preferences.
+  </p>
+
+  <h2>Who can see your information</h2>
+  <p>
+    Church administrators can see your name, email address and role, as needed
+    to run the app. Database security rules restrict what each administrator
+    role can read or change, and restrict your own private content to your
+    account alone.
+  </p>
+  <p>
+    We do not sell your personal information. We do not share it with
+    advertisers or data brokers.
+  </p>
+
+  <h2>Service providers</h2>
+  <p>
+    The app runs on Google Firebase (Authentication and Cloud Firestore), which
+    processes and stores this data on our behalf under Google's own privacy
+    terms. Signing in with Google involves Google as an identity provider.
+    Event video links may open YouTube, which is governed by Google's privacy
+    policy once you leave this app.
+  </p>
+
+  <h2>Data retention and deletion</h2>
+  <p>
+    We keep your account and profile for as long as your account exists. To
+    request deletion of your account and associated data, contact the church
+    using the support email address shown in the app's Settings screen. We will
+    action the request within a reasonable period.
+  </p>
+
+  <h2>Children</h2>
+  <p>
+    This app is intended for a general church audience and is not directed at
+    children under 13. We do not knowingly collect personal information from
+    children under 13.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If this policy changes, the updated version will be published at this same
+    address and the "Last updated" date above will change.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    For any question about this policy or your data, contact Bethaniya
+    Ministries using the support email address shown in the app's Settings
+    screen.
+  </p>
+
+  <footer>
+    Bethaniya Ministries · This policy is also available inside the app under
+    More → Privacy Policy.
+  </footer>
+</main>
+</body>
+</html>

@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, uploadBytes } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,6 +32,16 @@ const TEST_USER = {
 function mockSignedIn() {
   (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
     onNext(TEST_USER);
+    return jest.fn();
+  });
+}
+
+/** Signs in with extra/overridden User fields -- used by the email
+ * verification tests, since TEST_USER deliberately has no email address
+ * (which keeps the verification block absent for every other test). */
+function mockSignedInAs(overrides: Record<string, unknown>) {
+  (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+    onNext({ ...TEST_USER, ...overrides });
     return jest.fn();
   });
 }
@@ -276,5 +286,137 @@ describe('ProfileScreen', () => {
 
     await waitFor(() => expect(getByTestId('profile-photo-error')).toBeTruthy());
     expect(uploadBytes).not.toHaveBeenCalled();
+  });
+
+  // --- Email verification status (V1 email/password sign-in) -----------
+
+  it('reports an unverified email address and offers to resend', async () => {
+    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+
+    const { getByTestId } = await renderScreen();
+
+    await waitFor(() =>
+      expect(getByTestId('profile-email-verified-status').props.children).toBe(
+        'Not verified'
+      )
+    );
+    expect(getByTestId('profile-resend-verification-button')).toBeTruthy();
+  });
+
+  it('reports a verified email address and offers no resend action', async () => {
+    mockSignedInAs({ email: 'member@example.com', emailVerified: true });
+    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+
+    const { getByTestId, queryByTestId } = await renderScreen();
+
+    await waitFor(() =>
+      expect(getByTestId('profile-email-verified-status').props.children).toBe('Verified')
+    );
+    expect(queryByTestId('profile-resend-verification-button')).toBeNull();
+  });
+
+  it('confirms when the verification email is re-sent', async () => {
+    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+    (sendEmailVerification as jest.Mock).mockResolvedValue(undefined);
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() =>
+      expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
+    );
+
+    await fireEvent.press(getByTestId('profile-resend-verification-button'));
+
+    await waitFor(() =>
+      expect(getByTestId('profile-verification-notice').props.children).toBe(
+        'Verification email sent. Check your inbox.'
+      )
+    );
+    expect(sendEmailVerification).toHaveBeenCalled();
+  });
+
+  it('shows a mapped, non-generic error when resending is rate-limited', async () => {
+    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+    (sendEmailVerification as jest.Mock).mockRejectedValue({
+      code: 'auth/too-many-requests',
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() =>
+      expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
+    );
+
+    await fireEvent.press(getByTestId('profile-resend-verification-button'));
+
+    await waitFor(() =>
+      expect(getByTestId('profile-verification-error').props.children).toBe(
+        'Too many attempts. Please wait a moment and try again.'
+      )
+    );
+    warn.mockRestore();
+  });
+
+  // --- Phone number: optional profile info, never an auth requirement ---
+
+  it('omits the phone field entirely when the profile has no phone number', async () => {
+    // V1 has no flow that collects a phone number (sign-up asks for
+    // name/email/password; phone OTP is out of scope), so rendering the row
+    // unconditionally showed every member a permanent "Not set" they could
+    // not act on.
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+
+    const { getByTestId, queryByTestId, queryByText } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
+
+    expect(queryByTestId('profile-phone')).toBeNull();
+    expect(queryByText('Phone Number')).toBeNull();
+  });
+
+  it('shows the phone field when the profile actually has a phone number', async () => {
+    mockSignedIn();
+    mockProfileSnapshot({
+      role: 'member',
+      displayName: 'Jane Doe',
+      phoneNumber: '+15555550123',
+    });
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() =>
+      expect(getByTestId('profile-phone').props.children).toBe('+15555550123')
+    );
+  });
+
+  it('shows no "Not set" placeholder anywhere for a realistic V1 profile', async () => {
+    // A V1 member always has an email address (Email/Password is the
+    // primary sign-in method, and a Google account carries one too) and
+    // normally no phone number. Phone used to be the one field that
+    // rendered a permanent, unactionable "Not set" in exactly this case.
+    mockSignedInAs({ email: 'member@example.com', emailVerified: true });
+    mockProfileSnapshot({
+      role: 'member',
+      displayName: 'Jane Doe',
+      email: 'member@example.com',
+    });
+
+    const { getByTestId, queryByText } = await renderScreen();
+    await waitFor(() =>
+      expect(getByTestId('profile-email').props.children).toBe('member@example.com')
+    );
+    expect(queryByText('Not set')).toBeNull();
+  });
+
+  it('shows no verification status at all for an account with no email address', async () => {
+    // TEST_USER has email: null. There is no sensible "verified" state to
+    // report without an address.
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+
+    const { queryByTestId, getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
+    expect(queryByTestId('profile-email-verified-status')).toBeNull();
   });
 });

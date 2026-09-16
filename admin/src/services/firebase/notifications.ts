@@ -59,11 +59,51 @@ const callSendNotification = httpsCallable<
   SendNotificationCallableResult
 >(functions, 'sendNotification');
 
+/**
+ * Thrown when the sendNotification callable cannot be reached at all
+ * because no Cloud Function is deployed.
+ *
+ * Distinguishing this from a transient failure matters: deploying any
+ * Cloud Function requires the Blaze plan even at $0 usage, this project
+ * deliberately stays on Spark, so on the real deployment this is the ONLY
+ * outcome -- permanently. The Notifications page previously collapsed it
+ * into "Something went wrong while sending. Please try again.", which
+ * invites an admin to retry forever over a plan limitation. Found during
+ * the V1 production-readiness audit.
+ */
+export class CloudFunctionsUnavailableError extends Error {
+  constructor() {
+    super('Cloud Functions are not deployed for this project.');
+    this.name = 'CloudFunctionsUnavailableError';
+  }
+}
+
+/** Codes firebase/functions reports when the callable cannot be reached or
+ * does not exist, as opposed to running and rejecting on its own terms. */
+const UNAVAILABLE_CODES = [
+  'functions/not-found',
+  'functions/unavailable',
+  'functions/internal',
+];
+
+function isCloudFunctionsUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' && UNAVAILABLE_CODES.includes(code);
+}
+
 export async function sendNotification(
   input: SendNotificationCallableInput
 ): Promise<{ recipientCount: number }> {
-  const result = await callSendNotification(input);
-  return { recipientCount: result.data.recipientCount };
+  try {
+    const result = await callSendNotification(input);
+    return { recipientCount: result.data.recipientCount };
+  } catch (error) {
+    if (isCloudFunctionsUnavailable(error)) {
+      throw new CloudFunctionsUnavailableError();
+    }
+    throw error;
+  }
 }
 
 /**

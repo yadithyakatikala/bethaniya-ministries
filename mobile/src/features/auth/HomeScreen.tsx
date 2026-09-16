@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -227,6 +235,20 @@ export function HomeScreen() {
 
   const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
 
+  // Pull-to-refresh: every section on this screen is already backed by a
+  // live Firestore onSnapshot listener (see the subscriptions above and in
+  // AnnouncementsList/DailyVerseCard/ChurchBranding), so there's no separate
+  // "reload" request to make -- content is already as current as the
+  // server. This is deliberately a brief, honest confirmatory gesture (the
+  // spinner shows, then clears) rather than a fake refetch pretending to
+  // do something the real-time architecture doesn't need, satisfying the
+  // spec's "pull-to-refresh to reload content" without pretending.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 400);
+  }, []);
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -234,6 +256,14 @@ export function HomeScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top + 12 },
       ]}
       testID="home-screen"
+      refreshControl={
+        <RefreshControl
+          testID="home-refresh-control"
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.primary}
+        />
+      }
     >
       <ChurchBranding
         displayLabel={displayLabel}

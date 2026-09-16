@@ -25,11 +25,16 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  CloudFunctionsUnavailableError,
   estimateRecipientCount,
   sendNotification,
   subscribeToNotificationLog,
   uploadNotificationImage,
 } from '../../services/firebase/notifications';
+import {
+  IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
+  isStorageUnavailable,
+} from '../../services/firebase/storageErrors';
 import {
   hasValidationErrors,
   validateNotificationImage,
@@ -203,8 +208,28 @@ export function NotificationsPage() {
       setImageFile(null);
       setRecipientGroup('all_members');
       setConfirmOpen(false);
-    } catch {
-      setSubmitError('Something went wrong while sending. Please try again.');
+    } catch (error) {
+      // Three distinguishable outcomes, checked in the order they can
+      // actually occur. The optional image upload runs FIRST, so a missing
+      // Cloud Storage bucket aborts before anything is sent -- reporting
+      // that as a send failure would be wrong about what happened. Both
+      // Storage and Functions failures here are permanent on this project,
+      // so neither offers a retry; a genuine transient failure still does.
+      if (isStorageUnavailable(error)) {
+        // The image is optional, so clearing it lets the next Send go
+        // through without one -- see
+        // ../../services/firebase/storageErrors.ts.
+        setImageFile(null);
+        setSubmitError(IMAGE_UPLOAD_UNAVAILABLE_MESSAGE);
+      } else if (error instanceof CloudFunctionsUnavailableError) {
+        setSubmitError(
+          'Sending is unavailable: this Firebase project is on the free Spark plan, and ' +
+            'server-side notification sending requires a deployed Cloud Function, which ' +
+            'needs the Blaze plan. Nothing was sent, and retrying will not help.'
+        );
+      } else {
+        setSubmitError('Something went wrong while sending. Please try again.');
+      }
       setConfirmOpen(false);
     } finally {
       setSubmitting(false);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -215,5 +215,38 @@ describe('HomeScreen', () => {
     const { getByText } = await renderHomeScreen();
     await waitFor(() => expect(getByText('Bethaniya Ministries')).toBeTruthy());
     expect(getByText('A community of faith, worship, and fellowship.')).toBeTruthy();
+  });
+
+  // Kept last in this file deliberately: jest's fake timers leave the RN
+  // test renderer's internal scheduling in a state where the *next* test's
+  // ref/render doesn't flush synchronously -- even once real timers are
+  // restored (the same issue found and documented while debugging
+  // dailyVerses.test.ts/events.test.ts, which avoid fake timers
+  // entirely for this reason). Ordering it last avoids
+  // tripping over it.
+  it('shows a brief refreshing indicator on pull-to-refresh, then clears it', async () => {
+    jest.useFakeTimers();
+    try {
+      mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
+        onNext({ uid: 'u11', displayName: 'Sam', email: null, phoneNumber: null });
+        return jest.fn();
+      });
+      const { getByTestId } = await renderHomeScreen();
+      await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+
+      // RefreshControl is passed to ScrollView via the `refreshControl`
+      // prop rather than as a queryable child -- assert on that prop's
+      // element directly instead of getByTestId.
+      const refreshControl = () => getByTestId('home-screen').props.refreshControl;
+      expect(refreshControl().props.refreshing).toBe(false);
+
+      await act(async () => refreshControl().props.onRefresh());
+      expect(refreshControl().props.refreshing).toBe(true);
+
+      await act(async () => jest.advanceTimersByTime(400));
+      await waitFor(() => expect(refreshControl().props.refreshing).toBe(false));
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

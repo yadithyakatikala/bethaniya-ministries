@@ -88,3 +88,58 @@ export function toYouTubeEmbedUrl(url: string): string | null {
   const videoId = parseYouTubeVideoId(url);
   return videoId ? buildYouTubeEmbedUrl(videoId) : null;
 }
+
+/**
+ * Hosts the embedded player itself legitimately loads while playing a
+ * video: YouTube's own player plus its static/CDN and playback
+ * infrastructure.
+ *
+ * Added during the V1 production-readiness audit. YouTubePlayerScreen's
+ * WebView previously had no navigation restriction at all -- unlike the
+ * reCAPTCHA WebView, which always had one. YouTube's embed player contains
+ * real, tappable links (the channel name, "Watch on YouTube", end-screen
+ * cards, related videos), so a member could tap one and be navigated to an
+ * arbitrary page INSIDE the app's WebView: no URL bar, no browser chrome,
+ * no indication they had left the app's own content. That is both a poor
+ * experience and a phishing surface.
+ */
+const ALLOWED_PLAYER_HOSTS = [
+  'youtube.com',
+  'youtube-nocookie.com',
+  'ytimg.com',
+  'googlevideo.com',
+  'google.com',
+];
+
+function isAllowedPlayerHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return ALLOWED_PLAYER_HOSTS.some(
+    (allowed) => host === allowed || host.endsWith(`.${allowed}`)
+  );
+}
+
+/**
+ * Decides what the player WebView may load in place.
+ *
+ * `true` keeps the navigation inside the WebView; `false` refuses it, and
+ * YouTubePlayerScreen hands the URL to the system browser instead -- the
+ * right destination for "Watch on YouTube" and anything else that leaves
+ * the player.
+ *
+ * `about:blank` is allowed because a WebView issues it during its own
+ * startup. Non-https schemes are refused outright, which also covers
+ * `intent://`, `market://` and similar deep links an embedded page could
+ * otherwise use to push the user somewhere unexpected.
+ *
+ * Exported for direct unit testing, same as parseYouTubeVideoId.
+ */
+export function isAllowedPlayerNavigation(url: string): boolean {
+  if (url === 'about:blank') return true;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    return isAllowedPlayerHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}

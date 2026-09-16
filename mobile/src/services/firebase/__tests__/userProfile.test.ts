@@ -1,5 +1,6 @@
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { subscribeToOwnProfile, updateOwnProfile } from '../userProfile';
+import { doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
+import type { User } from 'firebase/auth';
+import { ensureOwnProfileExists, subscribeToOwnProfile, updateOwnProfile } from '../userProfile';
 
 jest.mock('../app');
 
@@ -126,5 +127,58 @@ describe('updateOwnProfile', () => {
     expect(Object.keys(sentUpdate)).not.toEqual(
       expect.arrayContaining(['role', 'email', 'phoneNumber', 'createdAt'])
     );
+  });
+});
+
+describe('ensureOwnProfileExists', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  const user = {
+    uid: 'uid-1',
+    displayName: 'Jane Doe',
+    email: 'jane@example.com',
+    phoneNumber: '+15551234567',
+  } as User;
+
+  /**
+   * Client-side fallback for functions/src/createUserProfile.ts's Auth
+   * trigger -- see userProfile.ts's header comment for why the trigger
+   * can never run under this project's zero-billing constraint (Cloud
+   * Functions require the Blaze plan to deploy at all).
+   */
+  it("creates the profile with role 'member' when none exists yet", async () => {
+    const set = jest.fn();
+    (runTransaction as jest.Mock).mockImplementation((_db, updateFunction) =>
+      updateFunction({ get: async () => ({ exists: () => false }), set })
+    );
+
+    await ensureOwnProfileExists(user);
+
+    expect(set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        role: 'member',
+        displayName: 'Jane Doe',
+        email: 'jane@example.com',
+        phoneNumber: '+15551234567',
+      })
+    );
+  });
+
+  it('never overwrites an existing profile (e.g. one a Super Admin already elevated)', async () => {
+    const set = jest.fn();
+    (runTransaction as jest.Mock).mockImplementation((_db, updateFunction) =>
+      updateFunction({ get: async () => ({ exists: () => true }), set })
+    );
+
+    await ensureOwnProfileExists(user);
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('does not throw if the transaction fails (sign-in must not be blocked by this)', async () => {
+    (runTransaction as jest.Mock).mockRejectedValue(new Error('offline'));
+
+    await expect(ensureOwnProfileExists(user)).resolves.toBeUndefined();
   });
 });

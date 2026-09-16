@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 /**
  * Settings screen -- Day 9 requirement (decision 8: "English/Telugu
@@ -35,6 +38,7 @@ import { subscribeToChurchSettings } from '../../services/firebase/settings';
  * source/license writeup this card summarizes.
  */
 export function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const {
     languagePreference,
@@ -164,6 +168,41 @@ export function SettingsScreen() {
             </Text>
           </View>
         </View>
+      </View>
+
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.card,
+          },
+        ]}
+      >
+        <Pressable
+          testID="settings-privacy-policy-row"
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+          style={[styles.row, { padding: spacing.md }]}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>Privacy policy</Text>
+          <Text style={[styles.action, { color: colors.primary }]}>View</Text>
+        </Pressable>
+
+        <Pressable
+          testID="settings-terms-row"
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('Terms')}
+          style={[
+            styles.row,
+            styles.divider,
+            { borderTopColor: colors.border, padding: spacing.md },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>Terms of service</Text>
+          <Text style={[styles.action, { color: colors.primary }]}>View</Text>
+        </Pressable>
       </View>
 
       <Pressable

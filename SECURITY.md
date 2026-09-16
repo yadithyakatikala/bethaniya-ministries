@@ -216,7 +216,7 @@ with exploit details, until the app has real users.
 
 | App    | Provider(s)                          | Implementation                                                                 |
 | ------ | ------------------------------------- | ------------------------------------------------------------------------------- |
-| Mobile | Google, Apple, Phone (OTP)            | Firebase Auth via the Firebase JS SDK (not `@react-native-firebase`)             |
+| Mobile | Email/Password, Google                 | Firebase Auth via the Firebase JS SDK (not `@react-native-firebase`). Phone OTP was removed from V1 scope; Apple remains implemented but is not required for Android/Play V1. |
 | Admin  | Email + Password                      | Firebase Auth via the Firebase JS SDK; admin/host accounts are provisioned by a Super Admin, there is no self-signup |
 
 Mobile has no email/password option by design (per
@@ -265,6 +265,13 @@ showing a button that can never work.
 
 ### Phone Authentication — the reCAPTCHA/verifier decision
 
+> **STATUS: REMOVED FROM V1.** Phone OTP is no longer part of the product
+> and its implementation (the WebView reCAPTCHA verifier, the emulator
+> stub, and the SDK verifier-contract type) has been deleted from the
+> codebase. The analysis below is retained deliberately, as the record of
+> why the approach was chosen and what it cost, for anyone who revisits
+> phone sign-in later. It does **not** describe code that currently ships.
+
 `signInWithPhoneNumber()` requires an `ApplicationVerifier` (anti-abuse
 challenge). The Firebase JS SDK's concrete implementation,
 `RecaptchaVerifier`, is a browser-only DOM class — **it is not exported
@@ -297,13 +304,48 @@ sufficient for genuine emulator-backed development and testing.
 `getPhoneApplicationVerifier()` throws if called outside emulator mode, so
 it can never accidentally reach a real backend.
 
-**Blocked on**: real (non-emulator) Phone Authentication has no
-implemented verifier at all — this is a known, deliberate gap, not an
-oversight. Closing it needs either a maintained, dependency-clean
-`RecaptchaVerifier`-equivalent for Expo/React Native (none was found as of
-this writing) or enabling reCAPTCHA Enterprise for the real project. Do not
-reach for `expo-firebase-recaptcha` to close this gap without re-running
-`npm audit` and re-evaluating whether a fixed version exists.
+**Resolved** (a later checkpoint, after a real physical-device test of the
+V1 APK surfaced this exact gap as a P0 blocker — the app threw
+`"Phone sign-in against a real (non-emulator) Firebase backend is not yet
+implemented"`, surfaced to the user as a generic "Something went wrong"):
+`expo-firebase-recaptcha` was re-reviewed as instructed before touching
+anything, not just re-cited -- its latest published version is still
+`2.3.1` (2022-10-25, no release since), still pinned to
+`expo-firebase-core@~6.0.0` (the exact stale chain originally flagged).
+The rejection stands; it was not reintroduced.
+
+Instead: `react-native-webview` (already a dependency, already in this
+app's bundle for `YouTubePlayerScreen`) hosts a small, self-authored,
+dependency-free page —
+`mobile/src/services/firebase/recaptchaHtml.ts` — that loads Firebase's
+"compat" Web SDK build from Google's own gstatic CDN (the only build that
+still exposes `RecaptchaVerifier`), renders one invisible reCAPTCHA v2
+widget scoped to this app's own public Firebase config, and posts the
+resulting token back to React Native via `postMessage`.
+`mobile/src/services/firebase/ProductionRecaptchaVerifier.tsx` wraps this
+in a hidden WebView exposing the plain `ApplicationVerifier` interface
+(`{ type, verify() }`) — the same duck-typed shape the emulator stub
+already satisfied, confirmed via `signInWithPhoneNumber()`'s own declared
+parameter type (not `instanceof`-checked). The WebView's `baseUrl` is set
+to `https://<project-id>.firebaseapp.com` — automatically an Authorized
+Domain for every Firebase project, so the reCAPTCHA's origin check passes
+with no Firebase Hosting deployment and no Console change of any kind.
+Navigation is restricted to Google's own gstatic/recaptcha hosts plus that
+one authDomain (`isAllowedRecaptchaNavigation()`, unit-tested directly);
+nothing else can be loaded into this WebView.
+
+`emulatorRecaptchaVerifier.ts`'s `getPhoneApplicationVerifier()` is now a
+small dispatcher: the emulator-only stub in emulator mode (unchanged
+behavior), or the caller-supplied production verifier in real (production)
+mode — throwing, same as before, if none is available, rather than ever
+silently proceeding with no real verification.
+
+Native Play Integrity-based silent verification remains explicitly out of
+scope for this fix (it requires `@react-native-firebase`'s native SDK, a
+different package from the plain JS/Web `firebase` SDK this project uses
+for everything else) — not implemented here, per explicit instruction.
+This project's `firebase` dependency, Spark-plan status, and every other
+Auth/Firestore/Storage code path are unchanged.
 
 ### Role assignment: `createUserProfile()`
 

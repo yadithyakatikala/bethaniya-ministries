@@ -96,10 +96,10 @@ after this checkpoint.
 
 | Data type | Collected? | Purpose | Where |
 | --- | --- | --- | --- |
-| Email address | Yes, if signing in with email/Google | Account creation/authentication | Firebase Auth; `mobile/src/services/firebase/authService.ts` |
-| Phone number | Yes, if signing in with Phone OTP | Account creation/authentication | Firebase Auth |
-| Name | Yes (display name, self-entered or from Google/Apple) | Shown in-app (profile, "Welcome, ...") | `users/{uid}.displayName`; `mobile/src/features/profile/ProfileScreen.tsx` |
-| Photos | Yes, if the user uploads a profile photo | Profile display | Firebase Storage, `users/{userId}/profile/{fileName}` (see `storage.rules`) |
+| Email address | Yes — required by both V1 sign-in methods (Email/Password and Google) | Account creation/authentication | Firebase Auth; `mobile/src/services/firebase/authService.ts` |
+| Phone number | **No** — phone OTP was removed from V1 scope, and no V1 flow collects a phone number. The `users/{uid}.phoneNumber` field still exists in the schema but stays null unless an administrator populates it. | — | — |
+| Name | Yes (display name, self-entered at sign-up or from Google) | Shown in-app (profile, "Welcome, ...") | `users/{uid}.displayName`; `mobile/src/features/profile/ProfileScreen.tsx` |
+| Photos | Not in practice on the current infrastructure — the upload path exists but Cloud Storage requires the Blaze plan, so no photo can currently be stored. Declare as collected only once Storage is enabled. | Profile display | Firebase Storage, `users/{userId}/profile/{fileName}` (see `storage.rules`) |
 | User-generated content (prayers) | Yes | The app's own Prayers feature — private, never shown to anyone but the user who wrote it | `users/{uid}/prayers/{id}`; see `firestore.rules`' isOwner(userId)-only rule |
 | App activity / analytics | **No** | No analytics or crash-reporting SDK is present anywhere in `mobile/package.json` — verified by direct inspection, not assumed | — |
 | Location | **No** | No location permission is requested; no location API is used anywhere in the codebase | — |
@@ -163,7 +163,7 @@ GitHub Pages, both ₹0) before submission can proceed:
 > **Bethaniya Ministries — Privacy Policy (draft)**
 >
 > Bethaniya Ministries collects the information you provide when you
-> create an account (email or phone number, and your name), an optional
+> create an account (your email address, and your name), an optional
 > profile photo, and the private prayer requests you write in the app —
 > which are visible only to you, never to church administrators or
 > other members. We do not use analytics, advertising, or tracking

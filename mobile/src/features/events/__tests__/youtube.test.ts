@@ -1,4 +1,9 @@
-import { buildYouTubeEmbedUrl, parseYouTubeVideoId, toYouTubeEmbedUrl } from '../youtube';
+import {
+  buildYouTubeEmbedUrl,
+  isAllowedPlayerNavigation,
+  parseYouTubeVideoId,
+  toYouTubeEmbedUrl,
+} from '../youtube';
 
 const VIDEO_ID = 'dQw4w9WgXcQ';
 
@@ -88,5 +93,58 @@ describe('toYouTubeEmbedUrl', () => {
 
   it('returns null for an unsupported URL', () => {
     expect(toYouTubeEmbedUrl('https://example.com/video')).toBeNull();
+  });
+});
+
+/**
+ * Navigation allow-list for the in-app player WebView.
+ *
+ * That WebView previously had no restriction at all. YouTube's embed page
+ * has tappable links ("Watch on YouTube", the channel name, end-screen
+ * cards), so a member could be navigated to an arbitrary page inside a
+ * chrome-less in-app browser with no URL bar and no sign they had left the
+ * app. See isAllowedPlayerNavigation() in ../youtube.ts.
+ */
+describe('isAllowedPlayerNavigation', () => {
+  it("allows YouTube's own player and playback infrastructure", () => {
+    expect(isAllowedPlayerNavigation('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe(
+      true
+    );
+    expect(isAllowedPlayerNavigation('https://youtube.com/embed/dQw4w9WgXcQ')).toBe(true);
+    expect(isAllowedPlayerNavigation('https://i.ytimg.com/vi/x/hqdefault.jpg')).toBe(true);
+    expect(
+      isAllowedPlayerNavigation('https://r1---sn-x.googlevideo.com/videoplayback')
+    ).toBe(true);
+    expect(
+      isAllowedPlayerNavigation('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ).toBe(true);
+  });
+
+  it("allows about:blank (the WebView's own startup navigation)", () => {
+    expect(isAllowedPlayerNavigation('about:blank')).toBe(true);
+  });
+
+  it('refuses an unrelated host', () => {
+    expect(isAllowedPlayerNavigation('https://evil.example.com/phish')).toBe(false);
+  });
+
+  it('refuses a lookalike host that merely contains an allowed name', () => {
+    // A suffix check must not be satisfiable by appending the real domain
+    // to an attacker-controlled one, or by prefixing it.
+    expect(isAllowedPlayerNavigation('https://youtube.com.evil.example')).toBe(false);
+    expect(isAllowedPlayerNavigation('https://notyoutube.com/embed/x')).toBe(false);
+    expect(isAllowedPlayerNavigation('https://evilyoutube.com')).toBe(false);
+  });
+
+  it('refuses non-https schemes, including app deep links', () => {
+    expect(isAllowedPlayerNavigation('http://www.youtube.com/embed/x')).toBe(false);
+    expect(isAllowedPlayerNavigation('intent://www.youtube.com/#Intent;end')).toBe(false);
+    expect(isAllowedPlayerNavigation('market://details?id=com.evil')).toBe(false);
+    expect(isAllowedPlayerNavigation('javascript:alert(1)')).toBe(false);
+  });
+
+  it('refuses an unparseable or empty URL rather than throwing', () => {
+    expect(isAllowedPlayerNavigation('not a url')).toBe(false);
+    expect(isAllowedPlayerNavigation('')).toBe(false);
   });
 });

@@ -33,6 +33,13 @@ import { PlansListScreen } from '../features/plans/PlansListScreen';
 import { PlanDetailScreen } from '../features/plans/PlanDetailScreen';
 import { PlanDayScreen } from '../features/plans/PlanDayScreen';
 import type { PublishedPlan } from '../services/firebase/plans';
+import {
+  LegalScreen,
+  PRIVACY_POLICY_BODY,
+  PRIVACY_POLICY_TITLE,
+  TERMS_BODY,
+  TERMS_TITLE,
+} from '../features/legal/LegalScreen';
 import { TabBar, type TabRouteName } from './TabBar';
 
 /** The five top-level routes the hand-rolled tab bar switches between -- see TabBar.tsx. */
@@ -112,6 +119,10 @@ export type RootStackParamList = {
   PlansList: undefined;
   PlanDetail: { plan: PublishedPlan };
   PlanDay: { plan: PublishedPlan; dayNumber: number };
+  /** Reached from Settings' "Privacy policy" / "Terms" rows -- see
+   * ../features/legal/LegalScreen.tsx. */
+  PrivacyPolicy: undefined;
+  Terms: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -278,6 +289,12 @@ export function AppNavigator() {
                 title: `${route.params.plan.title} • Day ${route.params.dayNumber}`,
               })}
             />
+            <Stack.Screen name="PrivacyPolicy" options={{ title: 'Privacy Policy' }}>
+              {() => <LegalScreen title={PRIVACY_POLICY_TITLE} body={PRIVACY_POLICY_BODY} />}
+            </Stack.Screen>
+            <Stack.Screen name="Terms" options={{ title: 'Terms of Service' }}>
+              {() => <LegalScreen title={TERMS_TITLE} body={TERMS_BODY} />}
+            </Stack.Screen>
           </Stack.Navigator>
         </View>
         <RootTabBar activeRoute={activeRoute} />

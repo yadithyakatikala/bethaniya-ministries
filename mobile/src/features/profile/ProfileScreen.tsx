@@ -22,6 +22,9 @@ import {
   updateOwnProfile,
   type UserProfile,
 } from '../../services/firebase/userProfile';
+import { resendEmailVerification } from '../../services/firebase/authService';
+import { toFriendlyUploadMessage } from '../../services/firebase/storageErrors';
+import { logAuthError, toFriendlyAuthMessage } from '../../services/firebase/authErrors';
 
 /**
  * Profile screen -- Day 9 requirement (decision 7: "display name, email,
@@ -30,12 +33,16 @@ import {
  *
  * Field editability exactly matches decision 2 / firestore.rules'
  * isValidUserProfileSelfUpdate(): displayName and photoURL are editable;
- * email and phoneNumber are shown read-only (there is no UI control for
- * them at all, not just a disabled one -- Firebase Auth, not this
- * screen, is the source of truth for those, and changing them is out of
- * Day 9 scope); role/createdAt are never displayed here, since decision
- * 7's requirement list doesn't call for them and they're server-
- * controlled, not user-facing profile fields.
+ * email is shown read-only (there is no UI control for it at all, not just
+ * a disabled one -- Firebase Auth, not this screen, is the source of truth,
+ * and changing it is out of scope); role/createdAt are never displayed
+ * here, since they're server-controlled rather than user-facing profile
+ * fields.
+ *
+ * Phone number is optional profile information and only rendered when the
+ * profile actually has one -- see the field itself for why. Email
+ * verification status is shown alongside the address, since Email/Password
+ * is V1's primary sign-in method.
  *
  * A max-5MB image-size check and an image/* type check both happen
  * client-side before upload, purely for a fast/clear error message --
@@ -77,6 +84,34 @@ export function ProfileScreen() {
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [nameSaved, setNameSaved] = useState(false);
+
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  /**
+   * Re-sends the address-verification email Firebase already sent at
+   * sign-up. Free on the Spark plan (Firebase sends it directly; no Cloud
+   * Function involved). Rate limiting is Firebase's own -- a rapid second
+   * press surfaces as auth/too-many-requests, which
+   * toFriendlyAuthMessage() maps to a "please wait a moment" message
+   * rather than anything alarming.
+   */
+  async function handleResendVerification() {
+    if (!user) return;
+    setVerificationNotice(null);
+    setVerificationError(null);
+    setResendingVerification(true);
+    try {
+      await resendEmailVerification(user);
+      setVerificationNotice('Verification email sent. Check your inbox.');
+    } catch (error) {
+      logAuthError('resend-verification', error);
+      setVerificationError(toFriendlyAuthMessage(error));
+    } finally {
+      setResendingVerification(false);
+    }
+  }
 
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -182,8 +217,12 @@ export function ProfileScreen() {
       });
       const downloadURL = await getDownloadURL(storageRef);
       await updateOwnProfile(uid, { photoURL: downloadURL });
-    } catch {
-      setPhotoError('Could not upload your photo. Please try again.');
+    } catch (error) {
+      // Cloud Storage has no bucket at all on the Spark plan, so an upload
+      // there fails permanently rather than transiently -- "please try
+      // again" would send a member round a loop that can never succeed.
+      // See ../../services/firebase/storageErrors.ts.
+      setPhotoError(toFriendlyUploadMessage(error));
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -336,19 +375,81 @@ export function ProfileScreen() {
           >
             {displayProfile?.email ?? 'Not set'}
           </Text>
+          {/* Email/Password is V1's primary sign-in method, and account
+              creation sends a verification email (see
+              services/firebase/authService.ts's createAccountWithEmail).
+              Verification is surfaced here rather than enforced as a gate on
+              signing in -- blocking a church member's access on an unread
+              email buys nothing, since Firestore rules already scope every
+              write to the owning user. Only shown when there is an email
+              address at all (a Google-only account has one; there is no
+              sensible "verified" state to report without one). */}
+          {user?.email ? (
+            <>
+              <Text
+                style={[
+                  styles.verificationStatus,
+                  { color: user.emailVerified ? colors.success : colors.secondaryText },
+                ]}
+                testID="profile-email-verified-status"
+              >
+                {user.emailVerified ? 'Verified' : 'Not verified'}
+              </Text>
+              {!user.emailVerified ? (
+                <>
+                  <AppButton
+                    title="Resend verification email"
+                    variant="secondary"
+                    onPress={() => void handleResendVerification()}
+                    loading={resendingVerification}
+                    disabled={resendingVerification}
+                    testID="profile-resend-verification-button"
+                  />
+                  {verificationNotice ? (
+                    <Text
+                      style={[styles.successText, { color: colors.success }]}
+                      testID="profile-verification-notice"
+                    >
+                      {verificationNotice}
+                    </Text>
+                  ) : null}
+                  {verificationError ? (
+                    <Text
+                      style={[styles.errorText, { color: colors.danger }]}
+                      testID="profile-verification-error"
+                    >
+                      {verificationError}
+                    </Text>
+                  ) : null}
+                </>
+              ) : null}
+            </>
+          ) : null}
         </View>
 
-        <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-          <Text style={[styles.label, { color: colors.secondaryText }]}>
-            Phone Number
-          </Text>
-          <Text
-            style={[styles.readOnlyValue, { color: colors.text }]}
-            testID="profile-phone"
-          >
-            {displayProfile?.phoneNumber ?? 'Not set'}
-          </Text>
-        </View>
+        {/* Phone number is optional profile information, never an
+            authentication requirement, and V1 has no flow that collects it
+            (sign-up asks for name/email/password only -- phone OTP was
+            removed from V1 scope). Rendering the field unconditionally
+            therefore showed every member a permanent "Not set" row with no
+            way to act on it, so it only appears when a value actually
+            exists -- e.g. a profile populated by an admin, or a future
+            release that collects it. The field itself stays in the data
+            model and in firestore.rules' server-controlled allowlist (it is
+            NOT owner-writable; see services/firebase/userProfile.ts). */}
+        {displayProfile?.phoneNumber ? (
+          <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
+            <Text style={[styles.label, { color: colors.secondaryText }]}>
+              Phone Number
+            </Text>
+            <Text
+              style={[styles.readOnlyValue, { color: colors.text }]}
+              testID="profile-phone"
+            >
+              {displayProfile.phoneNumber}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <AppButton
@@ -393,4 +494,5 @@ const styles = StyleSheet.create({
   readOnlyValue: { fontSize: 16 },
   errorText: { fontSize: 13 },
   successText: { fontSize: 13 },
+  verificationStatus: { fontSize: 13, fontWeight: '600' },
 });
