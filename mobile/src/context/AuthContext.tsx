@@ -7,8 +7,7 @@ import { ensureOwnProfileExists } from '../services/firebase/userProfile';
 
 /**
  * App-wide authentication state, per FINAL_ARCHITECTURE_SPECIFICATION.md's
- * Day 2 plan. React Context + local state only -- no Redux (see
- * AppStateContext.tsx's Day 1 note, which this follows the same pattern as).
+ * Day 2 plan. React Context + local state only -- no Redux.
  *
  * `status` distinguishes four cases the app must render correctly for:
  *   - 'loading'         Firebase hasn't reported the initial auth state yet

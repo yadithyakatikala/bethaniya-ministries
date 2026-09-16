@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { Tappable } from '../../theme/ui/Tappable';
+import { BellIcon } from '../../theme/ui/BellIcon';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
@@ -116,7 +117,11 @@ function ChurchBranding({
       <Tappable
         testID="notifications-nav-button"
         accessibilityRole="button"
-        accessibilityLabel="Notifications"
+        // "Notifications" alone reads as a label, not an action. This is
+        // the only thing a screen-reader user gets here, since the bell
+        // itself is marked decorative.
+        accessibilityLabel="Open notifications"
+        accessibilityHint="Shows the notifications you have received"
         onPress={onPressNotifications}
         style={[
           styles.iconButton,
@@ -127,7 +132,10 @@ function ChurchBranding({
           },
         ]}
       >
-        <View style={[styles.iconButtonDot, { backgroundColor: colors.primary }]} />
+        {/* Was a bare 8px dot in `colors.primary` -- it said nothing
+            about what the button did, and being permanently on it read
+            as an unread badge that never cleared. */}
+        <BellIcon color={colors.ink} size={18} />
       </Tappable>
     </View>
   );
@@ -451,14 +459,15 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 12.5 },
   churchName: { fontSize: 17, fontWeight: '600' },
   churchDescription: { fontSize: 13, lineHeight: 18 },
+  // 44x44 is the accessibility minimum, and it also matches the 44x44
+  // church logo/monogram at the other end of this row.
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconButtonDot: { width: 8, height: 8, borderRadius: 4 },
   liveBanner: { padding: 18, gap: 12 },
   liveBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
+import { lightTokens } from '../../../theme';
 import { HomeScreen } from '../HomeScreen';
 
 /**
@@ -168,6 +169,62 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
     await fireEvent.press(getByTestId('notifications-nav-button'));
     await waitFor(() => expect(getByTestId('notification-center-stub')).toBeTruthy());
+  });
+
+  // --- The notification control -----------------------------------------
+  // It used to render a bare 8px dot in `colors.primary`: it said nothing
+  // about what the button did, and being permanently lit it read as an
+  // unread badge that never cleared. It is now a bell drawn from Views
+  // (see ../../../theme/ui/BellIcon.tsx -- this project has no icon
+  // dependency, and the bell follows the same idiom as MoreScreen's
+  // chevron).
+
+  it('labels the notification control as an action, not just a noun', async () => {
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
+    const button = getByTestId('notifications-nav-button');
+    expect(button.props.accessibilityLabel).toBe('Open notifications');
+    expect(button.props.accessibilityRole).toBe('button');
+  });
+
+  it('meets the 44dp minimum touch target', async () => {
+    // It was 40x40, under the accessibility minimum on both platforms.
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
+    const style = StyleSheet.flatten(getByTestId('notifications-nav-button').props.style);
+    expect(style.width).toBeGreaterThanOrEqual(44);
+    expect(style.height).toBeGreaterThanOrEqual(44);
+  });
+
+  it('draws the bell from the theme, so it flips with the palette', async () => {
+    // The bell owns no colour of its own -- every stroke is painted from
+    // `colors.ink` by the caller, which is what makes it correct in dark
+    // mode too. A colour literal inside BellIcon would be the exact
+    // defect this pass removed everywhere else.
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
+
+    // The three bell parts: the dome is stroked, the rim and clapper are
+    // filled, so collect both properties.
+    const colours = new Set<string>();
+    const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
+      const style = StyleSheet.flatten(node.props?.style as never) as
+        | Record<string, string>
+        | undefined;
+      if (style?.borderColor) colours.add(style.borderColor);
+      if (style?.backgroundColor) colours.add(style.backgroundColor);
+      for (const child of node.children ?? []) {
+        if (child && typeof child === 'object') walk(child as never);
+      }
+    };
+    walk(getByTestId('notifications-nav-button') as never);
+
+    // Every colour the control paints is a token -- the bell's ink, plus
+    // the button's own surface and border.
+    expect(colours).toContain(lightTokens.ink);
+    expect([...colours].sort()).toEqual(
+      [lightTokens.ink, lightTokens.surface, lightTokens.border].sort()
+    );
   });
 
   // Day 13: ChurchBranding is now settings-driven (see

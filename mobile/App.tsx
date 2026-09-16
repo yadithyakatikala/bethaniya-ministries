@@ -1,6 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppStateProvider } from './src/context/AppStateContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
 import { useTheme } from './src/theme';
@@ -47,14 +46,12 @@ configureNotificationHandler();
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppStateProvider>
-        <AuthProvider>
-          <PreferencesProvider>
-            <AuthGate />
-            <ThemedStatusBar />
-          </PreferencesProvider>
-        </AuthProvider>
-      </AppStateProvider>
+      <AuthProvider>
+        <PreferencesProvider>
+          <AuthGate />
+          <ThemedStatusBar />
+        </PreferencesProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
