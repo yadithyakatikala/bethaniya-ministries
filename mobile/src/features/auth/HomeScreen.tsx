@@ -7,9 +7,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
-import { BellIcon } from '../../theme/ui/BellIcon';
+import {
+  AnnouncementIcon,
+  PeopleIcon,
+  PersonIcon,
+  PlanIcon,
+  PrayerIcon,
+} from '../../theme/ui/FeatureIcons';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
-import { AnnouncementsList } from '../announcements/AnnouncementsList';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
@@ -23,10 +28,10 @@ import {
 import {
   subscribeToMostRecentPlanProgress,
   type ActivePlanSummary,
+  type PublishedPlan,
 } from '../../services/firebase/plans';
 
 const DEFAULT_CHURCH_NAME = 'Bethaniya Ministries';
-const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowship.';
 
 /**
  * Church branding block -- Day 5 built this static/hardcoded ("the admin
@@ -38,7 +43,7 @@ const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowshi
  * displays updated church info") and P0 feature #17 ("Save button
  * (syncs to mobile app display)").
  *
- * Falls back to the exact same default name/description Day 5 hardcoded
+ * Falls back to the exact same default name Day 5 hardcoded
  * whenever no settings document has ever been saved (a brand-new
  * deployment before any Super Admin has visited
  * admin/src/features/settings/SettingsPage.tsx), while the very first
@@ -59,10 +64,12 @@ const DEFAULT_CHURCH_DESCRIPTION = 'A community of faith, worship, and fellowshi
  */
 function ChurchBranding({
   displayLabel,
-  onPressNotifications,
+  onPressProfile,
+  onPressAnnouncements,
 }: {
   displayLabel: string;
-  onPressNotifications: () => void;
+  onPressProfile: () => void;
+  onPressAnnouncements: () => void;
 }) {
   const { colors, radii } = useTheme();
   const { t } = useTranslation();
@@ -77,7 +84,6 @@ function ChurchBranding({
   }, []);
 
   const churchName = settings?.churchName || DEFAULT_CHURCH_NAME;
-  const description = settings?.description || DEFAULT_CHURCH_DESCRIPTION;
 
   return (
     <View style={styles.brandingRow} testID="church-branding">
@@ -100,70 +106,165 @@ function ChurchBranding({
           </Text>
         </View>
       )}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={styles.brandingText}>
         <Text style={[styles.greeting, { color: colors.secondaryText }]}>
           {t('home.welcome')}, {displayLabel}
         </Text>
-        <Text style={[styles.churchName, { color: colors.text }]}>{churchName}</Text>
-        <Text style={[styles.churchDescription, { color: colors.secondaryText }]}>
-          {description}
+        <Text style={[styles.churchName, { color: colors.text }]} numberOfLines={2}>
+          {churchName}
         </Text>
+        {/* The church description used to render here as a third line
+            ("A community of faith, worship, and fellowship."). Removed at
+            the owner's request: the header reads cleaner as greeting +
+            church name, and the description is still stored and editable
+            in the admin Settings page -- it is simply not shown on Home.
+            `settings.description` is therefore no longer read here. */}
       </View>
-      <Tappable
-        testID="notifications-nav-button"
-        accessibilityRole="button"
-        // "Notifications" alone reads as a label, not an action. This is
-        // the only thing a screen-reader user gets here, since the bell
-        // itself is marked decorative.
-        accessibilityLabel={t('home.notificationsLabel')}
-        accessibilityHint={t('home.notificationsHint')}
-        onPress={onPressNotifications}
-        style={[
-          styles.iconButton,
-          {
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-            borderRadius: radii.control,
-          },
-        ]}
-      >
-        {/* Was a bare 8px dot in `colors.primary` -- it said nothing
-            about what the button did, and being permanently on it read
-            as an unread badge that never cleared. */}
-        <BellIcon color={colors.ink} size={18} />
-      </Tappable>
+
+      {/* Permanent utility area. Two distinct destinations, two distinct
+          icons -- see ../../theme/ui/FeatureIcons.tsx on why Announcements
+          is a speech bubble rather than the Notifications bell. */}
+      <View style={styles.utilityRow}>
+        <UtilityButton
+          testID="profile-nav-button"
+          label={t('home.profileLabel')}
+          hint={t('home.profileHint')}
+          onPress={onPressProfile}
+        >
+          <PersonIcon color={colors.ink} size={20} />
+        </UtilityButton>
+        <UtilityButton
+          testID="announcements-nav-button"
+          label={t('home.announcementsLabel')}
+          hint={t('home.announcementsHint')}
+          onPress={onPressAnnouncements}
+        >
+          <AnnouncementIcon color={colors.ink} size={20} />
+        </UtilityButton>
+      </View>
     </View>
   );
 }
 
 /**
- * Quick-links row -- Songs / Events / Bible / Profile. Replaces the
- * original stack of five identical full-width <Button>s ("Home is a
- * stack of five identical buttons... deserve a tab bar", per the UI
- * audit) with a themed card grid. A real tab bar
- * (@react-navigation/bottom-tabs, a new dependency, or a hand-rolled
- * equivalent) is a bigger navigation-structure change, deliberately left
- * for a follow-up phase; every button below keeps its original testID
- * and navigation target unchanged, so this is a pure visual/layout
- * change over the same five destinations Day 6-9 already wired up.
+ * One of Home's top-right utility buttons.
+ *
+ * The control this replaces was an 8px dot in `colors.primary` on the
+ * paper background -- the "almost invisible dot" the tester reported. A
+ * utility button needs three things to read as a button in both themes:
+ * a `colors.surface` fill that separates it from the paper behind it, a
+ * `colors.border` outline for when surface and paper are close in
+ * luminance, and a `colors.ink` glyph. All three are tokens, so the
+ * contrast holds in light and dark without painting anything white.
  */
-function QuickLink({
-  label,
+function UtilityButton({
   testID,
+  label,
+  hint,
   onPress,
+  children,
 }: {
-  label: string;
   testID: string;
+  label: string;
+  hint: string;
   onPress: () => void;
+  children: React.ReactNode;
 }) {
   const { colors, radii } = useTheme();
   return (
     <Tappable
       testID={testID}
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
       onPress={onPress}
       style={[
-        styles.quickLink,
+        styles.utilityButton,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          borderRadius: radii.control,
+        },
+      ]}
+    >
+      {children}
+    </Tappable>
+  );
+}
+
+/**
+ * The reading-plan progress card -- the ONLY place on Home that shows a
+ * percentage or a progress bar.
+ *
+ * Reads the EXISTING plan state: `subscribeToMostRecentPlanProgress`
+ * already returns the member's active plan together with its
+ * `PlanProgress` (startedAt, currentDay, completedDays, lastReadAt) --
+ * see ../../services/firebase/plans.ts. Nothing here stores or derives a
+ * second copy of that progress, and nothing is persisted from this
+ * screen.
+ *
+ * Progress is computed from `completedDays.length / plan.dayCount`, not
+ * from `currentDay`: a member can complete days out of order, and
+ * "8 of 30 days done" is the honest number. `currentDay` is what the
+ * Continue action opens, which is a different question.
+ *
+ * With no active plan it shows a compact prompt and opens the Plans list.
+ * It never shows a zeroed-out bar or an invented percentage.
+ */
+function ReadingPlanCard({
+  activePlan,
+  onContinue,
+  onBrowse,
+}: {
+  activePlan: ActivePlanSummary | null;
+  onContinue: (plan: PublishedPlan, dayNumber: number) => void;
+  onBrowse: () => void;
+}) {
+  const { colors, radii } = useTheme();
+  const { t } = useTranslation();
+
+  if (!activePlan) {
+    return (
+      <Tappable
+        testID="home-plan-empty"
+        accessibilityRole="button"
+        accessibilityLabel={t('home.startAPlan')}
+        onPress={onBrowse}
+        style={[
+          styles.planCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.card,
+          },
+        ]}
+      >
+        <Text style={[styles.planEmptyLabel, { color: colors.primary }]}>
+          {t('home.startAPlan')}
+        </Text>
+      </Tappable>
+    );
+  }
+
+  const { plan, progress } = activePlan;
+  const total = Math.max(1, plan.dayCount);
+  const done = progress.completedDays.length;
+  // Clamped: a plan whose dayCount was edited down after a member
+  // completed days should not render a bar wider than the track.
+  const fraction = Math.min(1, Math.max(0, done / total));
+  const percent = Math.round(fraction * 100);
+
+  return (
+    <Tappable
+      testID="home-active-plan"
+      accessibilityRole="button"
+      accessibilityLabel={`${plan.title}. ${t('home.dayOf', {
+        current: progress.currentDay,
+        total: plan.dayCount,
+      })}. ${percent}%`}
+      onPress={() => onContinue(plan, progress.currentDay)}
+      style={[
+        styles.planCard,
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
@@ -171,8 +272,88 @@ function QuickLink({
         },
       ]}
     >
-      <Text style={[styles.quickLinkLabel, { color: colors.text }]}>{label}</Text>
+      <Text style={[styles.planTitle, { color: colors.text }]} numberOfLines={2}>
+        {plan.title}
+      </Text>
+      <Text style={[styles.planMeta, { color: colors.secondaryText }]}>
+        {t('home.dayOf', { current: progress.currentDay, total: plan.dayCount })}
+      </Text>
+
+      <View style={styles.planProgressRow}>
+        <View
+          testID="home-plan-progress-track"
+          style={[styles.planTrack, { backgroundColor: colors.border }]}
+        >
+          <View
+            testID="home-plan-progress-fill"
+            style={[
+              styles.planFill,
+              { width: `${percent}%`, backgroundColor: colors.primary },
+            ]}
+          />
+        </View>
+        <Text
+          testID="home-plan-percent"
+          style={[styles.planPercent, { color: colors.secondaryText }]}
+        >
+          {t('home.percentComplete', { percent })}
+        </Text>
+      </View>
+
+      <Text style={[styles.planContinue, { color: colors.primary }]}>
+        {t('plans.continue')}
+      </Text>
     </Tappable>
+  );
+}
+
+/**
+ * A compact icon tile -- Prayers, Reading Plans, Community.
+ *
+ * Deliberately NOT a content card and NOT a settings row: these are
+ * feature shortcuts, so they get a square glyph over a short label and
+ * carry no description, no progress and no data. Only
+ * ReadingPlanCard above shows progress.
+ *
+ * These three are the secondary features the bottom tab bar does NOT
+ * cover (the bar is Home/Bible/Songs/Events/More), so surfacing them is
+ * discovery rather than the duplicate navigation the tester objected to.
+ * Each also remains reachable under More.
+ */
+function FeatureTile({
+  testID,
+  label,
+  onPress,
+  children,
+}: {
+  testID: string;
+  label: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}) {
+  const { colors, radii } = useTheme();
+  return (
+    <View style={styles.tileColumn}>
+      <Tappable
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        style={[
+          styles.tile,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radii.sheet,
+          },
+        ]}
+      >
+        {children}
+      </Tappable>
+      <Text style={[styles.tileLabel, { color: colors.text }]} numberOfLines={2}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -283,7 +464,8 @@ export function HomeScreen() {
     >
       <ChurchBranding
         displayLabel={displayLabel}
-        onPressNotifications={() => navigation.navigate('NotificationCenter')}
+        onPressProfile={() => navigation.navigate('Profile')}
+        onPressAnnouncements={() => navigation.navigate('Announcements')}
       />
 
       {liveEvent ? (
@@ -327,44 +509,24 @@ export function HomeScreen() {
         <DailyVerseCard />
       </View>
 
-      <View style={styles.section}>
-        <SectionHeader title={t('home.announcements')} />
-        <AnnouncementsList />
-      </View>
+      {/* The ANNOUNCEMENTS content block that used to sit here is gone.
+          It occupied the middle of Home with a permanent "No
+          announcements yet." even when there was nothing to show. The
+          feature is unchanged -- the Firestore collection, the admin
+          screens and AnnouncementsList itself are all intact; the entry
+          point is now the permanent icon in the header above, which opens
+          ../announcements/AnnouncementsScreen.tsx. */}
 
-      {activePlan ? (
-        <View style={styles.section}>
-          <SectionHeader title={t('home.yourReadingPlan')} />
-          <Tappable
-            testID="home-active-plan"
-            accessibilityRole="button"
-            onPress={() =>
-              navigation.navigate('PlanDay', {
-                plan: activePlan.plan,
-                dayNumber: activePlan.progress.currentDay,
-              })
-            }
-            style={[
-              styles.eventRow,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderRadius: radii.card,
-              },
-            ]}
-          >
-            <Text style={[styles.eventTitle, { color: colors.text }]}>
-              {activePlan.plan.title}
-            </Text>
-            <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
-              {t('home.dayOf', {
-                current: activePlan.progress.currentDay,
-                total: activePlan.plan.dayCount,
-              })}
-            </Text>
-          </Tappable>
-        </View>
-      ) : null}
+      <View style={styles.section}>
+        <SectionHeader title={t('home.readingPlan')} />
+        <ReadingPlanCard
+          activePlan={activePlan}
+          onContinue={(plan, dayNumber) =>
+            navigation.navigate('PlanDay', { plan, dayNumber })
+          }
+          onBrowse={() => navigation.navigate('PlansList')}
+        />
+      </View>
 
       {nextEvent ? (
         <View style={styles.section}>
@@ -394,39 +556,33 @@ export function HomeScreen() {
         </View>
       ) : null}
 
-      {/* Secondary destinations only.
-          Songs / Events / Bible / Profile used to sit here as large
-          cards, duplicating the bottom tab bar (Songs, Events, Bible) and
-          the More tab (Profile) -- Home was acting as a second
-          navigation menu. The three below are NOT reachable from the tab
-          bar, so surfacing them here is discovery rather than
-          duplication; each also remains available under More. */}
-      <View style={styles.section}>
-        <SectionHeader title={t('home.continueGrowing')} />
-        <View style={styles.quickLinkGrid}>
-          <QuickLink
-            label={t('more.readingPlans')}
-            testID="plans-nav-button"
-            onPress={() => navigation.navigate('PlansList')}
-          />
-          <QuickLink
-            label={t('more.prayers')}
-            testID="prayers-nav-button"
-            onPress={() => navigation.navigate('Prayers')}
-          />
-          <QuickLink
-            label={t('more.community')}
-            testID="community-nav-button"
-            onPress={() => navigation.navigate('CommunityList')}
-          />
-        </View>
+      {/* Compact icon tiles, NOT content cards: the three secondary
+          features the bottom tab bar does not cover. Songs / Bible /
+          Events / Profile are deliberately absent -- the first three are
+          tabs and Profile is the header icon above. */}
+      <View style={styles.tileRow} testID="home-feature-tiles">
+        <FeatureTile
+          testID="prayers-nav-button"
+          label={t('more.prayers')}
+          onPress={() => navigation.navigate('Prayers')}
+        >
+          <PrayerIcon color={colors.primary} size={26} />
+        </FeatureTile>
+        <FeatureTile
+          testID="plans-nav-button"
+          label={t('more.readingPlans')}
+          onPress={() => navigation.navigate('PlansList')}
+        >
+          <PlanIcon color={colors.primary} size={26} />
+        </FeatureTile>
+        <FeatureTile
+          testID="community-nav-button"
+          label={t('more.community')}
+          onPress={() => navigation.navigate('CommunityList')}
+        >
+          <PeopleIcon color={colors.primary} size={26} />
+        </FeatureTile>
       </View>
-
-      {/* No sign-out here. Signing out is an account action and belongs
-          with the other account settings -- see
-          ../settings/SettingsScreen.tsx's `settings-logout-button`,
-          reachable via More -> Settings. Home is content, not account
-          management. */}
     </ScrollView>
   );
 }
@@ -447,16 +603,49 @@ const styles = StyleSheet.create({
   monogramText: { fontSize: 18, fontWeight: '600' },
   greeting: { fontSize: 12.5 },
   churchName: { fontSize: 17, fontWeight: '600' },
-  churchDescription: { fontSize: 13, lineHeight: 18 },
-  // 44x44 is the accessibility minimum, and it also matches the 44x44
-  // church logo/monogram at the other end of this row.
-  iconButton: {
+  brandingText: { flex: 1, gap: 2 },
+
+  // Home's top-right utility area. Two buttons, each at the 44dp
+  // accessibility minimum, which also matches the 44x44 logo/monogram at
+  // the other end of the row.
+  utilityRow: { flexDirection: 'row', gap: 8 },
+  utilityButton: {
     width: 44,
     height: 44,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // The reading-plan card -- the only progress UI on Home.
+  planCard: {
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
+  planTitle: { fontSize: 16, fontWeight: '600' },
+  planMeta: { fontSize: 12.5 },
+  planProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  planTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  planFill: { height: 6, borderRadius: 3 },
+  planPercent: { fontSize: 12.5, fontWeight: '600', minWidth: 38, textAlign: 'right' },
+  planContinue: { fontSize: 14, fontWeight: '700', marginTop: 2 },
+  planEmptyLabel: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
+
+  // Compact icon tiles. Square with a large radius, sized so three fit a
+  // narrow phone comfortably; the label sits OUTSIDE the tile so the
+  // glyph stays the whole of the tappable square.
+  tileRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  tileColumn: { flex: 1, alignItems: 'center', gap: 8 },
+  tile: {
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: 78,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileLabel: { fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
   liveBanner: { padding: 18, gap: 12 },
   liveBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
@@ -472,14 +661,4 @@ const styles = StyleSheet.create({
   eventRow: { padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
   eventTitle: { fontSize: 14.5, fontWeight: '600' },
   eventMeta: { fontSize: 12.5 },
-  quickLinkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickLink: {
-    flexGrow: 1,
-    minWidth: '45%',
-    minHeight: 56,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLinkLabel: { fontSize: 14.5, fontWeight: '600' },
 });

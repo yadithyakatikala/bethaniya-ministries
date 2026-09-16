@@ -195,6 +195,43 @@ exact screen, action, and what happened instead of what was expected.
     Open one, start it, mark a day complete, and confirm Home's "your
     reading plan" card then shows the right day.
 
+### Round-2 tester feedback (verify these specifically)
+
+23j. **Home header** — shows exactly two lines of text: "Welcome, <name>"
+    and the church name. There must be NO third tagline line.
+23k. **Home top-right** — two clearly visible icon buttons: a person
+    (Profile) and a speech bubble (Announcements). Both must be plainly
+    visible in light AND dark mode — the old build showed an almost
+    invisible dot here. Tap each: Profile opens Profile, Announcements
+    opens the announcements list.
+23l. **No announcements block on Home** — the "ANNOUNCEMENTS / No
+    announcements yet." section must be gone from Home's content. The
+    feature still works via the header icon.
+23m. **Reading-plan card** — with an active plan it shows the plan title,
+    "Day X of Y", a filled progress bar, a percentage, and Continue;
+    tapping it opens the current day. With no active plan it shows a
+    compact "Start a Reading Plan" that opens the plans list, and NO
+    progress bar or percentage anywhere.
+23n. **Three icon tiles** — Prayers, Reading Plans and Community appear
+    as compact square icon tiles, not long cards or list rows. No
+    percentages or descriptions inside them.
+23o. **DARK MODE, EVERY SCREEN** — this is the regression that shipped.
+    With Dark selected, walk EVERY screen and confirm the HEADER BAR is
+    dark, not white: Bible, Bible chapters, Bible reader, Bible search,
+    Songs, Song detail, Events, Event detail, YouTube player, More,
+    Profile, Settings, Notifications, Announcements, Reading Plans, Plan
+    detail, Plan day, Prayers, Community, Community post, Daily Verse,
+    Privacy Policy, Terms of Service. The white-header bug affected all
+    of them at once.
+23p. **Theme round-trip** — switch Light -> Dark -> Light in Settings
+    without restarting; every open screen must follow immediately. Then
+    force-quit and reopen: the last choice must still apply.
+23q. **Device font** — the round-2 screenshots showed mangled letters
+    ("Welcvme", "Cvmmunity"). The app sets no fontFamily, so it inherits
+    the phone's system font; that device had a decorative font installed.
+    Confirm on a phone with the default system font, and see the note in
+    mobile/assets/fonts/README.md about bundling the intended faces.
+
 ### Admin (deployed admin website, tested separately from the APK)
 
 24. **Admin login** — email/password sign-in succeeds against

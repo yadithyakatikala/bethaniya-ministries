@@ -248,6 +248,14 @@ export interface Strings {
   'dailyVerse.noneTodayShort': string;
   'announcements.loadErrorShort': string;
   'announcements.emptyShort': string;
+  'home.profileLabel': string;
+  'home.profileHint': string;
+  'home.announcementsLabel': string;
+  'home.announcementsHint': string;
+  'home.readingPlan': string;
+  'home.startAPlan': string;
+  'home.percentComplete': string;
+  'announcements.title': string;
 }
 
 export type StringKey = keyof Strings;
@@ -442,6 +450,14 @@ const en: Strings = {
   'dailyVerse.noneTodayShort': 'No daily verse set for today.',
   'announcements.loadErrorShort': 'Could not load announcements.',
   'announcements.emptyShort': 'No announcements yet.',
+  'home.profileLabel': 'Open your profile',
+  'home.profileHint': 'Shows your account details',
+  'home.announcementsLabel': 'Open announcements',
+  'home.announcementsHint': 'Shows announcements from the church',
+  'home.readingPlan': 'Reading Plan',
+  'home.startAPlan': 'Start a Reading Plan',
+  'home.percentComplete': '{percent}%',
+  'announcements.title': 'Announcements',
 };
 
 /**
@@ -638,6 +654,14 @@ const te: Strings = {
   'dailyVerse.noneTodayShort': 'నేటికి వచనం ఇంకా ఇవ్వలేదు.',
   'announcements.loadErrorShort': 'ప్రకటనలు లోడ్ చేయలేకపోయాము.',
   'announcements.emptyShort': 'ఇంకా ప్రకటనలు లేవు.',
+  'home.profileLabel': 'మీ ప్రొఫైల్ తెరవండి',
+  'home.profileHint': 'మీ ఖాతా వివరాలను చూపుతుంది',
+  'home.announcementsLabel': 'ప్రకటనలు తెరవండి',
+  'home.announcementsHint': 'చర్చి ప్రకటనలను చూపుతుంది',
+  'home.readingPlan': 'పఠన ప్రణాళిక',
+  'home.startAPlan': 'పఠన ప్రణాళిక ప్రారంభించండి',
+  'home.percentComplete': '{percent}%',
+  'announcements.title': 'ప్రకటనలు',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

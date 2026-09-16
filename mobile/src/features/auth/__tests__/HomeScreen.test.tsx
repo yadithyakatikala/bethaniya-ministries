@@ -10,6 +10,10 @@ import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { lightTokens } from '../../../theme';
 import { translate } from '../../../i18n';
 import { HomeScreen } from '../HomeScreen';
+import {
+  subscribeToMostRecentPlanProgress,
+  type ActivePlanSummary,
+} from '../../../services/firebase/plans';
 
 /**
  * HomeScreen is registered as the "Home" screen inside AppNavigator's
@@ -44,6 +48,26 @@ function NotificationCenterStub() {
   return <Text testID="notification-center-stub">Notification center stub</Text>;
 }
 
+function AnnouncementsStub() {
+  return <Text testID="announcements-stub">Announcements stub</Text>;
+}
+
+function PlansListStub() {
+  return <Text testID="plans-list-stub">Plans list stub</Text>;
+}
+
+function PlanDayStub() {
+  return <Text testID="plan-day-stub">Plan day stub</Text>;
+}
+
+function PrayersStub() {
+  return <Text testID="prayers-stub">Prayers stub</Text>;
+}
+
+function CommunityStub() {
+  return <Text testID="community-stub">Community stub</Text>;
+}
+
 function renderHomeScreen() {
   return render(
     <NavigationContainer>
@@ -56,6 +80,11 @@ function renderHomeScreen() {
             <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
             <Stack.Screen name="Profile" component={ProfileStub} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
+            <Stack.Screen name="Announcements" component={AnnouncementsStub} />
+            <Stack.Screen name="PlansList" component={PlansListStub} />
+            <Stack.Screen name="PlanDay" component={PlanDayStub} />
+            <Stack.Screen name="Prayers" component={PrayersStub} />
+            <Stack.Screen name="CommunityList" component={CommunityStub} />
           </Stack.Navigator>
         </PreferencesProvider>
       </AuthProvider>
@@ -64,6 +93,46 @@ function renderHomeScreen() {
 }
 
 jest.mock('../../../services/firebase/app');
+jest.mock('../../../services/firebase/plans');
+
+/**
+ * Home reads the member's active plan through the EXISTING
+ * subscribeToMostRecentPlanProgress -- see
+ * ../../../services/firebase/plans.ts. These helpers drive that one
+ * subscription; Home holds no plan state of its own.
+ */
+function mockActivePlan(summary: ActivePlanSummary | null) {
+  (subscribeToMostRecentPlanProgress as jest.Mock).mockImplementation((_uid, onNext) => {
+    onNext(summary);
+    return jest.fn();
+  });
+}
+
+function planSummary(dayCount: number, completedDays: number[], currentDay: number) {
+  return {
+    plan: {
+      id: 'plan-1',
+      title: 'Bible in 30 Days',
+      description: 'A month of reading.',
+      category: 'Devotional',
+      coverImageUrl: null,
+      dayCount,
+    },
+    progress: {
+      startedAt: new Date('2026-01-01T00:00:00Z'),
+      currentDay,
+      completedDays,
+      lastReadAt: new Date('2026-01-12T00:00:00Z'),
+    },
+  } as ActivePlanSummary;
+}
+
+function signedIn(uid = 'u1', displayName: string | null = 'Jane Doe') {
+  (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+    onNext({ uid, displayName, email: 'jane@example.com', phoneNumber: null });
+    return jest.fn();
+  });
+}
 
 describe('HomeScreen', () => {
   const mockedOnAuthStateChanged = onAuthStateChanged as jest.Mock;
@@ -80,6 +149,11 @@ describe('HomeScreen', () => {
     // PreferencesContext.tsx's own Firestore subscription) call that
     // return value as a cleanup function on unmount.
     (onSnapshot as jest.Mock).mockReset().mockImplementation(() => jest.fn());
+    mockActivePlan(null);
+  });
+
+  beforeEach(() => {
+    mockActivePlan(null);
   });
 
   it('greets the signed-in user by display name', async () => {
@@ -136,167 +210,294 @@ describe('HomeScreen', () => {
     expect(queryByTestId('bible-nav-button')).toBeNull();
   });
 
-  it('does not duplicate the More tab with a Profile card', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u7', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    const { getByTestId, queryByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+  // --- Home's top-right utility area (V1 tester feedback) -------------
+  // The tester's screenshot showed an "almost invisible dot" in the top
+  // right: an 8px View in `colors.primary` on the paper background. It is
+  // now two real buttons -- Profile and Announcements -- each a themed
+  // 44dp surface with a bordered outline and an ink glyph.
+  //
+  // Profile is a HEADER ICON here, not the giant Home card it used to be.
 
-    expect(queryByTestId('profile-nav-button')).toBeNull();
-  });
-
-  it('has no sign-out button -- that lives in Settings', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u3', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    const { getByTestId, queryByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
-
-    expect(queryByTestId('sign-out-button')).toBeNull();
-    // And Firebase sign-out is never reachable from this screen.
-    expect(mockedSignOut).not.toHaveBeenCalled();
-  });
-
-  it('still surfaces the three secondary destinations the tab bar omits', async () => {
-    // Plans / Prayers / Community are NOT in the bottom tab bar, so
-    // offering them on Home is discovery rather than duplication.
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u9', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
+  it('offers Profile as a header icon, and navigates to Profile', async () => {
+    signedIn();
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('profile-nav-button')).toBeTruthy());
 
-    expect(getByTestId('plans-nav-button')).toBeTruthy();
-    expect(getByTestId('prayers-nav-button')).toBeTruthy();
-    expect(getByTestId('community-nav-button')).toBeTruthy();
-  });
-
-  it('navigates to Notifications when "Notifications" is pressed', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u8', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('notifications-nav-button'));
-    await waitFor(() => expect(getByTestId('notification-center-stub')).toBeTruthy());
-  });
-
-  // --- The notification control -----------------------------------------
-  // It used to render a bare 8px dot in `colors.primary`: it said nothing
-  // about what the button did, and being permanently lit it read as an
-  // unread badge that never cleared. It is now a bell drawn from Views
-  // (see ../../../theme/ui/BellIcon.tsx -- this project has no icon
-  // dependency, and the bell follows the same idiom as MoreScreen's
-  // chevron).
-
-  it('labels the notification control as an action, not just a noun', async () => {
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
-    const button = getByTestId('notifications-nav-button');
-    expect(button.props.accessibilityLabel).toBe(
-      translate('te', 'home.notificationsLabel')
-    );
+    const button = getByTestId('profile-nav-button');
     expect(button.props.accessibilityRole).toBe('button');
+    expect(button.props.accessibilityLabel).toBe(translate('te', 'home.profileLabel'));
+    expect(button.props.accessibilityHint).toBe(translate('te', 'home.profileHint'));
+
+    await fireEvent.press(button);
+    await waitFor(() => expect(getByTestId('profile-stub')).toBeTruthy());
   });
 
-  it('meets the 44dp minimum touch target', async () => {
-    // It was 40x40, under the accessibility minimum on both platforms.
+  it('offers Announcements as a header icon, and navigates to Announcements', async () => {
+    signedIn();
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
-    const style = StyleSheet.flatten(getByTestId('notifications-nav-button').props.style);
-    expect(style.width).toBeGreaterThanOrEqual(44);
-    expect(style.height).toBeGreaterThanOrEqual(44);
-  });
+    await waitFor(() => expect(getByTestId('announcements-nav-button')).toBeTruthy());
 
-  it('draws the bell from the theme, so it flips with the palette', async () => {
-    // The bell owns no colour of its own -- every stroke is painted from
-    // `colors.ink` by the caller, which is what makes it correct in dark
-    // mode too. A colour literal inside BellIcon would be the exact
-    // defect this pass removed everywhere else.
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('notifications-nav-button')).toBeTruthy());
-
-    // The three bell parts: the dome is stroked, the rim and clapper are
-    // filled, so collect both properties.
-    const colours = new Set<string>();
-    const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
-      const style = StyleSheet.flatten(node.props?.style as never) as
-        Record<string, string> | undefined;
-      if (style?.borderColor) colours.add(style.borderColor);
-      if (style?.backgroundColor) colours.add(style.backgroundColor);
-      for (const child of node.children ?? []) {
-        if (child && typeof child === 'object') walk(child as never);
-      }
-    };
-    walk(getByTestId('notifications-nav-button') as never);
-
-    // Every colour the control paints is a token -- the bell's ink, plus
-    // the button's own surface and border.
-    expect(colours).toContain(lightTokens.ink);
-    expect([...colours].sort()).toEqual(
-      [lightTokens.ink, lightTokens.surface, lightTokens.border].sort()
+    const button = getByTestId('announcements-nav-button');
+    expect(button.props.accessibilityLabel).toBe(
+      translate('te', 'home.announcementsLabel')
     );
+    expect(button.props.accessibilityHint).toBe(
+      translate('te', 'home.announcementsHint')
+    );
+
+    await fireEvent.press(button);
+    await waitFor(() => expect(getByTestId('announcements-stub')).toBeTruthy());
   });
 
-  // Day 13: ChurchBranding is now settings-driven (see
-  // ../../../services/firebase/settings.ts) instead of hardcoded --
-  // isolate the settings/church onSnapshot call from
-  // AnnouncementsList's/DailyVerseCard's own onSnapshot calls (also
-  // mounted on this screen) by checking each call's first argument, the
-  // same `doc()`-produced `{ path }` shape the global firebase/firestore
-  // mock (mobile/__mocks__/firebase/firestore.js) already returns.
-  it('shows the settings-driven church name/description once the settings snapshot arrives', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u9', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    (onSnapshot as jest.Mock).mockImplementation((ref, next) => {
-      if (ref && (ref as { path?: string }).path === 'settings/church') {
-        next({
+  it.each([['profile-nav-button'], ['announcements-nav-button']])(
+    '%s meets the 44dp minimum touch target',
+    async (testID) => {
+      signedIn();
+      const { getByTestId } = await renderHomeScreen();
+      await waitFor(() => expect(getByTestId(testID)).toBeTruthy());
+      const style = StyleSheet.flatten(getByTestId(testID).props.style);
+      expect(style.width).toBeGreaterThanOrEqual(44);
+      expect(style.height).toBeGreaterThanOrEqual(44);
+    }
+  );
+
+  it.each([['profile-nav-button'], ['announcements-nav-button']])(
+    '%s is visible in BOTH themes, painted only from tokens',
+    async (testID) => {
+      // The old dot failed precisely because it was one colour on a
+      // background it did not contrast with. A utility button needs a
+      // surface fill, a border, AND an ink glyph -- all tokens, so the
+      // contrast survives the palette flip without painting anything white.
+      signedIn();
+      const { getByTestId } = await renderHomeScreen();
+      await waitFor(() => expect(getByTestId(testID)).toBeTruthy());
+
+      const colours = new Set<string>();
+      const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
+        const style = StyleSheet.flatten(node.props?.style as never) as
+          Record<string, string> | undefined;
+        if (style?.borderColor) colours.add(style.borderColor);
+        if (style?.backgroundColor) colours.add(style.backgroundColor);
+        for (const child of node.children ?? []) {
+          if (child && typeof child === 'object') walk(child as never);
+        }
+      };
+      walk(getByTestId(testID) as never);
+
+      // Exactly the three tokens, nothing invented.
+      expect([...colours].sort()).toEqual(
+        [lightTokens.surface, lightTokens.border, lightTokens.ink].sort()
+      );
+    }
+  );
+
+  it('shows the settings-driven church name once the settings snapshot arrives', async () => {
+    signedIn();
+    (onSnapshot as jest.Mock).mockImplementation((ref, onNext) => {
+      if (String((ref as { path?: string })?.path ?? '').includes('settings')) {
+        onNext({
           exists: () => true,
           data: () => ({
-            churchName: 'Grace Chapel',
-            logoUrl: '',
+            churchName: 'Custom Church Name',
             description: 'Custom description from settings.',
-            supportEmail: 'contact@example.com',
           }),
         });
       }
       return jest.fn();
     });
-    const { getByText } = await renderHomeScreen();
-    await waitFor(() => expect(getByText('Grace Chapel')).toBeTruthy());
-    expect(getByText('Custom description from settings.')).toBeTruthy();
+    const { getByText, queryByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByText('Custom Church Name')).toBeTruthy());
+    // The description is still STORED and editable in the admin app; it is
+    // simply not rendered on Home any more.
+    expect(queryByText('Custom description from settings.')).toBeNull();
   });
 
-  it('falls back to the default church name/description when no settings document exists', async () => {
-    mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'u10', displayName: 'Sam', email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    (onSnapshot as jest.Mock).mockImplementation((ref, next) => {
-      if (ref && (ref as { path?: string }).path === 'settings/church') {
-        next({ exists: () => false, data: () => undefined });
-      }
-      return jest.fn();
-    });
+  it('falls back to the default church name when no settings document exists', async () => {
+    signedIn();
     const { getByText } = await renderHomeScreen();
     await waitFor(() => expect(getByText('Bethaniya Ministries')).toBeTruthy());
-    expect(getByText('A community of faith, worship, and fellowship.')).toBeTruthy();
   });
 
-  // Kept last in this file deliberately: jest's fake timers leave the RN
-  // test renderer's internal scheduling in a state where the *next* test's
-  // ref/render doesn't flush synchronously -- even once real timers are
-  // restored (the same issue found and documented while debugging
-  // dailyVerses.test.ts/events.test.ts, which avoid fake timers
-  // entirely for this reason). Ordering it last avoids
-  // tripping over it.
+  // --- The tagline is gone (V1 tester feedback) -----------------------
+
+  it('renders no tagline under the church name, in either language', async () => {
+    signedIn();
+    const { getByTestId, queryByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('church-branding')).toBeTruthy());
+    expect(queryByText('A community of faith, worship, and fellowship.')).toBeNull();
+    // And the header renders exactly two lines of text: greeting + name.
+    const branding = JSON.stringify(getByTestId('church-branding'));
+    expect(branding).not.toContain('community of faith');
+  });
+
+  // --- The announcements CONTENT block is gone --------------------------
+  // It sat in the middle of Home showing "No announcements yet." even with
+  // nothing to show. The feature is intact -- the header icon above opens
+  // the list, asserted in its own test.
+
+  it('has no announcements content section', async () => {
+    signedIn();
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+    for (const id of [
+      'announcements-list',
+      'announcements-empty',
+      'announcements-loading',
+      'announcements-error',
+    ]) {
+      expect(queryByTestId(id)).toBeNull();
+    }
+  });
+
+  // --- Reading-plan progress -------------------------------------------
+  // The ONLY progress UI on Home. Percentage is completedDays / dayCount,
+  // not currentDay: days can be completed out of order.
+
+  it('shows the active plan, its day count and a real percentage', async () => {
+    signedIn();
+    mockActivePlan(planSummary(30, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 12));
+    const { getByTestId, getByText } = await renderHomeScreen();
+
+    await waitFor(() => expect(getByTestId('home-active-plan')).toBeTruthy());
+    expect(getByText('Bible in 30 Days')).toBeTruthy();
+    expect(
+      getByText(translate('te', 'home.dayOf', { current: 12, total: 30 }))
+    ).toBeTruthy();
+    // 12 of 30 completed = 40%
+    expect(getByTestId('home-plan-percent').props.children).toBe('40%');
+    expect(
+      StyleSheet.flatten(getByTestId('home-plan-progress-fill').props.style).width
+    ).toBe('40%');
+  });
+
+  it('computes 0% for a started-but-uncompleted plan, with no fake fill', async () => {
+    signedIn();
+    mockActivePlan(planSummary(10, [], 1));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-percent')).toBeTruthy());
+    expect(getByTestId('home-plan-percent').props.children).toBe('0%');
+    expect(
+      StyleSheet.flatten(getByTestId('home-plan-progress-fill').props.style).width
+    ).toBe('0%');
+  });
+
+  it('computes 100% for a completed plan', async () => {
+    signedIn();
+    mockActivePlan(planSummary(5, [1, 2, 3, 4, 5], 5));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-percent')).toBeTruthy());
+    expect(getByTestId('home-plan-percent').props.children).toBe('100%');
+  });
+
+  it('clamps to 100% if dayCount was edited below the completed count', async () => {
+    // An admin shrinking a plan after members completed days must not
+    // render a bar wider than its track.
+    signedIn();
+    mockActivePlan(planSummary(3, [1, 2, 3, 4, 5], 3));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-percent')).toBeTruthy());
+    expect(getByTestId('home-plan-percent').props.children).toBe('100%');
+  });
+
+  it('opens the current day when the plan card is pressed', async () => {
+    signedIn();
+    mockActivePlan(planSummary(30, [1, 2], 3));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-active-plan')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('home-active-plan'));
+    await waitFor(() => expect(getByTestId('plan-day-stub')).toBeTruthy());
+  });
+
+  it('shows a compact prompt, and NO progress, when there is no active plan', async () => {
+    signedIn();
+    mockActivePlan(null);
+    const { getByTestId, queryByTestId, getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-empty')).toBeTruthy());
+
+    expect(getByText(translate('te', 'home.startAPlan'))).toBeTruthy();
+    // No invented progress of any kind.
+    expect(queryByTestId('home-plan-percent')).toBeNull();
+    expect(queryByTestId('home-plan-progress-fill')).toBeNull();
+    expect(queryByTestId('home-plan-progress-track')).toBeNull();
+  });
+
+  it('opens the plans list from the no-active-plan state', async () => {
+    signedIn();
+    mockActivePlan(null);
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-empty')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('home-plan-empty'));
+    await waitFor(() => expect(getByTestId('plans-list-stub')).toBeTruthy());
+  });
+
+  it('shows a progress bar ONLY in the reading-plan card', async () => {
+    // The owner's constraint: percentage and bar belong to the plan card
+    // alone. The three feature tiles carry no data.
+    signedIn();
+    mockActivePlan(planSummary(30, [1, 2, 3], 4));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-active-plan')).toBeTruthy());
+
+    // Look for percent TEXT specifically -- '100%' also appears as a
+    // layout width on the tiles, which is not a progress readout.
+    const percentTexts: string[] = [];
+    const walk = (node: {
+      type?: string;
+      props?: Record<string, unknown>;
+      children?: unknown[];
+    }) => {
+      if (node.type === 'Text') {
+        const text = JSON.stringify(node.children ?? '');
+        if (/\d+%/.test(text)) percentTexts.push(text);
+      }
+      for (const child of node.children ?? []) {
+        if (child && typeof child === 'object') walk(child as never);
+      }
+    };
+    walk(getByTestId('home-feature-tiles') as never);
+    expect(percentTexts).toEqual([]);
+
+    // ...while the plan card does render one.
+    expect(getByTestId('home-plan-percent').props.children).toMatch(/\d+%/);
+  });
+
+  // --- The three feature tiles are icon tiles, not content cards --------
+
+  it.each([
+    ['prayers-nav-button', 'prayers-stub'],
+    ['plans-nav-button', 'plans-list-stub'],
+    ['community-nav-button', 'community-stub'],
+  ])('%s is an icon tile that navigates', async (testID, stub) => {
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
+
+    const tile = getByTestId(testID);
+    const style = StyleSheet.flatten(tile.props.style);
+    // Square, not a long horizontal card.
+    expect(style.aspectRatio).toBe(1);
+    expect(tile.props.accessibilityRole).toBe('button');
+    expect(typeof tile.props.accessibilityLabel).toBe('string');
+
+    await fireEvent.press(tile);
+    await waitFor(() => expect(getByTestId(stub)).toBeTruthy());
+  });
+
+  it('labels the three tiles in the active language', async () => {
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
+    for (const [testID, key] of [
+      ['prayers-nav-button', 'more.prayers'],
+      ['plans-nav-button', 'more.readingPlans'],
+      ['community-nav-button', 'more.community'],
+    ] as const) {
+      expect(getByTestId(testID).props.accessibilityLabel).toBe(translate('te', key));
+    }
+  });
+
   it('shows a brief refreshing indicator on pull-to-refresh, then clears it', async () => {
     jest.useFakeTimers();
     try {

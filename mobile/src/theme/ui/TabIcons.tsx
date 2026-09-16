@@ -8,8 +8,8 @@ import { StyleSheet, View } from 'react-native';
  * `react-native-svg`, not even transitively. Adding an icon font for five
  * 22dp glyphs would ship a native asset and a new release-build surface
  * for something the app can draw itself, so these follow the idiom
- * already established by ./BellIcon.tsx and by MoreScreen's disclosure
- * chevron (two borders on a rotated View).
+ * already established by ./FeatureIcons.tsx and by MoreScreen's
+ * disclosure chevron (two borders on a rotated View).
  *
  * Deliberately NOT emoji: emoji render as the platform's own multicolour
  * artwork, cannot take a theme colour, and look nothing like each other

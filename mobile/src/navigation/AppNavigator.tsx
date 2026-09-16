@@ -12,6 +12,7 @@ import {
   type NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
+import type { ThemeColors } from '../theme';
 import { useTranslation } from '../i18n';
 import { HomeScreen } from '../features/auth/HomeScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
@@ -30,6 +31,7 @@ import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { NotificationCenterScreen } from '../features/notifications/NotificationCenterScreen';
 import { MoreScreen } from '../features/more/MoreScreen';
+import { AnnouncementsScreen } from '../features/announcements/AnnouncementsScreen';
 import { AnnouncementDetailScreen } from '../features/announcements/AnnouncementDetailScreen';
 import type { PublishedAnnouncement } from '../services/firebase/announcements';
 import { DailyVerseScreen } from '../features/daily-verses/DailyVerseScreen';
@@ -107,6 +109,12 @@ export type RootStackParamList = {
   NotificationCenter: undefined;
   /** The fifth tab -- see ../features/more/MoreScreen.tsx and ./TabBar.tsx. */
   More: undefined;
+  /** The announcements list, reached from Home's top-right utility icon.
+   * Announcements used to be a content block on Home; see
+   * ../features/announcements/AnnouncementsScreen.tsx for why it moved.
+   * Distinct from NotificationCenter -- church content vs local delivery
+   * history. */
+  Announcements: undefined;
   /** See ../features/announcements/AnnouncementDetailScreen.tsx -- same
    * "pass the full object, not just an id" reasoning as SongDetail/
    * EventDetail (AnnouncementsList already holds the complete, real-time
@@ -167,6 +175,60 @@ function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
 }
 
 /**
+ * Header, container and content theming for the whole stack.
+ *
+ * WHY THIS IS EXPORTED. Every pushed screen used to get
+ * @react-navigation/native-stack's DEFAULT header -- white background,
+ * black title -- which sat above a `colors.paper` (#141A17) body in dark
+ * mode. A V1 tester reported "the whole app is not turning dark" and
+ * their screenshots showed exactly that: dark content under white bars on
+ * Reading Plans, Prayers, Bible and Terms of Service.
+ *
+ * The screen BODIES were themed all along -- every screen calls
+ * useTheme() -- so only the chrome was wrong, which is why it looked like
+ * a partial failure. Nothing in the suite asserted anything about
+ * `screenOptions`, so a device was the first thing to notice.
+ *
+ * Pulling these out of the component makes them plain functions of the
+ * palette, so ../theme/__tests__/darkMode.test.tsx can assert the real
+ * values without mounting twenty screens and their Firebase mocks.
+ */
+export function buildScreenOptions(colors: ThemeColors): NativeStackNavigationOptions {
+  return {
+    // The platform push transition, instead of the blanket
+    // `animation: 'none'` that made every drill-down an instant cut.
+    animation: 'default',
+    headerStyle: { backgroundColor: colors.surface },
+    headerTintColor: colors.ink,
+    headerTitleStyle: { color: colors.ink, fontWeight: '600' },
+    headerShadowVisible: false,
+    // Covers the screen body, including the gap before a screen's own
+    // container paints.
+    contentStyle: { backgroundColor: colors.paper },
+  };
+}
+
+/**
+ * NavigationContainer paints its own background between screens; left at
+ * the default it flashes white behind a dark-mode push.
+ */
+export function buildNavigationTheme(colors: ThemeColors, isDark: boolean): Theme {
+  const base = isDark ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    dark: isDark,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.paper,
+      card: colors.surface,
+      text: colors.ink,
+      border: colors.border,
+    },
+  };
+}
+
+/**
  * The five tab destinations keep `animation: 'none'`. Switching tabs is a
  * lateral move, not a drill-down, so a slide-in would read as if the app
  * had pushed a new screen. Everything else gets the platform's own push
@@ -181,45 +243,11 @@ export function AppNavigator() {
   // -- they were hardcoded English, including the Bible book names.
   const { t, language } = useTranslation();
 
-  /**
-   * Header theming. Every pushed screen used the native-stack default
-   * header -- white background, black title -- which sat above a
-   * `colors.paper` (#141A17) screen body in dark mode. This was the most
-   * visible dark-mode defect in the app: roughly twenty screens with a
-   * white bar across the top.
-   */
-  const screenOptions = useMemo<NativeStackNavigationOptions>(
-    () => ({
-      // The platform push transition, instead of the blanket
-      // `animation: 'none'` that made every drill-down an instant cut.
-      animation: 'default',
-      headerStyle: { backgroundColor: colors.surface },
-      headerTintColor: colors.ink,
-      headerTitleStyle: { color: colors.ink, fontWeight: '600' },
-      headerShadowVisible: false,
-      contentStyle: { backgroundColor: colors.paper },
-    }),
-    [colors]
+  const screenOptions = useMemo(() => buildScreenOptions(colors), [colors]);
+  const navigationTheme = useMemo(
+    () => buildNavigationTheme(colors, isDark),
+    [colors, isDark]
   );
-
-  /**
-   * NavigationContainer paints its own background between screens. Left at
-   * the default it flashes white behind a dark-mode push.
-   */
-  const navigationTheme = useMemo<Theme>(() => {
-    const base = isDark ? DarkTheme : DefaultTheme;
-    return {
-      ...base,
-      colors: {
-        ...base.colors,
-        primary: colors.primary,
-        background: colors.paper,
-        card: colors.surface,
-        text: colors.ink,
-        border: colors.border,
-      },
-    };
-  }, [colors, isDark]);
 
   return (
     <NavigationContainer
@@ -312,6 +340,11 @@ export function AppNavigator() {
               name="More"
               component={MoreScreen}
               options={{ ...TAB_SCREEN_OPTIONS, title: t('more.title') }}
+            />
+            <Stack.Screen
+              name="Announcements"
+              component={AnnouncementsScreen}
+              options={{ title: t('announcements.title') }}
             />
             <Stack.Screen
               name="AnnouncementDetail"
