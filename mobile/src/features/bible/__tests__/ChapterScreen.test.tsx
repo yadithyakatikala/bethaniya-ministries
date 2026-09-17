@@ -54,17 +54,26 @@ describe('ChapterScreen', () => {
     expect(getByTestId('chapter-reference')).toBeTruthy();
   });
 
-  it('labels the two documented Telugu source gaps (e.g. Joel 3) with the development-content banner', async () => {
+  it('says plainly that Malachi 4 is not in the Telugu translation', async () => {
+    // V1 rendered generated placeholder verses here. Nothing is generated
+    // now, so the reader reports the absence instead.
     await setLanguagePreference('te');
-    const { getByTestId } = await renderScreen('joel', 3);
-    await waitFor(() => expect(getByTestId('chapter-placeholder-banner')).toBeTruthy());
+    const { getByTestId } = await renderScreen('malachi', 4);
+    await waitFor(() => expect(getByTestId('chapter-unavailable-banner')).toBeTruthy());
+    expect(getByTestId('chapter-unavailable-message')).toBeTruthy();
   });
 
-  it('does not show the placeholder banner for English (real WEB text)', async () => {
+  it('shows no unavailable banner for a chapter the translation does have', async () => {
     await setLanguagePreference('en');
     const { getByText, queryByTestId } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
-    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
+    expect(queryByTestId('chapter-unavailable-banner')).toBeNull();
+  });
+
+  it('prints a merged Telugu verse range as "39-40" rather than losing a number', async () => {
+    await setLanguagePreference('te');
+    const { getByText } = await renderScreen('luke', 1);
+    await waitFor(() => expect(getByText('39-40')).toBeTruthy());
   });
 
   it('does not show the placeholder banner for Telugu outside the two documented gap chapters', async () => {

@@ -49,7 +49,21 @@ export interface BibleBook {
 }
 
 export interface BibleVerse {
+  /** First verse number this unit covers. Canonical; never localized. */
   number: number;
+  /**
+   * Last verse number this unit covers, when the translation MERGES
+   * several verses into a single unit. Absent for an ordinary verse.
+   *
+   * The Telugu IRV merges 100 verses this way -- Luke 1:39-40 is one
+   * translated unit. V1's import dropped the source's `<range>` markers
+   * entirely, so the reader showed verse 39 then verse 41 and looked as
+   * though scripture were missing; the text was always there, attached
+   * to the first verse of the range. Recording the end of the range is
+   * what lets the reader honestly print "39-40" instead of losing a
+   * number. See scripts/import-telugu-bible.mjs.
+   */
+  endNumber?: number;
   text: string;
 }
 
@@ -60,11 +74,15 @@ export interface BibleChapter {
   language: BibleLanguage;
   verses: BibleVerse[];
   /**
-   * True for every chapter today (see this file's top comment). Kept
-   * per-chapter, not a module-wide constant, so a future data source
-   * that's real for some books/languages and not others (e.g. WEB
-   * integrated for English while Telugu is still pending) can be
-   * represented and labeled correctly without a type change.
+   * True when this chapter has no text in the selected translation, in
+   * which case `verses` is empty.
+   *
+   * Exactly one chapter is in this state: Malachi 4 in Telugu, whose
+   * Hebrew-numbered slots are empty in the source corpus. V1 filled it
+   * (and Joel 3) with SYNTHETIC placeholder text from a now-deleted
+   * module -- invented scripture, behind a warning badge. V2 says
+   * plainly that the passage is not in this translation and offers the
+   * other one instead.
    */
-  isPlaceholder: boolean;
+  unavailableInTranslation: boolean;
 }

@@ -8,7 +8,7 @@ const sampleEn: BibleChapter = {
   chapterNumber: 1,
   language: 'en',
   verses: [{ number: 1, text: 'placeholder en text' }],
-  isPlaceholder: true,
+  unavailableInTranslation: false,
 };
 
 const sampleTe: BibleChapter = {
@@ -17,7 +17,7 @@ const sampleTe: BibleChapter = {
   chapterNumber: 1,
   language: 'te',
   verses: [{ number: 1, text: 'placeholder te text' }],
-  isPlaceholder: true,
+  unavailableInTranslation: false,
 };
 
 describe('bibleCache', () => {

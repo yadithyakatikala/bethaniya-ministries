@@ -14,16 +14,19 @@
  * /BIBLE_LICENSING.md for the full writeup.
  *
  * TELUGU: resolved. Real Indian Revised Version (IRV) 2019 verse text
- * (CC BY-SA 4.0) is now imported -- see teluguBible.ts's doc comment for
- * the exact source, license, and completeness verification, and
- * /BIBLE_LICENSING.md for the full writeup. Two chapters (Joel 3,
- * Malachi 4) have no real verse text in the source and fall back to the
- * clearly-labeled synthetic placeholder (placeholderData.ts) -- see
- * teluguBible.ts for why.
+ * (CC BY-SA 4.0) -- see teluguBible.ts's doc comment for the source,
+ * licence, and what V1's import got wrong.
+ *
+ * NO SYNTHETIC SCRIPTURE. V1 filled the chapters its Telugu data lacked
+ * with generated placeholder text from a `placeholderData.ts` module,
+ * behind a warning badge. That module is deleted: a Bible app must not
+ * render invented verses, badge or no badge. One canonical chapter has no
+ * Telugu text in the source (Malachi 4), and it now returns an empty
+ * chapter flagged `unavailableInTranslation` so the reader can say so and
+ * offer the other translation.
  */
 import { getBookById } from './books';
 import { getCachedChapter, setCachedChapter } from './bibleCache';
-import { buildPlaceholderVerses } from './placeholderData';
 import { getWebVerseTexts } from './webBible';
 import { getTeluguVerses } from './teluguBible';
 import type { BibleChapter, BibleLanguage, BibleVerse } from './types';
@@ -62,7 +65,7 @@ export function getChapter(
         chapterNumber,
         language,
         verses,
-        isPlaceholder: false,
+        unavailableInTranslation: false,
       };
     }
     // Defensive fallback only -- every valid book/chapter combination is
@@ -79,22 +82,22 @@ export function getChapter(
         chapterNumber,
         language,
         verses,
-        isPlaceholder: false,
+        unavailableInTranslation: false,
       };
     }
-    // Reached for exactly 2 of 1189 chapters (Joel 3, Malachi 4) which
-    // have no real verse text in the source itself -- see teluguBible.ts's
-    // doc comment. Falls through to the labeled placeholder below rather
-    // than fabricating content.
+    // Reached for exactly one of 1189 chapters -- Malachi 4, whose
+    // Hebrew-numbered slots are empty in the source. See teluguBible.ts.
   }
 
+  // The selected translation has no text for this chapter. An empty
+  // chapter, honestly flagged, rather than generated filler.
   return {
     bookId: book.id,
     bookName: book.name,
     chapterNumber,
     language,
-    verses: buildPlaceholderVerses(book.order, chapterNumber, language),
-    isPlaceholder: true,
+    verses: [],
+    unavailableInTranslation: true,
   };
 }
 

@@ -9,7 +9,7 @@ describe('getChapter', () => {
     expect(chapter?.bookName).toBe('Genesis');
     expect(chapter?.chapterNumber).toBe(1);
     expect(chapter?.language).toBe('en');
-    expect(chapter?.isPlaceholder).toBe(false);
+    expect(chapter?.unavailableInTranslation).toBe(false);
     expect(chapter?.verses.length).toBeGreaterThan(0);
     expect(chapter?.verses[0]?.text).toBe(
       'In the beginning God created the heavens and the earth.'
@@ -21,7 +21,7 @@ describe('getChapter', () => {
     expect(chapter).not.toBeNull();
     expect(chapter?.bookId).toBe('genesis');
     expect(chapter?.language).toBe('te');
-    expect(chapter?.isPlaceholder).toBe(false);
+    expect(chapter?.unavailableInTranslation).toBe(false);
     expect(chapter?.verses.length).toBeGreaterThan(0);
     expect(chapter?.verses[0]?.text).toBe('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.');
   });
@@ -35,27 +35,39 @@ describe('getChapter', () => {
   it('returns real WEB text for the last book/chapter/verse (Revelation 22)', () => {
     const chapter = getChapter('revelation', 22, 'en');
     expect(chapter).not.toBeNull();
-    expect(chapter?.isPlaceholder).toBe(false);
+    expect(chapter?.unavailableInTranslation).toBe(false);
     expect(chapter?.verses[chapter!.verses.length - 1]?.text).toBe(
       'The grace of the Lord Jesus Christ be with all the saints. Amen.'
     );
   });
 
-  it('falls back to the labeled placeholder for the two documented Telugu source gaps (Joel 3, Malachi 4)', () => {
-    const joel3 = getChapter('joel', 3, 'te');
-    expect(joel3).not.toBeNull();
-    expect(joel3?.isPlaceholder).toBe(true);
-
+  it('reports Malachi 4 as absent from the Telugu translation, without inventing verses', () => {
+    // V1 returned GENERATED placeholder text here behind a warning badge.
+    // A Bible app must not render invented scripture, so this is now an
+    // empty chapter that says so -- see dataSource.ts.
     const malachi4 = getChapter('malachi', 4, 'te');
     expect(malachi4).not.toBeNull();
-    expect(malachi4?.isPlaceholder).toBe(true);
+    expect(malachi4?.unavailableInTranslation).toBe(true);
+    expect(malachi4?.verses).toEqual([]);
   });
 
-  it('returns real (non-placeholder) Telugu text for the chapter preceding a documented gap (Joel 2)', () => {
-    const joel2 = getChapter('joel', 2, 'te');
-    expect(joel2).not.toBeNull();
-    expect(joel2?.isPlaceholder).toBe(false);
-    expect(joel2?.verses.length).toBeGreaterThan(0);
+  it('still has real Telugu text for Joel 3, which V1 wrongly treated as a gap', () => {
+    // Joel 3 DOES have Telugu text; V1's import lost it. The chapter is
+    // classified 'divergent' for bilingual purposes (the IRV follows
+    // Hebrew chapter division in Joel), but single-language reading works.
+    const joel3 = getChapter('joel', 3, 'te');
+    expect(joel3).not.toBeNull();
+    expect(joel3?.unavailableInTranslation).toBe(false);
+    expect(joel3?.verses.length).toBeGreaterThan(0);
+  });
+
+  it('keeps a merged verse range as one unit carrying both ends (Luke 1:39-40)', () => {
+    // The defect this whole import rewrite exists to fix: V1 dropped the
+    // source's <range> markers, so the reader jumped 39 -> 41.
+    const luke1 = getChapter('luke', 1, 'te');
+    const merged = luke1?.verses.find((verse) => verse.number === 39);
+    expect(merged).toMatchObject({ number: 39, endNumber: 40 });
+    expect(merged?.text.length).toBeGreaterThan(0);
   });
 
   it('returns null for an unknown book id', () => {

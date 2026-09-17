@@ -74,3 +74,7 @@ Thumbs.db
 
 # EAS
 .eas/
+
+# Bible source corpora downloaded by scripts/import-telugu-bible.mjs --fetch.
+# Large, reproducible from the documented upstream, not part of the app.
+.bible-src/

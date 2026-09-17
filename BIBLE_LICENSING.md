@@ -379,3 +379,125 @@ that was fixed.
 A Telugu-speaking reviewer should still confirm the names match the
 edition the congregation uses -- see `TELUGU_REVIEW.md` for the UI-string
 review, which is a separate artifact.
+
+---
+
+# V2 re-import: what V1 got wrong about the Telugu data
+
+Added during the V2 Bible-data-integrity milestone. **No licensing changed.**
+Both translations are still legally distributable on the same terms as V1;
+what changed is the *fidelity* of the Telugu import.
+
+## Licensing, re-verified at import time
+
+Re-read from `BibleNLP/ebible` `metadata/licences.tsv`, row `tel2017`:
+
+| Field | Value |
+|---|---|
+| Vernacular title | ఇండియన్ రివైజ్డ్ వెర్షన్ (IRV) - తెలుగు -2019 |
+| Licence type | `by-sa` |
+| Licence version | `4.0` |
+| Licence link | http://creativecommons.org/licenses/by-sa/4.0/ |
+| Copyright holder | Bridge Connectivity Solutions |
+| Copyright years | © 2017, 2019 |
+| Translation by | Bridge Connectivity Solutions |
+
+English remains the **World English Bible (public domain)** — no attribution
+required, credited anyway.
+
+`scripts/import-telugu-bible.mjs` now **re-checks that licence row on every
+run** and aborts the import if the type, version, or copyright holder has
+changed upstream, rather than silently redistributing text under terms
+nobody reviewed. The CC BY-SA attribution both translations need is shown
+in the app's Settings screen.
+
+## The defect: two source markers were discarded
+
+The source corpus is one verse per line, aligned to `metadata/vref.txt`. It
+marks three states, and V1's import kept only the first:
+
+| Marker | Meaning | Canon count |
+|---|---|---|
+| text | verse present | 30,868 |
+| `<range>` | verse is part of a **merged range**; its text sits on the range's first verse | **100** |
+| *(empty)* | verse does not exist in this translation's versification | **202** |
+
+Dropping `<range>` is what made the Telugu Bible look broken. **Luke 1**
+lost verses 40, 49, 55, 71, 72, 73, 75, 77 and 78 from its numbering, so
+the reader showed verse 39 and then verse 41. The scripture was never
+missing — it was attached to the first verse of each merged range. V1's own
+`teluguBible.ts` comment claimed the data had been "confirmed by
+cross-checking every chapter's verse-number set" to have "no true
+mid-chapter holes, only combined numbering at the high end". That
+verification was mistaken.
+
+## The new data format
+
+`mobile/src/features/bible/data/irv-te.json` (replaces `web-te.json`,
+which was also misnamed — it is not a WEB text):
+
+```
+{ "<bookOrder>": { "<chapter>": [ [startVerse, endVerse, text], … ] } }
+```
+
+`endVerse` exceeds `startVerse` only for a merged range, so the reader
+prints "39-40" honestly. A verse number covered by no span is **absent
+from this translation** — the reader says so rather than shifting the next
+verse up into its place. Verse identity is always
+`(bookOrder, chapter, verse)`; localized book names are never identifiers.
+
+The import is idempotent (byte-identical output for the same source) and
+validates its own output: no gaps, no overlaps, no empty text, or it
+refuses to write.
+
+## Versification: Hebrew vs English chapter division
+
+Of 1,189 canonical chapters, `scripts/derive-versification.mjs` classifies:
+
+| Classification | Chapters | Bilingual reader behaviour |
+|---|---|---|
+| `aligned` — identical verse sets | **1,147** (63 contain merged ranges) | verse-by-verse pairing |
+| `divergent` — the traditions divide the text differently | **41** | both chapters shown separately, with a visible notice |
+| `absent` — no Telugu text at all | **1** (Malachi 4) | "not in this translation" |
+
+Example of `divergent`: English **Numbers 16** runs to verse 50, while the
+Telugu IRV's Numbers 16 stops at 35 and the remaining text sits in its
+chapter 17 (Hebrew/Masoretic division). Pairing verse *N* with verse *N*
+would be right for the overlapping prefix and wrong past it, so these
+chapters are not paired at all.
+
+Upgrading the 41 `divergent` chapters to true verse pairing needs an
+authoritative Paratext/SIL versification table (`org.vrs` / `eng.vrs`).
+**Those files were not reachable from the build environment** (every
+candidate URL returned 404), and a mapping typed from memory would risk
+mispairing scripture, so none was invented. To supply one later, fetch a
+Paratext versification definition and extend
+`mobile/src/features/bible/versificationData.ts`'s generator.
+
+## No synthetic scripture
+
+V1 rendered **generated placeholder verses** for Joel 3 and Malachi 4 in
+Telugu, behind a "Development content — not a real Bible translation"
+badge. That module (`placeholderData.ts`) is **deleted**. A Bible app must
+not render invented verses, badge or no badge.
+
+- **Joel 3** turned out to *have* real Telugu text (5 verses) — V1's import
+  had lost it. It reads correctly now.
+- **Malachi 4** genuinely has no text in this corpus; its Hebrew-numbered
+  slots are empty upstream. The reader reports the absence and offers the
+  English text instead.
+
+## Outstanding question for the owner
+
+Whether this IRV edition *should* contain English Joel 3 / Malachi 4 is a
+question about the upstream corpus, not about our import. `ebible.org` is
+blocked from the build environment, so the USFM edition could not be
+cross-checked. To check on a machine with open network access:
+
+```sh
+curl -O https://ebible.org/Scriptures/telirv_usfm.zip
+unzip -o telirv_usfm.zip -d telirv && grep -c '\\v ' telirv/*JOL*.usfm telirv/*MAL*.usfm
+```
+
+If that edition does contain them, re-run the import against it and the
+classification regenerates automatically.

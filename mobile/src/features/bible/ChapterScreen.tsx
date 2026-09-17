@@ -140,9 +140,13 @@ export function ChapterScreen({ route, navigation }: Props) {
             </Text>
           </Tappable>
         </View>
-        {chapter?.isPlaceholder ? (
-          <View testID="chapter-placeholder-banner">
-            <Badge label={t('bible.placeholderWarning')} variant="warning" />
+        {/* V1 showed a "development content" badge above GENERATED verse
+            text for the chapters its Telugu data lacked. Nothing is
+            generated any more, so this now reports an honest absence --
+            see dataSource.ts. */}
+        {chapter?.unavailableInTranslation ? (
+          <View testID="chapter-unavailable-banner">
+            <Badge label={t('bible.notInTranslation')} variant="warning" />
           </View>
         ) : null}
       </View>
@@ -173,10 +177,22 @@ export function ChapterScreen({ route, navigation }: Props) {
           </Text>
         ) : null}
 
+        {/* An empty chapter would otherwise render as a blank page. */}
+        {chapter?.unavailableInTranslation ? (
+          <Text
+            style={[styles.message, { color: colors.secondaryText }]}
+            testID="chapter-unavailable-message"
+          >
+            {t('bible.notInTranslation')}
+          </Text>
+        ) : null}
+
         {chapter?.verses.map((verse) => (
           <View key={verse.number} style={styles.verseRow}>
+            {/* "39-40" for a merged range, so no verse number silently
+                disappears the way it did in V1. */}
             <Text style={[styles.verseNumber, { color: colors.accent }]}>
-              {verse.number}
+              {verse.endNumber ? `${verse.number}-${verse.endNumber}` : verse.number}
             </Text>
             <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
           </View>
@@ -250,7 +266,9 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, gap: 16 },
   message: { textAlign: 'center' },
   verseRow: { flexDirection: 'row', gap: 10, alignItems: 'baseline' },
-  verseNumber: { fontSize: 12.5, fontWeight: '600', minWidth: 18 },
+  // 34, not 18: a merged range prints as "39-40" and must not
+  // shove the verse text out of alignment with its neighbours.
+  verseNumber: { fontSize: 12.5, fontWeight: '600', minWidth: 34 },
   verseText: { flex: 1, fontSize: 19, lineHeight: 31 },
   navRow: {
     flexDirection: 'row',

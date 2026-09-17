@@ -85,7 +85,8 @@ export interface Strings {
   'bible.searchPrompt': string;
   'bible.noResults': string;
   'bible.switchLanguage': string;
-  'bible.placeholderWarning': string;
+  'bible.notInTranslation': string;
+  'bible.numberingDiffers': string;
 
   // --- Songs ---
   'songs.title': string;
@@ -297,7 +298,9 @@ const en: Strings = {
   'bible.searchPrompt': 'Enter a search term to find a passage.',
   'bible.noResults': 'No results found for “{query}”.',
   'bible.switchLanguage': 'Switch language',
-  'bible.placeholderWarning': 'Development content — not a real Bible translation',
+  'bible.notInTranslation': 'This chapter is not in this translation.',
+  'bible.numberingDiffers':
+    'Verse numbering differs between these translations in this chapter, so the two are shown separately.',
 
   'songs.title': 'Songs',
   'songs.empty': 'No songs yet',
@@ -503,7 +506,9 @@ const te: Strings = {
   'bible.searchPrompt': 'వాక్యభాగం కనుగొనడానికి పదం టైప్ చేయండి.',
   'bible.noResults': '“{query}” కోసం ఫలితాలు లేవు.',
   'bible.switchLanguage': 'భాష మార్చండి',
-  'bible.placeholderWarning': 'అభివృద్ధి కంటెంట్ — నిజమైన బైబిల్ అనువాదం కాదు',
+  'bible.notInTranslation': 'ఈ అధ్యాయం ఈ అనువాదంలో లేదు.',
+  'bible.numberingDiffers':
+    'ఈ అధ్యాయంలో వచన సంఖ్యలు ఈ అనువాదాల మధ్య వేరుగా ఉన్నాయి, అందుకే రెండూ వేరువేరుగా చూపబడ్డాయి.',
 
   'songs.title': 'పాటలు',
   'songs.empty': 'ఇంకా పాటలు లేవు',
