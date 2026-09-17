@@ -381,8 +381,8 @@ const en: Strings = {
   'notifications.empty': 'You have no notifications yet.',
   'notifications.readError': 'Your notification history couldn’t be read on this device.',
 
-  'auth.signInTitle': 'Sign in to Bethaniya Ministries',
-  'auth.signUpTitle': 'Create your Bethaniya Ministries account',
+  'auth.signInTitle': 'Sign in to {app}',
+  'auth.signUpTitle': 'Create your {app} account',
   'auth.email': 'Email',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'Password',
@@ -588,8 +588,8 @@ const te: Strings = {
   'notifications.empty': 'మీకు ఇంకా నోటిఫికేషన్‌లు లేవు.',
   'notifications.readError': 'ఈ ఫోన్‌లో మీ నోటిఫికేషన్ చరిత్రను చదవలేకపోయాము.',
 
-  'auth.signInTitle': 'Bethaniya Ministriesలోకి సైన్ ఇన్ అవ్వండి',
-  'auth.signUpTitle': 'మీ Bethaniya Ministries ఖాతాను సృష్టించండి',
+  'auth.signInTitle': '{app}లోకి సైన్ ఇన్ అవ్వండి',
+  'auth.signUpTitle': 'మీ {app} ఖాతాను సృష్టించండి',
   'auth.email': 'ఇమెయిల్',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'పాస్‌వర్డ్',
@@ -675,7 +675,10 @@ export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };
  * Looks up `key` in `language`, substituting `{name}` placeholders.
  *
  * Interpolation is deliberately minimal -- `{current}`, `{total}`,
- * `{query}`, `{min}` are the only placeholders any string uses. A missing
+ * `{query}`, `{min}`, `{percent}` and `{app}` are the only placeholders
+ * any string uses. `{app}` is the product name, which lives in
+ * ../theme/brand.ts rather than being written into each catalogue --
+ * so renaming the product does not mean re-translating a sentence. A missing
  * key cannot happen (Strings is a closed interface both catalogues must
  * satisfy), so there is no fallback branch to hide a mistake.
  */

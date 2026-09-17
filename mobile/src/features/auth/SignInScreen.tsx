@@ -3,6 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-n
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { PRODUCT_NAME } from '../../theme/brand';
 import { AppButton } from '../../theme/ui/AppButton';
 import {
   createAccountWithEmail,
@@ -153,12 +154,20 @@ export function SignInScreen() {
             { backgroundColor: colors.primary, borderRadius: radii.card },
           ]}
         >
-          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>B</Text>
+          {/* Derived from the product name, not a hardcoded letter -- this
+              was a literal 'B' for the old brand. */}
+          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>
+            {PRODUCT_NAME.charAt(0)}
+          </Text>
         </View>
+        {/* Was two hardcoded English literals carrying the old product
+            name, which also meant this screen stayed English under a
+            Telugu app. Both now come from the catalogue, with the name
+            interpolated from ../../theme/brand.ts. */}
         <Text style={[styles.title, { color: colors.text }]}>
-          {mode === 'sign-up'
-            ? 'Create your Bethaniya Ministries account'
-            : 'Sign in to Bethaniya Ministries'}
+          {t(mode === 'sign-up' ? 'auth.signUpTitle' : 'auth.signInTitle', {
+            app: PRODUCT_NAME,
+          })}
         </Text>
       </View>
 

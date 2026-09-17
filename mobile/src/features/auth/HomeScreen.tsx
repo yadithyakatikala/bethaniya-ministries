@@ -5,6 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+// The church's own name is admin-configured content in Firestore; this is
+// only the fallback for a deployment that has never saved settings.
+import { DEFAULT_CHURCH_NAME } from '../../theme/brand';
 import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import {
@@ -30,8 +33,6 @@ import {
   type ActivePlanSummary,
   type PublishedPlan,
 } from '../../services/firebase/plans';
-
-const DEFAULT_CHURCH_NAME = 'Bethaniya Ministries';
 
 /**
  * Church branding block -- Day 5 built this static/hardcoded ("the admin

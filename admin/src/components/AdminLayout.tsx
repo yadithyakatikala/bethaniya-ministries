@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { ADMIN_TITLE, PRODUCT_NAME } from '../theme/brand';
 import { useAuthStore } from '../store/authStore';
 
 const DRAWER_WIDTH = 250;
@@ -106,12 +107,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             height: 34,
           }}
         >
-          B
+          {PRODUCT_NAME.charAt(0)}
         </Avatar>
         <Typography
           sx={{ color: '#fff', fontFamily: 'Newsreader, serif', fontWeight: 600 }}
         >
-          Bethaniya Admin
+          {ADMIN_TITLE}
         </Typography>
       </Box>
       <Divider sx={{ borderColor: SIDEBAR_BORDER }} />
@@ -197,7 +198,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" sx={{ ml: 2, fontFamily: 'Newsreader, serif' }}>
-            Bethaniya Admin
+            {ADMIN_TITLE}
           </Typography>
         </Toolbar>
       </AppBar>

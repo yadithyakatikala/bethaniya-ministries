@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
+import { DEFAULT_CHURCH_NAME } from '../../../theme/brand';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { lightTokens } from '../../../theme';
 import { translate } from '../../../i18n';
@@ -312,10 +313,13 @@ describe('HomeScreen', () => {
     expect(queryByText('Custom description from settings.')).toBeNull();
   });
 
-  it('falls back to the default church name when no settings document exists', async () => {
+  it('falls back to the product name when no settings document exists', async () => {
+    // Reads the constant rather than repeating the literal, so a future
+    // rename cannot leave this test asserting a name the app no longer uses.
     signedIn();
     const { getByText } = await renderHomeScreen();
-    await waitFor(() => expect(getByText('Bethaniya Ministries')).toBeTruthy());
+    await waitFor(() => expect(getByText(DEFAULT_CHURCH_NAME)).toBeTruthy());
+    expect(DEFAULT_CHURCH_NAME).toBe('Maranatha');
   });
 
   // --- The tagline is gone (V1 tester feedback) -----------------------

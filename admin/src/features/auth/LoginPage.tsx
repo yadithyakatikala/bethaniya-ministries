@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Alert, Box, Button, Link, Paper, TextField, Typography } from '@mui/material';
+import { ADMIN_TITLE } from '../../theme/brand';
 import { useAuthStore } from '../../store/authStore';
 import { sendPasswordReset } from '../../services/firebase/authService';
 
@@ -68,7 +69,9 @@ export function LoginPage() {
       await sendPasswordReset(email);
       setResetSent(true);
     } catch {
-      setResetError('Could not send the reset email. Please check the address and try again.');
+      setResetError(
+        'Could not send the reset email. Please check the address and try again.'
+      );
     } finally {
       setResetSubmitting(false);
     }
@@ -131,7 +134,7 @@ export function LoginPage() {
     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
       <Paper sx={{ p: 4, width: 360 }} component="form" onSubmit={handleSubmit}>
         <Typography variant="h5" component="h1" gutterBottom>
-          Bethaniya Ministries — Admin
+          {ADMIN_TITLE}
         </Typography>
 
         {authErrorMessage ? (

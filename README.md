@@ -1,6 +1,21 @@
-# Bethaniya Ministries
+# Maranatha
 
-Bethaniya Ministries is a church digital platform consisting of three parts:
+**Maranatha** (renamed from "Bethaniya Ministries" in V2) is a church
+digital platform consisting of three parts:
+
+> **Naming note.** `Maranatha` is the product name users see. Every
+> technical identifier keeps its original value permanently, because
+> changing one would orphan existing installs, accounts and data: the
+> Android/iOS id `com.bethaniyaministries.app`, the Expo slug
+> `bethaniya-ministries`, the deep-link schemes, the Firebase project ids
+> (`bethaniyaministries-production`, `bethaniya-ministries-dev-58588`),
+> the `BETHANIYA_UPLOAD_*` release-signing properties, and all Firestore
+> collection and field names. The product name is defined once per app,
+> in `mobile/src/theme/brand.ts` and `admin/src/theme/brand.ts`.
+>
+> The *church's* name is separate: it is content an admin edits in the
+> dashboard and stores at `settings/church` in Firestore, and it is
+> untouched by the rename.
 
 - **Mobile app** — React Native + Expo (iOS + Android): home feed, Bible
   reader (real Telugu — Indian Revised Version 2019 — text by default,
