@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigationRef } from '../../../navigation/AppNavigator';
+import { navigationRef } from '../../../navigation/navigationRef';
 import { getNotificationHistory } from '../../../features/notifications/notificationHistory';
 import {
   configureNotificationHandler,
@@ -9,7 +9,11 @@ import {
   useNotificationListeners,
 } from '../notificationService';
 
-jest.mock('../../../navigation/AppNavigator', () => ({
+// Mocks the ref's own module, not AppNavigator. The ref moved out of
+// AppNavigator in M3 so a service no longer imports the screen tree to
+// reach it -- which also means this test no longer has to stub every
+// screen in the app to stub one ref. See navigation/navigationRef.ts.
+jest.mock('../../../navigation/navigationRef', () => ({
   navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn() },
 }));
 

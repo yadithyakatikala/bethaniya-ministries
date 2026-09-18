@@ -84,7 +84,7 @@ export function TabBar({
   activeRoute: string | undefined;
   onNavigate: (route: TabRouteName) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, type } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   return (
@@ -126,7 +126,7 @@ export function TabBar({
               // push the bar taller on one item only; clipping one line
               // keeps all five the same height.
               numberOfLines={1}
-              style={[styles.label, { color: tint }, active ? styles.labelActive : null]}
+              style={[type.caption, { color: tint }, active ? styles.labelActive : null]}
             >
               {label}
             </Text>
@@ -157,6 +157,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 2,
   },
-  label: { fontSize: 10.5, fontWeight: '500' },
+  // The only local text override in the app: the ACTIVE tab's label is
+  // heavier, so selection is carried by weight as well as by colour.
   labelActive: { fontWeight: '700' },
 });

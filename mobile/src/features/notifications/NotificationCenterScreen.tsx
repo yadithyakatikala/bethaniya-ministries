@@ -54,7 +54,7 @@ function formatTimestamp(iso: string, appLanguage: BibleLanguage): string {
  */
 export function NotificationCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   const [history, setHistory] = useState<NotificationHistoryEntry[] | undefined>(
     undefined
@@ -188,7 +188,7 @@ export function NotificationCenterScreen() {
               ) : null}
               <Text
                 style={[
-                  styles.title,
+                  type.label,
                   { color: colors.text },
                   isUnread ? styles.titleUnread : null,
                 ]}
@@ -196,10 +196,10 @@ export function NotificationCenterScreen() {
                 {entry.title}
               </Text>
             </View>
-            <Text style={[styles.body, { color: colors.secondaryText }]}>
+            <Text style={[type.bodySmall, { color: colors.secondaryText }]}>
               {entry.message}
             </Text>
-            <Text style={[styles.timestamp, { color: colors.secondaryText }]}>
+            <Text style={[type.caption, { color: colors.secondaryText }]}>
               {formatTimestamp(entry.receivedAt, appLanguage)}
             </Text>
           </TouchableOpacity>
@@ -219,8 +219,5 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   unreadDot: { width: 8, height: 8, borderRadius: 4 },
-  title: { fontSize: 15, fontWeight: '600' },
   titleUnread: { fontWeight: '700' },
-  body: { fontSize: 14 },
-  timestamp: { fontSize: 12 },
 });

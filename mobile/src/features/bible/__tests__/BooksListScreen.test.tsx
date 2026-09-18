@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import { darkTokens, lightTokens } from '../../../theme/tokens';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { BooksListScreen } from '../BooksListScreen';
@@ -125,7 +126,7 @@ describe('BooksListScreen', () => {
     const { getByTestId } = await renderScreen();
     const list = getByTestId('bible-books-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#FAF7F1');
+    expect(flatStyle.backgroundColor).toBe(lightTokens.paper);
   });
 
   it('renders with dark-mode colors when the device is in dark mode', async () => {
@@ -133,6 +134,6 @@ describe('BooksListScreen', () => {
     const { getByTestId } = await renderScreen();
     const list = getByTestId('bible-books-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#141A17');
+    expect(flatStyle.backgroundColor).toBe(darkTokens.paper);
   });
 });

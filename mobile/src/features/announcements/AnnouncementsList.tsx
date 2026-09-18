@@ -41,7 +41,7 @@ import {
  */
 export function AnnouncementsList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<PublishedAnnouncement[] | null>(
     null
@@ -119,11 +119,9 @@ export function AnnouncementsList() {
             />
           )}
           <View style={styles.textColumn}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {announcement.title}
-            </Text>
+            <Text style={[type.label, { color: colors.text }]}>{announcement.title}</Text>
             <Text
-              style={[styles.content, { color: colors.secondaryText }]}
+              style={[type.bodySmall, { color: colors.secondaryText }]}
               numberOfLines={2}
             >
               {announcement.content}
@@ -146,6 +144,4 @@ const styles = StyleSheet.create({
   thumbnail: { width: 56, height: 56 },
   thumbnailPlaceholder: { width: 56, height: 56 },
   textColumn: { flex: 1, gap: 3 },
-  title: { fontWeight: '600', fontSize: 15 },
-  content: { fontSize: 13.5, lineHeight: 19 },
 });

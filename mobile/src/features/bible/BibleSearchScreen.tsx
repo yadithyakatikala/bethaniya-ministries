@@ -38,7 +38,7 @@ export function BibleSearchScreen({ navigation }: Props) {
   // Bible (Telugu) -- searching both and merging results is a separate
   // feature, not something to fake here.
   const searchLanguage = primaryBibleLanguage(bibleMode);
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
 
@@ -95,13 +95,13 @@ export function BibleSearchScreen({ navigation }: Props) {
 
       {trimmedQuery.length === 0 ? (
         <View style={styles.centered} testID="bible-search-empty-query">
-          <Text style={[styles.message, { color: colors.secondaryText }]}>
+          <Text style={[type.body, styles.message, { color: colors.secondaryText }]}>
             {t('bible.searchPrompt')}
           </Text>
         </View>
       ) : results.length === 0 ? (
         <View style={styles.centered} testID="bible-search-no-results">
-          <Text style={[styles.message, { color: colors.secondaryText }]}>
+          <Text style={[type.body, styles.message, { color: colors.secondaryText }]}>
             {t('bible.noResults', { query: trimmedQuery })}
           </Text>
         </View>
@@ -154,10 +154,9 @@ const styles = StyleSheet.create({
     height: 46,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
-    fontSize: 15,
   },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 32 },
-  message: { textAlign: 'center', fontSize: 14 },
+  message: { textAlign: 'center' },
   resultsContent: { gap: 10, paddingBottom: 24 },
   resultItem: {
     borderWidth: StyleSheet.hairlineWidth,

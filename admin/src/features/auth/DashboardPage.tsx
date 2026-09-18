@@ -7,6 +7,7 @@ import { subscribeToEvents } from '../../services/firebase/events';
 import { subscribeToDailyVerses } from '../../services/firebase/dailyVerses';
 import { subscribeToNotificationLog } from '../../services/firebase/notifications';
 import type { Announcement, Event, NotificationLogEntry, Song } from '../../types';
+import { adminColors } from '../../theme/tokens';
 
 function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -32,9 +33,7 @@ function StatCard({
       <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary' }}>
         {label}
       </Typography>
-      <Typography
-        sx={{ fontFamily: 'Newsreader, serif', fontSize: 28, fontWeight: 500, mt: 0.5 }}
-      >
+      <Typography variant="h2" sx={{ mt: 0.5 }}>
         {value}
       </Typography>
       {detail ? (
@@ -136,8 +135,8 @@ export function DashboardPage() {
       {liveEvent ? (
         <Paper
           sx={{
-            bgcolor: '#C0392B',
-            color: '#fff',
+            bgcolor: adminColors.danger,
+            color: adminColors.onPrimary,
             p: 3,
             borderRadius: 3,
             mb: 3,
@@ -154,14 +153,12 @@ export function DashboardPage() {
               size="small"
               sx={{
                 bgcolor: 'rgba(255,255,255,0.16)',
-                color: '#fff',
+                color: adminColors.onPrimary,
                 fontWeight: 700,
                 mb: 1,
               }}
             />
-            <Typography sx={{ fontFamily: 'Newsreader, serif', fontSize: 20 }}>
-              {liveEvent.title}
-            </Typography>
+            <Typography variant="h4">{liveEvent.title}</Typography>
           </Box>
         </Paper>
       ) : null}

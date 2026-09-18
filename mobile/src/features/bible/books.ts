@@ -61,7 +61,7 @@ export const OLD_TESTAMENT_BOOKS: BibleBook[] = [
   {
     id: 'deuteronomy',
     name: 'Deuteronomy',
-    nameTe: 'ద్వితీయోపదేశకాండమ',
+    nameTe: 'ద్వితీయోపదేశకాండము',
     testament: 'OT',
     order: 5,
     chapterCount: 34,

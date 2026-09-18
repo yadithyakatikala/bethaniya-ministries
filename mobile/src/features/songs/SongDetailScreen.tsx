@@ -24,7 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SongDetail'>;
  */
 export function SongDetailScreen({ route }: Props) {
   const { song } = route.params;
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -64,8 +64,10 @@ export function SongDetailScreen({ route }: Props) {
       )}
 
       <View style={styles.titleBlock}>
-        <Text style={[styles.title, { color: colors.text }]}>{song.title}</Text>
-        <Text style={[styles.artist, { color: colors.secondaryText }]}>
+        <Text style={[type.headline, styles.title, { color: colors.text }]}>
+          {song.title}
+        </Text>
+        <Text style={[type.body, styles.artist, { color: colors.secondaryText }]}>
           {song.artist}
         </Text>
       </View>
@@ -86,10 +88,7 @@ export function SongDetailScreen({ route }: Props) {
         ]}
       >
         <Text
-          style={[
-            styles.favoriteLabel,
-            { color: isFavorite ? colors.onPrimary : colors.accent },
-          ]}
+          style={[type.label, { color: isFavorite ? colors.onPrimary : colors.accent }]}
         >
           {t(isFavorite ? 'songs.favoritedState' : 'songs.favoriteAction')}
         </Text>
@@ -108,7 +107,7 @@ export function SongDetailScreen({ route }: Props) {
           },
         ]}
       >
-        <Text style={[styles.lyrics, { color: colors.text }]} testID="song-lyrics">
+        <Text style={[type.bodyLarge, { color: colors.text }]} testID="song-lyrics">
           {song.lyrics}
         </Text>
       </View>
@@ -121,8 +120,8 @@ const styles = StyleSheet.create({
   cover: { width: 180, height: 180 },
   coverPlaceholder: { width: 180, height: 180 },
   titleBlock: { alignItems: 'center', gap: 2 },
-  title: { fontSize: 22, fontWeight: '600', textAlign: 'center' },
-  artist: { fontSize: 14, textAlign: 'center' },
+  title: { textAlign: 'center' },
+  artist: { textAlign: 'center' },
   favoriteButton: {
     minHeight: 40,
     paddingHorizontal: 18,
@@ -130,7 +129,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  favoriteLabel: { fontSize: 14, fontWeight: '600' },
   lyricsBox: { width: '100%', borderWidth: StyleSheet.hairlineWidth },
-  lyrics: { fontSize: 16, lineHeight: 25 },
 });

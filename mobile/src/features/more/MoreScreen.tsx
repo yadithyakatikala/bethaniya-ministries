@@ -19,7 +19,7 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 export function MoreScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
 
   // The final fallback is a WORD rather than a name, so it is translated:
@@ -47,13 +47,15 @@ export function MoreScreen() {
         ]}
       >
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.avatarLabel, { color: colors.onPrimary }]}>
+          <Text style={[type.title, { color: colors.onPrimary }]}>
             {displayLabel.charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.profileName, { color: colors.text }]}>{displayLabel}</Text>
-          <Text style={[styles.profileHint, { color: colors.secondaryText }]}>
+          <Text style={[type.label, { color: colors.text }]}>{displayLabel}</Text>
+          <Text
+            style={[type.caption, styles.profileHint, { color: colors.secondaryText }]}
+          >
             {t('more.viewProfile')}
           </Text>
         </View>
@@ -78,7 +80,7 @@ export function MoreScreen() {
             onPress={() => navigation.navigate('PlansList')}
             style={[styles.row, { padding: spacing.md }]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>
+            <Text style={[type.label, { color: colors.text }]}>
               {t('more.readingPlans')}
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
@@ -93,9 +95,7 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>
-              {t('more.prayers')}
-            </Text>
+            <Text style={[type.label, { color: colors.text }]}>{t('more.prayers')}</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
           <Tappable
@@ -108,7 +108,7 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>
+            <Text style={[type.label, { color: colors.text }]}>
               {t('more.community')}
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
@@ -134,7 +134,7 @@ export function MoreScreen() {
             onPress={() => navigation.navigate('NotificationCenter')}
             style={[styles.row, { padding: spacing.md }]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>
+            <Text style={[type.label, { color: colors.text }]}>
               {t('more.notifications')}
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
@@ -149,9 +149,7 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
-            <Text style={[styles.rowLabel, { color: colors.text }]}>
-              {t('more.settings')}
-            </Text>
+            <Text style={[type.label, { color: colors.text }]}>{t('more.settings')}</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
         </View>
@@ -175,9 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLabel: { fontSize: 19, fontWeight: '600' },
-  profileName: { fontSize: 16, fontWeight: '600' },
-  profileHint: { fontSize: 12.5, marginTop: 2 },
+  profileHint: { marginTop: 2 },
   section: { gap: 12 },
   card: { borderWidth: StyleSheet.hairlineWidth },
   row: {
@@ -187,7 +183,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   divider: { borderTopWidth: StyleSheet.hairlineWidth },
-  rowLabel: { fontSize: 15, fontWeight: '500' },
   chevron: {
     width: 8,
     height: 8,

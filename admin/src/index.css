@@ -1,3 +1,5 @@
+@import './theme/fonts.css';
+
 /**
  * Global reset -- the Vite starter's leftover CSS (a purple `--accent`,
  * a centered/text-align:center 1126px `#root`, decorative `#social`/

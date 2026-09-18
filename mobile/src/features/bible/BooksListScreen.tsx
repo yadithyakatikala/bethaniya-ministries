@@ -37,7 +37,7 @@ const SECTIONS: { id: string; titleKey: StringKey; data: BibleBook[] }[] = [
  * Every testID is unchanged.
  */
 export function BooksListScreen({ navigation }: Props) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   // Book names label scripture, so they follow the BIBLE preference --
   // not the interface language. See bookNameLanguageFor().
@@ -65,7 +65,7 @@ export function BooksListScreen({ navigation }: Props) {
           ]}
         >
           <View style={[styles.searchIcon, { borderColor: colors.secondaryText }]} />
-          <Text style={[styles.searchLabel, { color: colors.secondaryText }]}>
+          <Text style={[type.body, { color: colors.secondaryText }]}>
             {t('bible.searchPlaceholder')}
           </Text>
         </Tappable>
@@ -76,7 +76,7 @@ export function BooksListScreen({ navigation }: Props) {
             style={[styles.sectionHeader, { backgroundColor: colors.primaryTint }]}
             testID={`bible-section-${section.id}`}
           >
-            <Text style={[styles.sectionHeaderText, { color: colors.primaryPressed }]}>
+            <Text style={[type.overline, { color: colors.primaryPressed }]}>
               {t(section.titleKey)}
             </Text>
           </View>
@@ -91,7 +91,7 @@ export function BooksListScreen({ navigation }: Props) {
                   directly is what made this screen list 66 English book
                   names while the Telugu Bible was selected and Telugu
                   verse text rendered underneath. */}
-              <Text style={[styles.bookName, { color: colors.text }]}>
+              <Text style={[type.bodyLarge, { color: colors.text }]}>
                 {getBookName(book, bookNameLanguage)}
               </Text>
             </TouchableOpacity>
@@ -115,18 +115,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   searchIcon: { width: 13, height: 13, borderRadius: 7, borderWidth: 1.6 },
-  searchLabel: { fontSize: 14.5 },
   sectionHeader: { paddingHorizontal: 20, paddingVertical: 8 },
-  sectionHeaderText: {
-    fontWeight: '700',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
   item: {
     paddingHorizontal: 20,
     paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  bookName: { fontSize: 15 },
 });

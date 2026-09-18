@@ -19,7 +19,7 @@ import {
 export function DailyVerseCard() {
   const [verse, setVerse] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
-  const { colors } = useTheme();
+  const { colors, type } = useTheme();
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -92,8 +92,10 @@ export function DailyVerseCard() {
           accessibilityIgnoresInvertColors
         />
       ) : null}
-      <Text style={[styles.text, { color: colors.text }]}>{verse.text}</Text>
-      <Text style={[styles.reference, { color: colors.accent }]}>{verse.reference}</Text>
+      <Text style={[type.bodyLarge, { color: colors.text }]}>{verse.text}</Text>
+      <Text style={[type.scriptureReference, { color: colors.accent }]}>
+        {verse.reference}
+      </Text>
     </View>
   );
 }
@@ -111,7 +113,5 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     borderRadius: 8,
   },
-  text: { fontSize: 18, lineHeight: 29 },
-  reference: { fontSize: 14, fontWeight: '600' },
   message: { textAlign: 'center' },
 });

@@ -14,7 +14,7 @@ import { useTranslation } from '../../i18n';
  * here.
  */
 export function LoadingScreen() {
-  const { colors } = useTheme();
+  const { colors, type } = useTheme();
   const { t } = useTranslation();
   return (
     <View
@@ -22,12 +22,11 @@ export function LoadingScreen() {
       testID="auth-loading-screen"
     >
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.text, { color: colors.secondaryText }]}>{t('common.loading')}</Text>
+      <Text style={[type.body, { color: colors.secondaryText }]}>{t('common.loading')}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  text: { fontSize: 14 },
 });

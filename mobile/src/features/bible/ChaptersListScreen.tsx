@@ -20,7 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapters'>;
  */
 export function ChaptersListScreen({ route, navigation }: Props) {
   const { bookId } = route.params;
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   const book = getBookById(bookId);
 
@@ -64,9 +64,7 @@ export function ChaptersListScreen({ route, navigation }: Props) {
             navigation.navigate('BibleChapter', { bookId: book.id, chapterNumber })
           }
         >
-          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }}>
-            {chapterNumber}
-          </Text>
+          <Text style={[type.label, { color: colors.ink }]}>{chapterNumber}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>

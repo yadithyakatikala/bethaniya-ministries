@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
-import { useTheme } from './src/theme';
+import { useAppFonts, useTheme } from './src/theme';
 import { LoadingScreen } from './src/features/auth/LoadingScreen';
 import { SignInScreen } from './src/features/auth/SignInScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -48,12 +49,34 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <PreferencesProvider>
-          <AuthGate />
+          <FontGate>
+            <AuthGate />
+          </FontGate>
           <ThemedStatusBar />
         </PreferencesProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * Holds the first real render until the bundled typefaces have
+ * registered -- M3.
+ *
+ * Without this the app paints one frame in the system font and then
+ * reflows as eight faces arrive, which on a page of verses is a visible
+ * jump.
+ *
+ * It waits for the load to SETTLE, not to succeed: useAppFonts() reports
+ * `ready` either way, and a failure leaves React Native falling back to
+ * the system font -- exactly how the app looked before M3. A font that
+ * failed to register is not a reason to show a congregation a dead
+ * screen. See src/theme/fonts.ts.
+ */
+function FontGate({ children }: { children: ReactNode }) {
+  const { ready } = useAppFonts();
+  if (!ready) return <LoadingScreen />;
+  return <>{children}</>;
 }
 
 /**

@@ -26,7 +26,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlanDay'>;
 export function PlanDayScreen({ route }: Props) {
   const { plan, dayNumber } = route.params;
   const { user } = useAuth();
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, type } = useTheme();
   const { t } = useTranslation();
   const uid = user?.uid ?? null;
 
@@ -98,7 +98,7 @@ export function PlanDayScreen({ route }: Props) {
         style={[styles.center, { backgroundColor: colors.background, gap: spacing.lg }]}
         testID="plan-day-error"
       >
-        <Text style={[styles.centerMessage, { color: colors.secondaryText }]}>
+        <Text style={[type.body, styles.centerMessage, { color: colors.secondaryText }]}>
           {t('plans.dayLoadError')}
         </Text>
       </View>
@@ -135,13 +135,13 @@ export function PlanDayScreen({ route }: Props) {
       ]}
       testID="plan-day-screen"
     >
-      <Text style={[styles.scripture, { color: colors.primary }]}>
+      <Text style={[type.overline, { color: colors.primary }]}>
         {day.scriptureReference}
       </Text>
-      <Text style={[styles.title, { color: colors.text }]} testID="plan-day-title">
+      <Text style={[type.headline, { color: colors.text }]} testID="plan-day-title">
         {day.title}
       </Text>
-      <Text style={[styles.devotional, { color: colors.text }]}>{day.devotional}</Text>
+      <Text style={[type.bodyLarge, { color: colors.text }]}>{day.devotional}</Text>
 
       {day.prayerPrompt ? (
         <View
@@ -150,12 +150,10 @@ export function PlanDayScreen({ route }: Props) {
             { backgroundColor: colors.primaryTint, padding: spacing.md, gap: spacing.xs },
           ]}
         >
-          <Text style={[styles.promptLabel, { color: colors.primary }]}>
+          <Text style={[type.overline, { color: colors.primary }]}>
             {t('plans.prayerPrompt')}
           </Text>
-          <Text style={[styles.promptText, { color: colors.text }]}>
-            {day.prayerPrompt}
-          </Text>
+          <Text style={[type.body, { color: colors.text }]}>{day.prayerPrompt}</Text>
         </View>
       ) : null}
 
@@ -178,22 +176,7 @@ export function PlanDayScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  centerMessage: { textAlign: 'center', fontSize: 14, lineHeight: 20 },
+  centerMessage: { textAlign: 'center' },
   container: { flexGrow: 1 },
-  scripture: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  title: { fontSize: 22, fontWeight: '700' },
-  devotional: { fontSize: 16, lineHeight: 25 },
   promptCard: { borderRadius: 12 },
-  promptLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  promptText: { fontSize: 15, lineHeight: 22 },
 });

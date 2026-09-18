@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import { darkTokens } from '../../../theme/tokens';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { ChaptersListScreen } from '../ChaptersListScreen';
@@ -74,6 +75,6 @@ describe('ChaptersListScreen', () => {
     const { getByTestId } = await renderScreen('genesis');
     const list = getByTestId('bible-chapters-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
-    expect(flatStyle.backgroundColor).toBe('#141A17');
+    expect(flatStyle.backgroundColor).toBe(darkTokens.paper);
   });
 });

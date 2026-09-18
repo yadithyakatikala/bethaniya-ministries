@@ -46,7 +46,7 @@ function formatDate(date: Date | null, appLanguage: BibleLanguage): string {
  */
 export function PrayersScreen() {
   const { user } = useAuth();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   const uid = user?.uid ?? null;
 
@@ -213,8 +213,8 @@ export function PrayersScreen() {
                 },
               ]}
             >
-              <Text style={[styles.prayerText, { color: colors.text }]}>{item.text}</Text>
-              <Text style={[styles.meta, { color: colors.secondaryText }]}>
+              <Text style={[type.body, { color: colors.text }]}>{item.text}</Text>
+              <Text style={[type.caption, { color: colors.secondaryText }]}>
                 {formatDate(item.createdAt, appLanguage)}
                 {item.answered ? ` • ${t('prayers.answered')}` : ''}
               </Text>
@@ -229,7 +229,7 @@ export function PrayersScreen() {
                     { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Text style={[styles.actionLabel, { color: colors.primary }]}>
+                  <Text style={[type.label, { color: colors.primary }]}>
                     {item.answered
                       ? t('prayers.markUnanswered')
                       : t('prayers.markAnswered')}
@@ -248,7 +248,7 @@ export function PrayersScreen() {
                     { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Text style={[styles.actionLabel, { color: colors.danger }]}>
+                  <Text style={[type.label, { color: colors.danger }]}>
                     {t('common.delete')}
                   </Text>
                 </Pressable>
@@ -269,16 +269,12 @@ const styles = StyleSheet.create({
   composer: { borderBottomWidth: StyleSheet.hairlineWidth },
   input: {
     minHeight: 80,
-    fontSize: 15,
     textAlignVertical: 'top',
     borderWidth: StyleSheet.hairlineWidth,
   },
   row: { borderWidth: StyleSheet.hairlineWidth },
-  prayerText: { fontSize: 15, lineHeight: 22 },
-  meta: { fontSize: 12.5 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   // A bare 13px label is an ~18dp tap target. 44 is the smallest target
   // both Android and iOS accessibility guidance accept.
   actionButton: { minHeight: 44, justifyContent: 'center' },
-  actionLabel: { fontSize: 13, fontWeight: '600' },
 });

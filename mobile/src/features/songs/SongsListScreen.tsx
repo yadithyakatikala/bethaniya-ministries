@@ -32,7 +32,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SongsList'>;
  * PreferencesProvider the same way other theme-migrated screens do.
  */
 export function SongsListScreen({ navigation }: Props) {
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const [songs, setSongs] = useState<PublishedSong[] | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -121,8 +121,8 @@ export function SongsListScreen({ navigation }: Props) {
             />
           )}
           <View style={styles.textColumn}>
-            <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-            <Text style={[styles.artist, { color: colors.secondaryText }]}>
+            <Text style={[type.label, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[type.bodySmall, { color: colors.secondaryText }]}>
               {item.artist}
             </Text>
           </View>
@@ -145,6 +145,4 @@ const styles = StyleSheet.create({
   cover: { width: 52, height: 52 },
   coverPlaceholder: { width: 52, height: 52 },
   textColumn: { flex: 1, gap: 2 },
-  title: { fontWeight: '600', fontSize: 15 },
-  artist: { fontSize: 13 },
 });

@@ -7,6 +7,8 @@ import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
+import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
+import { Divider } from '../../theme/ui/Divider';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { BibleLanguage, BibleMode } from '../bible/types';
@@ -53,7 +55,7 @@ export function SettingsScreen() {
     setThemePreference,
     setNotificationsEnabled,
   } = usePreferences();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
 
   /**
@@ -106,56 +108,48 @@ export function SettingsScreen() {
             a two-state switch cannot express the options, and naming every
             option is clearer than asking the user to cycle to find it. */}
         <View style={[styles.pickerRow, { padding: spacing.md }]}>
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {t('settings.appLanguage')}
           </Text>
-          <Text style={[styles.help, { color: colors.secondaryText }]}>
+          <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
             {t('settings.appLanguageHelp')}
           </Text>
           <SegmentedChoice
             testID="settings-app-language"
+            accessibilityLabel={t('settings.appLanguage')}
             options={[
-              { value: 'en', label: t('settings.languageEnglish') },
-              { value: 'te', label: t('settings.languageTelugu') },
+              { value: 'en' as BibleLanguage, label: t('settings.languageEnglish') },
+              { value: 'te' as BibleLanguage, label: t('settings.languageTelugu') },
             ]}
             selected={appLanguage}
-            onSelect={(value) => void setAppLanguage(value as BibleLanguage)}
+            onSelect={(value) => void setAppLanguage(value)}
           />
         </View>
 
-        <View
-          style={[
-            styles.pickerRow,
-            styles.divider,
-            { borderTopColor: colors.border, padding: spacing.md },
-          ]}
-        >
-          <Text style={[styles.label, { color: colors.text }]}>
+        <Divider />
+        <View style={[styles.pickerRow, { padding: spacing.md }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {t('settings.bibleLanguage')}
           </Text>
-          <Text style={[styles.help, { color: colors.secondaryText }]}>
+          <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
             {t('settings.bibleLanguageHelp')}
           </Text>
           <SegmentedChoice
             testID="settings-bible-language"
+            accessibilityLabel={t('settings.bibleLanguage')}
             options={[
-              { value: 'te', label: t('bible.modeTelugu') },
-              { value: 'en', label: t('bible.modeEnglish') },
-              { value: 'bilingual', label: t('bible.modeBilingual') },
+              { value: 'te' as BibleMode, label: t('bible.modeTelugu') },
+              { value: 'en' as BibleMode, label: t('bible.modeEnglish') },
+              { value: 'bilingual' as BibleMode, label: t('bible.modeBilingual') },
             ]}
             selected={bibleMode}
-            onSelect={(value) => void setBibleMode(value as BibleMode)}
+            onSelect={(value) => void setBibleMode(value)}
           />
         </View>
 
-        <View
-          style={[
-            styles.row,
-            styles.divider,
-            { borderTopColor: colors.border, padding: spacing.md },
-          ]}
-        >
-          <Text style={[styles.label, { color: colors.text }]}>
+        <Divider />
+        <View style={[styles.row, { padding: spacing.md }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {`${t('settings.theme')}: ${
               themePreference === 'dark'
                 ? t('settings.themeDark')
@@ -174,14 +168,9 @@ export function SettingsScreen() {
           />
         </View>
 
-        <View
-          style={[
-            styles.row,
-            styles.divider,
-            { borderTopColor: colors.border, padding: spacing.md },
-          ]}
-        >
-          <Text style={[styles.label, { color: colors.text }]}>
+        <Divider />
+        <View style={[styles.row, { padding: spacing.md }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {t('settings.notifications')}
           </Text>
           <Switch
@@ -206,10 +195,10 @@ export function SettingsScreen() {
       >
         <View style={[styles.row, { padding: spacing.md }]} testID="settings-support-row">
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.label, { color: colors.text }]}>
+            <Text style={[type.label, { color: colors.ink }]}>
               {t('settings.contactChurch')}
             </Text>
-            <Text style={[styles.supportEmail, { color: colors.secondaryText }]}>
+            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
               {supportEmail === null ? '' : supportEmail || t('settings.notSetYet')}
             </Text>
           </View>
@@ -229,13 +218,13 @@ export function SettingsScreen() {
       >
         <View style={[styles.row, { padding: spacing.md }]}>
           <View style={{ flex: 1, gap: 6 }}>
-            <Text style={[styles.label, { color: colors.text }]}>
+            <Text style={[type.label, { color: colors.ink }]}>
               {t('settings.bibleTranslations')}
             </Text>
-            <Text style={[styles.attributionText, { color: colors.secondaryText }]}>
+            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
               English: World English Bible (public domain).
             </Text>
-            <Text style={[styles.attributionText, { color: colors.secondaryText }]}>
+            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
               Telugu: Indian Revised Version (IRV) 2019, © Bridge Connectivity Solutions,
               licensed under CC BY-SA 4.0 (creativecommons.org/licenses/by-sa/4.0/).
             </Text>
@@ -259,28 +248,25 @@ export function SettingsScreen() {
           onPress={() => navigation.navigate('PrivacyPolicy')}
           style={[styles.row, { padding: spacing.md }]}
         >
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {t('settings.privacyPolicy')}
           </Text>
-          <Text style={[styles.action, { color: colors.primary }]}>
+          <Text style={[type.label, { color: colors.primary }]}>
             {t('settings.view')}
           </Text>
         </Tappable>
 
+        <Divider />
         <Tappable
           testID="settings-terms-row"
           accessibilityRole="button"
           onPress={() => navigation.navigate('Terms')}
-          style={[
-            styles.row,
-            styles.divider,
-            { borderTopColor: colors.border, padding: spacing.md },
-          ]}
+          style={[styles.row, { padding: spacing.md }]}
         >
-          <Text style={[styles.label, { color: colors.text }]}>
+          <Text style={[type.label, { color: colors.ink }]}>
             {t('settings.terms')}
           </Text>
-          <Text style={[styles.action, { color: colors.primary }]}>
+          <Text style={[type.label, { color: colors.primary }]}>
             {t('settings.view')}
           </Text>
         </Tappable>
@@ -295,7 +281,7 @@ export function SettingsScreen() {
           { borderColor: colors.liveTint, borderRadius: radii.control },
         ]}
       >
-        <Text style={[styles.logoutLabel, { color: colors.danger }]}>
+        <Text style={[type.label, { color: colors.danger }]}>
           {t('settings.logOut')}
         </Text>
       </Tappable>
@@ -311,84 +297,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  divider: { borderTopWidth: StyleSheet.hairlineWidth },
-  label: { fontSize: 15, fontWeight: '500' },
   // A picker row stacks label / explanation / choices, so unlike the
   // switch rows it is a column rather than a space-between row.
   pickerRow: { gap: 8 },
-  help: { fontSize: 12.5, lineHeight: 18 },
-  segment: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 2 },
-  segmentOption: {
-    minHeight: 44,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-    borderWidth: 1.5,
-  },
-  segmentLabel: { fontSize: 14, fontWeight: '600' },
-  action: { fontSize: 14, fontWeight: '600' },
-  supportEmail: { fontSize: 13 },
-  attributionText: { fontSize: 12.5, lineHeight: 18 },
   logoutButton: {
     minHeight: 48,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutLabel: { fontSize: 15, fontWeight: '600' },
 });
-
-/**
- * A row of named choices, one selected.
- *
- * Deliberately not a Switch: the Bible has three modes, and a two-state
- * control cannot express three. Selection is shown by fill AND border AND
- * weight, never by colour alone, matching the Badge and tab-bar rules
- * already established in this app. Each option is a 44dp target.
- */
-function SegmentedChoice({
-  testID,
-  options,
-  selected,
-  onSelect,
-}: {
-  testID: string;
-  options: { value: string; label: string }[];
-  selected: string;
-  onSelect: (value: string) => void;
-}) {
-  const { colors, radii } = useTheme();
-  return (
-    <View style={styles.segment} testID={testID} accessibilityRole="radiogroup">
-      {options.map((option) => {
-        const active = option.value === selected;
-        return (
-          <Tappable
-            key={option.value}
-            testID={`${testID}-${option.value}`}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={option.label}
-            onPress={() => onSelect(option.value)}
-            style={[
-              styles.segmentOption,
-              {
-                borderRadius: radii.control,
-                backgroundColor: active ? colors.primaryTint : 'transparent',
-                borderColor: active ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentLabel,
-                { color: active ? colors.primaryPressed : colors.secondaryText },
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Tappable>
-        );
-      })}
-    </View>
-  );
-}

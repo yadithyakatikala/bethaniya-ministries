@@ -2,33 +2,54 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../useTheme';
 
 export type BadgeVariant =
-  'live' | 'success' | 'draft' | 'featured' | 'warning' | 'neutral';
+  'live' | 'success' | 'warning' | 'error' | 'info' | 'featured' | 'neutral';
 
-/** Small status pill -- text-led, never colour-only (pair with a leading dot/icon for LIVE). */
+/**
+ * A small status pill.
+ *
+ * TEXT-LED, NEVER COLOUR-ONLY. The label always says what the state is,
+ * so a reader who cannot distinguish the hues still gets the
+ * information; `live` additionally carries a filled dot, so "live now"
+ * differs in shape as well as colour from every other badge.
+ *
+ * M3 gave `warning`, `error` and `info` their own hues. They used to
+ * share: `warning` and `featured` were literally the same two colours
+ * (`liveTint` + `accent`), and there was no `error` or `info` variant at
+ * all, so a failed save and a pinned announcement looked identical.
+ */
 export function Badge({
   label,
   variant = 'neutral',
+  testID,
 }: {
   label: string;
   variant?: BadgeVariant;
+  testID?: string;
 }) {
-  const { colors } = useTheme();
+  const { colors, radii, type } = useTheme();
 
   const palette: Record<BadgeVariant, { bg: string; fg: string }> = {
-    // `onLive`, not '#FFFFFF' -- white on the dark palette's light-coral
-    // `live` measured 2.80:1. See ../tokens.ts.
+    // Solid, because live is the one state that should pull the eye.
     live: { bg: colors.live, fg: colors.onLive },
-    success: { bg: colors.primaryTint, fg: colors.primaryPressed },
-    draft: { bg: colors.surfaceRaised, fg: colors.inkMuted },
-    featured: { bg: colors.liveTint, fg: colors.accent },
-    warning: { bg: colors.liveTint, fg: colors.accent },
+    success: { bg: colors.successTint, fg: colors.success },
+    warning: { bg: colors.warningTint, fg: colors.warning },
+    error: { bg: colors.dangerTint, fg: colors.danger },
+    info: { bg: colors.infoTint, fg: colors.info },
+    featured: { bg: colors.accentTint, fg: colors.accent },
     neutral: { bg: colors.surfaceRaised, fg: colors.inkMuted },
   };
   const { bg, fg } = palette[variant];
 
   return (
-    <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.label, { color: fg }]}>{label}</Text>
+    <View
+      testID={testID}
+      style={[styles.pill, { backgroundColor: bg, borderRadius: radii.pill }]}
+      accessibilityRole="text"
+    >
+      {variant === 'live' ? <View style={[styles.dot, { backgroundColor: fg }]} /> : null}
+      <Text style={[type.caption, styles.label, { color: fg }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -36,12 +57,14 @@ export function Badge({
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
+    // A long translated label must wrap the pill, not overflow it.
+    maxWidth: '100%',
   },
-  label: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  label: { flexShrink: 1 },
 });

@@ -85,3 +85,36 @@ describe('bookNameLanguageFor', () => {
     expect(bookNameLanguageFor('bilingual', 'en')).toBe('en');
   });
 });
+
+/**
+ * Telugu book-name integrity.
+ *
+ * M3's visual QA caught Deuteronomy rendering as
+ * "ద్వితీయోపదేశకాండమ" -- one character short of
+ * "ద్వితీయోపదేశకాండము". Its four Pentateuch siblings all end in "ము",
+ * so the missing vowel sign was unambiguous. It had shipped since V1,
+ * because a truncated word in a script you do not read looks exactly
+ * like a word you do not read.
+ */
+describe('Telugu book names', () => {
+  it('spells all five books of Moses with the -కాండము ending', () => {
+    for (const id of ['genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy']) {
+      const book = getBookById(id);
+      expect(`${id}: ${book?.nameTe.endsWith('కాండము')}`).toBe(`${id}: true`);
+    }
+  });
+
+  it('names all four gospels with the సువార్త suffix', () => {
+    for (const id of ['matthew', 'mark', 'luke', 'john']) {
+      const book = getBookById(id);
+      expect(`${id}: ${book?.nameTe.endsWith('సువార్త')}`).toBe(`${id}: true`);
+    }
+  });
+
+  it('has no Telugu name padded with stray whitespace', () => {
+    for (const book of BIBLE_BOOKS) {
+      expect(book.nameTe).toBe(book.nameTe.trim());
+      expect(book.nameTe).not.toMatch(/\s{2,}/);
+    }
+  });
+});

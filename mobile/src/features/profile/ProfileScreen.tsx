@@ -75,7 +75,7 @@ export function ProfileScreen() {
   // flash the empty-profile view before the real loading state ever
   // shows.
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
 
   const [profile, setProfile] = useState<UserProfile | null | undefined>(undefined);
@@ -291,7 +291,7 @@ export function ProfileScreen() {
             ]}
             testID="profile-photo-placeholder"
           >
-            <Text style={{ color: colors.primary, fontSize: 26, fontWeight: '600' }}>
+            <Text style={[type.headline, { color: colors.primary }]}>
               {(displayProfile?.displayName ?? displayProfile?.email ?? '?')
                 .charAt(0)
                 .toUpperCase()}
@@ -307,7 +307,7 @@ export function ProfileScreen() {
         />
         {photoError ? (
           <Text
-            style={[styles.errorText, { color: colors.danger }]}
+            style={[type.bodySmall, { color: colors.danger }]}
             testID="profile-photo-error"
           >
             {photoError}
@@ -327,7 +327,7 @@ export function ProfileScreen() {
         ]}
       >
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.secondaryText }]}>
+          <Text style={[type.overline, { color: colors.secondaryText }]}>
             {t('profile.displayName')}
           </Text>
           <TextInput
@@ -356,7 +356,7 @@ export function ProfileScreen() {
           />
           {nameError ? (
             <Text
-              style={[styles.errorText, { color: colors.danger }]}
+              style={[type.bodySmall, { color: colors.danger }]}
               testID="profile-name-error"
             >
               {nameError}
@@ -364,7 +364,7 @@ export function ProfileScreen() {
           ) : null}
           {nameSaved ? (
             <Text
-              style={[styles.successText, { color: colors.success }]}
+              style={[type.bodySmall, { color: colors.success }]}
               testID="profile-name-saved"
             >
               {t('profile.saved')}
@@ -373,9 +373,9 @@ export function ProfileScreen() {
         </View>
 
         <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-          <Text style={[styles.label, { color: colors.secondaryText }]}>{t('profile.emailLabel')}</Text>
+          <Text style={[type.overline, { color: colors.secondaryText }]}>{t('profile.emailLabel')}</Text>
           <Text
-            style={[styles.readOnlyValue, { color: colors.text }]}
+            style={[type.body, { color: colors.text }]}
             testID="profile-email"
           >
             {displayProfile?.email ?? t('profile.notSet')}
@@ -392,8 +392,7 @@ export function ProfileScreen() {
           {user?.email ? (
             <>
               <Text
-                style={[
-                  styles.verificationStatus,
+                style={[type.label,
                   { color: user.emailVerified ? colors.success : colors.secondaryText },
                 ]}
                 testID="profile-email-verified-status"
@@ -412,7 +411,7 @@ export function ProfileScreen() {
                   />
                   {verificationNotice ? (
                     <Text
-                      style={[styles.successText, { color: colors.success }]}
+                      style={[type.bodySmall, { color: colors.success }]}
                       testID="profile-verification-notice"
                     >
                       {verificationNotice}
@@ -420,7 +419,7 @@ export function ProfileScreen() {
                   ) : null}
                   {verificationError ? (
                     <Text
-                      style={[styles.errorText, { color: colors.danger }]}
+                      style={[type.bodySmall, { color: colors.danger }]}
                       testID="profile-verification-error"
                     >
                       {verificationError}
@@ -444,11 +443,11 @@ export function ProfileScreen() {
             NOT owner-writable; see services/firebase/userProfile.ts). */}
         {displayProfile?.phoneNumber ? (
           <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.secondaryText }]}>
+            <Text style={[type.overline, { color: colors.secondaryText }]}>
               {t('profile.phoneNumber')}
             </Text>
             <Text
-              style={[styles.readOnlyValue, { color: colors.text }]}
+              style={[type.body, { color: colors.text }]}
               testID="profile-phone"
             >
               {displayProfile.phoneNumber}
@@ -484,20 +483,9 @@ const styles = StyleSheet.create({
   card: { borderWidth: StyleSheet.hairlineWidth, gap: 16 },
   field: { gap: 8 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16 },
-  label: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    fontSize: 16,
   },
-  readOnlyValue: { fontSize: 16 },
-  errorText: { fontSize: 13 },
-  successText: { fontSize: 13 },
-  verificationStatus: { fontSize: 13, fontWeight: '600' },
 });

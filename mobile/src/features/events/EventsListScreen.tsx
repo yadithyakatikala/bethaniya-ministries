@@ -40,7 +40,7 @@ function formatStartsAt(date: Date | null, appLanguage: BibleLanguage): string {
  * guidance) instead of bare colored text.
  */
 export function EventsListScreen({ navigation }: Props) {
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   const [events, setEvents] = useState<PublishedEvent[] | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -121,16 +121,16 @@ export function EventsListScreen({ navigation }: Props) {
               testID={`live-badge-${item.id}`}
             >
               <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
-              <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>
+              <Text style={[type.overline, { color: colors.onLive }]}>
                 {t('common.liveNow')}
               </Text>
             </View>
           ) : null}
-          <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-          <Text style={[styles.meta, { color: colors.secondaryText }]}>
+          <Text style={[type.label, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[type.bodySmall, { color: colors.secondaryText }]}>
             {formatStartsAt(item.startsAt, appLanguage)}
           </Text>
-          <Text style={[styles.meta, { color: colors.secondaryText }]}>
+          <Text style={[type.bodySmall, { color: colors.secondaryText }]}>
             {item.location}
           </Text>
         </TouchableOpacity>
@@ -144,8 +144,6 @@ const styles = StyleSheet.create({
   message: { textAlign: 'center' },
   list: { padding: 16, gap: 10 },
   item: { gap: 4 },
-  title: { fontWeight: '600', fontSize: 15 },
-  meta: { fontSize: 13 },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,9 +155,4 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  liveBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
 });

@@ -50,7 +50,7 @@ const MIN_PASSWORD_LENGTH = 6;
  */
 export function SignInScreen() {
   const { authErrorMessage, reportSignInError, clearAuthError } = useAuth();
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [mode, setMode] = useState<EmailMode>('sign-in');
@@ -154,7 +154,7 @@ export function SignInScreen() {
         >
           {/* Derived from the product name, not a hardcoded letter -- this
               was a literal 'B' for the old brand. */}
-          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>
+          <Text style={[type.headline, { color: colors.onPrimary }]}>
             {PRODUCT_NAME.charAt(0)}
           </Text>
         </View>
@@ -162,7 +162,7 @@ export function SignInScreen() {
             name, which also meant this screen stayed English under a
             Telugu app. Both now come from the catalogue, with the name
             interpolated from ../../theme/brand.ts. */}
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[type.headline, styles.title, { color: colors.text }]}>
           {t(mode === 'sign-up' ? 'auth.signUpTitle' : 'auth.signInTitle', {
             app: PRODUCT_NAME,
           })}
@@ -177,7 +177,7 @@ export function SignInScreen() {
           ]}
         >
           <Text
-            style={[styles.bannerText, { color: colors.danger }]}
+            style={[type.body, styles.bannerText, { color: colors.danger }]}
             testID="auth-error-message"
           >
             {authErrorMessage}
@@ -193,7 +193,7 @@ export function SignInScreen() {
           ]}
         >
           <Text
-            style={[styles.bannerText, { color: colors.text }]}
+            style={[type.body, styles.bannerText, { color: colors.text }]}
             testID="auth-notice-message"
           >
             {notice}
@@ -202,7 +202,7 @@ export function SignInScreen() {
       ) : null}
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: colors.secondaryText }]}>
+        <Text style={[type.overline, { color: colors.secondaryText }]}>
           {t(mode === 'reset-password' ? 'auth.resetTitle' : 'auth.email')}
         </Text>
 
@@ -351,25 +351,14 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 20 },
   brandBlock: { alignItems: 'center', gap: 14, marginBottom: 4 },
   monogram: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  monogramText: { fontSize: 24, fontWeight: '600' },
-  title: { fontSize: 21, fontWeight: '600', textAlign: 'center' },
+  title: { textAlign: 'center' },
   banner: { padding: 12 },
   section: { gap: 10 },
-  sectionLabel: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
   divider: { borderTopWidth: StyleSheet.hairlineWidth },
   input: {
     height: 48,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
-    fontSize: 15,
   },
-  bannerText: {
-    textAlign: 'center',
-    fontSize: 14,
-  },
+  bannerText: { textAlign: 'center' },
 });

@@ -7,84 +7,111 @@ import {
 } from 'react-native';
 import { useTheme } from '../useTheme';
 
-export type AppButtonVariant = 'primary' | 'secondary' | 'destructive';
+export type AppButtonVariant = 'primary' | 'secondary' | 'destructive' | 'text';
 
 interface AppButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
   variant?: AppButtonVariant;
   loading?: boolean;
+  /** Stretches to the container's width. Default for primary CTAs. */
+  fullWidth?: boolean;
 }
 
-/** Vespers button -- 48px min height, three variants, never smaller than the 44px touch minimum. */
+/**
+ * The app's button, in four variants.
+ *
+ * `text` is new in M3: the audit found six places drawing a bare
+ * `<Pressable><Text>` for a low-emphasis action (Settings' "View" rows,
+ * SectionHeader's "See all", the Bible reader's mode pill), each with
+ * its own size, colour and touch target. A named variant is one
+ * definition and one 44dp target.
+ *
+ * DISABLED IS A COLOUR, NOT AN OPACITY. This button used to fade the
+ * whole control with `opacity: 0.5`, which took the label under 3:1
+ * against its own fill -- the brief asks for readable disabled states,
+ * and a faded control is also indistinguishable from a loading one.
+ * Disabled now paints `disabledSurface`/`disabledInk`, which are tuned
+ * for this (see ../tokens.ts).
+ */
 export function AppButton({
   title,
   variant = 'primary',
   loading = false,
+  fullWidth = false,
   disabled,
   testID,
   ...props
 }: AppButtonProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type, minTouchTarget } = useTheme();
   const isDisabled = disabled || loading;
 
-  const backgroundColor =
-    variant === 'primary'
+  const filled = variant === 'primary' || variant === 'destructive';
+  const background = isDisabled
+    ? filled
+      ? colors.disabledSurface
+      : 'transparent'
+    : variant === 'primary'
       ? colors.primary
       : variant === 'destructive'
         ? colors.danger
         : 'transparent';
-  const borderColor = variant === 'secondary' ? colors.primary : 'transparent';
-  // NOT '#FFFFFF'. The dark palette's `primary` is a light sage and its
-  // `danger` a light coral, so a white label measured 2.04:1 and 2.80:1
-  // against its own button -- on the primitive that every screen's main
-  // CTA is built from. The on- tokens are dark ink in dark mode, which
-  // measures 8.66:1 and 6.31:1; light mode is unchanged. See ../tokens.ts.
-  const textColor =
-    variant === 'secondary'
-      ? colors.primary
+
+  // NOT '#FFFFFF'. `primary` and `danger` invert between the palettes,
+  // so a hardcoded white label measured 2.04:1 and 2.80:1 in dark mode
+  // -- on the primitive behind every screen's main call to action.
+  const label = isDisabled
+    ? colors.disabledInk
+    : variant === 'primary'
+      ? colors.onPrimary
       : variant === 'destructive'
         ? colors.onDanger
-        : colors.onPrimary;
+        : variant === 'secondary'
+          ? colors.primary
+          : colors.primary;
 
-  /**
-   * Pressed feedback. The button had no press state at all, so tapping a
-   * CTA that waits on Firebase looked like nothing had happened until the
-   * spinner appeared. Colour only -- no scale or translate, so there is
-   * no animation to drop frames.
-   */
+  const border = isDisabled
+    ? variant === 'secondary'
+      ? colors.border
+      : 'transparent'
+    : variant === 'secondary'
+      ? colors.borderStrong
+      : 'transparent';
+
+  /** Pressed feedback. Colour only -- nothing to animate, no dropped frames. */
   function pressedBackground(pressed: boolean): string {
-    if (!pressed || isDisabled) return backgroundColor;
+    if (!pressed || isDisabled) return background;
     if (variant === 'primary') return colors.primaryPressed;
-    if (variant === 'secondary') return colors.primaryTint;
-    return backgroundColor;
+    if (variant === 'secondary' || variant === 'text') return colors.primaryTint;
+    return background;
   }
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       testID={testID}
       style={({ pressed }) => [
         styles.base,
         {
+          minHeight: variant === 'text' ? minTouchTarget : 48,
+          paddingHorizontal: variant === 'text' ? 12 : 18,
+          alignSelf: fullWidth ? 'stretch' : undefined,
           backgroundColor: pressedBackground(pressed),
-          borderColor,
+          borderColor: border,
           borderWidth: variant === 'secondary' ? 1.5 : 0,
           borderRadius: radii.control,
-          opacity: isDisabled
-            ? 0.5
-            : pressed && variant === 'destructive'
-              ? 0.8
-              : 1,
+          opacity: pressed && variant === 'destructive' ? 0.85 : 1,
         },
       ]}
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={textColor} />
+        <ActivityIndicator color={label} />
       ) : (
-        <Text style={[styles.label, { color: textColor }]}>{title}</Text>
+        <Text style={[type.label, { color: label }]} numberOfLines={2}>
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -92,13 +119,7 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
-    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  label: {
-    fontSize: 15.5,
-    fontWeight: '600',
   },
 });

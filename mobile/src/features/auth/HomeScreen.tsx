@@ -72,7 +72,7 @@ function ChurchBranding({
   onPressProfile: () => void;
   onPressAnnouncements: () => void;
 }) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<ChurchSettings | null>(null);
 
@@ -102,16 +102,16 @@ function ChurchBranding({
             { backgroundColor: colors.primary, borderRadius: radii.control },
           ]}
         >
-          <Text style={[styles.monogramText, { color: colors.onPrimary }]}>
+          <Text style={[type.title, { color: colors.onPrimary }]}>
             {churchName.charAt(0)}
           </Text>
         </View>
       )}
       <View style={styles.brandingText}>
-        <Text style={[styles.greeting, { color: colors.secondaryText }]}>
+        <Text style={[type.caption, { color: colors.secondaryText }]}>
           {t('home.welcome')}, {displayLabel}
         </Text>
-        <Text style={[styles.churchName, { color: colors.text }]} numberOfLines={2}>
+        <Text style={[type.title, { color: colors.text }]} numberOfLines={2}>
           {churchName}
         </Text>
         {/* The church description used to render here as a third line
@@ -221,7 +221,7 @@ function ReadingPlanCard({
   onContinue: (plan: PublishedPlan, dayNumber: number) => void;
   onBrowse: () => void;
 }) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
 
   if (!activePlan) {
@@ -240,7 +240,7 @@ function ReadingPlanCard({
           },
         ]}
       >
-        <Text style={[styles.planEmptyLabel, { color: colors.primary }]}>
+        <Text style={[type.label, styles.planEmptyLabel, { color: colors.primary }]}>
           {t('home.startAPlan')}
         </Text>
       </Tappable>
@@ -273,10 +273,10 @@ function ReadingPlanCard({
         },
       ]}
     >
-      <Text style={[styles.planTitle, { color: colors.text }]} numberOfLines={2}>
+      <Text style={[type.label, { color: colors.text }]} numberOfLines={2}>
         {plan.title}
       </Text>
-      <Text style={[styles.planMeta, { color: colors.secondaryText }]}>
+      <Text style={[type.caption, { color: colors.secondaryText }]}>
         {t('home.dayOf', { current: progress.currentDay, total: plan.dayCount })}
       </Text>
 
@@ -295,13 +295,13 @@ function ReadingPlanCard({
         </View>
         <Text
           testID="home-plan-percent"
-          style={[styles.planPercent, { color: colors.secondaryText }]}
+          style={[type.caption, styles.planPercent, { color: colors.secondaryText }]}
         >
           {t('home.percentComplete', { percent })}
         </Text>
       </View>
 
-      <Text style={[styles.planContinue, { color: colors.primary }]}>
+      <Text style={[type.label, styles.planContinue, { color: colors.primary }]}>
         {t('plans.continue')}
       </Text>
     </Tappable>
@@ -332,7 +332,7 @@ function FeatureTile({
   onPress: () => void;
   children: React.ReactNode;
 }) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   return (
     <View style={styles.tileColumn}>
       <Tappable
@@ -351,7 +351,10 @@ function FeatureTile({
       >
         {children}
       </Tappable>
-      <Text style={[styles.tileLabel, { color: colors.text }]} numberOfLines={2}>
+      <Text
+        style={[type.caption, styles.tileLabel, { color: colors.text }]}
+        numberOfLines={2}
+      >
         {label}
       </Text>
     </View>
@@ -390,7 +393,7 @@ function FeatureTile({
 export function HomeScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
@@ -484,20 +487,18 @@ export function HomeScreen() {
         >
           <View style={styles.liveBadgeRow}>
             <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
-            <Text style={[styles.liveLabel, { color: colors.onLive }]}>
+            <Text style={[type.overline, { color: colors.onLive }]}>
               {t('common.liveNow')}
             </Text>
           </View>
-          <Text style={[styles.liveTitle, { color: colors.onLive }]}>
-            {liveEvent.title}
-          </Text>
+          <Text style={[type.title, { color: colors.onLive }]}>{liveEvent.title}</Text>
           <View
             style={[
               styles.liveCta,
               { borderRadius: radii.control, backgroundColor: colors.onLive },
             ]}
           >
-            <Text style={[styles.liveCtaLabel, { color: colors.live }]}>
+            <Text style={[type.label, { color: colors.live }]}>
               {t('home.watchLive')}
             </Text>
           </View>
@@ -548,11 +549,9 @@ export function HomeScreen() {
               },
             ]}
           >
-            <Text style={[styles.eventTitle, { color: colors.text }]}>
-              {nextEvent.title}
-            </Text>
+            <Text style={[type.label, { color: colors.text }]}>{nextEvent.title}</Text>
             {nextEvent.location ? (
-              <Text style={[styles.eventMeta, { color: colors.secondaryText }]}>
+              <Text style={[type.caption, { color: colors.secondaryText }]}>
                 {nextEvent.location}
               </Text>
             ) : null}
@@ -604,9 +603,6 @@ const styles = StyleSheet.create({
   },
   logo: { width: 44, height: 44 },
   monogram: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  monogramText: { fontSize: 18, fontWeight: '600' },
-  greeting: { fontSize: 12.5 },
-  churchName: { fontSize: 17, fontWeight: '600' },
   brandingText: { flex: 1, gap: 2 },
 
   // Home's top-right utility area. Two buttons, each at the 44dp
@@ -627,14 +623,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     gap: 6,
   },
-  planTitle: { fontSize: 16, fontWeight: '600' },
-  planMeta: { fontSize: 12.5 },
   planProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   planTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   planFill: { height: 6, borderRadius: 3 },
-  planPercent: { fontSize: 12.5, fontWeight: '600', minWidth: 38, textAlign: 'right' },
-  planContinue: { fontSize: 14, fontWeight: '700', marginTop: 2 },
-  planEmptyLabel: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  planPercent: { minWidth: 38, textAlign: 'right' },
+  planContinue: { marginTop: 2 },
+  planEmptyLabel: { textAlign: 'center' },
 
   // Compact icon tiles. Square with a large radius, sized so three fit a
   // narrow phone comfortably; the label sits OUTSIDE the tile so the
@@ -649,20 +643,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileLabel: { fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
+  tileLabel: { textAlign: 'center' },
   liveBanner: { padding: 18, gap: 12 },
   liveBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
-  liveLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1.4 },
-  liveTitle: { fontSize: 21, fontWeight: '600' },
   liveCta: {
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveCtaLabel: { fontSize: 15, fontWeight: '700' },
   section: { gap: 12 },
   eventRow: { padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
-  eventTitle: { fontSize: 14.5, fontWeight: '600' },
-  eventMeta: { fontSize: 12.5 },
 });

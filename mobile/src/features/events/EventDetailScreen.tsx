@@ -37,7 +37,7 @@ export function buildMapsSearchUrl(location: string): string {
  */
 export function EventDetailScreen({ route, navigation }: Props) {
   const { event } = route.params;
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   /** The app language decides the date format; the device's locale does not. */
   const startsAt = event.startsAt
@@ -60,11 +60,11 @@ export function EventDetailScreen({ route, navigation }: Props) {
       {event.isLive ? (
         <View style={[styles.liveBadge, { backgroundColor: colors.live }]}>
           <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
-          <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>{t('common.liveNow')}</Text>
+          <Text style={[type.overline, { color: colors.onLive }]}>{t('common.liveNow')}</Text>
         </View>
       ) : null}
 
-      <Text style={[styles.title, { color: colors.text }]}>{event.title}</Text>
+      <Text style={[type.headline, { color: colors.text }]}>{event.title}</Text>
 
       <View
         style={[
@@ -77,10 +77,10 @@ export function EventDetailScreen({ route, navigation }: Props) {
           },
         ]}
       >
-        <Text style={[styles.meta, { color: colors.text }]}>
+        <Text style={[type.body, { color: colors.text }]}>
           {startsAt}
         </Text>
-        <Text style={[styles.meta, { color: colors.secondaryText }]}>
+        <Text style={[type.body, { color: colors.secondaryText }]}>
           {event.location}
         </Text>
         <Tappable
@@ -92,14 +92,14 @@ export function EventDetailScreen({ route, navigation }: Props) {
             { borderColor: colors.primary, borderRadius: radii.control },
           ]}
         >
-          <Text style={[styles.mapsButtonLabel, { color: colors.primary }]}>
+          <Text style={[type.label, { color: colors.primary }]}>
             {t('events.openInMaps')}
           </Text>
         </Tappable>
       </View>
 
       <Text
-        style={[styles.description, { color: colors.secondaryText }]}
+        style={[type.body, styles.description, { color: colors.secondaryText }]}
         testID="event-description"
       >
         {event.description}
@@ -115,7 +115,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
             { backgroundColor: colors.live, borderRadius: radii.control },
           ]}
         >
-          <Text style={[styles.watchLiveLabel, { color: colors.onLive }]}>
+          <Text style={[type.label, { color: colors.onLive }]}>
             {t('events.watchOnYouTube')}
           </Text>
         </Tappable>
@@ -136,14 +136,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  liveBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  title: { fontSize: 24, fontWeight: '600' },
   infoCard: { borderWidth: StyleSheet.hairlineWidth, gap: 8 },
-  meta: { fontSize: 14.5 },
   mapsButton: {
     marginTop: 6,
     alignSelf: 'flex-start',
@@ -153,12 +146,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mapsButtonLabel: { fontSize: 13.5, fontWeight: '600' },
-  description: { fontSize: 15, lineHeight: 23, width: '100%' },
+  description: { width: '100%' },
   watchLiveButton: {
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  watchLiveLabel: { fontSize: 16, fontWeight: '700' },
 });

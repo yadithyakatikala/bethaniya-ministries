@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { ICON_SIZE, strokeFor, type IconProps } from './iconGeometry';
 
 /**
  * The five bottom-navigation glyphs, drawn from plain Views.
@@ -20,18 +21,11 @@ import { StyleSheet, View } from 'react-native';
  * palettes are correct without these components knowing about either.
  * Each is sized on a square `size` box so all five sit on one baseline.
  */
-interface IconProps {
-  color: string;
-  size?: number;
-  /** True for the active tab -- filled rather than outlined. */
-  filled?: boolean;
-}
-
-const DEFAULT_SIZE = 22;
+const DEFAULT_SIZE = ICON_SIZE;
 
 /** A house: a triangular roof over a square body. */
 export function HomeIcon({ color, size = DEFAULT_SIZE, filled = false }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.08);
+  const stroke = strokeFor(size);
   const roof = size * 0.5;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
@@ -64,7 +58,7 @@ export function HomeIcon({ color, size = DEFAULT_SIZE, filled = false }: IconPro
 
 /** An open book: two leaves with a spine between them. */
 export function BookIcon({ color, size = DEFAULT_SIZE, filled = false }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.08);
+  const stroke = strokeFor(size);
   const leaf = { width: size * 0.42, height: size * 0.66 };
   return (
     <View style={[styles.box, styles.row, { width: size, height: size }]}>
@@ -96,48 +90,75 @@ export function BookIcon({ color, size = DEFAULT_SIZE, filled = false }: IconPro
   );
 }
 
-/** A quaver: a note head with a stem. */
+/**
+ * A quaver -- Songs.
+ *
+ * REDRAWN IN M3. Visual QA called the V1 geometry weak, and it was: the
+ * head was an OUTLINED circle of 0.34 x size, so at 22dp a 7.5dp circle
+ * carried a 1.8dp border and read as a ring rather than a note head;
+ * the flag was a straight horizontal bar, which is a flagpole, not a
+ * quaver's flag; and the head sat square rather than tilted, so the
+ * whole glyph looked like a corner bracket with a dot.
+ *
+ * Three fixes. The head is FILLED (an outlined note head is not a note
+ * head at this size) and tilted -20 degrees, which is what makes it read
+ * as a note rather than a bullet. The flag is built from a box with only
+ * its top and right borders and a large top-right radius, which curves
+ * away from the stem the way a real flag does. And the stem is inset
+ * from the glyph box so the flag's curve has room, instead of being
+ * clipped at the edge.
+ *
+ * The head follows the same active/inactive rule as the rest of the set:
+ * solid when the tab is selected, an outlined ring when it is not. At
+ * 0.38 x size the ring has enough interior to read as one, which the
+ * 0.34 version did not.
+ */
 export function MusicIcon({ color, size = DEFAULT_SIZE, filled = false }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.08);
-  const head = size * 0.34;
+  const stroke = strokeFor(size);
+  const head = size * 0.38;
+  const stemHeight = size * 0.66;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
-      <View style={{ width: size * 0.72, height: size * 0.78 }}>
-        {/* Stem, down the right edge */}
+      <View style={{ width: size * 0.78, height: size * 0.86 }}>
+        {/* Stem */}
         <View
           style={{
             position: 'absolute',
-            right: 0,
+            right: size * 0.14,
             top: 0,
             width: stroke,
-            height: size * 0.62,
-            backgroundColor: color,
-          }}
-        />
-        {/* Flag */}
-        <View
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            width: size * 0.3,
-            height: stroke,
+            height: stemHeight,
             backgroundColor: color,
             borderRadius: stroke / 2,
           }}
         />
-        {/* Note head */}
+        {/* Flag: a curve hooking down and away from the top of the stem. */}
+        <View
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            width: size * 0.28,
+            height: size * 0.3,
+            borderTopWidth: stroke,
+            borderRightWidth: stroke,
+            borderColor: color,
+            borderTopRightRadius: size * 0.26,
+          }}
+        />
+        {/* Note head, tilted. */}
         <View
           style={{
             position: 'absolute',
             left: 0,
             bottom: 0,
             width: head,
-            height: head * 0.8,
+            height: head * 0.76,
             borderRadius: head / 2,
-            borderWidth: stroke,
+            borderWidth: filled ? 0 : stroke,
             borderColor: color,
             backgroundColor: filled ? color : 'transparent',
+            transform: [{ rotate: '-20deg' }],
           }}
         />
       </View>
@@ -147,7 +168,7 @@ export function MusicIcon({ color, size = DEFAULT_SIZE, filled = false }: IconPr
 
 /** A calendar: a page with two binding tabs and a header rule. */
 export function CalendarIcon({ color, size = DEFAULT_SIZE, filled = false }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.08);
+  const stroke = strokeFor(size);
   return (
     <View style={[styles.box, { width: size, height: size }]}>
       {/* Binding tabs */}
@@ -178,7 +199,7 @@ export function CalendarIcon({ color, size = DEFAULT_SIZE, filled = false }: Ico
 
 /** Three stacked rules -- the conventional "more" affordance. */
 export function MoreIcon({ color, size = DEFAULT_SIZE, filled = false }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.09);
+  const stroke = strokeFor(size);
   const bar = (width: number, key: string) => (
     <View
       key={key}

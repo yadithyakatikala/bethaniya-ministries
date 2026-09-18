@@ -1,7 +1,9 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
+import { darkTokens, fontFamilies, lightTokens } from '../../../theme/tokens';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { ChapterScreen } from '../ChapterScreen';
@@ -185,7 +187,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(getByTestId('chapter-screen')).toBeTruthy());
     const screen = getByTestId('chapter-screen');
     const flatStyle = Object.assign({}, ...[screen.props.contentContainerStyle].flat());
-    expect(flatStyle.backgroundColor).toBe('#FAF7F1');
+    expect(flatStyle.backgroundColor).toBe(lightTokens.paper);
   });
 
   it('renders with dark-mode colors when the device is in dark mode', async () => {
@@ -194,7 +196,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(getByTestId('chapter-screen')).toBeTruthy());
     const screen = getByTestId('chapter-screen');
     const flatStyle = Object.assign({}, ...[screen.props.contentContainerStyle].flat());
-    expect(flatStyle.backgroundColor).toBe('#141A17');
+    expect(flatStyle.backgroundColor).toBe(darkTokens.paper);
   });
 
   it('goes back when the back button is pressed', async () => {
@@ -326,6 +328,36 @@ describe('bilingual mode', () => {
     // Nothing invented, and no duplicate notice in the header.
     expect(queryByTestId('bilingual-paired')).toBeNull();
     expect(queryByTestId('chapter-unavailable-banner')).toBeNull();
+  });
+
+  it('sets a Telugu book name in a face that HAS Telugu, whatever the interface is', async () => {
+    // Caught in M3 visual QA. The heading is a book name, so it must take
+    // its type from the book name's language -- with an English interface
+    // over the Telugu Bible, the interface type scale resolves to Noto
+    // Serif, which has no Telugu glyphs, and the heading fell to a
+    // per-glyph platform fallback and rendered as broken clusters.
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
+    await seedBibleMode('te');
+    const { getByTestId } = await renderScreen('1-chronicles', 1);
+    await waitFor(() => expect(getByTestId('chapter-reference')).toBeTruthy());
+
+    const style = StyleSheet.flatten(getByTestId('chapter-reference').props.style) as {
+      fontFamily?: string;
+    };
+    expect(style.fontFamily).toBe(fontFamilies.interfaceSemiBold);
+    expect(style.fontFamily).not.toBe(fontFamilies.serifEnSemiBold);
+  });
+
+  it('sets an English book name in the English serif', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
+    await seedBibleMode('en');
+    const { getByTestId } = await renderScreen('1-chronicles', 1);
+    await waitFor(() => expect(getByTestId('chapter-reference')).toBeTruthy());
+
+    const style = StyleSheet.flatten(getByTestId('chapter-reference').props.style) as {
+      fontFamily?: string;
+    };
+    expect(style.fontFamily).toBe(fontFamilies.serifEnSemiBold);
   });
 
   it('writes book names in the interface language, since the verses carry both', async () => {

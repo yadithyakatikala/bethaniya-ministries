@@ -21,7 +21,7 @@ import { useTheme } from '../../theme';
  * counsel review and replace this text before launch.
  */
 export function LegalScreen({ title, body }: { title: string; body: string }) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, type } = useTheme();
 
   return (
     <ScrollView
@@ -32,10 +32,10 @@ export function LegalScreen({ title, body }: { title: string; body: string }) {
       testID="legal-screen"
     >
       <View style={{ gap: spacing.md }}>
-        <Text style={[styles.title, { color: colors.text }]} testID="legal-screen-title">
+        <Text style={[type.title, { color: colors.text }]} testID="legal-screen-title">
           {title}
         </Text>
-        <Text style={[styles.body, { color: colors.secondaryText }]} testID="legal-screen-body">
+        <Text style={[type.bodySmall, { color: colors.secondaryText }]} testID="legal-screen-body">
           {body}
         </Text>
       </View>
@@ -69,6 +69,4 @@ Contact: for questions about these terms, use the support email in Settings.`;
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1 },
-  title: { fontSize: 20, fontWeight: '700' },
-  body: { fontSize: 14, lineHeight: 21 },
 });

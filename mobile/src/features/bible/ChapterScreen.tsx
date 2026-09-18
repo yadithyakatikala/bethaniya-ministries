@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
-import { useTheme, type ThemeColors } from '../../theme';
+import {
+  readingScale,
+  scriptureStyle,
+  useTheme,
+  useTypographyFor,
+  type ThemeColors,
+  type TypeScale,
+} from '../../theme';
 import { useTranslation, type StringKey } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { AppButton } from '../../theme/ui/AppButton';
 import { Badge } from '../../theme/ui/Badge';
+import { IconButton } from '../../theme/ui/IconButton';
+import { LoadingState } from '../../theme/ui/LoadingState';
+import { ErrorState } from '../../theme/ui/ErrorState';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getBookById, getBookName } from './books';
 import { getBilingualChapter, loadChapter } from './dataSource';
@@ -65,7 +75,20 @@ export function ChapterScreen({ route, navigation }: Props) {
   // labels follow bookNameLanguageFor() -- see types.ts.
   const language = primaryBibleLanguage(bibleMode);
   const bookNameLanguage = bookNameLanguageFor(bibleMode, appLanguage);
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
+  /**
+   * The heading is a BOOK NAME, so its type follows the book name's
+   * language rather than the interface language.
+   *
+   * This was wrong on first write and visual QA caught it: with an
+   * English interface over the Telugu Bible, `type.title` resolves to
+   * Noto Serif, which has no Telugu glyphs -- so
+   * "దినవృత్తాంతములు మొదటి గ్రంథము" fell to a per-glyph platform fallback
+   * and rendered as broken clusters. Exactly the failure the
+   * English-only-serif rule exists to prevent, one layer up. See
+   * ../../theme/tokens.ts.
+   */
+  const headingType = useTypographyFor(bookNameLanguage);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // requestKey identifies "which request a result/error belongs to".
@@ -122,7 +145,7 @@ export function ChapterScreen({ route, navigation }: Props) {
         style={[styles.container, { backgroundColor: colors.background }]}
         testID="chapter-invalid-book"
       >
-        <Text style={[styles.message, { color: colors.text }]}>
+        <Text style={[type.body, styles.message, { color: colors.inkMuted }]}>
           {t('bible.bookNotFound')}
         </Text>
       </View>
@@ -141,17 +164,15 @@ export function ChapterScreen({ route, navigation }: Props) {
         ]}
       >
         <View style={styles.headerTop}>
-          <Tappable
+          <IconButton
             testID="chapter-back-button"
-            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             onPress={() => navigation.goBack()}
-            style={styles.backButton}
           >
-            <View style={[styles.backChevron, { borderColor: colors.text }]} />
-          </Tappable>
+            <View style={[styles.backChevron, { borderColor: colors.ink }]} />
+          </IconButton>
           <Text
-            style={[styles.reference, { color: colors.text }]}
+            style={[headingType.title, styles.reference, { color: colors.ink }]}
             numberOfLines={2}
             testID="chapter-reference"
           >
@@ -167,7 +188,7 @@ export function ChapterScreen({ route, navigation }: Props) {
               { backgroundColor: colors.primaryTint, borderRadius: radii.control },
             ]}
           >
-            <Text style={[styles.languagePillText, { color: colors.primary }]}>
+            <Text style={[type.caption, { color: colors.primary }]}>
               {t(
                 bibleMode === 'bilingual'
                   ? 'bible.modeBilingual'
@@ -194,23 +215,27 @@ export function ChapterScreen({ route, navigation }: Props) {
       <ScrollView
         contentContainerStyle={[
           styles.container,
-          { backgroundColor: colors.background, paddingBottom: 100 },
+          styles.measure,
+          { backgroundColor: colors.paper, paddingBottom: 100 },
         ]}
         testID="chapter-screen"
       >
         {chapter === undefined && !hasError ? (
-          <ActivityIndicator testID="chapter-loading" />
+          <LoadingState testID="chapter-loading" label={t('common.loading')} />
         ) : null}
 
         {hasError ? (
-          <Text style={[styles.message, { color: colors.text }]} testID="chapter-error">
-            {t('bible.chapterLoadError')}
-          </Text>
+          <ErrorState
+            testID="chapter-error"
+            message={t('bible.chapterLoadError')}
+            retryLabel={t('common.tryAgain')}
+            onRetry={() => setErrorKey(null)}
+          />
         ) : null}
 
         {chapter === null && !hasError ? (
           <Text
-            style={[styles.message, { color: colors.text }]}
+            style={[type.body, styles.message, { color: colors.inkMuted }]}
             testID="chapter-not-found"
           >
             {t('bible.chapterNotFound')}
@@ -222,6 +247,7 @@ export function ChapterScreen({ route, navigation }: Props) {
           <BilingualChapterBody
             presentation={bilingual.presentation}
             colors={colors}
+            type={type}
             t={t}
           />
         ) : null}
@@ -232,7 +258,7 @@ export function ChapterScreen({ route, navigation }: Props) {
             verbatim a few points lower. */}
         {bibleMode !== 'bilingual' && chapter?.unavailableInTranslation ? (
           <Text
-            style={[styles.message, { color: colors.secondaryText }]}
+            style={[type.body, styles.message, { color: colors.inkMuted }]}
             testID="chapter-unavailable-message"
           >
             {t('bible.notInTranslationHelp')}
@@ -244,10 +270,18 @@ export function ChapterScreen({ route, navigation }: Props) {
             <View key={verse.number} style={styles.verseRow}>
               {/* "39-40" for a merged range, so no verse number silently
                   disappears the way it did in V1. */}
-              <Text style={[styles.verseNumber, { color: colors.accent }]}>
+              <Text
+                style={[type.scriptureReference, styles.verseNumber, { color: colors.accent }]}
+              >
                 {verse.endNumber ? `${verse.number}-${verse.endNumber}` : verse.number}
               </Text>
-              <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
+              {/* scriptureStyle(language), not the app language: the verse
+                  must be set in the face that covers ITS script. */}
+              <Text
+                style={[scriptureStyle(language), styles.verseText, { color: colors.ink }]}
+              >
+                {verse.text}
+              </Text>
             </View>
           ))}
       </ScrollView>
@@ -305,7 +339,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   backChevron: {
     width: 10,
     height: 10,
@@ -317,25 +350,33 @@ const styles = StyleSheet.create({
   // is "దినవృత్తాంతములు మొదటి గ్రంథము", 29 characters against 12, and the
   // mode pill beside it reads "ఇంగ్లీష్ + తెలుగు" in bilingual mode. Without
   // this the heading pushed the pill off the row.
-  reference: { flex: 1, fontSize: 20, fontWeight: '600' },
+  reference: { flex: 1 },
   // The pill names the translation being read -- it must never be the
   // thing that gets squeezed.
   languagePill: { flexShrink: 0, paddingHorizontal: 12, paddingVertical: 7 },
-  languagePillText: { fontSize: 12.5, fontWeight: '600' },
   container: { flexGrow: 1, padding: 20, gap: 16 },
+  // The reading measure, from the M3 tokens: a line running the full
+  // width of a tablet passes the ~60-75 characters an eye tracks
+  // comfortably. M4's reader makes this adjustable; M3 caps it at the
+  // default so the reader is already correct on a large screen.
+  measure: {
+    width: '100%',
+    maxWidth: readingScale.measure[readingScale.defaultMeasure],
+    alignSelf: 'center',
+  },
   message: { textAlign: 'center' },
   verseRow: { flexDirection: 'row', gap: 10, alignItems: 'baseline' },
-  // 34, not 18: a merged range prints as "39-40" and must not
-  // shove the verse text out of alignment with its neighbours.
-  verseNumber: { fontSize: 12.5, fontWeight: '600', minWidth: 34 },
-  verseText: { flex: 1, fontSize: 19, lineHeight: 31 },
+  // readingScale.verseNumberColumn, not 18: a merged range prints as
+  // "39-40" and must not shove the verse text out of alignment with its
+  // neighbours.
+  verseNumber: { minWidth: readingScale.verseNumberColumn },
+  verseText: { flex: 1 },
   // Bilingual: the two translations stack under one shared verse number,
   // the second slightly smaller so the pair reads as one unit rather than
   // two competing paragraphs.
   bilingualList: { gap: 16 },
   bilingualRow: { flexDirection: 'row', gap: 10, alignItems: 'baseline' },
   bilingualTexts: { flex: 1, gap: 4 },
-  verseTextSecondary: { fontSize: 17.5, lineHeight: 29 },
   bilingualDivider: { height: StyleSheet.hairlineWidth, marginVertical: 8 },
   navRow: {
     flexDirection: 'row',
@@ -362,10 +403,12 @@ const styles = StyleSheet.create({
 function BilingualChapterBody({
   presentation,
   colors,
+  type,
   t,
 }: {
   presentation: BilingualPresentation;
   colors: ThemeColors;
+  type: TypeScale;
   t: (key: StringKey, vars?: Record<string, string | number>) => string;
 }) {
   if (presentation.kind === 'paired') {
@@ -373,10 +416,19 @@ function BilingualChapterBody({
       <View style={styles.bilingualList} testID="bilingual-paired">
         {presentation.rows.map((row) => (
           <View key={row.start} style={styles.bilingualRow}>
-            <Text style={[styles.verseNumber, { color: colors.accent }]}>{row.label}</Text>
+            <Text
+              style={[type.scriptureReference, styles.verseNumber, { color: colors.accent }]}
+            >
+              {row.label}
+            </Text>
             <View style={styles.bilingualTexts}>
-              <Text style={[styles.verseText, { color: colors.text }]}>{row.english}</Text>
-              <Text style={[styles.verseTextSecondary, { color: colors.text }]}>
+              {/* Each side gets the serif that covers its own script --
+                  Noto Serif and Noto Serif Telugu are siblings, so the
+                  pair reads as one typeface rather than two. */}
+              <Text style={[scriptureStyle('en'), { color: colors.ink }]}>
+                {row.english}
+              </Text>
+              <Text style={[scriptureStyle('te', 'sm'), { color: colors.ink }]}>
                 {row.telugu}
               </Text>
             </View>
@@ -392,10 +444,14 @@ function BilingualChapterBody({
         <Badge label={t('bible.notInTranslation')} variant="warning" />
         {presentation.english.map((verse) => (
           <View key={verse.number} style={styles.verseRow}>
-            <Text style={[styles.verseNumber, { color: colors.accent }]}>
+            <Text
+              style={[type.scriptureReference, styles.verseNumber, { color: colors.accent }]}
+            >
               {verse.number}
             </Text>
-            <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
+            <Text style={[scriptureStyle('en'), styles.verseText, { color: colors.ink }]}>
+              {verse.text}
+            </Text>
           </View>
         ))}
       </View>
@@ -407,19 +463,27 @@ function BilingualChapterBody({
       <Badge label={t('bible.numberingDiffers')} variant="warning" />
       {presentation.english.map((verse) => (
         <View key={`en-${verse.number}`} style={styles.verseRow}>
-          <Text style={[styles.verseNumber, { color: colors.accent }]}>
+          <Text
+            style={[type.scriptureReference, styles.verseNumber, { color: colors.accent }]}
+          >
             {verse.number}
           </Text>
-          <Text style={[styles.verseText, { color: colors.text }]}>{verse.text}</Text>
+          <Text style={[scriptureStyle('en'), styles.verseText, { color: colors.ink }]}>
+            {verse.text}
+          </Text>
         </View>
       ))}
       <View style={[styles.bilingualDivider, { backgroundColor: colors.border }]} />
       {presentation.telugu.map((span) => (
         <View key={`te-${span.start}`} style={styles.verseRow}>
-          <Text style={[styles.verseNumber, { color: colors.accent }]}>
+          <Text
+            style={[type.scriptureReference, styles.verseNumber, { color: colors.accent }]}
+          >
             {span.end > span.start ? `${span.start}-${span.end}` : span.start}
           </Text>
-          <Text style={[styles.verseText, { color: colors.text }]}>{span.text}</Text>
+          <Text style={[scriptureStyle('te'), styles.verseText, { color: colors.ink }]}>
+            {span.text}
+          </Text>
         </View>
       ))}
     </View>

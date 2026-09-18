@@ -15,6 +15,7 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { ADMIN_TITLE, PRODUCT_NAME } from '../theme/brand';
+import { adminColors } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
 
 const DRAWER_WIDTH = 250;
@@ -79,9 +80,9 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
   { label: 'Settings', path: '/settings', testId: 'sidebar-settings-link' },
 ];
 
-const SIDEBAR_BG = '#1F2A25';
-const SIDEBAR_BORDER = '#31403A';
-const SIDEBAR_TEXT_MUTED = '#9AA8A1';
+const SIDEBAR_BG = adminColors.sidebarBg;
+const SIDEBAR_BORDER = adminColors.sidebarBorder;
+const SIDEBAR_TEXT_MUTED = adminColors.sidebarTextMuted;
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
@@ -100,8 +101,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 2.5 }}>
         <Avatar
           sx={{
-            bgcolor: '#8FC0AC',
-            color: '#132018',
+            bgcolor: adminColors.sidebarAvatarBg,
+            color: adminColors.sidebarAvatarText,
             fontWeight: 700,
             width: 34,
             height: 34,
@@ -109,9 +110,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         >
           {PRODUCT_NAME.charAt(0)}
         </Avatar>
-        <Typography
-          sx={{ color: '#fff', fontFamily: 'Newsreader, serif', fontWeight: 600 }}
-        >
+        <Typography variant="h6" sx={{ color: adminColors.sidebarText }}>
           {ADMIN_TITLE}
         </Typography>
       </Box>
@@ -129,10 +128,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               borderRadius: 2,
               mb: 0.25,
               color: SIDEBAR_TEXT_MUTED,
+              // Selection is carried by a fill, a left rule AND a
+              // heavier label. The fill alone measures 1.3:1 against the
+              // rail, which is not a difference someone can rely on.
               '&.Mui-selected': {
-                bgcolor: '#2E5347',
-                color: '#fff',
-                '&:hover': { bgcolor: '#2E5347' },
+                bgcolor: adminColors.sidebarSelectedBg,
+                color: adminColors.sidebarSelectedText,
+                fontWeight: 700,
+                borderLeft: `3px solid ${adminColors.sidebarSelectedText}`,
+                '&:hover': { bgcolor: adminColors.sidebarSelectedBg },
               },
               '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
             }}
@@ -151,8 +155,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 2 }}>
         <Avatar
           sx={{
-            bgcolor: '#8FC0AC',
-            color: '#132018',
+            bgcolor: adminColors.sidebarAvatarBg,
+            color: adminColors.sidebarAvatarText,
             fontWeight: 700,
             width: 30,
             height: 30,
@@ -162,7 +166,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           {(user?.email ?? 'A').charAt(0).toUpperCase()}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <Typography noWrap sx={{ color: '#fff', fontSize: 12.5, fontWeight: 600 }}>
+          <Typography noWrap variant="subtitle2" sx={{ color: adminColors.sidebarText }}>
             {user?.email ?? 'Signed in'}
           </Typography>
           <Typography sx={{ color: SIDEBAR_TEXT_MUTED, fontSize: 11.5 }}>
@@ -197,7 +201,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ ml: 2, fontFamily: 'Newsreader, serif' }}>
+          <Typography variant="h6" sx={{ ml: 2 }}>
             {ADMIN_TITLE}
           </Typography>
         </Toolbar>

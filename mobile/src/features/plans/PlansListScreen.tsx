@@ -29,7 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlansList'>;
  * dashboard's Daily Plan card (see ../auth/HomeScreen.tsx).
  */
 export function PlansListScreen({ navigation }: Props) {
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const [plans, setPlans] = useState<PublishedPlan[] | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -118,13 +118,13 @@ export function PlansListScreen({ navigation }: Props) {
             />
           )}
           <View style={styles.textColumn}>
-            <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-            <Text style={[styles.meta, { color: colors.secondaryText }]}>
+            <Text style={[type.label, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[type.caption, { color: colors.secondaryText }]}>
               {item.category} • {item.dayCount}{' '}
               {t(item.dayCount === 1 ? 'plans.day' : 'plans.days')}
             </Text>
             <Text
-              style={[styles.description, { color: colors.secondaryText }]}
+              style={[type.bodySmall, { color: colors.secondaryText }]}
               numberOfLines={2}
             >
               {item.description}
@@ -148,7 +148,4 @@ const styles = StyleSheet.create({
   cover: { width: 56, height: 56 },
   coverPlaceholder: { width: 56, height: 56 },
   textColumn: { flex: 1, gap: 3 },
-  title: { fontWeight: '600', fontSize: 15 },
-  meta: { fontSize: 12, fontWeight: '500' },
-  description: { fontSize: 13.5, lineHeight: 19 },
 });

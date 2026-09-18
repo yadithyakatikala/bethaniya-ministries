@@ -39,7 +39,7 @@ import {
  */
 export function DailyVerseScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   const insets = useSafeAreaInsets();
   const [today, setToday] = useState<TodaysDailyVerse | null | undefined>(undefined);
@@ -68,7 +68,7 @@ export function DailyVerseScreen() {
         >
           <View style={[styles.backChevron, { borderColor: colors.text }]} />
         </Tappable>
-        <Text style={[styles.heading, { color: colors.text }]}>{t('dailyVerse.title')}</Text>
+        <Text style={[type.headline, { color: colors.text }]}>{t('dailyVerse.title')}</Text>
       </View>
 
       {today === undefined ? (
@@ -99,9 +99,9 @@ export function DailyVerseScreen() {
               accessibilityIgnoresInvertColors
             />
           ) : null}
-          <Text style={[styles.todayLabel, { color: colors.accent }]}>{t('dailyVerse.today')}</Text>
-          <Text style={[styles.verseText, { color: colors.text }]}>{today.text}</Text>
-          <Text style={[styles.reference, { color: colors.accent }]}>
+          <Text style={[type.overline, { color: colors.accent }]}>{t('dailyVerse.today')}</Text>
+          <Text style={[type.bodyLarge, { color: colors.text }]}>{today.text}</Text>
+          <Text style={[type.scriptureReference, { color: colors.accent }]}>
             {today.reference}
           </Text>
         </View>
@@ -133,13 +133,13 @@ export function DailyVerseScreen() {
                 ]}
                 testID={`daily-verse-archive-item-${verse.id}`}
               >
-                <Text style={[styles.archiveDate, { color: colors.secondaryText }]}>
+                <Text style={[type.overline, { color: colors.secondaryText }]}>
                   {formatIsoDateString(verse.date, appLanguage)}
                 </Text>
-                <Text style={[styles.archiveText, { color: colors.text }]}>
+                <Text style={[type.body, { color: colors.text }]}>
                   {verse.text}
                 </Text>
-                <Text style={[styles.archiveReference, { color: colors.accent }]}>
+                <Text style={[type.scriptureReference, { color: colors.accent }]}>
                   {verse.reference}
                 </Text>
               </View>
@@ -162,26 +162,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     transform: [{ rotate: '45deg' }],
   },
-  heading: { fontSize: 28, fontWeight: '500' },
   todayCard: { borderWidth: StyleSheet.hairlineWidth, gap: 10 },
   todayImage: { width: '100%', aspectRatio: 16 / 9, marginBottom: 4 },
-  todayLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  verseText: { fontSize: 20, lineHeight: 32 },
-  reference: { fontSize: 14, fontWeight: '600' },
   archiveSection: { gap: 12 },
   archiveList: { gap: 10 },
   archiveItem: { borderWidth: StyleSheet.hairlineWidth, gap: 4 },
-  archiveDate: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  archiveText: { fontSize: 15, lineHeight: 22 },
-  archiveReference: { fontSize: 13, fontWeight: '600' },
 });

@@ -66,7 +66,7 @@ function formatSeconds(totalSeconds: number): string {
  * verification gaps -- see /SECURITY.md.
  */
 export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { t } = useTranslation();
   const player = useAudioPlayer(audioUrl);
   const status = useAudioPlayerStatus(player);
@@ -104,7 +104,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
           ]}
         />
       </View>
-      <Text style={[styles.time, { color: colors.secondaryText }]}>
+      <Text style={[type.caption, { color: colors.secondaryText }]}>
         {formatSeconds(status.currentTime)} / {formatSeconds(status.duration)}
       </Text>
       <View style={styles.controls}>
@@ -117,7 +117,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
           }}
           style={[styles.secondaryButton, { borderColor: colors.border }]}
         >
-          <Text style={[styles.secondaryLabel, { color: colors.text }]}>{t('songs.restart')}</Text>
+          <Text style={[type.label, { color: colors.text }]}>{t('songs.restart')}</Text>
         </Tappable>
         <Tappable
           testID="audio-play-pause-button"
@@ -128,7 +128,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
             { backgroundColor: colors.primary, borderRadius: radii.control },
           ]}
         >
-          <Text style={[styles.playLabel, { color: colors.onPrimary }]}>
+          <Text style={[type.label, { color: colors.onPrimary }]}>
             {t(status.playing ? 'songs.pause' : 'songs.play')}
           </Text>
         </Tappable>
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
   message: { textAlign: 'center' },
   track: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden' },
   trackFill: { height: 4, borderRadius: 2 },
-  time: { fontSize: 13 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   secondaryButton: {
     height: 40,
@@ -152,12 +151,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryLabel: { fontSize: 13.5, fontWeight: '600' },
   playButton: {
     width: 56,
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playLabel: { fontSize: 14, fontWeight: '700' },
 });

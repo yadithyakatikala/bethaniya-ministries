@@ -4,7 +4,6 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-  createNavigationContainerRef,
   type Theme,
 } from '@react-navigation/native';
 import {
@@ -12,6 +11,7 @@ import {
   type NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
+import { navigationRef } from './navigationRef';
 import { usePreferences } from '../context/PreferencesContext';
 import { bookNameLanguageFor } from '../features/bible/types';
 import type { ThemeColors } from '../theme';
@@ -153,7 +153,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * screen's render tree. See React Navigation's own documented pattern
  * for "navigating without the navigation prop."
  */
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+// Defined in ./navigationRef.ts so a service can reach it without
+// importing this module -- see that file for the cycle it broke.
+// Re-exported here because every existing call site imports it
+// from this module.
+export { navigationRef };
 
 /**
  * Renders as a sibling of the Stack.Navigator, inside the same

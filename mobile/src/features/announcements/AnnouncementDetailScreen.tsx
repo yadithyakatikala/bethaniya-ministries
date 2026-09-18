@@ -26,7 +26,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AnnouncementDetail'>;
  */
 export function AnnouncementDetailScreen({ route }: Props) {
   const { announcement } = route.params;
-  const { colors, radii } = useTheme();
+  const { colors, radii, type } = useTheme();
   const { appLanguage } = useTranslation();
 
   return (
@@ -53,20 +53,20 @@ export function AnnouncementDetailScreen({ route }: Props) {
       <View style={styles.body}>
         {announcement.createdAt ? (
           <Text
-            style={[styles.date, { color: colors.secondaryText }]}
+            style={[type.overline, { color: colors.secondaryText }]}
             testID="announcement-detail-date"
           >
             {formatLongDate(announcement.createdAt, appLanguage)}
           </Text>
         ) : null}
         <Text
-          style={[styles.title, { color: colors.text }]}
+          style={[type.headline, { color: colors.text }]}
           testID="announcement-detail-title"
         >
           {announcement.title}
         </Text>
         <Text
-          style={[styles.content, { color: colors.text }]}
+          style={[type.bodyLarge, { color: colors.text }]}
           testID="announcement-detail-content"
         >
           {announcement.content}
@@ -81,12 +81,4 @@ const styles = StyleSheet.create({
   image: { width: '100%', aspectRatio: 16 / 9 },
   imagePlaceholder: { width: '100%', aspectRatio: 16 / 9 },
   body: { padding: 20, gap: 10 },
-  date: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  title: { fontSize: 24, fontWeight: '600', lineHeight: 30 },
-  content: { fontSize: 16, lineHeight: 25 },
 });

@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { ICON_SIZE, strokeFor, type IconProps } from './iconGeometry';
 
 /**
  * Icons for Home's utility actions and its feature tiles, drawn from
@@ -17,17 +18,18 @@ import { StyleSheet, View } from 'react-native';
  * Home: the old control was an 8px dot painted in `colors.primary`,
  * which on the dark paper background read as a speck rather than a
  * button.
+ *
+ * M3 moved the size and stroke to ./iconGeometry.ts, shared with
+ * ./TabIcons.tsx. These two sets sit directly above each other on Home
+ * and had drifted to two default sizes and four stroke ratios between
+ * them, which is visible as an uneven weight along that edge of the
+ * screen.
  */
-interface IconProps {
-  color: string;
-  size?: number;
-}
-
-const DEFAULT_SIZE = 20;
+const DEFAULT_SIZE = ICON_SIZE;
 
 /** A head over shoulders -- Profile. */
 export function PersonIcon({ color, size = DEFAULT_SIZE }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.09);
+  const stroke = strokeFor(size);
   const head = size * 0.38;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
@@ -71,7 +73,7 @@ export function PersonIcon({ color, size = DEFAULT_SIZE }: IconProps) {
  * than left as dead code. The FEATURE is untouched.)
  */
 export function AnnouncementIcon({ color, size = DEFAULT_SIZE }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.09);
+  const stroke = strokeFor(size);
   return (
     <View style={[styles.box, { width: size, height: size }]}>
       <View
@@ -101,47 +103,68 @@ export function AnnouncementIcon({ color, size = DEFAULT_SIZE }: IconProps) {
 }
 
 /**
- * Two forms angled together over a base -- Prayers.
+ * Praying hands -- Prayers.
  *
- * A literal praying-hands glyph is not drawable legibly from Views at
- * this size, so this is the conventional minimal abstraction: two shapes
- * leaning into each other, resting on a base.
+ * REDRAWN IN M3. The V1 glyph was two outlined bars leaning together
+ * over a rule, and visual QA reported exactly that: it did not read as
+ * praying hands. Two things were wrong.
+ *
+ * First, it was OUTLINED at 0.2 x size. At the 20dp this renders at, a
+ * 4dp-wide box with a 1.7dp border leaves a 0.6dp sliver of interior --
+ * optically a solid bar with a seam, not a hand. These palms are FILLED,
+ * which is the deliberate exception to the outline idiom the rest of the
+ * set follows: below about 24dp a filled silhouette is the only thing
+ * that reads. Nothing else in the set is this narrow, so nothing else
+ * needs the exception.
+ *
+ * Second, it had no apex. Praying hands are recognised by the point
+ * where the fingertips meet and by the wrists splaying below it. Each
+ * palm is now rotated 15 degrees about its own centre, which converges
+ * the tops and separates the bottoms in one transform, and the tops are
+ * rounded only on their OUTER corner so the two inner edges meet as a
+ * peak rather than a dome. The band across the lower third is the
+ * crossed thumbs -- the detail that separates "praying hands" from "a
+ * chevron".
  */
 export function PrayerIcon({ color, size = DEFAULT_SIZE }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.085);
-  const hand = { width: size * 0.2, height: size * 0.62 };
+  const stroke = strokeFor(size);
+  const palm = { width: size * 0.26, height: size * 0.66 };
+  const tip = palm.width * 0.85;
   return (
     <View style={[styles.box, { width: size, height: size }]}>
-      <View style={[styles.row, { height: size * 0.72 }]}>
+      <View style={styles.handRow}>
         <View
           style={{
-            ...hand,
-            borderWidth: stroke,
-            borderColor: color,
-            borderTopLeftRadius: hand.width,
-            borderTopRightRadius: hand.width * 0.4,
-            transform: [{ rotate: '-10deg' }],
+            ...palm,
+            backgroundColor: color,
+            borderTopLeftRadius: tip,
+            borderTopRightRadius: tip * 0.15,
+            borderBottomLeftRadius: palm.width * 0.35,
+            borderBottomRightRadius: palm.width * 0.2,
+            transform: [{ rotate: '-15deg' }],
           }}
         />
         <View
           style={{
-            ...hand,
-            borderWidth: stroke,
-            borderColor: color,
-            borderTopRightRadius: hand.width,
-            borderTopLeftRadius: hand.width * 0.4,
-            transform: [{ rotate: '10deg' }],
+            ...palm,
+            marginLeft: -stroke * 0.4,
+            backgroundColor: color,
+            borderTopRightRadius: tip,
+            borderTopLeftRadius: tip * 0.15,
+            borderBottomRightRadius: palm.width * 0.35,
+            borderBottomLeftRadius: palm.width * 0.2,
+            transform: [{ rotate: '15deg' }],
           }}
         />
       </View>
-      {/* Base */}
+      {/* Crossed thumbs, over the wrists. */}
       <View
         style={{
-          width: size * 0.62,
-          height: stroke,
-          marginTop: size * 0.04,
+          width: size * 0.56,
+          height: stroke * 1.4,
+          marginTop: -size * 0.16,
           backgroundColor: color,
-          borderRadius: stroke / 2,
+          borderRadius: stroke,
         }}
       />
     </View>
@@ -150,7 +173,7 @@ export function PrayerIcon({ color, size = DEFAULT_SIZE }: IconProps) {
 
 /** Two overlapping people -- Community. */
 export function PeopleIcon({ color, size = DEFAULT_SIZE }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.085);
+  const stroke = strokeFor(size);
   const head = size * 0.3;
   const person = (scale: number) => ({
     head: {
@@ -192,7 +215,7 @@ export function PeopleIcon({ color, size = DEFAULT_SIZE }: IconProps) {
 
 /** A page with rules -- a reading plan's day list. */
 export function PlanIcon({ color, size = DEFAULT_SIZE }: IconProps) {
-  const stroke = Math.max(1.5, size * 0.085);
+  const stroke = strokeFor(size);
   const rule = (width: number, key: string) => (
     <View
       key={key}
@@ -230,4 +253,7 @@ export function PlanIcon({ color, size = DEFAULT_SIZE }: IconProps) {
 const styles = StyleSheet.create({
   box: { alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'flex-end' },
+  // flex-start, not flex-end: the palms are rotated about their centres,
+  // so aligning their TOPS is what keeps the apex level.
+  handRow: { flexDirection: 'row', alignItems: 'flex-start' },
 });

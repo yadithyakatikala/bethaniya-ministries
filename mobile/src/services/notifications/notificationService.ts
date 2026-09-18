@@ -28,7 +28,7 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import type { Notification, NotificationResponse } from 'expo-notifications';
-import { navigationRef } from '../../navigation/AppNavigator';
+import { navigationRef } from '../../navigation/navigationRef';
 import { addNotificationToHistory } from '../../features/notifications/notificationHistory';
 import { getNavigationTargetFromData } from '../../features/notifications/notificationNavigation';
 

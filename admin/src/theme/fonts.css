@@ -1,0 +1,68 @@
+/**
+ * Self-hosted typefaces for the admin dashboard.
+ *
+ * WHY THIS FILE EXISTS. index.html used to load Newsreader and Archivo
+ * from fonts.googleapis.com on every page view. That is a third-party
+ * runtime dependency this product is not allowed to have: it sends the
+ * viewer's IP to another service, it fails on a restricted network, and
+ * it makes first paint wait on a request nobody controls.
+ *
+ * These are the same OFL 1.1 files the mobile app bundles, converted to
+ * woff2 -- see scripts/fetch-fonts.py for the pinned upstream sources,
+ * the asserted hashes and the licence terms. Hind Guntur replaces
+ * Archivo because it covers Telugu as well as Latin, and church content
+ * shown in this dashboard (an announcement's title, a song's lyrics) is
+ * routinely Telugu.
+ *
+ * `font-display: swap` renders immediately in the fallback and swaps
+ * when the face arrives: for an internal dashboard, text now in the
+ * wrong font beats no text at all.
+ */
+
+@font-face {
+  font-family: 'Hind Guntur';
+  src: url('/fonts/HindGuntur-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hind Guntur';
+  src: url('/fonts/HindGuntur-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hind Guntur';
+  src: url('/fonts/HindGuntur-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hind Guntur';
+  src: url('/fonts/HindGuntur-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  src: url('/fonts/NotoSerif-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

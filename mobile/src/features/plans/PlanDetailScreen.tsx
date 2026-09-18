@@ -26,7 +26,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlanDetail'>;
 export function PlanDetailScreen({ route, navigation }: Props) {
   const { plan } = route.params;
   const { user } = useAuth();
-  const { colors, radii, spacing } = useTheme();
+  const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
   const uid = user?.uid ?? null;
 
@@ -93,16 +93,14 @@ export function PlanDetailScreen({ route, navigation }: Props) {
       )}
 
       <View style={[styles.body, { padding: spacing.lg, gap: spacing.sm }]}>
-        <Text style={[styles.meta, { color: colors.secondaryText }]}>
+        <Text style={[type.overline, { color: colors.secondaryText }]}>
           {plan.category} • {plan.dayCount}{' '}
           {plan.dayCount === 1 ? t('plans.day') : t('plans.days')}
         </Text>
-        <Text style={[styles.title, { color: colors.text }]} testID="plan-detail-title">
+        <Text style={[type.headline, { color: colors.text }]} testID="plan-detail-title">
           {plan.title}
         </Text>
-        <Text style={[styles.description, { color: colors.text }]}>
-          {plan.description}
-        </Text>
+        <Text style={[type.body, { color: colors.text }]}>{plan.description}</Text>
 
         <AppButton
           title={
@@ -156,17 +154,17 @@ export function PlanDetailScreen({ route, navigation }: Props) {
                   },
                 ]}
               >
-                <Text style={[styles.dayNumber, { color: colors.primary }]}>
+                <Text style={[type.caption, { color: colors.primary }]}>
                   {t('plans.day')} {item.dayNumber}
                 </Text>
-                <Text style={[styles.dayTitle, { color: colors.text }]}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.dayScripture, { color: colors.secondaryText }]}>
+                <Text style={[type.label, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[type.bodySmall, { color: colors.secondaryText }]}>
                   {item.scriptureReference}
                 </Text>
                 {completed ? (
-                  <Text style={[styles.dayComplete, { color: colors.success }]}>
+                  <Text
+                    style={[type.caption, styles.dayComplete, { color: colors.success }]}
+                  >
                     {t('plans.completed')}
                   </Text>
                 ) : null}
@@ -183,17 +181,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   cover: { width: '100%', aspectRatio: 16 / 9 },
   body: { gap: 6 },
-  meta: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  title: { fontSize: 22, fontWeight: '700' },
-  description: { fontSize: 15, lineHeight: 22 },
   dayRow: { borderWidth: StyleSheet.hairlineWidth, gap: 2 },
-  dayNumber: { fontSize: 12, fontWeight: '700' },
-  dayTitle: { fontSize: 15, fontWeight: '600' },
-  dayScripture: { fontSize: 13 },
-  dayComplete: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  dayComplete: { marginTop: 4 },
 });
