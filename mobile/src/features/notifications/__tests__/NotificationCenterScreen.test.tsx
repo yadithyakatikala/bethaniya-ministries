@@ -162,7 +162,7 @@ describe('NotificationCenterScreen', () => {
     await waitFor(() => expect(getByTestId('notification-center-error')).toBeTruthy());
 
     spy.mockResolvedValueOnce([]);
-    await fireEvent.press(getByText(translate('te', 'common.tryAgain')));
+    await fireEvent.press(getByText(translate('en', 'common.tryAgain')));
 
     await waitFor(() => expect(getByTestId('notification-center-empty')).toBeTruthy());
   });

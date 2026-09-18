@@ -12,6 +12,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatShortDate } from '../../i18n/locale';
+import type { BibleLanguage } from '../bible/types';
 import { AppButton } from '../../theme/ui/AppButton';
 import { EmptyState } from '../../theme/ui/EmptyState';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
@@ -25,13 +27,9 @@ import {
 
 const PRAYER_TEXT_MAX_LENGTH = 2000;
 
-function formatDate(date: Date | null): string {
+function formatDate(date: Date | null, appLanguage: BibleLanguage): string {
   if (!date) return '';
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatShortDate(date, appLanguage);
 }
 
 /**
@@ -49,7 +47,7 @@ function formatDate(date: Date | null): string {
 export function PrayersScreen() {
   const { user } = useAuth();
   const { colors, radii, spacing } = useTheme();
-  const { t } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   const uid = user?.uid ?? null;
 
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
@@ -217,7 +215,7 @@ export function PrayersScreen() {
             >
               <Text style={[styles.prayerText, { color: colors.text }]}>{item.text}</Text>
               <Text style={[styles.meta, { color: colors.secondaryText }]}>
-                {formatDate(item.createdAt)}
+                {formatDate(item.createdAt, appLanguage)}
                 {item.answered ? ` • ${t('prayers.answered')}` : ''}
               </Text>
               <View style={[styles.actions, { gap: spacing.md }]}>

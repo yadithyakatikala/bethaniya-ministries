@@ -26,6 +26,8 @@ describe('subscribeToOwnProfile', () => {
           phoneNumber: '+15551234567',
           photoURL: 'https://example.com/p.png',
           languagePreference: 'te',
+          appLanguage: 'en',
+          bibleMode: 'bilingual',
           themePreference: 'dark',
           notificationsEnabled: true,
         }),
@@ -42,10 +44,54 @@ describe('subscribeToOwnProfile', () => {
       email: 'jane@example.com',
       phoneNumber: '+15551234567',
       photoURL: 'https://example.com/p.png',
+      // V1's single field is still mapped: it is kept for backward
+      // compatibility alongside the two V2 fields that supersede it.
       languagePreference: 'te',
+      appLanguage: 'en',
+      bibleMode: 'bilingual',
       themePreference: 'dark',
       notificationsEnabled: true,
     });
+  });
+
+  it('maps a V1 profile that has no V2 language fields', async () => {
+    const onNext = jest.fn();
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'uid-1b',
+        data: () => ({ role: 'member', languagePreference: 'te' }),
+      });
+      return jest.fn();
+    });
+
+    subscribeToOwnProfile('uid-1b', onNext, jest.fn());
+
+    expect(onNext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        languagePreference: 'te',
+        appLanguage: null,
+        bibleMode: null,
+      })
+    );
+  });
+
+  it('rejects a language value that is not one this app supports', async () => {
+    const onNext = jest.fn();
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'uid-1c',
+        data: () => ({ role: 'member', appLanguage: 'fr', bibleMode: 'klingon' }),
+      });
+      return jest.fn();
+    });
+
+    subscribeToOwnProfile('uid-1c', onNext, jest.fn());
+
+    expect(onNext).toHaveBeenCalledWith(
+      expect.objectContaining({ appLanguage: null, bibleMode: null })
+    );
   });
 
   it('defaults missing/invalid preference fields to null rather than throwing', () => {
@@ -66,6 +112,8 @@ describe('subscribeToOwnProfile', () => {
         displayName: null,
         photoURL: null,
         languagePreference: null,
+        appLanguage: null,
+        bibleMode: null,
         themePreference: null,
         notificationsEnabled: null,
       })
@@ -118,6 +166,17 @@ describe('updateOwnProfile', () => {
       languagePreference: 'te',
       themePreference: 'dark',
       notificationsEnabled: false,
+    });
+  });
+
+  it('carries the two V2 language fields through the allowlist', async () => {
+    // A field missing from updateOwnProfile()'s copy would be dropped
+    // silently, so the preference would appear to save and then come back
+    // wrong on the next device.
+    await updateOwnProfile('uid-1', { appLanguage: 'te', bibleMode: 'bilingual' });
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      appLanguage: 'te',
+      bibleMode: 'bilingual',
     });
   });
 

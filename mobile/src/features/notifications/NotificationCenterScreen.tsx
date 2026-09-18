@@ -11,6 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatDateTime } from '../../i18n/locale';
+import type { BibleLanguage } from '../bible/types';
 import { AppButton } from '../../theme/ui/AppButton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { getNavigationTargetFromData } from './notificationNavigation';
@@ -20,10 +22,10 @@ import {
   type NotificationHistoryEntry,
 } from './notificationHistory';
 
-function formatTimestamp(iso: string): string {
+function formatTimestamp(iso: string, appLanguage: BibleLanguage): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString();
+  return formatDateTime(date, appLanguage);
 }
 
 /**
@@ -53,7 +55,7 @@ function formatTimestamp(iso: string): string {
 export function NotificationCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii, spacing } = useTheme();
-  const { t } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   const [history, setHistory] = useState<NotificationHistoryEntry[] | undefined>(
     undefined
   );
@@ -198,7 +200,7 @@ export function NotificationCenterScreen() {
               {entry.message}
             </Text>
             <Text style={[styles.timestamp, { color: colors.secondaryText }]}>
-              {formatTimestamp(entry.receivedAt)}
+              {formatTimestamp(entry.receivedAt, appLanguage)}
             </Text>
           </TouchableOpacity>
         );

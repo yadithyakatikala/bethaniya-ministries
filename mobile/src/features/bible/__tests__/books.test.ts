@@ -4,6 +4,7 @@ import {
   NEW_TESTAMENT_BOOKS,
   getBookById,
 } from '../books';
+import { bookNameLanguageFor } from '../types';
 
 describe('BIBLE_BOOKS', () => {
   it('contains exactly 66 books', () => {
@@ -59,5 +60,28 @@ describe('getBookById', () => {
 
   it('returns undefined for an unknown id', () => {
     expect(getBookById('not-a-book')).toBeUndefined();
+  });
+});
+
+/**
+ * Which language a LABEL is written in -- see ../types.ts.
+ *
+ * This one function is what keeps "which scripture am I reading" and
+ * "what language is the app in" from being confused at the point where
+ * they meet: the book name above the verses.
+ */
+describe('bookNameLanguageFor', () => {
+  it('follows the Bible in a single-language mode, whatever the interface is', () => {
+    expect(bookNameLanguageFor('te', 'en')).toBe('te');
+    expect(bookNameLanguageFor('te', 'te')).toBe('te');
+    expect(bookNameLanguageFor('en', 'te')).toBe('en');
+    expect(bookNameLanguageFor('en', 'en')).toBe('en');
+  });
+
+  it('follows the interface in bilingual mode, where the verses carry both', () => {
+    // The label is chrome, not scripture: a Telugu-reading member asking
+    // to see both texts should not be handed English book names.
+    expect(bookNameLanguageFor('bilingual', 'te')).toBe('te');
+    expect(bookNameLanguageFor('bilingual', 'en')).toBe('en');
   });
 });

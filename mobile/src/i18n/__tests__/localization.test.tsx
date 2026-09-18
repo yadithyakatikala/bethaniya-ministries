@@ -29,12 +29,20 @@ jest.mock('../../services/firebase/app');
  *      landing screen read `book.name` (English) directly, so the Bible
  *      looked English. See ../../features/bible/books.ts's getBookName().
  *
- * These tests cover the contract rather than any one screen's wording:
- * that the catalogues agree on their keys, that switching the preference
- * changes what a component renders WITHOUT a reload, that it persists,
- * and that all four Bible surfaces follow the same single preference.
+ * WHAT CHANGED IN V2. Those fixes both hung off ONE preference, which is
+ * how the interface language and the Bible translation ended up welded
+ * together -- and the congregation's actual requirement is an English
+ * interface over a Telugu Bible. There are now two preferences (see
+ * ../../context/languagePreferences.ts), so these tests assert the
+ * opposite of what they used to on exactly one point: the UI language
+ * follows `appLanguage` and is NOT moved by the Bible's setting.
+ *
+ * The rest of the contract is unchanged: the catalogues agree on their
+ * keys, switching the preference re-renders WITHOUT a reload, the choice
+ * persists, and every Bible surface follows the Bible's own preference.
  */
-const LANGUAGE_KEY = 'bible_language_preference';
+const APP_LANGUAGE_KEY = 'app_language_preference';
+const BIBLE_MODE_KEY = 'bible_mode_preference';
 
 function mockSignedOut() {
   (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
@@ -91,11 +99,11 @@ describe('the catalogues', () => {
 
 /** A probe that renders one key plus the language, so a re-render is visible. */
 function Probe({ stringKey }: { stringKey: StringKey }) {
-  const { t, language } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   return (
     <>
       <Text testID="probe-text">{t(stringKey)}</Text>
-      <Text testID="probe-language">{language}</Text>
+      <Text testID="probe-language">{appLanguage}</Text>
     </>
   );
 }
@@ -120,35 +128,52 @@ describe('useTranslation', () => {
     jest.clearAllMocks();
   });
 
-  it('renders Telugu by default, since Telugu is the default language', async () => {
-    const { getByTestId } = await renderProbe();
-    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('te'));
-    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.te['nav.home']);
-  });
-
-  it('renders English when English has been stored', async () => {
-    await AsyncStorage.setItem(LANGUAGE_KEY, 'en');
+  it('renders English by default, since the interface defaults to English', async () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
     expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.en['nav.home']);
   });
 
-  it('reads the same single preference the Bible uses -- not a second state', async () => {
-    // This is the architectural point: there is one language value, so the
-    // Settings toggle cannot leave the UI and the Bible disagreeing.
-    await AsyncStorage.setItem(LANGUAGE_KEY, 'en');
+  it('renders Telugu when Telugu has been stored', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'te');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('te'));
+    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.te['nav.home']);
+  });
+
+  it('follows the APP language, not the Bible language', async () => {
+    // The architectural point of the milestone, inverted from V1: a member
+    // reading the Telugu Bible keeps an English interface unless they ask
+    // for a Telugu one. If these two were ever re-welded, this fails.
+    await AsyncStorage.setItem(BIBLE_MODE_KEY, 'te');
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
+    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.en['nav.home']);
+  });
+
+  it('is unaffected by a bilingual Bible setting', async () => {
+    await AsyncStorage.setItem(BIBLE_MODE_KEY, 'bilingual');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
+  });
+
+  it('renders a Telugu interface over an English Bible -- the other combination', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'te');
+    await AsyncStorage.setItem(BIBLE_MODE_KEY, 'en');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('te'));
+    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.te['nav.home']);
   });
 });
 
 /** Renders a switchable probe so a language change can be driven in-test. */
 function SwitchableProbe() {
-  const { t, language } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   return (
     <>
       <Text testID="probe-text">{t('nav.home')}</Text>
-      <Text testID="probe-language">{language}</Text>
+      <Text testID="probe-language">{appLanguage}</Text>
     </>
   );
 }
@@ -177,21 +202,52 @@ describe('switching the language', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('te'));
-    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.te['nav.home']);
-
-    await fireEvent.press(getByTestId('settings-language-toggle'));
-
-    // The sibling component re-rendered in English without remounting.
     await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
     expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.en['nav.home']);
 
+    await fireEvent.press(getByTestId('settings-app-language-te'));
+
+    // The sibling component re-rendered in Telugu without remounting.
+    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('te'));
+    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.te['nav.home']);
+
     // ...and the choice survives a restart.
-    expect(await AsyncStorage.getItem(LANGUAGE_KEY)).toBe('en');
+    expect(await AsyncStorage.getItem(APP_LANGUAGE_KEY)).toBe('te');
+  });
+
+  it('does not change the interface when only the Bible language is switched', async () => {
+    // The user-facing half of the independence requirement, driven through
+    // the two real Settings controls that sit next to each other -- which
+    // is exactly where a re-coupling would show up.
+    const { getByTestId } = await render(
+      <AuthProvider>
+        <PreferencesProvider>
+          <NavigationContainer>
+            <SwitchableProbe />
+            <SettingsScreen />
+          </NavigationContainer>
+        </PreferencesProvider>
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
+
+    await fireEvent.press(getByTestId('settings-bible-language-en'));
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('en')
+    );
+    expect(getByTestId('probe-language').props.children).toBe('en');
+
+    await fireEvent.press(getByTestId('settings-bible-language-bilingual'));
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('bilingual')
+    );
+    expect(getByTestId('probe-language').props.children).toBe('en');
+    expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.en['nav.home']);
   });
 });
 
-describe('the Telugu Bible follows the same preference', () => {
+describe('the Bible follows its own preference', () => {
   it('gives every book a Telugu name', () => {
     for (const book of BIBLE_BOOKS) {
       expect(getBookName(book, 'te')).toBe(book.nameTe);

@@ -169,7 +169,7 @@ describe('PrayersScreen', () => {
     const { getByTestId } = await renderScreen();
     await waitFor(() => expect(getByTestId('prayer-delete-p1')).toBeTruthy());
     expect(getByTestId('prayer-delete-p1').props.accessibilityLabel).toBe(
-      translate('te', 'prayers.deleteLabel')
+      translate('en', 'prayers.deleteLabel')
     );
   });
 });

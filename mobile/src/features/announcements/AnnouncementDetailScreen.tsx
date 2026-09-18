@@ -2,17 +2,14 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+// This screen previously formatted its date with the DEVICE locale and
+// never called useTranslation() at all -- see ../../i18n/locale.ts.
+import { useTranslation } from '../../i18n';
+import { formatLongDate } from '../../i18n/locale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AnnouncementDetail'>;
 
-function formatDate(date: Date | null): string {
-  if (!date) return '';
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+
 
 /**
  * Announcement detail -- receives the full announcement object as a
@@ -30,6 +27,7 @@ function formatDate(date: Date | null): string {
 export function AnnouncementDetailScreen({ route }: Props) {
   const { announcement } = route.params;
   const { colors, radii } = useTheme();
+  const { appLanguage } = useTranslation();
 
   return (
     <ScrollView
@@ -58,7 +56,7 @@ export function AnnouncementDetailScreen({ route }: Props) {
             style={[styles.date, { color: colors.secondaryText }]}
             testID="announcement-detail-date"
           >
-            {formatDate(announcement.createdAt)}
+            {formatLongDate(announcement.createdAt, appLanguage)}
           </Text>
         ) : null}
         <Text

@@ -106,7 +106,7 @@ export function ProfileScreen() {
     setResendingVerification(true);
     try {
       await resendEmailVerification(user);
-      setVerificationNotice('Verification email sent. Check your inbox.');
+      setVerificationNotice(t('profile.verificationSent'));
     } catch (error) {
       logAuthError('resend-verification', error);
       setVerificationError(toFriendlyAuthMessage(error));
@@ -155,7 +155,7 @@ export function ProfileScreen() {
     if (!uid) return;
     const trimmed = displayNameInput.trim();
     if (trimmed.length === 0) {
-      setNameError('Display name cannot be empty.');
+      setNameError(t('profile.nameEmpty'));
       setNameSaved(false);
       return;
     }
@@ -166,7 +166,7 @@ export function ProfileScreen() {
       await updateOwnProfile(uid, { displayName: trimmed });
       setNameSaved(true);
     } catch {
-      setNameError('Could not save your name. Please try again.');
+      setNameError(t('profile.nameSaveFailed'));
     } finally {
       setIsSavingName(false);
     }
@@ -178,7 +178,7 @@ export function ProfileScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setPhotoError('Photo library access is required to change your profile photo.');
+      setPhotoError(t('profile.photoPermissionRequired'));
       return;
     }
 
@@ -192,15 +192,15 @@ export function ProfileScreen() {
     if (!asset) return;
 
     if (asset.type && asset.type !== 'image') {
-      setPhotoError('Please choose an image file.');
+      setPhotoError(t('profile.photoMustBeImage'));
       return;
     }
     if (asset.mimeType && !asset.mimeType.startsWith('image/')) {
-      setPhotoError('Please choose an image file.');
+      setPhotoError(t('profile.photoMustBeImage'));
       return;
     }
     if (asset.fileSize && asset.fileSize > MAX_PHOTO_BYTES) {
-      setPhotoError('Please choose an image smaller than 5MB.');
+      setPhotoError(t('profile.photoTooLarge'));
       return;
     }
 
@@ -209,7 +209,7 @@ export function ProfileScreen() {
       const response = await fetch(asset.uri);
       const blob = await response.blob();
       if (blob.size > MAX_PHOTO_BYTES) {
-        setPhotoError('Please choose an image smaller than 5MB.');
+        setPhotoError(t('profile.photoTooLarge'));
         return;
       }
       const extension = asset.uri.split('.').pop()?.split('?')[0] || 'jpg';
@@ -367,18 +367,18 @@ export function ProfileScreen() {
               style={[styles.successText, { color: colors.success }]}
               testID="profile-name-saved"
             >
-              Saved.
+              {t('profile.saved')}
             </Text>
           ) : null}
         </View>
 
         <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-          <Text style={[styles.label, { color: colors.secondaryText }]}>Email</Text>
+          <Text style={[styles.label, { color: colors.secondaryText }]}>{t('profile.emailLabel')}</Text>
           <Text
             style={[styles.readOnlyValue, { color: colors.text }]}
             testID="profile-email"
           >
-            {displayProfile?.email ?? 'Not set'}
+            {displayProfile?.email ?? t('profile.notSet')}
           </Text>
           {/* Email/Password is V1's primary sign-in method, and account
               creation sends a verification email (see
@@ -398,7 +398,7 @@ export function ProfileScreen() {
                 ]}
                 testID="profile-email-verified-status"
               >
-                {user.emailVerified ? 'Verified' : 'Not verified'}
+                {t(user.emailVerified ? 'profile.emailVerified' : 'profile.emailUnverified')}
               </Text>
               {!user.emailVerified ? (
                 <>

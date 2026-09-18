@@ -53,6 +53,8 @@ import type { User } from 'firebase/auth';
 import { db } from './app';
 
 export type LanguagePreference = 'en' | 'te';
+/** What the Bible reader is set to show. See ../../features/bible/types.ts. */
+export type BibleModePreference = 'en' | 'te' | 'bilingual';
 export type ThemePreference = 'light' | 'dark';
 
 export interface UserProfile {
@@ -62,7 +64,21 @@ export interface UserProfile {
   email: string | null;
   phoneNumber: string | null;
   photoURL: string | null;
+  /**
+   * V1's single language value. RETAINED, not removed: a V1 build
+   * installed over V2 still reads it, and deleting a field users' older
+   * clients depend on is a destructive migration. V2 keeps mirroring it
+   * whenever the Bible mode is a single language -- see
+   * ../../context/languagePreferences.ts.
+   *
+   * V2 code should read `appLanguage` / `bibleMode` instead. This field
+   * only seeds them once, for an account that has never run V2.
+   */
   languagePreference: LanguagePreference | null;
+  /** The interface language. Defaults to 'en' -- independent of the Bible. */
+  appLanguage: LanguagePreference | null;
+  /** The Bible reader's mode. Defaults to 'te' -- independent of the UI. */
+  bibleMode: BibleModePreference | null;
   themePreference: ThemePreference | null;
   notificationsEnabled: boolean | null;
 }
@@ -75,6 +91,8 @@ export interface UpdatableUserProfileFields {
   displayName?: string;
   photoURL?: string | null;
   languagePreference?: LanguagePreference;
+  appLanguage?: LanguagePreference;
+  bibleMode?: BibleModePreference;
   themePreference?: ThemePreference;
   notificationsEnabled?: boolean;
 }
@@ -83,6 +101,12 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
   const languagePreference =
     data.languagePreference === 'en' || data.languagePreference === 'te'
       ? data.languagePreference
+      : null;
+  const appLanguage =
+    data.appLanguage === 'en' || data.appLanguage === 'te' ? data.appLanguage : null;
+  const bibleMode =
+    data.bibleMode === 'en' || data.bibleMode === 'te' || data.bibleMode === 'bilingual'
+      ? data.bibleMode
       : null;
   const themePreference =
     data.themePreference === 'light' || data.themePreference === 'dark'
@@ -96,6 +120,8 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : null,
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
     languagePreference,
+    appLanguage,
+    bibleMode,
     themePreference,
     notificationsEnabled:
       typeof data.notificationsEnabled === 'boolean' ? data.notificationsEnabled : null,
@@ -141,6 +167,8 @@ export async function updateOwnProfile(
   if ('photoURL' in fields) update.photoURL = fields.photoURL;
   if ('languagePreference' in fields)
     update.languagePreference = fields.languagePreference;
+  if ('appLanguage' in fields) update.appLanguage = fields.appLanguage;
+  if ('bibleMode' in fields) update.bibleMode = fields.bibleMode;
   if ('themePreference' in fields) update.themePreference = fields.themePreference;
   if ('notificationsEnabled' in fields)
     update.notificationsEnabled = fields.notificationsEnabled;

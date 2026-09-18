@@ -22,7 +22,10 @@ export function MoreScreen() {
   const { colors, radii, spacing } = useTheme();
   const { t } = useTranslation();
 
-  const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
+  // The final fallback is a WORD rather than a name, so it is translated:
+  // a Telugu interface should not address the member in English.
+  const displayLabel =
+    user?.displayName || user?.email || user?.phoneNumber || t('common.member');
 
   return (
     <ScrollView

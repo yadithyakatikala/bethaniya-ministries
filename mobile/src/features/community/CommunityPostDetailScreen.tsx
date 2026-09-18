@@ -2,17 +2,14 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+// This screen previously formatted its date with the DEVICE locale and
+// never called useTranslation() at all -- see ../../i18n/locale.ts.
+import { useTranslation } from '../../i18n';
+import { formatLongDate } from '../../i18n/locale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CommunityPostDetail'>;
 
-function formatDate(date: Date | null): string {
-  if (!date) return '';
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+
 
 /**
  * Community post detail -- new V1 feature, mirrors
@@ -23,6 +20,7 @@ function formatDate(date: Date | null): string {
 export function CommunityPostDetailScreen({ route }: Props) {
   const { post } = route.params;
   const { colors, radii } = useTheme();
+  const { appLanguage } = useTranslation();
 
   return (
     <ScrollView
@@ -51,7 +49,7 @@ export function CommunityPostDetailScreen({ route }: Props) {
             style={[styles.date, { color: colors.secondaryText }]}
             testID="community-post-detail-date"
           >
-            {formatDate(post.createdAt)}
+            {formatLongDate(post.createdAt, appLanguage)}
           </Text>
         ) : null}
         <Text

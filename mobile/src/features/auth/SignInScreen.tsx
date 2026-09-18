@@ -124,9 +124,7 @@ export function SignInScreen() {
       await sendPasswordReset(trimmedEmail);
       // Deliberately does NOT confirm whether an account exists for this
       // address -- that would make this an account enumeration oracle.
-      setNotice(
-        'If an account exists for that email, a password reset link is on its way.'
-      );
+      setNotice(t('auth.resetSent'));
       setMode('sign-in');
     });
   }
@@ -205,7 +203,7 @@ export function SignInScreen() {
 
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.secondaryText }]}>
-          {mode === 'reset-password' ? 'Reset your password' : 'Email'}
+          {t(mode === 'reset-password' ? 'auth.resetTitle' : 'auth.email')}
         </Text>
 
         {mode === 'sign-up' ? (
@@ -261,8 +259,8 @@ export function SignInScreen() {
             ]}
             placeholder={
               mode === 'sign-up'
-                ? `Password (${MIN_PASSWORD_LENGTH}+ characters)`
-                : 'Password'
+                ? t('auth.passwordPlaceholder', { min: MIN_PASSWORD_LENGTH })
+                : t('auth.password')
             }
             placeholderTextColor={colors.secondaryText}
             autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}

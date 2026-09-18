@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Text, View } from 'react-native';
-import { render, waitFor, fireEvent, act } from '@testing-library/react-native';
+import { cleanup, render, waitFor, fireEvent } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
@@ -19,15 +19,26 @@ function Probe() {
   const prefs = usePreferences();
   return (
     <View>
-      <Text testID="language">{prefs.languagePreference}</Text>
+      <Text testID="appLanguage">{prefs.appLanguage}</Text>
+      <Text testID="bibleMode">{prefs.bibleMode}</Text>
       <Text testID="theme">{prefs.themePreference}</Text>
       <Text testID="isDark">{String(prefs.isDark)}</Text>
       <Text testID="notifications">{String(prefs.notificationsEnabled)}</Text>
       <Text testID="isLoaded">{String(prefs.isLoaded)}</Text>
       <Button
-        title="set-te"
-        testID="set-language-te"
-        onPress={() => void prefs.setLanguagePreference('te')}
+        title="app-te"
+        testID="set-app-language-te"
+        onPress={() => void prefs.setAppLanguage('te')}
+      />
+      <Button
+        title="bible-en"
+        testID="set-bible-mode-en"
+        onPress={() => void prefs.setBibleMode('en')}
+      />
+      <Button
+        title="bible-bilingual"
+        testID="set-bible-mode-bilingual"
+        onPress={() => void prefs.setBibleMode('bilingual')}
       />
       <Button
         title="set-dark"
@@ -58,6 +69,17 @@ async function renderProbe() {
   );
 }
 
+function mockSignedIn(uid: string) {
+  (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+    onNext({ uid, displayName: null, email: null, phoneNumber: null });
+    return jest.fn();
+  });
+  (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+    next({ exists: () => false });
+    return jest.fn();
+  });
+}
+
 describe('PreferencesContext', () => {
   afterEach(async () => {
     await AsyncStorage.clear();
@@ -66,10 +88,11 @@ describe('PreferencesContext', () => {
     (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
   });
 
-  it('defaults to Telugu, the system color scheme, and notifications on when signed out with nothing stored', async () => {
+  it('defaults to an English interface, a Telugu Bible, the system color scheme, and notifications on', async () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
-    expect(getByTestId('language').props.children).toBe('te');
+    expect(getByTestId('appLanguage').props.children).toBe('en');
+    expect(getByTestId('bibleMode').props.children).toBe('te');
     expect(getByTestId('theme').props.children).toBe('light');
     expect(getByTestId('notifications').props.children).toBe('true');
   });
@@ -80,13 +103,15 @@ describe('PreferencesContext', () => {
     expect(getByTestId('isDark').props.children).toBe('true');
   });
 
-  it('loads a previously stored local preference before any sign-in', async () => {
-    await AsyncStorage.setItem('bible_language_preference', 'te');
+  it('loads previously stored local preferences before any sign-in', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    await AsyncStorage.setItem('bible_mode_preference', 'bilingual');
     await AsyncStorage.setItem('theme_preference', 'dark');
     await AsyncStorage.setItem('notifications_enabled_preference', 'false');
 
     const { getByTestId } = await renderProbe();
-    await waitFor(() => expect(getByTestId('language').props.children).toBe('te'));
+    await waitFor(() => expect(getByTestId('appLanguage').props.children).toBe('te'));
+    expect(getByTestId('bibleMode').props.children).toBe('bilingual');
     expect(getByTestId('theme').props.children).toBe('dark');
     expect(getByTestId('notifications').props.children).toBe('false');
   });
@@ -95,79 +120,20 @@ describe('PreferencesContext', () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
 
-    await act(async () => {
-      await fireEvent.press(getByTestId('set-theme-dark'));
-    });
+    await fireEvent.press(getByTestId('set-theme-dark'));
 
     await waitFor(() => expect(getByTestId('theme').props.children).toBe('dark'));
     expect(await AsyncStorage.getItem('theme_preference')).toBe('dark');
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
-  it('syncs a preference change to Firestore when signed in', async () => {
-    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'user-1', displayName: null, email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
-      next({ exists: () => false });
-      return jest.fn();
-    });
-
-    const { getByTestId } = await renderProbe();
-    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
-
-    await act(async () => {
-      await fireEvent.press(getByTestId('set-language-te'));
-    });
-
-    await waitFor(() => expect(getByTestId('language').props.children).toBe('te'));
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-      languagePreference: 'te',
-    });
-  });
-
-  it('adopts a Firestore-synced preference once a snapshot arrives while signed in', async () => {
-    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'user-2', displayName: null, email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
-      next({
-        exists: () => true,
-        id: 'user-2',
-        data: () => ({
-          role: 'member',
-          themePreference: 'dark',
-          languagePreference: 'te',
-          notificationsEnabled: false,
-        }),
-      });
-      return jest.fn();
-    });
-
-    const { getByTestId } = await renderProbe();
-    await waitFor(() => expect(getByTestId('theme').props.children).toBe('dark'));
-    expect(getByTestId('language').props.children).toBe('te');
-    expect(getByTestId('notifications').props.children).toBe('false');
-  });
-
   it('disabling notifications persists locally and syncs when signed in', async () => {
-    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
-      onNext({ uid: 'user-3', displayName: null, email: null, phoneNumber: null });
-      return jest.fn();
-    });
-    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
-      next({ exists: () => false });
-      return jest.fn();
-    });
+    mockSignedIn('user-3');
 
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
 
-    await act(async () => {
-      await fireEvent.press(getByTestId('disable-notifications'));
-    });
+    await fireEvent.press(getByTestId('disable-notifications'));
 
     await waitFor(() =>
       expect(getByTestId('notifications').props.children).toBe('false')
@@ -188,9 +154,7 @@ describe('PreferencesContext', () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('notifications').props.children).toBe('false'));
 
-    await act(async () => {
-      await fireEvent.press(getByTestId('enable-notifications'));
-    });
+    await fireEvent.press(getByTestId('enable-notifications'));
 
     await waitFor(() =>
       expect(getByTestId('notifications').props.children).toBe('true')
@@ -204,13 +168,217 @@ describe('PreferencesContext', () => {
     const { getByTestId } = await renderProbe();
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
 
-    await act(async () => {
-      await fireEvent.press(getByTestId('disable-notifications'));
-    });
+    await fireEvent.press(getByTestId('disable-notifications'));
 
     await waitFor(() =>
       expect(getByTestId('notifications').props.children).toBe('false')
     );
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The whole point of the milestone: two preferences that do not move each
+ * other. Each direction is asserted separately, because a regression is
+ * far more likely to re-couple them one way (a shared setter, a shared
+ * storage key) than both.
+ */
+describe('the two language preferences are independent', () => {
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+    (onAuthStateChanged as jest.Mock).mockImplementation(() => jest.fn());
+    (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
+  });
+
+  it('changing the app language leaves the Bible mode where it was', async () => {
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(getByTestId('set-app-language-te'));
+
+    await waitFor(() => expect(getByTestId('appLanguage').props.children).toBe('te'));
+    expect(getByTestId('bibleMode').props.children).toBe('te');
+    expect(await AsyncStorage.getItem('app_language_preference')).toBe('te');
+    // The Bible's own stored value was not touched by an interface change.
+    expect(await AsyncStorage.getItem('bible_mode_preference')).toBe('te');
+  });
+
+  it('changing the Bible mode leaves the app language where it was', async () => {
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(getByTestId('set-bible-mode-en'));
+
+    await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('en'));
+    expect(getByTestId('appLanguage').props.children).toBe('en');
+    expect(await AsyncStorage.getItem('bible_mode_preference')).toBe('en');
+    expect(await AsyncStorage.getItem('app_language_preference')).toBe('en');
+  });
+
+  it('supports the combination V1 could not express: English interface, Telugu Bible', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'en');
+    await AsyncStorage.setItem('bible_mode_preference', 'te');
+
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+    expect(getByTestId('appLanguage').props.children).toBe('en');
+    expect(getByTestId('bibleMode').props.children).toBe('te');
+  });
+
+  it('supports the opposite combination too: Telugu interface, English Bible', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    await AsyncStorage.setItem('bible_mode_preference', 'en');
+
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+    expect(getByTestId('appLanguage').props.children).toBe('te');
+    expect(getByTestId('bibleMode').props.children).toBe('en');
+  });
+
+  it('keeps both choices across a remount, which is what "restart" means here', async () => {
+    const first = await renderProbe();
+    await waitFor(() => expect(first.getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(first.getByTestId('set-app-language-te'));
+    await fireEvent.press(first.getByTestId('set-bible-mode-bilingual'));
+    await waitFor(() =>
+      expect(first.getByTestId('bibleMode').props.children).toBe('bilingual')
+    );
+    // cleanup() rather than first.unmount(): the library's own teardown
+    // also runs after this test, and unmounting a tree twice leaves its
+    // internals in a state that breaks later renders in this file.
+    await cleanup();
+
+    const second = await renderProbe();
+    await waitFor(() =>
+      expect(second.getByTestId('appLanguage').props.children).toBe('te')
+    );
+    expect(second.getByTestId('bibleMode').props.children).toBe('bilingual');
+  });
+});
+
+describe('Firestore sync of the two language preferences', () => {
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+    (onAuthStateChanged as jest.Mock).mockImplementation(() => jest.fn());
+    (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
+  });
+
+  it('writes only appLanguage when the interface language changes', async () => {
+    mockSignedIn('user-1');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(getByTestId('set-app-language-te'));
+
+    await waitFor(() => expect(getByTestId('appLanguage').props.children).toBe('te'));
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      appLanguage: 'te',
+    });
+  });
+
+  it('mirrors a single-language Bible mode to V1 field so an older client still reads it', async () => {
+    mockSignedIn('user-2');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(getByTestId('set-bible-mode-en'));
+
+    await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('en'));
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      bibleMode: 'en',
+      languagePreference: 'en',
+    });
+  });
+
+  it('does not mirror bilingual to V1 field, which V1 would misread', async () => {
+    mockSignedIn('user-2b');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    await fireEvent.press(getByTestId('set-bible-mode-bilingual'));
+
+    await waitFor(() =>
+      expect(getByTestId('bibleMode').props.children).toBe('bilingual')
+    );
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      bibleMode: 'bilingual',
+    });
+  });
+
+  it('adopts both synced language fields once a snapshot arrives', async () => {
+    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'user-4', displayName: null, email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'user-4',
+        data: () => ({
+          role: 'member',
+          themePreference: 'dark',
+          appLanguage: 'te',
+          bibleMode: 'bilingual',
+          notificationsEnabled: false,
+        }),
+      });
+      return jest.fn();
+    });
+
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('theme').props.children).toBe('dark'));
+    expect(getByTestId('appLanguage').props.children).toBe('te');
+    expect(getByTestId('bibleMode').props.children).toBe('bilingual');
+    expect(getByTestId('notifications').props.children).toBe('false');
+  });
+
+  it('lets a V1 profile seed the Bible mode but never the interface language', async () => {
+    // The server-side half of the migration. A member whose account was
+    // last written by V1 has only `languagePreference`; treating that as
+    // the app language would hand a Telugu-Bible reader a Telugu
+    // interface they never asked for.
+    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'user-5', displayName: null, email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'user-5',
+        data: () => ({ role: 'member', languagePreference: 'te' }),
+      });
+      return jest.fn();
+    });
+
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('te'));
+    expect(getByTestId('appLanguage').props.children).toBe('en');
+  });
+
+  it('prefers the V2 Bible field over V1 when a profile carries both', async () => {
+    (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+      onNext({ uid: 'user-6', displayName: null, email: null, phoneNumber: null });
+      return jest.fn();
+    });
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'user-6',
+        data: () => ({
+          role: 'member',
+          languagePreference: 'en',
+          bibleMode: 'bilingual',
+        }),
+      });
+      return jest.fn();
+    });
+
+    const { getByTestId } = await renderProbe();
+    await waitFor(() =>
+      expect(getByTestId('bibleMode').props.children).toBe('bilingual')
+    );
   });
 });

@@ -12,6 +12,8 @@ import {
   type NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
+import { usePreferences } from '../context/PreferencesContext';
+import { bookNameLanguageFor } from '../features/bible/types';
 import type { ThemeColors } from '../theme';
 import { useTranslation } from '../i18n';
 import { HomeScreen } from '../features/auth/HomeScreen';
@@ -241,7 +243,13 @@ export function AppNavigator() {
   const { colors, isDark } = useTheme();
   // Header titles are user-facing text and must follow the app language
   // -- they were hardcoded English, including the Bible book names.
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
+  // Bible book names in the header follow the BIBLE preference, not the
+  // interface language -- they label scripture. bookNameLanguageFor()
+  // resolves bilingual mode to the reader's own app language, since a
+  // paired reader's labels are chrome rather than scripture.
+  const { appLanguage, bibleMode } = usePreferences();
+  const bookNameLanguage = bookNameLanguageFor(bibleMode, appLanguage);
 
   const screenOptions = useMemo(() => buildScreenOptions(colors), [colors]);
   const navigationTheme = useMemo(
@@ -303,15 +311,15 @@ export function AppNavigator() {
               component={ChaptersListScreen}
               options={({ route }) => ({
                 title:
-                  getBookNameById(route.params.bookId, language) ?? t('bible.chapters'),
+                  getBookNameById(route.params.bookId, bookNameLanguage) ?? t('bible.chapters'),
               })}
             />
             <Stack.Screen
               name="BibleChapter"
               component={ChapterScreen}
               options={({ route }) => ({
-                title: getBookNameById(route.params.bookId, language)
-                  ? `${getBookNameById(route.params.bookId, language)} ${route.params.chapterNumber}`
+                title: getBookNameById(route.params.bookId, bookNameLanguage)
+                  ? `${getBookNameById(route.params.bookId, bookNameLanguage)} ${route.params.chapterNumber}`
                   : t('bible.chapter'),
                 headerShown: false,
               })}

@@ -1,12 +1,13 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
+import { usePreferences } from '../../context/PreferencesContext';
 import { Tappable } from '../../theme/ui/Tappable';
 import { useTranslation } from '../../i18n';
 import type { StringKey } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS, getBookName } from './books';
-import type { BibleBook } from './types';
+import { bookNameLanguageFor, type BibleBook } from './types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleBooks'>;
 
@@ -37,7 +38,11 @@ const SECTIONS: { id: string; titleKey: StringKey; data: BibleBook[] }[] = [
  */
 export function BooksListScreen({ navigation }: Props) {
   const { colors, radii } = useTheme();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
+  // Book names label scripture, so they follow the BIBLE preference --
+  // not the interface language. See bookNameLanguageFor().
+  const { appLanguage, bibleMode } = usePreferences();
+  const bookNameLanguage = bookNameLanguageFor(bibleMode, appLanguage);
 
   return (
     <ScrollView
@@ -87,7 +92,7 @@ export function BooksListScreen({ navigation }: Props) {
                   names while the Telugu Bible was selected and Telugu
                   verse text rendered underneath. */}
               <Text style={[styles.bookName, { color: colors.text }]}>
-                {getBookName(book, language)}
+                {getBookName(book, bookNameLanguage)}
               </Text>
             </TouchableOpacity>
           ))}

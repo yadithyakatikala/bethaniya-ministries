@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatIsoDateString } from '../../i18n/locale';
 import { Tappable } from '../../theme/ui/Tappable';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { EmptyState } from '../../theme/ui/EmptyState';
@@ -23,15 +24,7 @@ import {
   type TodaysDailyVerse,
 } from '../../services/firebase/dailyVerses';
 
-function formatDate(dateString: string): string {
-  const [year, month, day] = dateString.split('-').map(Number);
-  if (!year || !month || !day) return dateString;
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+
 
 /**
  * Standalone Daily Verse screen -- fills the gap the UI audit flagged:
@@ -47,7 +40,7 @@ function formatDate(dateString: string): string {
 export function DailyVerseScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, radii, spacing } = useTheme();
-  const { t } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   const insets = useSafeAreaInsets();
   const [today, setToday] = useState<TodaysDailyVerse | null | undefined>(undefined);
   const [archive, setArchive] = useState<TodaysDailyVerse[] | undefined>(undefined);
@@ -75,7 +68,7 @@ export function DailyVerseScreen() {
         >
           <View style={[styles.backChevron, { borderColor: colors.text }]} />
         </Tappable>
-        <Text style={[styles.heading, { color: colors.text }]}>Daily Verse</Text>
+        <Text style={[styles.heading, { color: colors.text }]}>{t('dailyVerse.title')}</Text>
       </View>
 
       {today === undefined ? (
@@ -106,7 +99,7 @@ export function DailyVerseScreen() {
               accessibilityIgnoresInvertColors
             />
           ) : null}
-          <Text style={[styles.todayLabel, { color: colors.accent }]}>Today</Text>
+          <Text style={[styles.todayLabel, { color: colors.accent }]}>{t('dailyVerse.today')}</Text>
           <Text style={[styles.verseText, { color: colors.text }]}>{today.text}</Text>
           <Text style={[styles.reference, { color: colors.accent }]}>
             {today.reference}
@@ -141,7 +134,7 @@ export function DailyVerseScreen() {
                 testID={`daily-verse-archive-item-${verse.id}`}
               >
                 <Text style={[styles.archiveDate, { color: colors.secondaryText }]}>
-                  {formatDate(verse.date)}
+                  {formatIsoDateString(verse.date, appLanguage)}
                 </Text>
                 <Text style={[styles.archiveText, { color: colors.text }]}>
                   {verse.text}

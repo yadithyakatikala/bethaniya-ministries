@@ -180,6 +180,15 @@ service cloud.firestore {
             || (data.photoURL is string && data.photoURL.size() <= 2000))
         && (!('languagePreference' in data)
             || data.languagePreference in ['en', 'te'])
+        // V2 split the single V1 language value into two independent
+        // preferences -- an English interface over a Telugu Bible is the
+        // product requirement, and one field could not express it. Both
+        // are owner-editable and value-checked here; 'bilingual' is valid
+        // for the Bible only, never for the interface. languagePreference
+        // above is deliberately still accepted, so a V1 client writing it
+        // is not rejected.
+        && (!('appLanguage' in data) || data.appLanguage in ['en', 'te'])
+        && (!('bibleMode' in data) || data.bibleMode in ['en', 'te', 'bilingual'])
         && (!('themePreference' in data)
             || data.themePreference in ['light', 'dark'])
         && (!('notificationsEnabled' in data)
@@ -320,6 +329,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data)
                .affectedKeys()
                .hasOnly(['displayName', 'photoURL', 'languagePreference',
+                         'appLanguage', 'bibleMode',
                          'themePreference', 'notificationsEnabled'])
           && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()

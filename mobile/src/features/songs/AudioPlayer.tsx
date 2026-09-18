@@ -1,6 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 
 interface AudioPlayerProps {
@@ -66,6 +67,7 @@ function formatSeconds(totalSeconds: number): string {
  */
 export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   const { colors, radii } = useTheme();
+  const { t } = useTranslation();
   const player = useAudioPlayer(audioUrl);
   const status = useAudioPlayerStatus(player);
 
@@ -73,7 +75,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     return (
       <View style={styles.container} testID="audio-player-error">
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load this song&apos;s audio.
+          {t('songs.audioError')}
         </Text>
       </View>
     );
@@ -115,7 +117,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
           }}
           style={[styles.secondaryButton, { borderColor: colors.border }]}
         >
-          <Text style={[styles.secondaryLabel, { color: colors.text }]}>Restart</Text>
+          <Text style={[styles.secondaryLabel, { color: colors.text }]}>{t('songs.restart')}</Text>
         </Tappable>
         <Tappable
           testID="audio-play-pause-button"
@@ -127,7 +129,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
           ]}
         >
           <Text style={[styles.playLabel, { color: colors.onPrimary }]}>
-            {status.playing ? 'Pause' : 'Play'}
+            {t(status.playing ? 'songs.pause' : 'songs.play')}
           </Text>
         </Tappable>
       </View>

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreferences } from '../../context/PreferencesContext';
+import { primaryBibleLanguage } from '../../context/languagePreferences';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -32,14 +33,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BibleSearch'>;
  * books) already behaves -- immediate, not gated behind a button.
  */
 export function BibleSearchScreen({ navigation }: Props) {
-  const { languagePreference } = usePreferences();
+  const { bibleMode } = usePreferences();
+  // Search reads ONE translation. In bilingual mode that is the primary
+  // Bible (Telugu) -- searching both and merging results is a separate
+  // feature, not something to fake here.
+  const searchLanguage = primaryBibleLanguage(bibleMode);
   const { colors, radii, spacing } = useTheme();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
 
   const trimmedQuery = query.trim();
   const results: BibleSearchResult[] =
-    trimmedQuery.length > 0 ? searchBible(query, languagePreference) : [];
+    trimmedQuery.length > 0 ? searchBible(query, searchLanguage) : [];
 
   function renderHighlightedText(result: BibleSearchResult, field: 'text' | 'reference') {
     const value = field === 'text' ? result.text : result.reference;
@@ -97,7 +102,7 @@ export function BibleSearchScreen({ navigation }: Props) {
       ) : results.length === 0 ? (
         <View style={styles.centered} testID="bible-search-no-results">
           <Text style={[styles.message, { color: colors.secondaryText }]}>
-            No results found for &quot;{trimmedQuery}&quot;.
+            {t('bible.noResults', { query: trimmedQuery })}
           </Text>
         </View>
       ) : (

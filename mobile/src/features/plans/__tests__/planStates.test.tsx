@@ -171,7 +171,7 @@ describe('PlanDayScreen states', () => {
     await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
 
     // The label is localized; the default language is Telugu.
-    expect(getByText(translate('te', 'plans.start'))).toBeTruthy();
+    expect(getByText(translate('en', 'plans.start'))).toBeTruthy();
     expect(getByTestId('plan-day-mark-complete').props.accessibilityState.disabled).toBe(
       false
     );

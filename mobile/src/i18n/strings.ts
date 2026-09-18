@@ -66,7 +66,6 @@ export interface Strings {
   'home.welcome': string;
   'home.verseOfTheDay': string;
   'home.announcements': string;
-  'home.liveNow': string;
   'home.watchLive': string;
   'home.yourReadingPlan': string;
   'home.upcomingEvents': string;
@@ -86,6 +85,12 @@ export interface Strings {
   'bible.noResults': string;
   'bible.switchLanguage': string;
   'bible.notInTranslation': string;
+  /**
+   * The BODY text for an absent chapter. Deliberately different wording
+   * from the badge above it -- printing the same sentence twice, one
+   * under the other, reads as a bug rather than as an explanation.
+   */
+  'bible.notInTranslationHelp': string;
   'bible.numberingDiffers': string;
 
   // --- Songs ---
@@ -257,6 +262,36 @@ export interface Strings {
   'home.startAPlan': string;
   'home.percentComplete': string;
   'announcements.title': string;
+
+  // --- M2: independent app / Bible language ---------------------------
+  /** The two Settings rows. Deliberately NOT both called "Language": the
+   *  whole point of M2 is that they are different settings, and a shared
+   *  label is how a user ends up changing the wrong one. */
+  'settings.appLanguage': string;
+  'settings.appLanguageHelp': string;
+  'settings.bibleLanguage': string;
+  'settings.bibleLanguageHelp': string;
+  'bible.modeTelugu': string;
+  'bible.modeEnglish': string;
+  'bible.modeBilingual': string;
+  'bible.bookNotFound': string;
+
+  // --- M2: strings that were hardcoded English literals ---------------
+  'common.liveNow': string;
+  /** Stands in for a name when a member has no display name, email or phone. */
+  'common.member': string;
+  'events.dateTBA': string;
+  'events.unsupportedStreamLink': string;
+  'songs.favoriteAction': string;
+  'songs.favoritedState': string;
+  'dailyVerse.loadError': string;
+  'profile.saved': string;
+  'profile.nameEmpty': string;
+  'profile.nameSaveFailed': string;
+  'profile.photoPermissionRequired': string;
+  'profile.photoMustBeImage': string;
+  'profile.photoTooLarge': string;
+  'profile.verificationSent': string;
 }
 
 export type StringKey = keyof Strings;
@@ -280,7 +315,6 @@ const en: Strings = {
   'home.welcome': 'Welcome',
   'home.verseOfTheDay': 'Verse of the day',
   'home.announcements': 'Announcements',
-  'home.liveNow': 'LIVE NOW',
   'home.watchLive': 'Watch live',
   'home.yourReadingPlan': 'Your reading plan',
   'home.upcomingEvents': 'Upcoming events',
@@ -299,6 +333,8 @@ const en: Strings = {
   'bible.noResults': 'No results found for “{query}”.',
   'bible.switchLanguage': 'Switch language',
   'bible.notInTranslation': 'This chapter is not in this translation.',
+  'bible.notInTranslationHelp':
+    'Switch the Bible language in Settings to read this chapter in the other translation.',
   'bible.numberingDiffers':
     'Verse numbering differs between these translations in this chapter, so the two are shown separately.',
 
@@ -461,6 +497,32 @@ const en: Strings = {
   'home.startAPlan': 'Start a Reading Plan',
   'home.percentComplete': '{percent}%',
   'announcements.title': 'Announcements',
+
+  'settings.appLanguage': 'App language',
+  'settings.appLanguageHelp': 'Changes the app’s buttons, menus and messages. Does not change the Bible.',
+  'settings.bibleLanguage': 'Bible language',
+  'settings.bibleLanguageHelp': 'Changes the Bible text, book names and search. Does not change the app’s language.',
+  'bible.modeTelugu': 'Telugu',
+  'bible.modeEnglish': 'English',
+  'bible.modeBilingual': 'English + Telugu',
+  'bible.bookNotFound': 'Book not found.',
+
+  'common.liveNow': 'LIVE NOW',
+  'common.member': 'Member',
+  'events.dateTBA': 'Date and time to be announced',
+  'events.unsupportedStreamLink':
+    'This stream link isn’t a supported YouTube URL, so it can’t be played here.',
+  'songs.favoriteAction': 'Favourite',
+  'songs.favoritedState': 'Favourited',
+  'dailyVerse.loadError': 'Could not load today’s verse.',
+  'profile.saved': 'Saved.',
+  'profile.nameEmpty': 'Your name cannot be empty.',
+  'profile.nameSaveFailed': 'Could not save your name. Please try again.',
+  'profile.photoPermissionRequired':
+    'Photo library access is required to change your profile photo.',
+  'profile.photoMustBeImage': 'Please choose an image file.',
+  'profile.photoTooLarge': 'Please choose an image smaller than 5MB.',
+  'profile.verificationSent': 'Verification email sent. Check your inbox.',
 };
 
 /**
@@ -488,7 +550,6 @@ const te: Strings = {
   'home.welcome': 'స్వాగతం',
   'home.verseOfTheDay': 'నేటి వచనం',
   'home.announcements': 'ప్రకటనలు',
-  'home.liveNow': 'ప్రత్యక్ష ప్రసారం',
   'home.watchLive': 'ప్రత్యక్షంగా చూడండి',
   'home.yourReadingPlan': 'మీ పఠన ప్రణాళిక',
   'home.upcomingEvents': 'రాబోయే కార్యక్రమాలు',
@@ -507,6 +568,8 @@ const te: Strings = {
   'bible.noResults': '“{query}” కోసం ఫలితాలు లేవు.',
   'bible.switchLanguage': 'భాష మార్చండి',
   'bible.notInTranslation': 'ఈ అధ్యాయం ఈ అనువాదంలో లేదు.',
+  'bible.notInTranslationHelp':
+    'ఈ అధ్యాయాన్ని మరో అనువాదంలో చదవడానికి సెట్టింగ్‌లలో బైబిల్ భాషను మార్చండి.',
   'bible.numberingDiffers':
     'ఈ అధ్యాయంలో వచన సంఖ్యలు ఈ అనువాదాల మధ్య వేరుగా ఉన్నాయి, అందుకే రెండూ వేరువేరుగా చూపబడ్డాయి.',
 
@@ -667,6 +730,34 @@ const te: Strings = {
   'home.startAPlan': 'పఠన ప్రణాళిక ప్రారంభించండి',
   'home.percentComplete': '{percent}%',
   'announcements.title': 'ప్రకటనలు',
+
+  'settings.appLanguage': 'యాప్ భాష',
+  'settings.appLanguageHelp':
+    'యాప్‌లోని బటన్‌లు, మెనూలు, సందేశాలను మారుస్తుంది. బైబిల్‌ను మార్చదు.',
+  'settings.bibleLanguage': 'బైబిల్ భాష',
+  'settings.bibleLanguageHelp':
+    'బైబిల్ వచనం, పుస్తకాల పేర్లు, వెతుకుడును మారుస్తుంది. యాప్ భాషను మార్చదు.',
+  'bible.modeTelugu': 'తెలుగు',
+  'bible.modeEnglish': 'ఇంగ్లీష్',
+  'bible.modeBilingual': 'ఇంగ్లీష్ + తెలుగు',
+  'bible.bookNotFound': 'పుస్తకం కనబడలేదు.',
+
+  'common.liveNow': 'ప్రత్యక్ష ప్రసారం',
+  'common.member': 'సభ్యుడు',
+  'events.dateTBA': 'తేదీ, సమయం తరువాత ప్రకటిస్తాము',
+  'events.unsupportedStreamLink':
+    'ఈ ప్రసార లింక్ మద్దతు ఉన్న YouTube URL కాదు, అందుకే ఇక్కడ ప్లే చేయలేము.',
+  'songs.favoriteAction': 'ఇష్టమైనది',
+  'songs.favoritedState': 'ఇష్టమైనవిలో ఉంది',
+  'dailyVerse.loadError': 'నేటి వచనం లోడ్ చేయలేకపోయాము.',
+  'profile.saved': 'సేవ్ అయింది.',
+  'profile.nameEmpty': 'మీ పేరు ఖాళీగా ఉండకూడదు.',
+  'profile.nameSaveFailed': 'మీ పేరు సేవ్ కాలేదు. మళ్లీ ప్రయత్నించండి.',
+  'profile.photoPermissionRequired':
+    'ప్రొఫైల్ ఫోటో మార్చడానికి ఫోటో లైబ్రరీ అనుమతి కావాలి.',
+  'profile.photoMustBeImage': 'దయచేసి ఒక చిత్ర ఫైల్‌ను ఎంచుకోండి.',
+  'profile.photoTooLarge': 'దయచేసి 5MB కంటే చిన్న చిత్రాన్ని ఎంచుకోండి.',
+  'profile.verificationSent': 'ధృవీకరణ ఇమెయిల్ పంపాము. మీ ఇన్‌బాక్స్ చూడండి.',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

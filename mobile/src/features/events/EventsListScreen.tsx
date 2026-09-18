@@ -15,12 +15,15 @@ import {
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatDateTime } from '../../i18n/locale';
+import type { BibleLanguage } from '../bible/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EventsList'>;
 
-function formatStartsAt(date: Date | null): string {
+/** Follows the APP language, not the device's -- see ../../i18n/locale.ts. */
+function formatStartsAt(date: Date | null, appLanguage: BibleLanguage): string {
   if (!date) return '';
-  return date.toLocaleString();
+  return formatDateTime(date, appLanguage);
 }
 
 /**
@@ -38,7 +41,7 @@ function formatStartsAt(date: Date | null): string {
  */
 export function EventsListScreen({ navigation }: Props) {
   const { colors, radii, spacing } = useTheme();
-  const { t } = useTranslation();
+  const { t, appLanguage } = useTranslation();
   const [events, setEvents] = useState<PublishedEvent[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -119,13 +122,13 @@ export function EventsListScreen({ navigation }: Props) {
             >
               <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
               <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>
-                LIVE NOW
+                {t('common.liveNow')}
               </Text>
             </View>
           ) : null}
           <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
           <Text style={[styles.meta, { color: colors.secondaryText }]}>
-            {formatStartsAt(item.startsAt)}
+            {formatStartsAt(item.startsAt, appLanguage)}
           </Text>
           <Text style={[styles.meta, { color: colors.secondaryText }]}>
             {item.location}

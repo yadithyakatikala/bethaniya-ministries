@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
@@ -36,7 +37,10 @@ async function renderScreen() {
 }
 
 describe('BooksListScreen', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
 
   it('renders all 66 books', async () => {
     const { getByTestId } = await renderScreen();
@@ -51,11 +55,27 @@ describe('BooksListScreen', () => {
     // they do NOT change with the language -- that is deliberate.
     expect(getByTestId('bible-section-Old Testament')).toBeTruthy();
     expect(getByTestId('bible-section-New Testament')).toBeTruthy();
-    // The visible headings DO change. Asserted through the catalogue
-    // rather than a literal, so the test states "the user sees the
-    // translated heading" instead of pinning one language's wording.
-    expect(getByText(translate('te', 'bible.oldTestament'))).toBeTruthy();
-    expect(getByText(translate('te', 'bible.newTestament'))).toBeTruthy();
+    // The visible headings DO change -- with the APP language, since a
+    // section heading is chrome rather than scripture. Asserted through
+    // the catalogue rather than a literal, so the test states "the user
+    // sees the translated heading" instead of pinning one wording.
+    expect(getByText(translate('en', 'bible.oldTestament'))).toBeTruthy();
+    expect(getByText(translate('en', 'bible.newTestament'))).toBeTruthy();
+  });
+
+  it('follows the app language for headings and the Bible language for book names', async () => {
+    // The default combination, and the one V1 could not express: English
+    // chrome over Telugu scripture. A regression that re-welded the two
+    // preferences would make these two assertions disagree.
+    const { getByText, getByTestId } = await renderScreen();
+    expect(getByText(translate('en', 'bible.oldTestament'))).toBeTruthy();
+    expect(JSON.stringify(getByTestId('book-genesis'))).toContain('ఆదికాండము');
+  });
+
+  it('writes headings in Telugu when the interface is Telugu', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    const { findByText } = await renderScreen();
+    expect(await findByText(translate('te', 'bible.oldTestament'))).toBeTruthy();
   });
 
   // --- Telugu book names (V1 tester feedback) --------------------------

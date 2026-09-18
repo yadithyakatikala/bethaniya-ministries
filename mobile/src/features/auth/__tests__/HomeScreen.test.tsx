@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -169,7 +170,7 @@ describe('HomeScreen', () => {
     });
     const { getByText } = await renderHomeScreen();
     await waitFor(() =>
-      expect(getByText(`${translate('te', 'home.welcome')}, Jane Doe`)).toBeTruthy()
+      expect(getByText(`${translate('en', 'home.welcome')}, Jane Doe`)).toBeTruthy()
     );
   });
 
@@ -180,7 +181,7 @@ describe('HomeScreen', () => {
     });
     const { getByText } = await renderHomeScreen();
     await waitFor(() =>
-      expect(getByText(`${translate('te', 'home.welcome')}, +15555550123`)).toBeTruthy()
+      expect(getByText(`${translate('en', 'home.welcome')}, +15555550123`)).toBeTruthy()
     );
   });
 
@@ -226,8 +227,8 @@ describe('HomeScreen', () => {
 
     const button = getByTestId('profile-nav-button');
     expect(button.props.accessibilityRole).toBe('button');
-    expect(button.props.accessibilityLabel).toBe(translate('te', 'home.profileLabel'));
-    expect(button.props.accessibilityHint).toBe(translate('te', 'home.profileHint'));
+    expect(button.props.accessibilityLabel).toBe(translate('en', 'home.profileLabel'));
+    expect(button.props.accessibilityHint).toBe(translate('en', 'home.profileHint'));
 
     await fireEvent.press(button);
     await waitFor(() => expect(getByTestId('profile-stub')).toBeTruthy());
@@ -240,10 +241,10 @@ describe('HomeScreen', () => {
 
     const button = getByTestId('announcements-nav-button');
     expect(button.props.accessibilityLabel).toBe(
-      translate('te', 'home.announcementsLabel')
+      translate('en', 'home.announcementsLabel')
     );
     expect(button.props.accessibilityHint).toBe(
-      translate('te', 'home.announcementsHint')
+      translate('en', 'home.announcementsHint')
     );
 
     await fireEvent.press(button);
@@ -365,7 +366,7 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('home-active-plan')).toBeTruthy());
     expect(getByText('Bible in 30 Days')).toBeTruthy();
     expect(
-      getByText(translate('te', 'home.dayOf', { current: 12, total: 30 }))
+      getByText(translate('en', 'home.dayOf', { current: 12, total: 30 }))
     ).toBeTruthy();
     // 12 of 30 completed = 40%
     expect(getByTestId('home-plan-percent').props.children).toBe('40%');
@@ -419,7 +420,7 @@ describe('HomeScreen', () => {
     const { getByTestId, queryByTestId, getByText } = await renderHomeScreen();
     await waitFor(() => expect(getByTestId('home-plan-empty')).toBeTruthy());
 
-    expect(getByText(translate('te', 'home.startAPlan'))).toBeTruthy();
+    expect(getByText(translate('en', 'home.startAPlan'))).toBeTruthy();
     // No invented progress of any kind.
     expect(queryByTestId('home-plan-percent')).toBeNull();
     expect(queryByTestId('home-plan-progress-fill')).toBeNull();
@@ -498,7 +499,29 @@ describe('HomeScreen', () => {
       ['plans-nav-button', 'more.readingPlans'],
       ['community-nav-button', 'more.community'],
     ] as const) {
-      expect(getByTestId(testID).props.accessibilityLabel).toBe(translate('te', key));
+      expect(getByTestId(testID).props.accessibilityLabel).toBe(translate('en', key));
+    }
+  });
+
+  it('labels the three tiles in Telugu when the interface is Telugu', async () => {
+    // The interface defaults to English in V2, so the assertion above no
+    // longer exercises the Telugu catalogue on this screen. This one does,
+    // with the Bible left on its own (Telugu) default -- the two settings
+    // are independent.
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    try {
+      signedIn();
+      const { getByTestId } = await renderHomeScreen();
+      await waitFor(() =>
+        expect(getByTestId('prayers-nav-button').props.accessibilityLabel).toBe(
+          translate('te', 'more.prayers')
+        )
+      );
+      expect(getByTestId('plans-nav-button').props.accessibilityLabel).toBe(
+        translate('te', 'more.readingPlans')
+      );
+    } finally {
+      await AsyncStorage.clear();
     }
   });
 

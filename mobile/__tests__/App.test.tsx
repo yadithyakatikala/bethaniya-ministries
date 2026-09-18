@@ -47,6 +47,6 @@ describe('App', () => {
     await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
     // The greeting is localized now; the default language is Telugu (see
     // src/features/bible/languagePreference.ts's DEFAULT_LANGUAGE).
-    expect(getByText(`${translate('te', 'home.welcome')}, Test User`)).toBeTruthy();
+    expect(getByText(`${translate('en', 'home.welcome')}, Test User`)).toBeTruthy();
   });
 });

@@ -19,7 +19,39 @@
  * any screen.
  */
 
+/**
+ * A language the Bible TEXT exists in. This is a data-access key: it
+ * selects which bundled translation a lookup reads, so it only ever has
+ * one value per read and 'bilingual' is deliberately not part of it.
+ */
 export type BibleLanguage = 'en' | 'te';
+
+/**
+ * What the reader is set to SHOW -- a user preference, not a data key.
+ *
+ * 'bilingual' pairs both translations through the M1 alignment policy
+ * (see ./alignment.ts), which is why it cannot be a BibleLanguage: a
+ * bilingual read fetches two chapters and then decides whether they may
+ * be paired verse by verse.
+ */
+export type BibleMode = BibleLanguage | 'bilingual';
+
+/**
+ * The language a book NAME, chapter label or search result reference is
+ * printed in.
+ *
+ * For a single-language mode this is simply that language. For bilingual
+ * mode the verses carry both translations, so the surrounding labels
+ * follow the reader's own APP language instead -- the label is chrome,
+ * not scripture, and a Telugu-reading member should not be handed English
+ * book names just because they asked to see both texts.
+ */
+export function bookNameLanguageFor(
+  mode: BibleMode,
+  appLanguage: BibleLanguage
+): BibleLanguage {
+  return mode === 'bilingual' ? appLanguage : mode;
+}
 
 export type BibleTestament = 'OT' | 'NT';
 

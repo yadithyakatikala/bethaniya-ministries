@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { AudioPlayer } from './AudioPlayer';
 import { isFavoriteSong, toggleFavoriteSong } from './favorites';
@@ -24,6 +25,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SongDetail'>;
 export function SongDetailScreen({ route }: Props) {
   const { song } = route.params;
   const { colors, radii, spacing } = useTheme();
+  const { t } = useTranslation();
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function SongDetailScreen({ route }: Props) {
         testID="favorite-button"
         accessibilityRole="button"
         accessibilityState={{ selected: isFavorite }}
+        accessibilityLabel={t(isFavorite ? 'songs.unfavorite' : 'songs.favorite')}
         onPress={() => void handleToggleFavorite()}
         style={[
           styles.favoriteButton,
@@ -88,7 +91,7 @@ export function SongDetailScreen({ route }: Props) {
             { color: isFavorite ? colors.onPrimary : colors.accent },
           ]}
         >
-          {isFavorite ? 'Favorited' : 'Favorite'}
+          {t(isFavorite ? 'songs.favoritedState' : 'songs.favoriteAction')}
         </Text>
       </Tappable>
 

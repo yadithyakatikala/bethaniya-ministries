@@ -28,14 +28,14 @@
 import { getBookById } from './books';
 import { getCachedChapter, setCachedChapter } from './bibleCache';
 import { getWebVerseTexts } from './webBible';
-import { getTeluguVerses } from './teluguBible';
+import { getTeluguSpans, getTeluguVerses } from './teluguBible';
+import { buildBilingualChapter, type BilingualPresentation } from './alignment';
 import type { BibleChapter, BibleLanguage, BibleVerse } from './types';
 
 /**
- * Pure, synchronous lookup against the current data source -- real WEB
- * text for English, synthetic placeholder for Telugu (see this module's
- * doc comment). Returns null for an unknown book id or a chapter number
- * outside that book's valid range.
+ * Pure, synchronous lookup of ONE translation. Returns null for an
+ * unknown book id or a chapter number outside that book's valid range.
+ * For both translations paired, see getBilingualChapter() below.
  */
 export function getChapter(
   bookId: string,
@@ -120,4 +120,51 @@ export async function loadChapter(
     await setCachedChapter(chapter);
   }
   return chapter;
+}
+
+/**
+ * A chapter in BOTH translations, paired through the M1 alignment policy.
+ *
+ * This is the bilingual reader's only data entry point. It deliberately
+ * does not decide anything about pairing itself -- it fetches the two
+ * chapters and hands them to buildBilingualChapter(), whose single rule
+ * is that an English verse is never placed beside a Telugu verse unless
+ * the pairing can be proven. See ./alignment.ts.
+ *
+ * Returns null for an unknown book or an out-of-range chapter, matching
+ * getChapter(). The English side always exists for a valid reference; the
+ * Telugu side may legitimately be absent (Malachi 4), which the policy
+ * reports as `englishOnly` rather than inventing text.
+ */
+export function getBilingualChapter(
+  bookId: string,
+  chapterNumber: number
+): { bookId: string; chapterNumber: number; presentation: BilingualPresentation } | null {
+  const book = getBookById(bookId);
+  if (!book) return null;
+  if (
+    !Number.isInteger(chapterNumber) ||
+    chapterNumber < 1 ||
+    chapterNumber > book.chapterCount
+  ) {
+    return null;
+  }
+
+  const englishTexts = getWebVerseTexts(book.order, chapterNumber) ?? [];
+  const englishVerses: BibleVerse[] = englishTexts.map((text, index) => ({
+    number: index + 1,
+    text,
+  }));
+  const teluguSpans = getTeluguSpans(book.order, chapterNumber) ?? null;
+
+  return {
+    bookId: book.id,
+    chapterNumber,
+    presentation: buildBilingualChapter(
+      book.order,
+      chapterNumber,
+      englishVerses,
+      teluguSpans
+    ),
+  };
 }

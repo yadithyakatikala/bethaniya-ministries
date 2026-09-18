@@ -6,19 +6,27 @@ import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { ChapterScreen } from '../ChapterScreen';
 import { setLanguagePreference } from '../languagePreference';
+import type { BibleMode } from '../types';
 
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   __esModule: true,
   default: jest.fn(() => 'light'),
 }));
 
-// ChapterScreen now reads/sets language and theme through usePreferences()
-// (Day 9), not languagePreference.ts / useColorScheme() directly, so the
-// real provider stack is needed. PreferencesProvider still reads/writes
-// languagePreference.ts's own AsyncStorage key under the hood, so
-// setLanguagePreference()-seeded state and the AsyncStorage assertions
-// below are unchanged.
+// ChapterScreen reads the BIBLE preference (usePreferences().bibleMode),
+// which since M2 is a separate value from the interface language -- so the
+// real provider stack is needed, and the reader is seeded through the
+// Bible's own key rather than the app language's. seedBibleMode() writes
+// the V2 key directly; the migration path from V1's single key has its own
+// test at the bottom of this file.
 jest.mock('../../../services/firebase/app');
+
+const BIBLE_MODE_KEY = 'bible_mode_preference';
+const APP_LANGUAGE_KEY = 'app_language_preference';
+
+async function seedBibleMode(mode: BibleMode) {
+  await AsyncStorage.setItem(BIBLE_MODE_KEY, mode);
+}
 
 async function renderScreen(bookId: string, chapterNumber: number) {
   const navigate = jest.fn();
@@ -49,6 +57,7 @@ describe('ChapterScreen', () => {
   });
 
   it('displays the book name, chapter number, and verse content once loaded', async () => {
+    await seedBibleMode('en');
     const { getByTestId, getByText } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByText('Genesis 1')).toBeTruthy());
     expect(getByTestId('chapter-reference')).toBeTruthy();
@@ -57,34 +66,42 @@ describe('ChapterScreen', () => {
   it('says plainly that Malachi 4 is not in the Telugu translation', async () => {
     // V1 rendered generated placeholder verses here. Nothing is generated
     // now, so the reader reports the absence instead.
-    await setLanguagePreference('te');
+    await seedBibleMode('te');
     const { getByTestId } = await renderScreen('malachi', 4);
     await waitFor(() => expect(getByTestId('chapter-unavailable-banner')).toBeTruthy());
     expect(getByTestId('chapter-unavailable-message')).toBeTruthy();
   });
 
+  it('does not print the same absence sentence twice', async () => {
+    // Caught in visual QA: the header badge and the body message both
+    // read "This chapter is not in this translation.", one directly under
+    // the other, which reads as a rendering bug. The body now says what
+    // the reader can do instead.
+    await seedBibleMode('te');
+    const { getByTestId } = await renderScreen('malachi', 4);
+    await waitFor(() => expect(getByTestId('chapter-unavailable-banner')).toBeTruthy());
+
+    const badge = JSON.stringify(getByTestId('chapter-unavailable-banner'));
+    const body = getByTestId('chapter-unavailable-message').props.children;
+    expect(typeof body).toBe('string');
+    expect(badge).not.toContain(body);
+  });
+
   it('shows no unavailable banner for a chapter the translation does have', async () => {
-    await setLanguagePreference('en');
+    await seedBibleMode('en');
     const { getByText, queryByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
+    await waitFor(() => expect(getByText('Genesis 1')).toBeTruthy());
     expect(queryByTestId('chapter-unavailable-banner')).toBeNull();
   });
 
   it('prints a merged Telugu verse range as "39-40" rather than losing a number', async () => {
-    await setLanguagePreference('te');
+    await seedBibleMode('te');
     const { getByText } = await renderScreen('luke', 1);
     await waitFor(() => expect(getByText('39-40')).toBeTruthy());
   });
 
-  it('does not show the placeholder banner for Telugu outside the two documented gap chapters', async () => {
-    await setLanguagePreference('te');
-    const { getByText, queryByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
-    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
-  });
-
   it('shows real WEB verse text for English', async () => {
-    await setLanguagePreference('en');
+    await seedBibleMode('en');
     const { getByText } = await renderScreen('genesis', 1);
     await waitFor(() =>
       expect(
@@ -93,30 +110,20 @@ describe('ChapterScreen', () => {
     );
   });
 
-  it('shows real Telugu IRV 2019 verse text by default (Telugu is the default language)', async () => {
+  it('shows real Telugu IRV 2019 verse text by default (the Bible defaults to Telugu)', async () => {
     const { getByText } = await renderScreen('genesis', 1);
     await waitFor(() =>
       expect(getByText('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.')).toBeTruthy()
     );
   });
 
-  it('restores a previously saved English preference on mount', async () => {
-    await setLanguagePreference('en');
-    const { getByText, queryByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
-    expect(queryByTestId('chapter-placeholder-banner')).toBeNull();
-  });
-
-  it('toggles the language and persists the new preference to AsyncStorage', async () => {
-    await setLanguagePreference('en');
-    const { getByTestId, getByText } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByText('Language: English')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('language-toggle-button'));
-    await waitFor(() => expect(getByText('Language: Telugu')).toBeTruthy());
-
-    const stored = await AsyncStorage.getItem('bible_language_preference');
-    expect(stored).toBe('te');
+  it('restores a previously saved English Bible preference on mount', async () => {
+    await seedBibleMode('en');
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByText('English')).toBeTruthy());
+    expect(
+      getByText('In the beginning God created the heavens and the earth.')
+    ).toBeTruthy();
   });
 
   it('marks Previous as disabled on the first chapter of a book', async () => {
@@ -195,5 +202,137 @@ describe('ChapterScreen', () => {
     await waitFor(() => expect(getByTestId('chapter-back-button')).toBeTruthy());
     fireEvent.press(getByTestId('chapter-back-button'));
     expect(goBack).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The reader reads the BIBLE preference, and only that.
+ *
+ * V1 had one value, so "which translation am I reading" and "what language
+ * are the buttons in" could not disagree. They can now, and this reader is
+ * the screen where getting it wrong would show someone the wrong
+ * scripture -- so both directions are pinned here.
+ */
+describe('which language the reader uses', () => {
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
+
+  it('shows Telugu scripture even when the interface is English', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
+    await seedBibleMode('te');
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() =>
+      expect(getByText('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.')).toBeTruthy()
+    );
+    // The book name follows the Bible in a single-language mode: the
+    // heading belongs to the scripture underneath it.
+    expect(getByText('ఆదికాండము 1')).toBeTruthy();
+  });
+
+  it('shows English scripture even when the interface is Telugu', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'te');
+    await seedBibleMode('en');
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() =>
+      expect(
+        getByText('In the beginning God created the heavens and the earth.')
+      ).toBeTruthy()
+    );
+    expect(getByText('Genesis 1')).toBeTruthy();
+  });
+
+  it('cycles Telugu -> English -> both, and persists the Bible key only', async () => {
+    await seedBibleMode('te');
+    const { getByTestId, getByText } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByText('Telugu')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('language-toggle-button'));
+    await waitFor(() => expect(getByText('English')).toBeTruthy());
+    expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('en');
+
+    await fireEvent.press(getByTestId('language-toggle-button'));
+    await waitFor(() => expect(getByText('English + Telugu')).toBeTruthy());
+    expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('bilingual');
+
+    // The interface language was never written by the Bible control.
+    expect(await AsyncStorage.getItem(APP_LANGUAGE_KEY)).toBe('en');
+  });
+
+  it('migrates a V1 install: the stored Bible choice still reaches the reader', async () => {
+    // A member upgrading from V1 has only the old key. Their Telugu Bible
+    // must still be their Telugu Bible, and the interface must still come
+    // up in English -- see ../../context/languagePreferences.ts.
+    await setLanguagePreference('te');
+    const { getByText } = await renderScreen('genesis', 1);
+    await waitFor(() =>
+      expect(getByText('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.')).toBeTruthy()
+    );
+    // 'Telugu' rather than 'తెలుగు': the pill is chrome, so it is written
+    // in the interface language, which migration left at English.
+    expect(getByText('Telugu')).toBeTruthy();
+  });
+});
+
+/**
+ * Bilingual mode, end to end through the M1 alignment policy.
+ *
+ * Each of the three presentations the policy can return has a real
+ * chapter behind it here, rather than a fixture: the policy's own unit
+ * tests (./alignment.test.ts) prove the rules, and these prove the reader
+ * renders each outcome instead of silently showing one language.
+ */
+describe('bilingual mode', () => {
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
+
+  it('pairs both translations verse by verse for an aligned chapter', async () => {
+    await seedBibleMode('bilingual');
+    const { getByTestId, getByText } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('bilingual-paired')).toBeTruthy());
+
+    expect(
+      getByText('In the beginning God created the heavens and the earth.')
+    ).toBeTruthy();
+    expect(getByText('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.')).toBeTruthy();
+  });
+
+  it('labels a merged Telugu range with the English verses it covers', async () => {
+    // Luke 1:39-40 is one translated unit in the Telugu IRV. Pairing it
+    // against English verse 39 alone would attach the wrong text.
+    await seedBibleMode('bilingual');
+    const { getByTestId, getByText } = await renderScreen('luke', 1);
+    await waitFor(() => expect(getByTestId('bilingual-paired')).toBeTruthy());
+    expect(getByText('39-40')).toBeTruthy();
+  });
+
+  it('refuses to pair a chapter the two traditions divide differently', async () => {
+    // Genesis 31 is one of the 41 divergent chapters (Hebrew vs English
+    // chapter division). The policy shows the sides separately with a
+    // notice rather than putting mismatched verses in one row.
+    await seedBibleMode('bilingual');
+    const { getByTestId, queryByTestId } = await renderScreen('genesis', 31);
+    await waitFor(() => expect(getByTestId('bilingual-chapter-level')).toBeTruthy());
+    expect(queryByTestId('bilingual-paired')).toBeNull();
+  });
+
+  it('shows English alone, flagged, for the one chapter Telugu lacks', async () => {
+    await seedBibleMode('bilingual');
+    const { getByTestId, queryByTestId } = await renderScreen('malachi', 4);
+    await waitFor(() => expect(getByTestId('bilingual-english-only')).toBeTruthy());
+    // Nothing invented, and no duplicate notice in the header.
+    expect(queryByTestId('bilingual-paired')).toBeNull();
+    expect(queryByTestId('chapter-unavailable-banner')).toBeNull();
+  });
+
+  it('writes book names in the interface language, since the verses carry both', async () => {
+    await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'te');
+    await seedBibleMode('bilingual');
+    const { getByText, getByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('bilingual-paired')).toBeTruthy());
+    expect(getByText('ఆదికాండము 1')).toBeTruthy();
   });
 });

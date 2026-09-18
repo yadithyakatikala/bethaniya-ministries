@@ -43,7 +43,7 @@ export function DailyVerseCard() {
         testID="daily-verse-error"
       >
         <Text style={[styles.message, { color: colors.secondaryText }]}>
-          Could not load today&apos;s verse.
+          {t('dailyVerse.loadError')}
         </Text>
       </View>
     );

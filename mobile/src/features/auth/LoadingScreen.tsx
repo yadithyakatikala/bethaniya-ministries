@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 
 /**
  * Shown while AuthContext hasn't yet received Firebase's initial auth state.
@@ -14,13 +15,14 @@ import { useTheme } from '../../theme';
  */
 export function LoadingScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View
       style={[styles.container, { backgroundColor: colors.background }]}
       testID="auth-loading-screen"
     >
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.text, { color: colors.secondaryText }]}>Loading…</Text>
+      <Text style={[styles.text, { color: colors.secondaryText }]}>{t('common.loading')}</Text>
     </View>
   );
 }

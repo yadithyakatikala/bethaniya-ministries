@@ -120,7 +120,8 @@ export function PlansListScreen({ navigation }: Props) {
           <View style={styles.textColumn}>
             <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
             <Text style={[styles.meta, { color: colors.secondaryText }]}>
-              {item.category} • {item.dayCount} {item.dayCount === 1 ? 'day' : 'days'}
+              {item.category} • {item.dayCount}{' '}
+              {t(item.dayCount === 1 ? 'plans.day' : 'plans.days')}
             </Text>
             <Text
               style={[styles.description, { color: colors.secondaryText }]}

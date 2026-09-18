@@ -9,6 +9,7 @@ import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import type { BibleLanguage, BibleMode } from '../bible/types';
 
 /**
  * Settings screen -- Day 9 requirement (decision 8: "English/Telugu
@@ -43,10 +44,12 @@ export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const {
-    languagePreference,
+    appLanguage,
+    bibleMode,
     themePreference,
     notificationsEnabled,
-    setLanguagePreference,
+    setAppLanguage,
+    setBibleMode,
     setThemePreference,
     setNotificationsEnabled,
   } = usePreferences();
@@ -76,9 +79,7 @@ export function SettingsScreen() {
     []
   );
 
-  async function handleToggleLanguage() {
-    await setLanguagePreference(languagePreference === 'en' ? 'te' : 'en');
-  }
+
 
   return (
     <ScrollView
@@ -95,31 +96,56 @@ export function SettingsScreen() {
           },
         ]}
       >
-        <View style={[styles.row, { padding: spacing.md }]}>
+        {/* TWO settings, not one toggle.
+            V1 had a single "Language: Telugu / Switch" row, because a
+            single preference drove both the interface and the Bible. They
+            are independent now, and a shared label is exactly how someone
+            ends up changing the wrong one -- so each gets its own row,
+            its own name, and a sentence saying what it does NOT affect.
+            Segmented choices rather than a toggle: with three Bible modes
+            a two-state switch cannot express the options, and naming every
+            option is clearer than asking the user to cycle to find it. */}
+        <View style={[styles.pickerRow, { padding: spacing.md }]}>
           <Text style={[styles.label, { color: colors.text }]}>
-            {`${t('settings.language')}: ${
-              languagePreference === 'te'
-                ? t('settings.languageTelugu')
-                : t('settings.languageEnglish')
-            }`}
+            {t('settings.appLanguage')}
           </Text>
-          <Tappable
-            testID="settings-language-toggle"
-            accessibilityRole="button"
-            // "Switch" alone does not say what it switches.
-            accessibilityLabel={`${t('settings.switchTo')} ${
-              languagePreference === 'te'
-                ? t('settings.languageEnglish')
-                : t('settings.languageTelugu')
-            }`}
-            // A bare 13px label is an ~18dp tap target; 44 is the minimum.
-            hitSlop={{ top: 14, bottom: 14, left: 14, right: 8 }}
-            onPress={() => void handleToggleLanguage()}
-          >
-            <Text style={[styles.action, { color: colors.primary }]}>
-              {t('settings.switchTo')}
-            </Text>
-          </Tappable>
+          <Text style={[styles.help, { color: colors.secondaryText }]}>
+            {t('settings.appLanguageHelp')}
+          </Text>
+          <SegmentedChoice
+            testID="settings-app-language"
+            options={[
+              { value: 'en', label: t('settings.languageEnglish') },
+              { value: 'te', label: t('settings.languageTelugu') },
+            ]}
+            selected={appLanguage}
+            onSelect={(value) => void setAppLanguage(value as BibleLanguage)}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.pickerRow,
+            styles.divider,
+            { borderTopColor: colors.border, padding: spacing.md },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>
+            {t('settings.bibleLanguage')}
+          </Text>
+          <Text style={[styles.help, { color: colors.secondaryText }]}>
+            {t('settings.bibleLanguageHelp')}
+          </Text>
+          <SegmentedChoice
+            testID="settings-bible-language"
+            options={[
+              { value: 'te', label: t('bible.modeTelugu') },
+              { value: 'en', label: t('bible.modeEnglish') },
+              { value: 'bilingual', label: t('bible.modeBilingual') },
+            ]}
+            selected={bibleMode}
+            onSelect={(value) => void setBibleMode(value as BibleMode)}
+          />
         </View>
 
         <View
@@ -287,6 +313,18 @@ const styles = StyleSheet.create({
   },
   divider: { borderTopWidth: StyleSheet.hairlineWidth },
   label: { fontSize: 15, fontWeight: '500' },
+  // A picker row stacks label / explanation / choices, so unlike the
+  // switch rows it is a column rather than a space-between row.
+  pickerRow: { gap: 8 },
+  help: { fontSize: 12.5, lineHeight: 18 },
+  segment: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 2 },
+  segmentOption: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  segmentLabel: { fontSize: 14, fontWeight: '600' },
   action: { fontSize: 14, fontWeight: '600' },
   supportEmail: { fontSize: 13 },
   attributionText: { fontSize: 12.5, lineHeight: 18 },
@@ -298,3 +336,59 @@ const styles = StyleSheet.create({
   },
   logoutLabel: { fontSize: 15, fontWeight: '600' },
 });
+
+/**
+ * A row of named choices, one selected.
+ *
+ * Deliberately not a Switch: the Bible has three modes, and a two-state
+ * control cannot express three. Selection is shown by fill AND border AND
+ * weight, never by colour alone, matching the Badge and tab-bar rules
+ * already established in this app. Each option is a 44dp target.
+ */
+function SegmentedChoice({
+  testID,
+  options,
+  selected,
+  onSelect,
+}: {
+  testID: string;
+  options: { value: string; label: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  const { colors, radii } = useTheme();
+  return (
+    <View style={styles.segment} testID={testID} accessibilityRole="radiogroup">
+      {options.map((option) => {
+        const active = option.value === selected;
+        return (
+          <Tappable
+            key={option.value}
+            testID={`${testID}-${option.value}`}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={option.label}
+            onPress={() => onSelect(option.value)}
+            style={[
+              styles.segmentOption,
+              {
+                borderRadius: radii.control,
+                backgroundColor: active ? colors.primaryTint : 'transparent',
+                borderColor: active ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.segmentLabel,
+                { color: active ? colors.primaryPressed : colors.secondaryText },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Tappable>
+        );
+      })}
+    </View>
+  );
+}

@@ -421,7 +421,10 @@ export function HomeScreen() {
   const liveEvent = events?.find((event) => event.isLive) ?? null;
   const nextEvent = events?.find((event) => !event.isLive) ?? null;
 
-  const displayLabel = user?.displayName || user?.email || user?.phoneNumber || 'Member';
+  // The final fallback is a WORD rather than a name, so it is translated:
+  // a Telugu interface should not greet the member in English.
+  const displayLabel =
+    user?.displayName || user?.email || user?.phoneNumber || t('common.member');
 
   // Pull-to-refresh: every section on this screen is already backed by a
   // live Firestore onSnapshot listener (see the subscriptions above and in
@@ -482,7 +485,7 @@ export function HomeScreen() {
           <View style={styles.liveBadgeRow}>
             <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
             <Text style={[styles.liveLabel, { color: colors.onLive }]}>
-              {t('home.liveNow')}
+              {t('common.liveNow')}
             </Text>
           </View>
           <Text style={[styles.liveTitle, { color: colors.onLive }]}>

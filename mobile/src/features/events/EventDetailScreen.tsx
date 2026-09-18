@@ -3,14 +3,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatDateTime } from '../../i18n/locale';
 import { Tappable } from '../../theme/ui/Tappable';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EventDetail'>;
 
-function formatStartsAt(date: Date | null): string {
-  if (!date) return 'Date/time to be announced';
-  return date.toLocaleString();
-}
+
 
 /**
  * Builds a Google Maps search URL for a free-text location string. No map
@@ -40,7 +38,11 @@ export function buildMapsSearchUrl(location: string): string {
 export function EventDetailScreen({ route, navigation }: Props) {
   const { event } = route.params;
   const { colors, radii, spacing } = useTheme();
-  const { t } = useTranslation();
+  const { t, appLanguage } = useTranslation();
+  /** The app language decides the date format; the device's locale does not. */
+  const startsAt = event.startsAt
+    ? formatDateTime(event.startsAt, appLanguage)
+    : t('events.dateTBA');
 
   function handleOpenMaps() {
     void Linking.openURL(buildMapsSearchUrl(event.location));
@@ -58,7 +60,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
       {event.isLive ? (
         <View style={[styles.liveBadge, { backgroundColor: colors.live }]}>
           <View style={[styles.liveDot, { backgroundColor: colors.onLive }]} />
-          <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>LIVE NOW</Text>
+          <Text style={[styles.liveBadgeText, { color: colors.onLive }]}>{t('common.liveNow')}</Text>
         </View>
       ) : null}
 
@@ -76,7 +78,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
         ]}
       >
         <Text style={[styles.meta, { color: colors.text }]}>
-          {formatStartsAt(event.startsAt)}
+          {startsAt}
         </Text>
         <Text style={[styles.meta, { color: colors.secondaryText }]}>
           {event.location}
