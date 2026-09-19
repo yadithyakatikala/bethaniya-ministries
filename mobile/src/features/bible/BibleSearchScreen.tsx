@@ -131,6 +131,11 @@ export function BibleSearchScreen({ navigation }: Props) {
                 navigation.navigate('BibleChapter', {
                   bookId: result.bookId,
                   chapterNumber: result.chapterNumber,
+                  // M4: the reader opens AT the matched verse rather than
+                  // at the top of the chapter, so a result for Psalm
+                  // 119:105 does not land the reader 104 verses away
+                  // from what they searched for.
+                  verse: result.verseNumber,
                 })
               }
             >

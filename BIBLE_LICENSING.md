@@ -49,20 +49,60 @@ verifiable in a way the prior pass's web-fetch tooling could not be (see
 
 **Completeness verified on import** (not assumed): all 66 books present,
 chapter counts match this project's own `books.ts` canon declaration
-exactly (929 OT + 260 NT = 1189 chapters), no verse-numbering gaps, no
-empty verses, 31,102 total verses (the well-known WEB verse count).
-Spot-checked against widely-known text: Genesis 1:1, John 3:16, and
-Revelation 22:21 all read correctly.
+exactly (929 OT + 260 NT = 1189 chapters), no verse-numbering gaps,
+31,102 total verses (the well-known WEB verse count). Spot-checked
+against widely-known text: Genesis 1:1, John 3:16, and Revelation 22:21
+all read correctly.
 
-**Cleaning applied:** WEB's inline translator footnotes (curly-brace
-asides in the source, e.g. `{After "God," the Hebrew has...}`) are
-stripped for plain-reading display — translator annotations, not part of
-the base translated verse text, and this app has no footnote-display UI
-to render them meaningfully. The verse text itself is otherwise
-unmodified. WEB translates the divine name as "Yahweh" rather than
-"LORD" (a genuine, intentional characteristic of this translation, not
-an import error) — worth knowing before anyone reviews the text expecting
-a KJV-style rendering.
+**Cleaning applied, step 1:** WEB's inline translator footnotes
+(curly-brace asides in the source, e.g. `{After "God," the Hebrew
+has...}`) are stripped for plain-reading display — translator
+annotations, not part of the base translated verse text, and this app
+has no footnote-display UI to render them meaningfully.
+
+**Cleaning applied, step 2 — added in M4, and worth reading:** the
+source's own JSON **double-escapes its quotation marks**. Every line of
+reported speech therefore arrived in this repository carrying a literal
+backslash, and shipped that way from the first import until M4:
+
+```
+before   God said, \"Let there be light,\" and there was light.
+after    God said, "Let there be light," and there was light.
+```
+
+**7,213 stray backslashes across 4,503 of the 31,102 verses** (14.5% of
+the English Bible). They rendered on the page and travelled into
+whatever a member shared or copied. Nothing in the test suite had ever
+looked at the characters the corpus actually contains, and no screenshot
+had ever been taken of the corpus in the real typeface — M4's visual QA
+was the first, and the very first frame showed it.
+
+The fix removes **one backslash immediately preceding a double quote,
+and nothing else**. This was verified, not asserted: a character-
+frequency comparison over all 31,102 verses before and after differs in
+the backslash alone (7,213 → 0), the verse count is unchanged, and no
+verse changed its emptiness. The World English Bible contains no
+backslashes — this character was never scripture, only an artifact of
+how the upstream SQL dump was escaped into JSON.
+`mobile/src/features/bible/__tests__/webBible.test.ts` now asserts the
+corpus contains no escape characters, no leftover footnote braces, and
+stays pure ASCII, so this cannot come back unnoticed.
+
+**Seven verses are legitimately empty** and are NOT a data defect:
+Luke 17:36, Acts 8:37, Acts 15:34, Acts 24:7 and Romans 16:25-27. In the
+source, each consists *entirely* of a translator's note saying the
+manuscripts this translation follows do not contain the verse — so once
+footnotes are stripped there is nothing left, correctly. The verse
+number is real and the text does not exist. The reader prints the number
+and says the verse is not in this translation rather than leaving a
+blank line (`mobile/src/features/bible/reader/ScriptureBody.tsx`);
+nothing is invented to fill them, which is the same rule this project
+applies to Malachi 4 in Telugu.
+
+WEB translates the divine name as "Yahweh" rather than "LORD" (a
+genuine, intentional characteristic of this translation, not an import
+error) — worth knowing before anyone reviews the text expecting a
+KJV-style rendering.
 
 **Where it lives:** `mobile/src/features/bible/data/web-en.json` (the raw
 dataset, ~3.9 MB, kept minified/excluded from Prettier — see

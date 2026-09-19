@@ -530,6 +530,33 @@ export type ReadingSize = keyof typeof readingScale.size;
 export type ReadingDensity = keyof typeof readingScale.lineHeight;
 export type ReadingMeasure = keyof typeof readingScale.measure;
 
+/**
+ * The reader's scripture typeface choice (M4).
+ *
+ * Two options, because two is what the bundled families honestly offer
+ * for BOTH scripts:
+ *
+ *   'serif'  Noto Serif / Noto Serif Telugu -- the editorial default,
+ *            and what a printed Bible looks like.
+ *   'sans'   Hind Guntur, the interface family. Chosen by readers who
+ *            find a serif harder at small sizes, and the only bundled
+ *            sans that covers Telugu as well as Latin.
+ *
+ * There is no third "system font" option: the point of bundling fonts
+ * (see scripts/fetch-fonts.py) is that the reader renders identically on
+ * every device, and a runtime-resolved system face for Telugu is exactly
+ * the per-glyph fallback M3 removed.
+ */
+export type ReadingFont = 'serif' | 'sans';
+
+/** The scripture face for a script and the reader's font choice. */
+export function scriptureFontFamily(
+  language: ScriptLanguage,
+  font: ReadingFont = 'serif'
+): string {
+  return font === 'sans' ? fontFamilies.interfaceRegular : serifFor(language, 'regular');
+}
+
 /** The resolved line height in dp for a size step, density and script. */
 export function readingLineHeight(
   size: ReadingSize,
@@ -544,10 +571,11 @@ export function readingLineHeight(
 export function scriptureStyle(
   language: ScriptLanguage,
   size: ReadingSize = readingScale.defaultSize as ReadingSize,
-  density: ReadingDensity = readingScale.defaultLineHeight as ReadingDensity
+  density: ReadingDensity = readingScale.defaultLineHeight as ReadingDensity,
+  font: ReadingFont = 'serif'
 ): TextStyle {
   return {
-    fontFamily: serifFor(language, 'regular'),
+    fontFamily: scriptureFontFamily(language, font),
     fontSize: readingScale.size[size],
     fontWeight: '400',
     lineHeight: readingLineHeight(size, density, language),

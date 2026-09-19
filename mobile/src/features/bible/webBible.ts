@@ -17,14 +17,33 @@
  *     import, not either source alone.
  *   - Verified complete on import: all 66 books, exactly the chapter
  *     counts books.ts already declares (929 OT + 260 NT = 1189), no
- *     verse-numbering gaps, no empty verses, 31,102 total verses (the
- *     well-known WEB verse count).
- * - Cleaning applied: WEB's inline translator footnotes (curly-brace
- *   asides like "{After \"God,\" the Hebrew has...}") are stripped for
- *   plain-reading display -- they're translator annotations, not part of
- *   the base translated verse text, and this app has no footnote-display
- *   UI to render them meaningfully. The verse text itself is otherwise
- *   unmodified from the source.
+ *     verse-numbering gaps, 31,102 total verses (the well-known WEB
+ *     verse count).
+ * - Cleaning applied, step 1: WEB's inline translator footnotes
+ *   (curly-brace asides like "{After \"God,\" the Hebrew has...}") are
+ *   stripped for plain-reading display -- they're translator
+ *   annotations, not part of the base translated verse text, and this
+ *   app has no footnote-display UI to render them meaningfully.
+ * - Cleaning applied, step 2 (M4): the source's own JSON DOUBLE-ESCAPES
+ *   its quotation marks, so every line of reported speech arrived
+ *   carrying a literal backslash -- 7,213 of them across 4,503 verses,
+ *   rendering on the page as `God said, \"Let there be light,\"` and
+ *   travelling into whatever a member shared or copied. M4's visual QA
+ *   is what finally put the corpus on screen in the real typeface and
+ *   showed it. ONE backslash immediately preceding a double quote is
+ *   removed and nothing else: a character-frequency comparison over all
+ *   31,102 verses before and after differs in the backslash alone, so no
+ *   word, no punctuation and no verse count changed. The World English
+ *   Bible contains no backslashes; this was never scripture.
+ *   ./__tests__/webBible.test.ts is what keeps the corpus clean.
+ * - SEVEN verses are legitimately empty -- Luke 17:36, Acts 8:37, 15:34,
+ *   24:7 and Romans 16:25-27 -- whose entire content in the source is a
+ *   note that the manuscripts this translation follows do not contain
+ *   the verse. The number is real and the text does not exist, so the
+ *   reader prints the number and says the verse is not in this
+ *   translation rather than leaving a blank line (see
+ *   ./reader/ScriptureBody.tsx). Nothing is invented to fill them.
+ *   The verse text is otherwise unmodified from the source.
  *
  * ./data/web-en.json is keyed by [bookOrder as string][chapterNumber as
  * string] -> string[] (verse text, index 0 = verse 1, contiguous -- see

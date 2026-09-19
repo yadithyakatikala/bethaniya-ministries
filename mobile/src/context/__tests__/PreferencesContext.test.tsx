@@ -93,7 +93,12 @@ describe('PreferencesContext', () => {
     await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
     expect(getByTestId('appLanguage').props.children).toBe('en');
     expect(getByTestId('bibleMode').props.children).toBe('te');
-    expect(getByTestId('theme').props.children).toBe('light');
+    // 'system' is the literal default from M4 on. Following the device was
+    // already the no-stored-preference behaviour; naming it means a scheme
+    // change while the app is open is picked up live rather than frozen at
+    // whatever the scheme was on mount.
+    expect(getByTestId('theme').props.children).toBe('system');
+    expect(getByTestId('isDark').props.children).toBe('false');
     expect(getByTestId('notifications').props.children).toBe('true');
   });
 

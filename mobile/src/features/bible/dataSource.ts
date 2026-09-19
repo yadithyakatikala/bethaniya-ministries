@@ -2,7 +2,7 @@
  * The single data-source seam for the Bible module -- Day 8 requirement:
  * "One clean function such as getChapter(bookId, chapterNumber,
  * language). Screens must NOT directly access placeholder/WEB data."
- * BooksListScreen/ChaptersListScreen/ChapterScreen only ever call
+ * BooksListScreen/ChaptersListScreen/the reader only ever call
  * loadChapter() below; none of them import placeholderData.ts,
  * webBible.ts, or bibleCache.ts directly. Swapping in a real translation
  * (or a future licensed Telugu source) is a change to this one

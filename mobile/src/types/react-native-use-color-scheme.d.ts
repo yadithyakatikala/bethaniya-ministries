@@ -8,7 +8,7 @@
  * module the screens' `import { useColorScheme } from 'react-native'`
  * resolves to, without mocking the whole react-native package (which
  * breaks other native module resolution under jest-expo -- see
- * ChapterScreen.test.tsx and friends for the full reasoning). This
+ * the Bible reader's tests for the full reasoning). This
  * augmentation only describes that existing runtime export to tsc.
  */
 declare module 'react-native/Libraries/Utilities/useColorScheme' {

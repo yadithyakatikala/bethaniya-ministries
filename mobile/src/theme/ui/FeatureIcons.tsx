@@ -250,6 +250,65 @@ export function PlanIcon({ color, size = DEFAULT_SIZE }: IconProps) {
   );
 }
 
+/**
+ * A directional chevron -- back, forward, drill-down.
+ *
+ * Shared in M4 because the app drew this inline in four places (the
+ * Bible reader's back control, More's row chevrons, Settings' rows) at
+ * two stroke weights and two sizes -- the same drift
+ * ./iconGeometry.ts exists to stop.
+ *
+ * Two borders on a square, rotated: the corner they form is the
+ * chevron. `left` points back, which is what the reader's top-left
+ * control needs.
+ */
+export function ChevronIcon({
+  color,
+  size = DEFAULT_SIZE,
+  direction = 'right',
+}: IconProps & { direction?: 'left' | 'right' | 'up' | 'down' }) {
+  const stroke = strokeFor(size);
+  const arm = size * 0.42;
+  const rotation = {
+    right: '45deg',
+    left: '-135deg',
+    up: '-45deg',
+    down: '135deg',
+  }[direction];
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View
+        style={{
+          width: arm,
+          height: arm,
+          borderRightWidth: stroke,
+          borderTopWidth: stroke,
+          borderColor: color,
+          transform: [{ rotate: rotation }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** Two crossed bars. Dismisses a sheet -- see ./Sheet.tsx. */
+export function CloseIcon({ color, size = DEFAULT_SIZE }: IconProps) {
+  const stroke = strokeFor(size);
+  const bar = {
+    position: 'absolute' as const,
+    width: size * 0.62,
+    height: stroke,
+    backgroundColor: color,
+    borderRadius: stroke / 2,
+  };
+  return (
+    <View style={[styles.box, { width: size, height: size }]}>
+      <View style={[bar, { transform: [{ rotate: '45deg' }] }]} />
+      <View style={[bar, { transform: [{ rotate: '-45deg' }] }]} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   box: { alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'flex-end' },

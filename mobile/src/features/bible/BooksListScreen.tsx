@@ -7,6 +7,7 @@ import { useTranslation } from '../../i18n';
 import type { StringKey } from '../../i18n';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { NEW_TESTAMENT_BOOKS, OLD_TESTAMENT_BOOKS, getBookName } from './books';
+import { ContinueReading } from './reader/ContinueReading';
 import { bookNameLanguageFor, type BibleBook } from './types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleBooks'>;
@@ -51,6 +52,14 @@ export function BooksListScreen({ navigation }: Props) {
       contentContainerStyle={styles.listContent}
     >
       <View style={styles.searchRow}>
+        {/* M4: the saved reading position, OFFERED here rather than
+            imposed by the reader -- see ./reader/ContinueReading.tsx.
+            Renders nothing until the member has read something. */}
+        <ContinueReading
+          onOpen={(bookId, chapterNumber, verse) =>
+            navigation.navigate('BibleChapter', { bookId, chapterNumber, verse })
+          }
+        />
         <Tappable
           testID="bible-search-nav-button"
           accessibilityRole="button"
@@ -105,7 +114,7 @@ export function BooksListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: 24 },
-  searchRow: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  searchRow: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, gap: 12 },
   searchField: {
     flexDirection: 'row',
     alignItems: 'center',

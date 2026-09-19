@@ -34,7 +34,7 @@ import { requestNotificationPermissionsAsync } from '../services/notifications/n
  *
  * Replaces the Day 8 pattern of every screen calling `useColorScheme()`
  * directly (see DailyVerseCard.tsx, BooksListScreen.tsx,
- * ChaptersListScreen.tsx, ChapterScreen.tsx's Day 8 doc comments) with one
+ * ChaptersListScreen.tsx's Day 8 doc comments) with one
  * shared source of truth, so an explicit theme choice in Settings actually
  * affects every screen, not just the screen that set it.
  *
@@ -73,7 +73,15 @@ interface PreferencesContextValue {
    * touches `appLanguage`, and vice versa.
    */
   bibleMode: BibleMode;
+  /**
+   * The member's explicit choice: 'light', 'dark', or 'system' to follow
+   * the device. Defaults to 'system' -- which is what the app did all
+   * along when nothing was stored; M4 made it a nameable option so the
+   * reader's Light / Dark / System control has a third value to select
+   * and there is still only ONE theme preference in the app.
+   */
   themePreference: ThemePreference;
+  /** `themePreference` resolved against the device scheme. What to paint. */
   isDark: boolean;
   notificationsEnabled: boolean;
   /** True once the initial AsyncStorage (and, if signed in, first
@@ -102,9 +110,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [appLanguage, setAppLanguageState] =
     useState<BibleLanguage>(DEFAULT_APP_LANGUAGE);
   const [bibleMode, setBibleModeState] = useState<BibleMode>(DEFAULT_BIBLE_MODE);
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(
-    systemScheme === 'dark' ? 'dark' : 'light'
-  );
+  // 'system' rather than a resolved light/dark: following the device was
+  // already the no-stored-preference behaviour, and seeding it as the
+  // literal value means a scheme change while the app is open is picked
+  // up live instead of being frozen at whatever the scheme was on mount.
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
   const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
   const [localLoaded, setLocalLoaded] = useState(false);
   const [firestoreLoaded, setFirestoreLoaded] = useState(false);
@@ -112,7 +122,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   // Guards against a slower earlier AsyncStorage read overwriting a
   // faster-resolving later one if this ever re-mounts quickly (e.g. Fast
   // Refresh) -- the same "ignore a stale in-flight result" shape used by
-  // ../features/bible/ChapterScreen.tsx's loaders, adapted for an effect
+  // ../features/bible/reader/ReaderScreen.tsx's loader, adapted for an effect
   // with no dependency-driven re-run.
   const mountedRef = useRef(true);
   useEffect(
@@ -231,7 +241,10 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       appLanguage,
       bibleMode,
       themePreference,
-      isDark: themePreference === 'dark',
+      isDark:
+        themePreference === 'system'
+          ? systemScheme === 'dark'
+          : themePreference === 'dark',
       notificationsEnabled,
       isLoaded: localLoaded && (uid ? firestoreLoaded : true),
       // Marking the refs here too (not just in the Firestore-snapshot
@@ -291,6 +304,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       appLanguage,
       bibleMode,
       themePreference,
+      systemScheme,
       notificationsEnabled,
       localLoaded,
       firestoreLoaded,

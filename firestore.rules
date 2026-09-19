@@ -189,8 +189,15 @@ service cloud.firestore {
         // is not rejected.
         && (!('appLanguage' in data) || data.appLanguage in ['en', 'te'])
         && (!('bibleMode' in data) || data.bibleMode in ['en', 'te', 'bilingual'])
+        // M4 adds 'system' -- the Bible reader offers Light / Dark /
+        // System and drives this same field rather than keeping a second
+        // theme value of its own. ADDITIVE: 'light' and 'dark' are still
+        // valid, so a V1/V2 client writing either is unaffected, and an
+        // older client reading 'system' falls back to the device scheme
+        // (its validator rejects the value locally, which its stored-
+        // preference getter already treats as "nothing saved").
         && (!('themePreference' in data)
-            || data.themePreference in ['light', 'dark'])
+            || data.themePreference in ['light', 'dark', 'system'])
         && (!('notificationsEnabled' in data)
             || data.notificationsEnabled is bool);
     }
@@ -267,6 +274,116 @@ service cloud.firestore {
         && data.currentDay is int && data.currentDay >= 1
         && data.completedDays is list
         && (!('lastReadAt' in data) || data.lastReadAt == null || data.lastReadAt is timestamp);
+    }
+
+    // ================================================================
+    // M4 -- the Bible reader's own private, per-owner documents.
+    //
+    // Same authorization shape as prayers/planProgress above:
+    // isOwner(userId) is the ENTIRE boundary, with no admin override.
+    // A member's highlights, bookmarks, notes, display settings and
+    // reading position are theirs alone, and every validator below is
+    // additive -- nothing existing changes meaning.
+    //
+    // Every write is also field-locked with keys().hasOnly(), so a
+    // client cannot smuggle arbitrary fields onto a document that rules
+    // only ever re-read for shape. The prayers rule predates that
+    // habit; these do not repeat the omission.
+    // ================================================================
+
+    /** The two bundled translations. NEVER 'bilingual': see
+     *  mobile/src/services/firebase/readerAnnotations.ts -- an
+     *  annotation belongs to one translation's verse. */
+    function isTranslationId(value) {
+      return value in ['en', 'te'];
+    }
+
+    /**
+     * The verse an annotation points at. Bounds are canon facts, not
+     * arbitrary caps: 150 is Psalms' chapter count and 176 is Psalm
+     * 119's verse count, the two maxima in the 66-book canon (see
+     * mobile/src/features/bible/books.ts). bookId is a slug like
+     * 'song-of-solomon' -- never a localized book name.
+     */
+    function isVerseReference(data) {
+      return isTranslationId(data.translationId)
+        && data.bookId is string
+        && data.bookId.size() > 0 && data.bookId.size() <= 40
+        && data.bookId.matches('^[a-z0-9-]+$')
+        && data.chapter is int && data.chapter >= 1 && data.chapter <= 150
+        && data.verse is int && data.verse >= 1 && data.verse <= 176;
+    }
+
+    // The four named highlight tints -- kept in sync with
+    // mobile/src/theme/tokens.ts's highlightTints.
+    function isValidHighlight(data) {
+      return isVerseReference(data)
+        && data.colour in ['yellow', 'green', 'blue', 'pink']
+        && data.createdAt is timestamp
+        && data.keys().hasOnly(
+             ['translationId', 'bookId', 'chapter', 'verse', 'colour', 'createdAt']);
+    }
+
+    // `note` is accepted but nothing in the app writes it: notes have
+    // their own collection so that removing a bookmark cannot destroy a
+    // written note, and so a note can exist without one. See
+    // mobile/src/services/firebase/readerAnnotations.ts.
+    function isValidBookmark(data) {
+      return isVerseReference(data)
+        && data.createdAt is timestamp
+        && (!('note' in data)
+            || (data.note is string && data.note.size() <= 2000))
+        && data.keys().hasOnly(
+             ['translationId', 'bookId', 'chapter', 'verse', 'note', 'createdAt']);
+    }
+
+    function isValidVerseNote(data) {
+      return isVerseReference(data)
+        && data.text is string
+        && data.text.size() > 0 && data.text.size() <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.keys().hasOnly(
+             ['translationId', 'bookId', 'chapter', 'verse', 'text',
+              'createdAt', 'updatedAt']);
+    }
+
+    /**
+     * The reader's display settings. Every field is a NAMED STEP from
+     * mobile/src/theme/tokens.ts's readingScale, never a raw number, so
+     * a synced document cannot carry an unreadable 4pt size or a
+     * 3000dp column. Each field is optional because the client merges
+     * only what changed.
+     *
+     * No theme field: the reader's Light/Dark/System control writes the
+     * existing users/{uid}.themePreference, so there is one theme store
+     * rather than two that can disagree.
+     */
+    function isValidReadingPrefs(data) {
+      return (!('font' in data) || data.font in ['serif', 'sans'])
+        && (!('size' in data)
+            || data.size in ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'])
+        && (!('lineHeight' in data)
+            || data.lineHeight in ['compact', 'normal', 'relaxed'])
+        && (!('width' in data)
+            || data.width in ['narrow', 'normal', 'wide'])
+        && (!('layout' in data)
+            || data.layout in ['stacked', 'sideBySide'])
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && data.keys().hasOnly(
+             ['font', 'size', 'lineHeight', 'width', 'layout', 'updatedAt']);
+    }
+
+    /** The translation is the DOCUMENT ID here, not a field -- hence the
+     *  narrower shape than isVerseReference() above. */
+    function isValidReadingPosition(data) {
+      return data.bookId is string
+        && data.bookId.size() > 0 && data.bookId.size() <= 40
+        && data.bookId.matches('^[a-z0-9-]+$')
+        && data.chapter is int && data.chapter >= 1 && data.chapter <= 150
+        && data.verse is int && data.verse >= 1 && data.verse <= 176
+        && data.updatedAt is timestamp
+        && data.keys().hasOnly(['bookId', 'chapter', 'verse', 'updatedAt']);
     }
 
     // ---- Default deny --------------------------------------------------
@@ -356,6 +473,57 @@ service cloud.firestore {
     match /users/{userId}/planProgress/{planId} {
       allow read, delete: if isOwner(userId);
       allow create, update: if isOwner(userId) && isValidPlanProgress(request.resource.data);
+    }
+
+    // ---- users/{userId}/highlights (M4 -- Bible reader) ------------------
+    // Document id is `${translationId}_${bookId}_${chapter}_${verse}`, so a
+    // verse can only ever have one highlight and re-colouring replaces it.
+    // The id is NOT trusted as the source of those values -- every field is
+    // validated on the document itself, above.
+    match /users/{userId}/highlights/{highlightId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && isValidHighlight(request.resource.data);
+    }
+
+    // ---- users/{userId}/bookmarks (M4 -- Bible reader) -------------------
+    // Same deterministic id, which is what makes bookmarking idempotent:
+    // a second "Bookmark" tap rewrites one document instead of adding a
+    // duplicate record for the same user/verse/translation.
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && isValidBookmark(request.resource.data);
+    }
+
+    // ---- users/{userId}/verseNotes (M4 -- Bible reader) ------------------
+    // A member's own notes on scripture. PRIVATE, like prayers: no admin
+    // read, no shared read, no public commenting. Media comments are a
+    // later milestone and will not live here.
+    match /users/{userId}/verseNotes/{noteId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && isValidVerseNote(request.resource.data);
+    }
+
+    // ---- users/{userId}/readingPrefs (M4 -- Bible reader) ----------------
+    // One document ('reader') holding the reader's display settings. A
+    // collection because `users/{uid}/readingPrefs` is an odd number of
+    // path segments and therefore cannot itself be a document.
+    match /users/{userId}/readingPrefs/{prefsId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && isValidReadingPrefs(request.resource.data);
+    }
+
+    // ---- users/{userId}/readingPosition (M4 -- Bible reader) -------------
+    // One document per translation, keyed by the translation id, so a
+    // member keeps their place in both Bibles independently.
+    match /users/{userId}/readingPosition/{translationId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && isTranslationId(translationId)
+        && isValidReadingPosition(request.resource.data);
     }
 
     // ---- announcements -----------------------------------------------

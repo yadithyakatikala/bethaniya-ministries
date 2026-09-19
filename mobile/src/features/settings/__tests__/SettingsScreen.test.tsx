@@ -56,16 +56,14 @@ async function renderScreen() {
 /**
  * The Theme row is itself localized, so the expected text depends on the
  * language the app is in. Building it from the catalogue keeps these
- * assertions about BEHAVIOUR ("the row names the current theme, written
- * in the interface language") rather than pinning one language's wording
- * -- which is what made these tests fail when the UI correctly started
- * rendering Telugu.
+ * assertions about BEHAVIOUR ("the row is named in the interface
+ * language") rather than pinning one language's wording -- which is what
+ * made these tests fail when the UI correctly started rendering Telugu.
+ *
+ * M4 turned the row from a two-state Switch into a three-option
+ * SegmentedChoice: the reader offers Light / Dark / System and drives
+ * this same preference, and a switch cannot express three values.
  */
-const themeRow = (lang: 'en' | 'te', theme: 'dark' | 'light') =>
-  `${translate(lang, 'settings.theme')}: ${translate(
-    lang,
-    theme === 'dark' ? 'settings.themeDark' : 'settings.themeLight'
-  )}`;
 
 /** Which option of a segmented choice is currently selected. */
 function selectedOption(
@@ -92,8 +90,12 @@ describe('SettingsScreen', () => {
     expect(
       getByTestId('settings-bible-language-te').props.accessibilityState.selected
     ).toBe(true);
-    expect(getByText(themeRow('en', 'light'))).toBeTruthy();
-    expect(getByTestId('settings-theme-switch').props.value).toBe(false);
+    expect(getByText(translate('en', 'settings.theme'))).toBeTruthy();
+    // 'system' until the member chooses otherwise -- which is what the app
+    // already did when nothing was stored; M4 made it a nameable option.
+    expect(getByTestId('settings-theme-system').props.accessibilityState.selected).toBe(
+      true
+    );
     expect(getByTestId('settings-notifications-switch').props.value).toBe(true);
   });
 
@@ -200,16 +202,24 @@ describe('SettingsScreen', () => {
       expect(getByText(translate('te', 'settings.appLanguage'))).toBeTruthy()
     );
     expect(getByText(translate('te', 'settings.bibleLanguage'))).toBeTruthy();
-    expect(getByText(themeRow('te', 'light'))).toBeTruthy();
+    expect(getByText(translate('te', 'settings.theme'))).toBeTruthy();
+    expect(getByText(translate('te', 'settings.themeSystem'))).toBeTruthy();
   });
 
-  it('toggles the theme and persists it to AsyncStorage', async () => {
-    const { getByTestId, getByText } = await renderScreen();
-    await waitFor(() => expect(getByText(themeRow('en', 'light'))).toBeTruthy());
+  it('offers Light, Dark and System, and persists the choice to AsyncStorage', async () => {
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-theme')).toBeTruthy());
+    for (const option of ['light', 'dark', 'system']) {
+      expect(getByTestId(`settings-theme-${option}`)).toBeTruthy();
+    }
 
-    await fireEvent(getByTestId('settings-theme-switch'), 'valueChange', true);
+    await fireEvent.press(getByTestId('settings-theme-dark'));
 
-    await waitFor(() => expect(getByText(themeRow('en', 'dark'))).toBeTruthy());
+    await waitFor(() =>
+      expect(getByTestId('settings-theme-dark').props.accessibilityState.selected).toBe(
+        true
+      )
+    );
     expect(await AsyncStorage.getItem('theme_preference')).toBe('dark');
   });
 

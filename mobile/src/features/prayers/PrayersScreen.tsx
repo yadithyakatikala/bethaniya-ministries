@@ -61,7 +61,7 @@ export function PrayersScreen() {
     // reached post-authentication (see ../more/MoreScreen.tsx), so `uid`
     // is absent only transiently while auth state is still loading;
     // calling setState synchronously here would trip
-    // react-hooks/set-state-in-effect (see ../bible/ChapterScreen.tsx's
+    // react-hooks/set-state-in-effect (see ../bible/reader/ReaderScreen.tsx's
     // doc comment for the same reasoning) for a case that never actually
     // renders.
     if (!uid) return;

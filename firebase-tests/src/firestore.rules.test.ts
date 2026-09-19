@@ -1418,4 +1418,329 @@ describe('firestore.rules', () => {
       );
     });
   });
+
+  /**
+   * M4 -- the Bible reader's private documents.
+   *
+   * The whole authorization story is isOwner(userId), so the tests that
+   * matter most are the cross-uid ones: a member's highlights, notes,
+   * reading settings and reading position must be unreadable and
+   * unwritable by anyone else, INCLUDING an admin. The rest pin the field
+   * validators, which exist so a hand-written or tampered document cannot
+   * put the reader into a state it will not render.
+   */
+  describe('users/{userId}/highlights (M4, fully private per-owner)', () => {
+    const HIGHLIGHT = {
+      translationId: 'en',
+      bookId: 'john',
+      chapter: 3,
+      verse: 16,
+      colour: 'yellow',
+      createdAt: new Date(),
+    };
+
+    it('allows a member to create, read, update and delete their own highlight', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(
+        db.doc('users/member-1/highlights/en_john_3_16').set(HIGHLIGHT)
+      );
+      await assertSucceeds(db.doc('users/member-1/highlights/en_john_3_16').get());
+      await assertSucceeds(
+        db
+          .doc('users/member-1/highlights/en_john_3_16')
+          .set({ ...HIGHLIGHT, colour: 'blue' })
+      );
+      await assertSucceeds(db.doc('users/member-1/highlights/en_john_3_16').delete());
+    });
+
+    it("blocks another member from reading or writing someone's highlights", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+        await db.doc('users/member-1/highlights/en_john_3_16').set(HIGHLIGHT);
+      });
+      await assertFails(
+        dbFor('member-2').doc('users/member-1/highlights/en_john_3_16').get()
+      );
+      await assertFails(
+        dbFor('member-2').doc('users/member-1/highlights/en_john_3_16').delete()
+      );
+      await assertFails(
+        dbFor('member-2').doc('users/member-1/highlights/x').set(HIGHLIGHT)
+      );
+    });
+
+    it('blocks a content_admin too -- there is no admin override on private data', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/member-1/highlights/en_john_3_16').set(HIGHLIGHT);
+      });
+      await assertFails(
+        dbFor('admin-1').doc('users/member-1/highlights/en_john_3_16').get()
+      );
+    });
+
+    it('blocks an unauthenticated caller entirely', async () => {
+      await assertFails(dbFor(null).doc('users/member-1/highlights/en_john_3_16').get());
+    });
+
+    it('rejects a colour that is not one of the four named tints', async () => {
+      await assertFails(
+        dbFor('member-1')
+          .doc('users/member-1/highlights/en_john_3_16')
+          .set({ ...HIGHLIGHT, colour: 'octarine' })
+      );
+    });
+
+    it('rejects a translation id that is not a bundled translation', async () => {
+      // 'bilingual' is a DISPLAY mode, never a translation an annotation
+      // can belong to.
+      await assertFails(
+        dbFor('member-1')
+          .doc('users/member-1/highlights/h1')
+          .set({ ...HIGHLIGHT, translationId: 'bilingual' })
+      );
+    });
+
+    it('rejects a reference outside the canon', async () => {
+      // 150 is Psalms' chapter count and 176 Psalm 119's verse count --
+      // the two maxima in the 66-book canon.
+      const db = dbFor('member-1');
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, chapter: 0 })
+      );
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, chapter: 151 })
+      );
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, verse: 0 })
+      );
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, verse: 177 })
+      );
+    });
+
+    it('rejects a localized or otherwise non-slug book id', async () => {
+      // Book ids are never localized -- see mobile/src/features/bible/books.ts.
+      const db = dbFor('member-1');
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, bookId: 'ఆదికాండము' })
+      );
+      await assertFails(
+        db.doc('users/member-1/highlights/h1').set({ ...HIGHLIGHT, bookId: 'John 3' })
+      );
+    });
+
+    it('rejects an extra field smuggled onto the document', async () => {
+      await assertFails(
+        dbFor('member-1')
+          .doc('users/member-1/highlights/h1')
+          .set({ ...HIGHLIGHT, role: 'super_admin' })
+      );
+    });
+  });
+
+  describe('users/{userId}/bookmarks (M4, fully private per-owner)', () => {
+    const BOOKMARK = {
+      translationId: 'te',
+      bookId: 'song-of-solomon',
+      chapter: 2,
+      verse: 1,
+      createdAt: new Date(),
+    };
+
+    it('allows a member to manage their own bookmarks', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(
+        db.doc('users/member-1/bookmarks/te_song-of-solomon_2_1').set(BOOKMARK)
+      );
+      // Idempotent: the same deterministic id, written twice.
+      await assertSucceeds(
+        db.doc('users/member-1/bookmarks/te_song-of-solomon_2_1').set(BOOKMARK)
+      );
+      await assertSucceeds(
+        db.doc('users/member-1/bookmarks/te_song-of-solomon_2_1').delete()
+      );
+    });
+
+    it('accepts the optional note field the schema documents', async () => {
+      await assertSucceeds(
+        dbFor('member-1')
+          .doc('users/member-1/bookmarks/b1')
+          .set({ ...BOOKMARK, note: 'A short label.' })
+      );
+    });
+
+    it("blocks another member from touching someone's bookmarks", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-1/bookmarks/b1').set(BOOKMARK);
+      });
+      await assertFails(dbFor('member-2').doc('users/member-1/bookmarks/b1').get());
+      await assertFails(dbFor('member-2').doc('users/member-1/bookmarks/b1').delete());
+    });
+  });
+
+  describe('users/{userId}/verseNotes (M4, fully private per-owner)', () => {
+    const NOTE = {
+      translationId: 'en',
+      bookId: 'john',
+      chapter: 3,
+      verse: 16,
+      text: 'The whole gospel in one verse.',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('allows a member to write, read and delete their own note', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(db.doc('users/member-1/verseNotes/en_john_3_16').set(NOTE));
+      await assertSucceeds(db.doc('users/member-1/verseNotes/en_john_3_16').get());
+      await assertSucceeds(db.doc('users/member-1/verseNotes/en_john_3_16').delete());
+    });
+
+    it('keeps a note private from every other member AND from admins', async () => {
+      // A member's notes on scripture are theirs. This is not a comment
+      // system, and no role can read them.
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/admin-1').set({ role: 'super_admin' });
+        await db.doc('users/member-1/verseNotes/en_john_3_16').set(NOTE);
+      });
+      await assertFails(
+        dbFor('member-2').doc('users/member-1/verseNotes/en_john_3_16').get()
+      );
+      await assertFails(
+        dbFor('admin-1').doc('users/member-1/verseNotes/en_john_3_16').get()
+      );
+    });
+
+    it('rejects an empty note and one past the length cap', async () => {
+      const db = dbFor('member-1');
+      await assertFails(
+        db.doc('users/member-1/verseNotes/n1').set({ ...NOTE, text: '' })
+      );
+      await assertFails(
+        db.doc('users/member-1/verseNotes/n1').set({ ...NOTE, text: 'x'.repeat(5001) })
+      );
+    });
+  });
+
+  describe('users/{userId}/readingPrefs (M4)', () => {
+    it('allows a member to write and read their own reading settings', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(
+        db.doc('users/member-1/readingPrefs/reader').set({
+          font: 'serif',
+          size: 'lg',
+          lineHeight: 'relaxed',
+          width: 'wide',
+          layout: 'stacked',
+        })
+      );
+      await assertSucceeds(db.doc('users/member-1/readingPrefs/reader').get());
+      // A partial merge, which is what the client actually writes.
+      await assertSucceeds(
+        db.doc('users/member-1/readingPrefs/reader').set({ size: 'xs' }, { merge: true })
+      );
+    });
+
+    it('rejects a value outside the named steps', async () => {
+      const db = dbFor('member-1');
+      await assertFails(
+        db.doc('users/member-1/readingPrefs/reader').set({ size: 'enormous' })
+      );
+      await assertFails(db.doc('users/member-1/readingPrefs/reader').set({ size: 42 }));
+      await assertFails(
+        db.doc('users/member-1/readingPrefs/reader').set({ lineHeight: 'airy' })
+      );
+      await assertFails(
+        db.doc('users/member-1/readingPrefs/reader').set({ width: 'full' })
+      );
+      await assertFails(
+        db.doc('users/member-1/readingPrefs/reader').set({ layout: 'carousel' })
+      );
+    });
+
+    it('rejects a theme field here -- the app has ONE theme preference', async () => {
+      await assertFails(
+        dbFor('member-1').doc('users/member-1/readingPrefs/reader').set({ theme: 'dark' })
+      );
+    });
+
+    it("blocks another member from reading someone's reading settings", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-1/readingPrefs/reader').set({ size: 'lg' });
+      });
+      await assertFails(
+        dbFor('member-2').doc('users/member-1/readingPrefs/reader').get()
+      );
+    });
+  });
+
+  describe('users/{userId}/readingPosition (M4)', () => {
+    const POSITION = {
+      bookId: 'psalms',
+      chapter: 119,
+      verse: 105,
+      updatedAt: new Date(),
+    };
+
+    it('keeps one document per translation', async () => {
+      const db = dbFor('member-1');
+      await assertSucceeds(db.doc('users/member-1/readingPosition/te').set(POSITION));
+      await assertSucceeds(db.doc('users/member-1/readingPosition/en').set(POSITION));
+      await assertSucceeds(db.doc('users/member-1/readingPosition/te').get());
+    });
+
+    it('rejects a document id that is not a bundled translation', async () => {
+      const db = dbFor('member-1');
+      await assertFails(db.doc('users/member-1/readingPosition/bilingual').set(POSITION));
+      await assertFails(db.doc('users/member-1/readingPosition/fr').set(POSITION));
+    });
+
+    it('rejects a reference outside the canon, or an extra field', async () => {
+      const db = dbFor('member-1');
+      await assertFails(
+        db.doc('users/member-1/readingPosition/te').set({ ...POSITION, chapter: 151 })
+      );
+      // The translation is the document id, not a field.
+      await assertFails(
+        db
+          .doc('users/member-1/readingPosition/te')
+          .set({ ...POSITION, translationId: 'te' })
+      );
+    });
+
+    it("blocks another member from reading someone's place in the Bible", async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-1/readingPosition/te').set(POSITION);
+      });
+      await assertFails(dbFor('member-2').doc('users/member-1/readingPosition/te').get());
+    });
+  });
+
+  describe("the owner's theme preference accepts 'system' (M4)", () => {
+    it('accepts all three values, so the reader and Settings cannot disagree', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member', displayName: 'Member One' });
+      });
+      const db = dbFor('member-1');
+      for (const themePreference of ['light', 'dark', 'system']) {
+        await assertSucceeds(db.doc('users/member-1').update({ themePreference }));
+      }
+    });
+
+    it('still rejects a theme value the app does not recognise', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member', displayName: 'Member One' });
+      });
+      await assertFails(
+        dbFor('member-1').doc('users/member-1').update({ themePreference: 'sepia' })
+      );
+    });
+  });
 });

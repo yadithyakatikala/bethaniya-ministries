@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
+import { ReadingPreferencesProvider } from './src/context/ReadingPreferencesContext';
 import { useAppFonts, useTheme } from './src/theme';
 import { LoadingScreen } from './src/features/auth/LoadingScreen';
 import { SignInScreen } from './src/features/auth/SignInScreen';
@@ -49,9 +50,16 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <PreferencesProvider>
-          <FontGate>
-            <AuthGate />
-          </FontGate>
+          {/* M4. Inside PreferencesProvider because the reader reads both
+              (its Light/Dark/System control drives the theme preference
+              there), and above the navigator because the reader screen
+              and its settings sheet are separate components that must
+              see the same values. */}
+          <ReadingPreferencesProvider>
+            <FontGate>
+              <AuthGate />
+            </FontGate>
+          </ReadingPreferencesProvider>
           <ThemedStatusBar />
         </PreferencesProvider>
       </AuthProvider>

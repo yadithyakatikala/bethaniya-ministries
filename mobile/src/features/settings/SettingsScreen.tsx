@@ -11,6 +11,7 @@ import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
 import { Divider } from '../../theme/ui/Divider';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import type { ThemePreference } from '../../services/firebase/userProfile';
 import type { BibleLanguage, BibleMode } from '../bible/types';
 
 /**
@@ -148,23 +149,24 @@ export function SettingsScreen() {
         </View>
 
         <Divider />
-        <View style={[styles.row, { padding: spacing.md }]}>
-          <Text style={[type.label, { color: colors.ink }]}>
-            {`${t('settings.theme')}: ${
-              themePreference === 'dark'
-                ? t('settings.themeDark')
-                : t('settings.themeLight')
-            }`}
-          </Text>
-          <Switch
-            testID="settings-theme-switch"
-            // A Switch is its own focus stop for TalkBack, so without a
-            // label it announces only "switch, on" -- the "Theme:" text
-            // beside it is a separate element and is not read with it.
-            accessibilityLabel={t('settings.themeDark')}
-            value={themePreference === 'dark'}
-            onValueChange={(value) => void setThemePreference(value ? 'dark' : 'light')}
-            {...switchColors}
+        {/* Three values, so no longer a Switch.
+            M4's reader offers Light / Dark / System and drives THIS one
+            preference rather than keeping a reader-only theme, so the
+            third option has to be selectable here too -- a two-state
+            switch cannot express it. Same SegmentedChoice the two
+            language rows above use, so the screen reads consistently. */}
+        <View style={[styles.pickerRow, { padding: spacing.md }]}>
+          <Text style={[type.label, { color: colors.ink }]}>{t('settings.theme')}</Text>
+          <SegmentedChoice
+            testID="settings-theme"
+            accessibilityLabel={t('settings.theme')}
+            options={[
+              { value: 'light' as ThemePreference, label: t('settings.themeLight') },
+              { value: 'dark' as ThemePreference, label: t('settings.themeDark') },
+              { value: 'system' as ThemePreference, label: t('settings.themeSystem') },
+            ]}
+            selected={themePreference}
+            onSelect={(value) => void setThemePreference(value)}
           />
         </View>
 

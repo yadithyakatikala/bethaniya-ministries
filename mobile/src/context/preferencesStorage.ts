@@ -17,13 +17,16 @@ const THEME_KEY = 'theme_preference';
 const NOTIFICATIONS_ENABLED_KEY = 'notifications_enabled_preference';
 
 function isThemePreference(value: string | null): value is ThemePreference {
-  return value === 'light' || value === 'dark';
+  // 'system' added in M4 -- see ../services/firebase/userProfile.ts's
+  // ThemePreference for why the reader drives this one field rather than
+  // carrying a theme of its own.
+  return value === 'light' || value === 'dark' || value === 'system';
 }
 
 /** Returns the saved theme, or null if nothing valid is stored (the
- * caller -- PreferencesContext -- falls back to the system color scheme
- * in that case, not a hardcoded default, since there's no single
- * "correct" default theme the way English is the default Bible
+ * caller -- PreferencesContext -- falls back to following the system
+ * color scheme in that case, not a hardcoded default, since there's no
+ * single "correct" default theme the way English is the default Bible
  * language). */
 export async function getStoredThemePreference(): Promise<ThemePreference | null> {
   const raw = await AsyncStorage.getItem(THEME_KEY);

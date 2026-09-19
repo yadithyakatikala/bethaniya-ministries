@@ -49,7 +49,10 @@ describe('BibleSearchScreen', () => {
     expect(getByTestId('search-result-genesis-1-1')).toBeTruthy();
   });
 
-  it('navigates to the matched chapter when a result is tapped', async () => {
+  it('opens the matched VERSE, not just its chapter, when a result is tapped', async () => {
+    // M4: the reader takes an optional verse and opens at it. Landing at
+    // the top of Psalm 119 for a match on verse 105 is the defect this
+    // closes -- see ../reader/ReaderScreen.tsx.
     const { getByTestId, navigate } = await renderScreen();
     await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
     await waitFor(() => expect(getByTestId('search-result-genesis-1-1')).toBeTruthy());
@@ -59,6 +62,7 @@ describe('BibleSearchScreen', () => {
     expect(navigate).toHaveBeenCalledWith('BibleChapter', {
       bookId: 'genesis',
       chapterNumber: 1,
+      verse: 1,
     });
   });
 

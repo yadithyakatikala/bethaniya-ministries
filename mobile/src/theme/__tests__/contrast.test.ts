@@ -74,7 +74,7 @@ const PAIRS: { name: string; fg: keyof ThemeColors; bg: keyof ThemeColors }[] = 
   // before M3 there was no token for them at all.
   { name: 'placeholder on surface', fg: 'inkSubtle', bg: 'surface' },
   { name: 'placeholder on paper', fg: 'inkSubtle', bg: 'paper' },
-  // features/bible/ChapterScreen.tsx verse numbers, daily-verse references.
+  // The reader's verse numbers, daily-verse references.
   { name: 'accent text on paper', fg: 'accent', bg: 'paper' },
   { name: 'accent text on surface', fg: 'accent', bg: 'surface' },
   { name: 'accent text on a raised panel', fg: 'accent', bg: 'surfaceRaised' },

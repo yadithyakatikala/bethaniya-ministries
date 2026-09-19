@@ -292,6 +292,70 @@ export interface Strings {
   'profile.photoMustBeImage': string;
   'profile.photoTooLarge': string;
   'profile.verificationSent': string;
+
+  // --- M4: the immersive Bible reader ---------------------------------
+  'common.close': string;
+  'common.done': string;
+  /** The third theme option. Light and Dark already existed. */
+  'settings.themeSystem': string;
+  /** Opens the saved reading position -- see
+   *  ../services/firebase/readingPosition.ts. */
+  'bible.continueReading': string;
+  /** The accessibility label for the scripture surface, whose tap shows
+   *  and hides the reader's chrome. */
+  'bible.toggleControls': string;
+  'bible.readingSettings': string;
+  'bible.chapterSelector': string;
+  'bible.selectBook': string;
+  'bible.selectChapter': string;
+  'bible.verseActions': string;
+  'bible.highlight': string;
+  'bible.removeHighlight': string;
+  'bible.bookmark': string;
+  'bible.removeBookmark': string;
+  'bible.addNote': string;
+  'bible.editNote': string;
+  'bible.deleteNote': string;
+  'bible.notePlaceholder': string;
+  'bible.share': string;
+  'bible.copy': string;
+  'bible.copied': string;
+  'bible.copyFailed': string;
+  'bible.shareFailed': string;
+  'bible.saveFailed': string;
+  /**
+   * The four highlight colours are NAMED, not shown as four unlabelled
+   * swatches. They sit at the same lightness by design (see
+   * ../theme/tokens.ts's highlightTints), so hue alone does not
+   * distinguish them for a colour-blind reader.
+   */
+  'bible.highlightYellow': string;
+  'bible.highlightGreen': string;
+  'bible.highlightBlue': string;
+  'bible.highlightPink': string;
+  /** Spoken state for a verse, so selection / highlighting / a note is
+   *  never communicated by colour alone. */
+  'bible.highlighted': string;
+  'bible.bookmarked': string;
+  'bible.hasNote': string;
+  'bible.signInToSave': string;
+  'bible.fontLabel': string;
+  'bible.fontSerif': string;
+  'bible.fontSans': string;
+  'bible.sizeLabel': string;
+  'bible.decreaseSize': string;
+  'bible.increaseSize': string;
+  'bible.lineHeightLabel': string;
+  'bible.lineHeightCompact': string;
+  'bible.lineHeightNormal': string;
+  'bible.lineHeightRelaxed': string;
+  'bible.widthLabel': string;
+  'bible.widthNarrow': string;
+  'bible.widthNormal': string;
+  'bible.widthWide': string;
+  'bible.layoutLabel': string;
+  'bible.layoutStacked': string;
+  'bible.layoutSideBySide': string;
 }
 
 export type StringKey = keyof Strings;
@@ -523,6 +587,56 @@ const en: Strings = {
   'profile.photoMustBeImage': 'Please choose an image file.',
   'profile.photoTooLarge': 'Please choose an image smaller than 5MB.',
   'profile.verificationSent': 'Verification email sent. Check your inbox.',
+
+  'common.close': 'Close',
+  'common.done': 'Done',
+  'settings.themeSystem': 'System',
+  'bible.continueReading': 'Continue reading',
+  'bible.toggleControls': 'Scripture. Tap to show or hide the reading controls.',
+  'bible.readingSettings': 'Reading settings',
+  'bible.chapterSelector': 'Choose a chapter',
+  'bible.selectBook': 'Book',
+  'bible.selectChapter': 'Chapter',
+  'bible.verseActions': 'Verse actions',
+  'bible.highlight': 'Highlight',
+  'bible.removeHighlight': 'Remove highlight',
+  'bible.bookmark': 'Bookmark',
+  'bible.removeBookmark': 'Remove bookmark',
+  'bible.addNote': 'Add note',
+  'bible.editNote': 'Edit note',
+  'bible.deleteNote': 'Delete note',
+  'bible.notePlaceholder': 'Your note on this verse',
+  'bible.share': 'Share',
+  'bible.copy': 'Copy',
+  'bible.copied': 'Copied to the clipboard.',
+  'bible.copyFailed': 'Could not copy this verse.',
+  'bible.shareFailed': 'Could not share this verse.',
+  'bible.saveFailed': 'Could not save your change.',
+  'bible.highlightYellow': 'Yellow',
+  'bible.highlightGreen': 'Green',
+  'bible.highlightBlue': 'Blue',
+  'bible.highlightPink': 'Pink',
+  'bible.highlighted': 'Highlighted',
+  'bible.bookmarked': 'Bookmarked',
+  'bible.hasNote': 'Has a note',
+  'bible.signInToSave': 'Sign in to save highlights, bookmarks and notes.',
+  'bible.fontLabel': 'Typeface',
+  'bible.fontSerif': 'Serif',
+  'bible.fontSans': 'Sans',
+  'bible.sizeLabel': 'Text size',
+  'bible.decreaseSize': 'Smaller text',
+  'bible.increaseSize': 'Larger text',
+  'bible.lineHeightLabel': 'Line spacing',
+  'bible.lineHeightCompact': 'Compact',
+  'bible.lineHeightNormal': 'Comfortable',
+  'bible.lineHeightRelaxed': 'Spacious',
+  'bible.widthLabel': 'Column width',
+  'bible.widthNarrow': 'Narrower',
+  'bible.widthNormal': 'Default',
+  'bible.widthWide': 'Wider',
+  'bible.layoutLabel': 'Bilingual layout',
+  'bible.layoutStacked': 'Stacked',
+  'bible.layoutSideBySide': 'Side by side',
 };
 
 /**
@@ -758,6 +872,57 @@ const te: Strings = {
   'profile.photoMustBeImage': 'దయచేసి ఒక చిత్ర ఫైల్‌ను ఎంచుకోండి.',
   'profile.photoTooLarge': 'దయచేసి 5MB కంటే చిన్న చిత్రాన్ని ఎంచుకోండి.',
   'profile.verificationSent': 'ధృవీకరణ ఇమెయిల్ పంపాము. మీ ఇన్‌బాక్స్ చూడండి.',
+
+  'common.close': 'మూసివేయండి',
+  'common.done': 'పూర్తయింది',
+  'settings.themeSystem': 'సిస్టమ్',
+  'bible.continueReading': 'చదవడం కొనసాగించండి',
+  'bible.toggleControls': 'వాక్యభాగం. నియంత్రణలు చూపించడానికి లేదా దాచడానికి తట్టండి.',
+  'bible.readingSettings': 'చదివే అమరికలు',
+  'bible.chapterSelector': 'అధ్యాయం ఎంచుకోండి',
+  'bible.selectBook': 'గ్రంథం',
+  'bible.selectChapter': 'అధ్యాయం',
+  'bible.verseActions': 'వచనంపై చర్యలు',
+  'bible.highlight': 'హైలైట్ చేయండి',
+  'bible.removeHighlight': 'హైలైట్ తీసివేయండి',
+  'bible.bookmark': 'బుక్‌మార్క్ చేయండి',
+  'bible.removeBookmark': 'బుక్‌మార్క్ తీసివేయండి',
+  'bible.addNote': 'నోట్ జోడించండి',
+  'bible.editNote': 'నోట్ సవరించండి',
+  'bible.deleteNote': 'నోట్ తొలగించండి',
+  'bible.notePlaceholder': 'ఈ వచనంపై మీ నోట్',
+  'bible.share': 'పంచుకోండి',
+  'bible.copy': 'కాపీ చేయండి',
+  'bible.copied': 'క్లిప్‌బోర్డ్‌కు కాపీ అయింది.',
+  'bible.copyFailed': 'ఈ వచనాన్ని కాపీ చేయలేకపోయాము.',
+  'bible.shareFailed': 'ఈ వచనాన్ని పంచుకోలేకపోయాము.',
+  'bible.saveFailed': 'మీ మార్పును సేవ్ చేయలేకపోయాము.',
+  'bible.highlightYellow': 'పసుపు',
+  'bible.highlightGreen': 'ఆకుపచ్చ',
+  'bible.highlightBlue': 'నీలం',
+  'bible.highlightPink': 'గులాబీ',
+  'bible.highlighted': 'హైలైట్ చేయబడింది',
+  'bible.bookmarked': 'బుక్‌మార్క్ చేయబడింది',
+  'bible.hasNote': 'నోట్ ఉంది',
+  'bible.signInToSave':
+    'హైలైట్‌లు, బుక్‌మార్క్‌లు, నోట్‌లు సేవ్ చేయడానికి సైన్ ఇన్ అవ్వండి.',
+  'bible.fontLabel': 'అక్షర శైలి',
+  'bible.fontSerif': 'సెరిఫ్',
+  'bible.fontSans': 'సాన్స్',
+  'bible.sizeLabel': 'అక్షర పరిమాణం',
+  'bible.decreaseSize': 'చిన్న అక్షరాలు',
+  'bible.increaseSize': 'పెద్ద అక్షరాలు',
+  'bible.lineHeightLabel': 'పంక్తుల అంతరం',
+  'bible.lineHeightCompact': 'తక్కువ',
+  'bible.lineHeightNormal': 'మధ్యస్థం',
+  'bible.lineHeightRelaxed': 'ఎక్కువ',
+  'bible.widthLabel': 'వరుస వెడల్పు',
+  'bible.widthNarrow': 'సన్నం',
+  'bible.widthNormal': 'సాధారణం',
+  'bible.widthWide': 'వెడల్పు',
+  'bible.layoutLabel': 'ద్విభాషా అమరిక',
+  'bible.layoutStacked': 'ఒకదానిపై ఒకటి',
+  'bible.layoutSideBySide': 'ప్రక్కప్రక్కన',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

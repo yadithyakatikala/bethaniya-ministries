@@ -3,7 +3,7 @@
  * the entire locally-available placeholder dataset, not just cached
  * chapters." Every book/chapter is looked up via dataSource.ts's
  * getChapter() -- the exact same seam BooksListScreen/ChaptersListScreen/
- * ChapterScreen already go through (see dataSource.ts's own doc comment:
+ * the reader already go through (see dataSource.ts's own doc comment:
  * "screens must NOT directly access placeholder/WEB data") -- so this
  * file never imports placeholderData.ts directly either, and swapping in
  * a real translation later (WEB, or a licensed Telugu source) makes

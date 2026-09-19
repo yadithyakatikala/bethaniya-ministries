@@ -26,7 +26,7 @@ import { YouTubePlayerScreen } from '../features/events/YouTubePlayerScreen';
 import type { PublishedEvent } from '../services/firebase/events';
 import { BooksListScreen } from '../features/bible/BooksListScreen';
 import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
-import { ChapterScreen } from '../features/bible/ChapterScreen';
+import { ReaderScreen } from '../features/bible/reader/ReaderScreen';
 import { BibleSearchScreen } from '../features/bible/BibleSearchScreen';
 import { getBookNameById } from '../features/bible/books';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
@@ -104,7 +104,20 @@ export type RootStackParamList = {
   YouTubePlayer: { youtubeUrl: string };
   BibleBooks: undefined;
   BibleChapters: { bookId: string };
-  BibleChapter: { bookId: string; chapterNumber: number };
+  /**
+   * The immersive reader (M4 -- see
+   * ../features/bible/reader/ReaderScreen.tsx). Deliberately the SAME
+   * route it has always been: it is already outside TAB_ROUTE_NAMES and
+   * already registered with headerShown: false, so the tab bar is absent
+   * and the screen owns its chrome. M4 changed what the route renders,
+   * not the navigation architecture.
+   *
+   * `verse` is optional and OPENS AT that verse -- it is how a search
+   * result lands on the right line. It is a scroll target, never a
+   * redirect: the book and chapter the caller asked for are what the
+   * reader shows.
+   */
+  BibleChapter: { bookId: string; chapterNumber: number; verse?: number };
   BibleSearch: undefined;
   Profile: undefined;
   Settings: undefined;
@@ -320,7 +333,7 @@ export function AppNavigator() {
             />
             <Stack.Screen
               name="BibleChapter"
-              component={ChapterScreen}
+              component={ReaderScreen}
               options={({ route }) => ({
                 title: getBookNameById(route.params.bookId, bookNameLanguage)
                   ? `${getBookNameById(route.params.bookId, bookNameLanguage)} ${route.params.chapterNumber}`

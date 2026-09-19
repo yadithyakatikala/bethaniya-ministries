@@ -55,7 +55,19 @@ import { db } from './app';
 export type LanguagePreference = 'en' | 'te';
 /** What the Bible reader is set to show. See ../../features/bible/types.ts. */
 export type BibleModePreference = 'en' | 'te' | 'bilingual';
-export type ThemePreference = 'light' | 'dark';
+/**
+ * The app's theme, including the reader's.
+ *
+ * M4 added 'system' -- the Bible reader offers Light / Dark / System and
+ * drives THIS field rather than keeping a reader-only theme value, so
+ * the reader and Settings can never disagree about what the app looks
+ * like. Purely additive: 'light' and 'dark' keep their meaning, an
+ * account that has one stored is unaffected, and firestore.rules' own
+ * validator was widened by one value (see that file). A V1/V2 client
+ * reading 'system' fails its local validation and falls back to the
+ * device scheme, which is what 'system' means anyway.
+ */
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface UserProfile {
   uid: string;
@@ -109,7 +121,9 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
       ? data.bibleMode
       : null;
   const themePreference =
-    data.themePreference === 'light' || data.themePreference === 'dark'
+    data.themePreference === 'light' ||
+    data.themePreference === 'dark' ||
+    data.themePreference === 'system'
       ? data.themePreference
       : null;
   return {
