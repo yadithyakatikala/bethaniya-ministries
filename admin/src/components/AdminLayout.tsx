@@ -67,6 +67,16 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
     testId: 'sidebar-announcements-link',
   },
   { label: 'Daily Verses', path: '/daily-verses', testId: 'sidebar-daily-verses-link' },
+  {
+    label: 'Verse Automation',
+    path: '/daily-verses/automation',
+    testId: 'sidebar-votd-automation-link',
+  },
+  {
+    label: 'Prophet Verses',
+    path: '/prophet-verses',
+    testId: 'sidebar-prophet-verses-link',
+  },
   { label: 'Songs', path: '/songs', testId: 'sidebar-songs-link' },
   { label: 'Events', path: '/events', testId: 'sidebar-events-link' },
   { label: 'Community', path: '/community', testId: 'sidebar-community-link' },

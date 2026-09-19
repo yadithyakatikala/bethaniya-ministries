@@ -386,6 +386,125 @@ service cloud.firestore {
         && data.keys().hasOnly(['bookId', 'chapter', 'verse', 'updatedAt']);
     }
 
+    // ================================================================
+    // M5 -- the automated Verse of the Day, and the Prophet Verse.
+    //
+    // TWO SEPARATE SYSTEMS, deliberately kept apart here as well as in
+    // the data model and the UI:
+    //
+    //   settings/dailyVerse + verse_pool   the automated VOTD
+    //   prophet_verses                     a distinct devotional record
+    //
+    // Everything below is ADDITIVE. No existing rule changes meaning:
+    // daily_verses keeps exactly the permissions it had (an
+    // administrator's explicit override still wins over the automation,
+    // and still needs isContentAdminOrAbove()), and settings/church
+    // remains super-admin-only -- see the /settings/dailyVerse block for
+    // how a second, narrower match achieves that without widening the
+    // generic settings rule.
+    //
+    // Members can READ what is public and can write NOTHING here: not
+    // the configuration, not the pool, not a prophet verse, and not a
+    // prophet verse's published flag.
+    // ================================================================
+
+    /**
+     * The VOTD configuration document, settings/dailyVerse.
+     *
+     * `timezone` is pinned to the one value the app can actually honour.
+     * The selection uses a fixed +05:30 offset
+     * (mobile/src/features/daily-verses/votdDate.ts) because Hermes may
+     * ship without a timezone database, so accepting an arbitrary zone
+     * here would store a promise the app cannot keep.
+     *
+     * `seed` is restricted to plain printable characters -- it is hashed,
+     * never rendered as markup, but a 10KB seed would be stored on a
+     * document every member reads on every app open.
+     */
+    function isValidVotdConfig(data) {
+      return data.enabled is bool
+        && data.seed is string
+        && data.seed.size() > 0 && data.seed.size() <= 64
+        && data.seed.matches('^[A-Za-z0-9 ._-]+$')
+        && data.poolVersion is int
+        && data.poolVersion >= 1 && data.poolVersion <= 100000
+        && data.timezone == 'Asia/Kolkata'
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && data.keys().hasOnly(
+             ['enabled', 'seed', 'poolVersion', 'timezone', 'updatedAt']);
+    }
+
+    /**
+     * One entry of the automated pool: a REFERENCE, never verse text.
+     *
+     * The bounds are the same canon facts isVerseReference() above uses
+     * (150 = Psalms' chapters, 176 = Psalm 119's verses). There is no
+     * translationId: the pool names a canonical verse, and each member's
+     * own bibleMode decides which translation they read it in.
+     *
+     * Duplicating the Bible into Firestore is what this shape exists to
+     * prevent -- see mobile/src/services/firebase/votd.ts.
+     */
+    function isValidVersePoolEntry(data) {
+      return data.reference is string
+        && data.reference.size() > 0 && data.reference.size() <= 200
+        && data.bookId is string
+        && data.bookId.size() > 0 && data.bookId.size() <= 40
+        && data.bookId.matches('^[a-z0-9-]+$')
+        && data.chapter is int && data.chapter >= 1 && data.chapter <= 150
+        && data.verse is int && data.verse >= 1 && data.verse <= 176
+        && data.order is int && data.order >= 0 && data.order <= 100000
+        && data.active is bool
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && data.keys().hasOnly(
+             ['reference', 'bookId', 'chapter', 'verse', 'order', 'active',
+              'createdAt', 'updatedAt']);
+    }
+
+    /**
+     * A Prophet Verse -- a separate devotional record, not a daily verse.
+     *
+     * `publishAt` IS A TIMESTAMP, not a date string. It is an instant
+     * ("show this from 6am on Sunday"), compared with <= against
+     * request.time below, unlike daily_verses' `date`, which is a
+     * YYYY-MM-DD calendar key used for an exact match. The two are
+     * deliberately different types because they answer different
+     * questions.
+     *
+     * `imageUrl` must be an EXTERNAL HTTPS url. There is no Cloud
+     * Storage bucket on this project's plan, so there are no uploads --
+     * see storage.rules' own note about song audio, the same decision for
+     * the same reason. http:// is refused outright: Android blocks
+     * cleartext by default, so it would render as a broken image.
+     *
+     * Nothing on a server ever fetches this url; the device's own image
+     * loader does, exactly as it already does for announcement images.
+     */
+    function isValidProphetVerse(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.reference is string
+        && data.reference.size() > 0 && data.reference.size() <= 200
+        && data.text is string
+        && data.text.size() > 0 && data.text.size() <= 5000
+        && data.published is bool
+        && data.publishAt is timestamp
+        && (!('attribution' in data)
+            || data.attribution == null
+            || (data.attribution is string && data.attribution.size() <= 200))
+        && (!('imageUrl' in data)
+            || data.imageUrl == null
+            || (data.imageUrl is string
+                && data.imageUrl.size() > 0 && data.imageUrl.size() <= 2000
+                && data.imageUrl.matches('^https://.*$')))
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && data.keys().hasOnly(
+             ['title', 'reference', 'text', 'attribution', 'imageUrl',
+              'published', 'publishAt', 'createdAt', 'updatedAt']);
+    }
+
     // ---- Default deny --------------------------------------------------
 
     match /{document=**} {
@@ -642,10 +761,79 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- verse_pool ----------------------------------------------------
+    // M5: the automated Verse of the Day's pool of REFERENCES (never verse
+    // text -- the text comes from the Bible bundled in the app).
+    //
+    // Members read only ACTIVE entries, which is also exactly what the
+    // mobile query asks for (`where('active','==',true)` -- see
+    // mobile/src/services/firebase/votd.ts), so a deactivated verse is
+    // neither charged for nor visible. The admin dashboard needs the whole
+    // list, including deactivated entries, which is why content admins get
+    // an unconditional read. `host` deliberately does not: hosts manage
+    // live streams, not scripture selection.
+    match /verse_pool/{entryId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.active == true);
+      allow create, update: if isContentAdminOrAbove()
+        && isValidVersePoolEntry(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
+    }
+
+    // ---- prophet_verses ------------------------------------------------
+    // M5: a SEPARATE content system from daily_verses -- its own
+    // collection, its own permissions, its own admin page.
+    //
+    // A member may read a record only once it is BOTH published and due.
+    // `request.time` is the SERVER's clock, so a member cannot see
+    // tomorrow's scheduled verse by setting their phone's clock forward --
+    // which is precisely why the schedule is enforced here and not only in
+    // the client's query. (The matching client-side bound, and what it
+    // does about a device clock that runs fast, is documented in
+    // mobile/src/services/firebase/prophetVerses.ts.)
+    //
+    // Content admins read everything, because unpublished drafts and
+    // future schedules are what their page exists to manage.
+    match /prophet_verses/{verseId} {
+      allow read: if isContentAdminOrAbove()
+        || (isSignedIn()
+            && resource.data.published == true
+            && resource.data.publishAt <= request.time);
+      allow create, update: if isContentAdminOrAbove()
+        && isValidProphetVerse(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
+    }
+
     // ---- settings -----------------------------------------------------
     match /settings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isSuperAdmin();
+    }
+
+    // ---- settings/dailyVerse -------------------------------------------
+    // M5: the automated VOTD configuration.
+    //
+    // WHY A SECOND, NARROWER MATCH rather than widening the rule above.
+    // Firestore evaluates EVERY matching rule and allows the request if
+    // ANY of them allows it, so this block grants content admins access to
+    // this ONE document while settings/church -- the church's public
+    // identity, support email and logo -- stays super-admin-only. Changing
+    // the generic rule to isContentAdminOrAbove() would have quietly
+    // handed content admins the church's settings too.
+    //
+    // Read is not restated here: the generic rule above already allows any
+    // signed-in member to read it, which is required -- every device needs
+    // the seed and poolVersion to compute the same verse. It contains no
+    // secrets.
+    //
+    // Delete is allowed because deleting this document is a RECOVERABLE
+    // reset, not a loss: with no configuration the app falls back to
+    // automation-on with the default seed (see
+    // mobile/src/services/firebase/votd.ts's fetchVotdConfig()).
+    match /settings/dailyVerse {
+      allow create, update: if isContentAdminOrAbove()
+        && isValidVotdConfig(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
     }
   }
 }

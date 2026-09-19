@@ -41,8 +41,11 @@ caller's own user document. A user can never set their own `role` field —
 `firestore.rules` and `storage.rules` implement deny-by-default rules for:
 `users`, `announcements`, `daily_verses`, `songs`, `events`,
 `notifications_log`, `audit_log`, `settings`, `community`, `plans`
-(+ its `days` subcollection), `users/{uid}/prayers`, and
-`users/{uid}/planProgress`, plus Storage paths for content images and
+(+ its `days` subcollection), `users/{uid}/prayers`,
+`users/{uid}/planProgress`, the M4 reader's private per-owner
+subcollections (`highlights`, `bookmarks`, `verseNotes`, `readingPrefs`,
+`readingPosition`), and M5's `verse_pool` and `prophet_verses`, plus
+Storage paths for content images and
 user profile photos. `community`/`plans`/`prayers`/`planProgress` are new
 V1 features added after this document's original Day-by-day sections
 below were written — see PRODUCTION_READINESS.md's "New V1 features"
@@ -52,6 +55,30 @@ collection that came before them (`community`/`plans` mirror
 `announcements`'s admin-write/published-gated-member-read shape exactly;
 `prayers`/`planProgress` are fully private per-owner, mirroring the
 `users/{uid}` document's own `isOwner(userId)` boundary).
+
+**M5 (automated Verse of the Day + Prophet Verse)** adds three things
+worth calling out here, because each is a deliberate boundary decision
+rather than a copy of an existing pattern:
+
+- **`settings/dailyVerse` is a SECOND, NARROWER match**, not a widening
+  of `settings/{settingId}`. Firestore allows a request if ANY matching
+  rule allows it, so the new block grants a content admin write access to
+  that ONE document while `settings/church` — the church's public
+  identity, support email and logo — stays super-admin-only. Widening the
+  generic rule would have handed content admins the church's settings too.
+- **`verse_pool` stores references, never verse text.** The validator
+  uses `keys().hasOnly()`, so a `text` field on a pool document is
+  refused outright: the Bible is bundled in the app, and duplicating
+  31,102 verses into Firestore would cost money to store and to read.
+  Members read only `active` entries; content admins read all, because
+  managing what they have switched off is what their page is for.
+- **`prophet_verses` enforces the SCHEDULE server-side.** A member may
+  read a record only when `published == true` AND
+  `publishAt <= request.time` — `request.time` being the server's clock,
+  so winding a phone forward does not reveal a scheduled verse. The
+  optional image must be an external `https://` url; there is no Cloud
+  Storage bucket on this project's plan, so there are no uploads (the
+  same decision `storage.rules` documents for song audio).
 
 **Status: tested against real, running Firebase emulators.** The
 `firebase-tests/` package contains an emulator-backed test suite
@@ -80,7 +107,18 @@ freshly re-run result, not carried forward from an earlier checkpoint:
 unrelated suite — `announcement-lifecycle.test.ts` — fails to compile
 against the currently-installed `firebase`/`@firebase/rules-unit-testing`
 versions, predates this checkpoint, and is tracked as a known issue
-rather than fixed opportunistically here).** Coverage includes, for every
+rather than fixed opportunistically here).**
+
+**Re-run at the M5 checkpoint: 199 passed / 2 documented skips across the
+whole `firebase-tests/` package** (`firestore.rules.test.ts` alone is
+183). The growth since the figure above is M4's five per-owner reader
+collections and M5's `settings/dailyVerse`, `verse_pool` and
+`prophet_verses` blocks, each with its own authorized/unauthorized pair
+and field-validation cases — including a test that M5 did not quietly
+change `daily_verses`, since an administrator's explicit verse for a date
+must keep winning over the automation.
+
+Coverage includes, for every
 collection: unauthenticated
 denial, wrong-role denial, correct-role success, the `users.role`
 self-elevation block (a member cannot set their own role, on create or

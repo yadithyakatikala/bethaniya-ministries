@@ -70,7 +70,11 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
  * `community`/`plans` were added alongside those new V1 features (not
  * part of the original spec -- see PRODUCTION_READINESS.md's "New V1
  * features" section) with the same content-admin-write audit-log
- * treatment as every other content collection above. */
+ * treatment as every other content collection above. M5 adds
+ * `verse_pool` (the automated Verse of the Day's reference pool) and
+ * `prophet_verses` for the same reason: both are content a content admin
+ * creates, edits and deletes. The VOTD CONFIGURATION is logged under
+ * `settings`, which is where it lives (settings/dailyVerse). */
 export const AUDIT_COLLECTIONS = [
   'users',
   'announcements',
@@ -80,6 +84,8 @@ export const AUDIT_COLLECTIONS = [
   'settings',
   'community',
   'plans',
+  'verse_pool',
+  'prophet_verses',
 ] as const;
 export type AuditCollection = (typeof AUDIT_COLLECTIONS)[number];
 

@@ -46,6 +46,13 @@ export const onSnapshot = jest.fn(() => jest.fn());
 // for it, same jest.fn() shape as every export above.
 export const doc = jest.fn((_db, ...pathSegments) => ({ path: pathSegments.join('/') }));
 export const getDoc = jest.fn();
+
+// M5: mobile/src/services/firebase/votd.ts is the first mobile module to
+// read a whole collection ONCE rather than subscribe to it -- the verse
+// pool is fetched at most once a day per device (see that file's
+// read-cost note), so it uses getDocs() where every earlier collection
+// read used onSnapshot().
+export const getDocs = jest.fn();
 export const setDoc = jest.fn();
 export const updateDoc = jest.fn();
 export const serverTimestamp = jest.fn(() => new MockTimestamp(0));

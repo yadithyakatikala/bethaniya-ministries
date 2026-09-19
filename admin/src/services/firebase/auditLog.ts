@@ -28,7 +28,11 @@ export type AuditCollection =
   | 'events'
   | 'settings'
   | 'community'
-  | 'plans';
+  | 'plans'
+  // M5. The VOTD configuration is logged under 'settings', which is
+  // where the document lives (settings/dailyVerse).
+  | 'verse_pool'
+  | 'prophet_verses';
 
 export interface LogAdminActionInput {
   action: AuditAction;

@@ -4,6 +4,13 @@ import viteConfig from './vite.config.ts';
 export default mergeConfig(
   viteConfig,
   defineConfig({
+    // TEST-ONLY. Vite refuses to read files outside the project root, and
+    // src/features/daily-verses/__tests__/votdSelection.test.ts
+    // deliberately reads the MOBILE package's golden vectors so the two
+    // copies of the Verse-of-the-Day algorithm cannot drift apart. This
+    // widening applies to the test server only -- `npm run build` is
+    // unaffected, and no application code imports across packages.
+    server: { fs: { allow: ['..'] } },
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],

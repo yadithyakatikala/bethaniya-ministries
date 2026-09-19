@@ -13,3 +13,9 @@ src/features/bible/data/web-en.json
 # mirror, corpus/tel-tel2017.txt -- see src/features/bible/teluguBible.ts).
 # Machine-generated/imported data, not hand-authored source; kept minified.
 src/features/bible/data/web-te.json
+
+# Generated golden vectors for the Verse-of-the-Day selection algorithm
+# (see src/features/daily-verses/__tests__/votdVectors.test.ts). Data, not
+# hand-authored source; the admin package reads this exact file so the two
+# implementations cannot drift apart.
+src/features/daily-verses/__tests__/votd-vectors.json

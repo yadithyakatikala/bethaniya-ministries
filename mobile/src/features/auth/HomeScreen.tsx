@@ -19,6 +19,7 @@ import {
 } from '../../theme/ui/FeatureIcons';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
+import { ProphetVerseCard } from '../prophet-verses/ProphetVerseCard';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   subscribeToChurchSettings,
@@ -513,6 +514,21 @@ export function HomeScreen() {
         />
         <DailyVerseCard />
       </View>
+
+      {/* M5: the Prophet Verse -- a SEPARATE content system, placed
+          directly below the Verse of the Day. It carries its own section
+          label inside the card and renders NOTHING at all when the church
+          has published none, so this does not become one more permanent
+          empty block in the middle of Home (see the note about the
+          announcements block below, which was removed for exactly that
+          reason).
+
+          Deliberately NOT wrapped in a <View style={styles.section}>: this
+          screen's container has `gap: 22`, and an empty wrapper is still a
+          flex child, so a church with no prophet verse would be left with
+          22dp of unexplained whitespace. Returning null from the card
+          leaves no element, and therefore no gap. */}
+      <ProphetVerseCard />
 
       {/* The ANNOUNCEMENTS content block that used to sit here is gone.
           It occupied the middle of Home with a permanent "No

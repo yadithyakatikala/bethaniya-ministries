@@ -20,6 +20,10 @@ import { EditPlanDayPage } from './features/plans/EditPlanDayPage';
 import { DailyVersesListPage } from './features/daily-verses/DailyVersesListPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
+import { VotdAutomationPage } from './features/daily-verses/VotdAutomationPage';
+import { ProphetVersesListPage } from './features/prophet-verses/ProphetVersesListPage';
+import { ProphetVerseForm } from './features/prophet-verses/ProphetVerseForm';
+import { EditProphetVersePage } from './features/prophet-verses/EditProphetVersePage';
 import { SongsListPage } from './features/songs/SongsListPage';
 import { SongForm } from './features/songs/SongForm';
 import { EditSongPage } from './features/songs/EditSongPage';
@@ -54,6 +58,12 @@ import { subscribeToAuthChanges } from './store/authStore';
  * a one-shot action rather than CRUD on persistent editable documents.
  * Day 11 adds /users (see UsersPage.tsx) -- also a single page (a table
  * with an inline role selector per row), Super-Admin-only.
+ * M5 adds /daily-verses/automation (the Verse of the Day rotation and its
+ * pool -- see VotdAutomationPage.tsx) and /prophet-verses* (a separate
+ * content system with its own list/new/edit trio -- see
+ * ProphetVersesListPage.tsx). The automation route sits UNDER
+ * /daily-verses because it configures the same feature; prophet verses
+ * get a top-level path because they are not daily verses at all.
  * Day 13 adds /settings (see SettingsPage.tsx) -- also a single page,
  * viewable by every dashboard role but editable Super-Admin-only (see
  * that file's own doc comment for the RBAC reasoning) -- and wraps every
@@ -227,6 +237,46 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <EditDailyVersePage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-verses/automation"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <VotdAutomationPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prophet-verses"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <ProphetVersesListPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prophet-verses/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <ProphetVerseForm mode="create" />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prophet-verses/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EditProphetVersePage />
                 </AdminLayout>
               </ProtectedRoute>
             }

@@ -1743,4 +1743,321 @@ describe('firestore.rules', () => {
       );
     });
   });
+
+  // ---- M5: automated Verse of the Day + Prophet Verse ---------------------
+  // Two separate systems, tested separately. Every case below is about one
+  // of three things: a member cannot configure the automation, a member
+  // cannot see content that is not yet due, and a malformed document
+  // cannot be stored.
+
+  describe('settings/dailyVerse (M5 VOTD configuration)', () => {
+    const config = {
+      enabled: true,
+      seed: 'maranatha',
+      poolVersion: 1,
+      timezone: 'Asia/Kolkata',
+    };
+
+    it('lets any signed-in member READ it -- every device needs the seed', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('settings/dailyVerse').set(config);
+      });
+      await assertSucceeds(dbFor('member-1').doc('settings/dailyVerse').get());
+    });
+
+    it('blocks a member from changing the seed, the pool version or the switch', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('settings/dailyVerse').set(config);
+      });
+      const db = dbFor('member-1');
+      await assertFails(db.doc('settings/dailyVerse').set({ ...config, seed: 'mine' }));
+      await assertFails(db.doc('settings/dailyVerse').update({ enabled: false }));
+      await assertFails(db.doc('settings/dailyVerse').update({ poolVersion: 99 }));
+      await assertFails(db.doc('settings/dailyVerse').delete());
+    });
+
+    it('blocks a host too -- hosts run live streams, not scripture selection', async () => {
+      await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
+      await assertFails(dbFor('host-1').doc('settings/dailyVerse').set(config));
+    });
+
+    it('lets a content_admin configure it', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(dbFor('admin-1').doc('settings/dailyVerse').set(config));
+    });
+
+    it('lets a super_admin configure it', async () => {
+      await seed(async (db) => db.doc('users/super-1').set({ role: 'super_admin' }));
+      await assertSucceeds(dbFor('super-1').doc('settings/dailyVerse').set(config));
+    });
+
+    it('does NOT hand content admins the rest of settings', async () => {
+      // The whole reason settings/dailyVerse is a second, narrower match
+      // rather than a widened generic rule: settings/church carries the
+      // church's public identity and support email.
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('settings/church').set({ churchName: 'Not Maranatha' })
+      );
+    });
+
+    it('rejects a configuration the app could not honour', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      // The timezone is pinned: the selection uses a fixed +05:30 offset,
+      // so storing another zone would be a promise the app cannot keep.
+      await assertFails(
+        db.doc('settings/dailyVerse').set({ ...config, timezone: 'America/New_York' })
+      );
+      await assertFails(db.doc('settings/dailyVerse').set({ ...config, seed: '' }));
+      await assertFails(db.doc('settings/dailyVerse').set({ ...config, poolVersion: 0 }));
+      await assertFails(
+        db.doc('settings/dailyVerse').set({ ...config, poolVersion: 1.5 })
+      );
+      await assertFails(db.doc('settings/dailyVerse').set({ ...config, enabled: 'yes' }));
+      // A seed is hashed, never rendered -- but it is read by every device
+      // on every app open, so it is length- and charset-bounded.
+      await assertFails(
+        db.doc('settings/dailyVerse').set({ ...config, seed: 'a'.repeat(65) })
+      );
+      await assertFails(
+        db.doc('settings/dailyVerse').set({ ...config, seed: '<script>' })
+      );
+    });
+
+    it('refuses an unexpected field rather than storing it', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('settings/dailyVerse')
+          .set({ ...config, verseText: 'smuggled scripture' })
+      );
+    });
+  });
+
+  describe('verse_pool (M5 automated selection pool)', () => {
+    const entry = {
+      reference: 'John 3:16',
+      bookId: 'john',
+      chapter: 3,
+      verse: 16,
+      order: 0,
+      active: true,
+    };
+
+    it('lets a member read an ACTIVE entry', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('verse_pool/v1').set(entry);
+      });
+      await assertSucceeds(dbFor('member-1').doc('verse_pool/v1').get());
+    });
+
+    it('hides a deactivated entry from a member, and shows it to an admin', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('verse_pool/v1').set({ ...entry, active: false });
+      });
+      await assertFails(dbFor('member-1').doc('verse_pool/v1').get());
+      // The admin page has to show what it has switched off.
+      await assertSucceeds(dbFor('admin-1').doc('verse_pool/v1').get());
+    });
+
+    it('blocks a member from adding to, editing or emptying the pool', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('verse_pool/v1').set(entry);
+      });
+      const db = dbFor('member-1');
+      await assertFails(db.doc('verse_pool/v2').set(entry));
+      await assertFails(db.doc('verse_pool/v1').update({ active: false }));
+      await assertFails(db.doc('verse_pool/v1').delete());
+    });
+
+    it('lets a content_admin curate the pool', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      await assertSucceeds(db.doc('verse_pool/v1').set(entry));
+      await assertSucceeds(db.doc('verse_pool/v1').set({ ...entry, active: false }));
+      await assertSucceeds(db.doc('verse_pool/v1').delete());
+    });
+
+    it('rejects a reference that is not a reference', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      // 150 is Psalms' chapter count and 176 is Psalm 119's verse count --
+      // the two maxima in the canon, not arbitrary caps.
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, chapter: 151 }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, verse: 177 }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, chapter: 0 }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, verse: 0 }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, bookId: 'John' }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, bookId: '' }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, order: -1 }));
+      await assertFails(db.doc('verse_pool/v1').set({ ...entry, active: 'yes' }));
+    });
+
+    it('refuses verse TEXT on a pool entry -- the Bible is bundled, not stored', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1')
+          .doc('verse_pool/v1')
+          .set({ ...entry, text: 'For God so loved the world' })
+      );
+    });
+  });
+
+  describe('prophet_verses (M5, a separate content system)', () => {
+    const past = new Date('2020-01-01T00:00:00.000Z');
+    const future = new Date('2099-01-01T00:00:00.000Z');
+    const record = {
+      title: 'A word for the church',
+      reference: 'Isaiah 43:19',
+      text: 'Behold, I will do a new thing.',
+      published: true,
+      publishAt: past,
+    };
+
+    it('lets a member read one that is published and due', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('prophet_verses/p1').set(record);
+      });
+      await assertSucceeds(dbFor('member-1').doc('prophet_verses/p1').get());
+    });
+
+    it('hides an UNPUBLISHED draft from a member', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('prophet_verses/p1').set({ ...record, published: false });
+      });
+      await assertFails(dbFor('member-1').doc('prophet_verses/p1').get());
+    });
+
+    it('hides a FUTURE schedule from a member, whatever their phone clock says', async () => {
+      // The rule compares against request.time -- the server's clock -- so
+      // winding the device forward changes nothing.
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('prophet_verses/p1').set({ ...record, publishAt: future });
+      });
+      await assertFails(dbFor('member-1').doc('prophet_verses/p1').get());
+    });
+
+    it('shows drafts and future schedules to a content_admin, who manages them', async () => {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('prophet_verses/p1').set({ ...record, published: false });
+        await db.doc('prophet_verses/p2').set({ ...record, publishAt: future });
+      });
+      const db = dbFor('admin-1');
+      await assertSucceeds(db.doc('prophet_verses/p1').get());
+      await assertSucceeds(db.doc('prophet_verses/p2').get());
+    });
+
+    it('blocks a member from creating, editing, publishing or deleting one', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('prophet_verses/p1').set({ ...record, published: false });
+      });
+      const db = dbFor('member-1');
+      await assertFails(db.doc('prophet_verses/p2').set(record));
+      await assertFails(db.doc('prophet_verses/p1').update({ published: true }));
+      await assertFails(db.doc('prophet_verses/p1').update({ text: 'rewritten' }));
+      await assertFails(db.doc('prophet_verses/p1').delete());
+    });
+
+    it('blocks a host as well', async () => {
+      await seed(async (db) => db.doc('users/host-1').set({ role: 'host' }));
+      await assertFails(dbFor('host-1').doc('prophet_verses/p1').set(record));
+    });
+
+    it('lets a content_admin write, schedule, publish, unpublish and delete', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      await assertSucceeds(db.doc('prophet_verses/p1').set(record));
+      await assertSucceeds(db.doc('prophet_verses/p1').set({ ...record, publishAt: future }));
+      await assertSucceeds(db.doc('prophet_verses/p1').set({ ...record, published: false }));
+      await assertSucceeds(db.doc('prophet_verses/p1').delete());
+    });
+
+    it('requires publishAt to be a TIMESTAMP, not a date string', async () => {
+      // daily_verses.date is a "YYYY-MM-DD" calendar key matched exactly;
+      // publishAt is an instant compared with <=. Different questions,
+      // deliberately different types.
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('prophet_verses/p1').set({ ...record, publishAt: '2026-04-03' })
+      );
+    });
+
+    it('accepts an external https image url and refuses anything else', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      await assertSucceeds(
+        db.doc('prophet_verses/p1').set({ ...record, imageUrl: 'https://example.org/a.jpg' })
+      );
+      await assertSucceeds(db.doc('prophet_verses/p1').set({ ...record, imageUrl: null }));
+      // There is no Storage bucket on this plan, so there are no uploads --
+      // and http:// would render as a broken image on Android anyway.
+      for (const bad of [
+        'http://example.org/a.jpg',
+        'javascript:alert(1)',
+        'gs://bucket/a.jpg',
+        '/local/a.jpg',
+        42,
+      ]) {
+        await assertFails(db.doc('prophet_verses/p1').set({ ...record, imageUrl: bad }));
+      }
+    });
+
+    it('rejects a record with no words of its own, and an over-long one', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      const db = dbFor('admin-1');
+      await assertFails(db.doc('prophet_verses/p1').set({ ...record, title: '' }));
+      await assertFails(db.doc('prophet_verses/p1').set({ ...record, text: '' }));
+      await assertFails(
+        db.doc('prophet_verses/p1').set({ ...record, text: 'x'.repeat(5001) })
+      );
+      await assertFails(
+        db.doc('prophet_verses/p1').set({ ...record, attribution: 'x'.repeat(201) })
+      );
+    });
+
+    it('refuses an unexpected field rather than storing it', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertFails(
+        dbFor('admin-1').doc('prophet_verses/p1').set({ ...record, pinned: true })
+      );
+    });
+  });
+
+  describe('M5 leaves the existing daily-verse override exactly as it was', () => {
+    const verse = {
+      reference: 'John 3:16',
+      text: 'For God so loved the world...',
+      date: '2026-04-03',
+    };
+
+    it('still lets any signed-in member read an override', async () => {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('daily_verses/2026-04-03').set(verse);
+      });
+      await assertSucceeds(dbFor('member-1').doc('daily_verses/2026-04-03').get());
+    });
+
+    it('still blocks a member from writing one', async () => {
+      await seed(async (db) => db.doc('users/member-1').set({ role: 'member' }));
+      await assertFails(dbFor('member-1').doc('daily_verses/2026-04-03').set(verse));
+    });
+
+    it('still lets a content_admin write one -- the override that beats automation', async () => {
+      await seed(async (db) => db.doc('users/admin-1').set({ role: 'content_admin' }));
+      await assertSucceeds(dbFor('admin-1').doc('daily_verses/2026-04-03').set(verse));
+    });
+  });
 });

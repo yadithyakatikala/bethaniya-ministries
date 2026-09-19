@@ -356,6 +356,23 @@ export interface Strings {
   'bible.layoutLabel': string;
   'bible.layoutStacked': string;
   'bible.layoutSideBySide': string;
+
+  // --- M5: automated Verse of the Day + Prophet Verse -----------------
+  /** Accessibility label for an override's illustration. The automated
+   *  paths carry no image. */
+  'dailyVerse.imageLabel': string;
+  /**
+   * Shown when not even the bundled fallback could be resolved -- which
+   * should not happen, and is guarded by a test. Deliberately NOT
+   * 'dailyVerse.noneTodayShort' ("no verse set for today"), which is now
+   * wrong: with automation there is always a verse to show.
+   */
+  'dailyVerse.unavailable': string;
+  'dailyVerse.loading': string;
+  /** The Prophet Verse is a SEPARATE content system, with its own
+   *  section heading below the Verse of the Day. */
+  'prophetVerse.title': string;
+  'prophetVerse.imageLabel': string;
 }
 
 export type StringKey = keyof Strings;
@@ -637,6 +654,13 @@ const en: Strings = {
   'bible.layoutLabel': 'Bilingual layout',
   'bible.layoutStacked': 'Stacked',
   'bible.layoutSideBySide': 'Side by side',
+
+  // --- M5 ---
+  'dailyVerse.imageLabel': "Illustration for today's verse",
+  'dailyVerse.unavailable': "Today's verse could not be loaded.",
+  'dailyVerse.loading': "Loading today's verse",
+  'prophetVerse.title': 'Prophet Verse',
+  'prophetVerse.imageLabel': 'Illustration for this prophet verse',
 };
 
 /**
@@ -923,6 +947,13 @@ const te: Strings = {
   'bible.layoutLabel': 'ద్విభాషా అమరిక',
   'bible.layoutStacked': 'ఒకదానిపై ఒకటి',
   'bible.layoutSideBySide': 'ప్రక్కప్రక్కన',
+
+  // --- M5 ---
+  'dailyVerse.imageLabel': 'నేటి వచనానికి చిత్రం',
+  'dailyVerse.unavailable': 'నేటి వచనం లోడ్ కాలేదు.',
+  'dailyVerse.loading': 'నేటి వచనం లోడ్ అవుతోంది',
+  'prophetVerse.title': 'ప్రవక్త వచనం',
+  'prophetVerse.imageLabel': 'ఈ ప్రవక్త వచనానికి చిత్రం',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };
