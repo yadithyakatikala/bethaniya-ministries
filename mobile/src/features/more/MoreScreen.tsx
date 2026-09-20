@@ -113,6 +113,39 @@ export function MoreScreen() {
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
+          {/* M6. Media lives here rather than in the bottom bar, which
+              stays Home | Bible | Songs | Events | More exactly as it
+              was -- the same decision Announcements and Community
+              already follow. Home carries a short strip with a "See
+              all" into the same screen. */}
+          <Tappable
+            testID="more-media-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('MediaFeed')}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
+          >
+            <Text style={[type.label, { color: colors.text }]}>{t('media.title')}</Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Tappable>
+          <Tappable
+            testID="more-saved-media-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('SavedMedia')}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
+          >
+            <Text style={[type.label, { color: colors.text }]}>
+              {t('media.savedTitle')}
+            </Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Tappable>
         </View>
       </View>
 

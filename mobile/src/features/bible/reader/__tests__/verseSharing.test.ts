@@ -1,8 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 import {
-  TRANSLATION_ATTRIBUTION,
-  TRANSLATION_NAMES,
   buildBilingualCopyText,
   buildBilingualShareText,
   buildCopyText,
@@ -10,6 +8,10 @@ import {
   copyText,
   shareText,
 } from '../verseSharing';
+import {
+  TRANSLATION_ATTRIBUTION,
+  TRANSLATION_NAMES,
+} from '../../translationCredits';
 
 /**
  * What a shared or copied verse actually looks like.
@@ -24,44 +26,44 @@ const JOHN_3_16 = 'For God so loved the world, that he gave his only born Son…
 const JOHN_3_16_TE = 'దేవుడు లోకాన్ని ఎంతో ప్రేమించాడు…';
 
 describe('sharing one translation', () => {
-  it('quotes the verse, then names the reference and the translation', () => {
+  it('quotes the verse, then names the reference -- and nothing else', () => {
     expect(
       buildShareText({
         bookName: 'John',
         chapter: 3,
         label: '16',
         text: JOHN_3_16,
-        translationId: 'en',
       })
-    ).toBe(`"${JOHN_3_16}"\n\nJohn 3:16 (World English Bible)`);
+    ).toBe(`"${JOHN_3_16}"\n\nJohn 3:16`);
   });
 
-  it('carries the CC BY-SA attribution for Telugu, because sharing is redistribution', () => {
-    // The IRV is CC BY-SA 4.0, which conditions redistribution on
-    // attribution -- see /BIBLE_LICENSING.md.
-    const shared = buildShareText({
-      bookName: 'యోహాను',
-      chapter: 3,
-      label: '16',
-      text: JOHN_3_16_TE,
-      translationId: 'te',
-    });
-    expect(shared).toContain(TRANSLATION_NAMES.te);
-    expect(shared).toContain(TRANSLATION_ATTRIBUTION.te as string);
-    expect(shared.endsWith(TRANSLATION_ATTRIBUTION.te as string)).toBe(true);
+  it('carries NO licence block, in either language', () => {
+    // M6. The copyright line made every shared verse read like a licence
+    // notice with some scripture attached. The obligation is on bundling
+    // the text, and it is met by the Settings screen's credits card --
+    // see ../../translationCredits.ts.
+    for (const [bookName, text] of [
+      ['John', JOHN_3_16],
+      ['యోహాను', JOHN_3_16_TE],
+    ] as const) {
+      const shared = buildShareText({ bookName, chapter: 3, label: '16', text });
+      expect(shared).not.toContain(TRANSLATION_NAMES.te);
+      expect(shared).not.toContain(TRANSLATION_NAMES.en);
+      expect(shared).not.toContain(TRANSLATION_ATTRIBUTION.te as string);
+      expect(shared).not.toContain('CC BY-SA');
+      expect(shared).not.toContain('©');
+    }
   });
 
-  it('adds no attribution line for the public-domain WEB', () => {
-    expect(TRANSLATION_ATTRIBUTION.en).toBeNull();
+  it('is exactly three lines: the quote, a blank, the reference', () => {
     expect(
       buildShareText({
-        bookName: 'John',
+        bookName: 'యోహాను',
         chapter: 3,
         label: '16',
-        text: JOHN_3_16,
-        translationId: 'en',
+        text: JOHN_3_16_TE,
       }).split('\n')
-    ).toHaveLength(3);
+    ).toEqual([`"${JOHN_3_16_TE}"`, '', 'యోహాను 3:16']);
   });
 
   it('keeps a merged range label intact, so the reference matches the page', () => {
@@ -71,7 +73,6 @@ describe('sharing one translation', () => {
         chapter: 1,
         label: '39-40',
         text: 'Mary arose in those days…',
-        translationId: 'te',
       })
     ).toContain('Luke 1:39-40');
   });
@@ -86,18 +87,22 @@ describe('sharing a paired bilingual verse', () => {
     telugu: 'ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.',
   });
 
-  it('leads with the reference, then each translation under its own name', () => {
+  it('leads with the reference, then each language as its own quoted block', () => {
     expect(shared).toBe(
       [
         'Genesis 1:1',
         '',
         '"In the beginning God created the heavens and the earth."',
-        '— World English Bible',
         '',
         '"ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు."',
-        '— Indian Revised Version (IRV) 2019, © Bridge Connectivity Solutions, CC BY-SA 4.0',
       ].join('\n')
     );
+  });
+
+  it('carries no licence block either', () => {
+    expect(shared).not.toContain('CC BY-SA');
+    expect(shared).not.toContain('©');
+    expect(shared).not.toContain(TRANSLATION_NAMES.te);
   });
 
   it('reads as text, not as a dumped data structure', () => {

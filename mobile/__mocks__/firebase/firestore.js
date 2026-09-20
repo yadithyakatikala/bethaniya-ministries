@@ -38,6 +38,10 @@ export const query = jest.fn((...args) => args[0]);
 export const where = jest.fn();
 export const orderBy = jest.fn();
 export const limit = jest.fn();
+// M6: the media feed is the first paginated query in this app -- every
+// earlier collection read fetches one page and stops. See
+// src/services/firebase/media.ts.
+export const startAfter = jest.fn();
 export const onSnapshot = jest.fn(() => jest.fn());
 
 // Day 9: mobile/src/services/firebase/userProfile.ts is the first mobile

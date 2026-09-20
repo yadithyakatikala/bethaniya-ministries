@@ -57,9 +57,23 @@ exact screen, action, and what happened instead of what was expected.
 ### Launch
 
 1. **Fresh install** — install the APK on a device with no prior app
-   data; app icon and app name (both from the real church logo/"Bethaniya
-   Ministries") are correct in the launcher; splash screen shows the
-   real logo, not a blank/default screen; app launches without crashing.
+   data; the launcher shows the real church-logo icon and the name
+   **Maranatha** (M0 renamed the product; the icon itself is unchanged);
+   splash screen shows the real logo, not a blank/default screen; app
+   launches without crashing.
+1a. **The build is not stale** — M6. The native `android/` project is
+   generated and gitignored, and a plain `expo prebuild` REUSES an
+   existing one rather than regenerating it, so a project generated
+   before M0 ships the old name and icons no matter what `app.json`
+   says. Build the APK under test with `npx expo prebuild --platform
+   android --clean` (see DEPLOYMENT.md). If the launcher shows the old
+   name, that is the reason — it is not a runtime or theme problem.
+1b. **The icon ignores the system theme** — M6 BUG 3. Turn on the
+   launcher's themed-icons setting (Pixel: long-press home → Wallpaper &
+   style → Themed icons), then switch the PHONE between light and dark.
+   The icon must stay the full-colour church logo in both. It used to
+   become a faint tinted outline, because the app declared a monochrome
+   icon layer; that layer is gone.
 2. **First launch** — Telugu is the default Bible language with no
    stale state from a previous install (if this device ever had a dev/
    emulator build installed before, uninstall it first — Android won't
@@ -231,6 +245,23 @@ exact screen, action, and what happened instead of what was expected.
     the phone's system font; that device had a decorative font installed.
     Confirm on a phone with the default system font, and see the note in
     mobile/assets/fonts/README.md about bundling the intended faces.
+23r. **Theme changes nothing but the interface** — M6 BUG 2. After the
+    round-trip in 23p, check that NONE of these moved: the launcher name
+    and icon (leave the app, look at the home screen), the Bible language
+    selector, the app-language selector, your profile details, the Bible
+    text itself. Theme is one preference and touches one thing.
+23s. **Bible language sticks** — M6 BUG 1. Set Bible language to English,
+    confirm the reader shows English, then force-quit and reopen: still
+    English. Repeat for Telugu and for English + Telugu. Do this while
+    SIGNED IN, on an account whose profile has no display name — that is
+    the case that used to fail, silently, every time.
+23t. **App language and Bible language are separate** — M6. Set the app
+    language to Telugu and the Bible to English. The menus must be Telugu
+    and the scripture English. Change one; the other must not move.
+23u. **A newly published Prophet Verse arrives** — M6 BUG 4. With the app
+    open on Home, publish or edit a Prophet Verse in the admin dashboard.
+    Switch to another app, wait a few seconds, and come back. The new
+    verse must appear without force-quitting the app.
 
 ### Admin (deployed admin website, tested separately from the APK)
 

@@ -24,6 +24,9 @@ import { VotdAutomationPage } from './features/daily-verses/VotdAutomationPage';
 import { ProphetVersesListPage } from './features/prophet-verses/ProphetVersesListPage';
 import { ProphetVerseForm } from './features/prophet-verses/ProphetVerseForm';
 import { EditProphetVersePage } from './features/prophet-verses/EditProphetVersePage';
+import { MediaListPage } from './features/media/MediaListPage';
+import { MediaForm } from './features/media/MediaForm';
+import { EditMediaPage } from './features/media/EditMediaPage';
 import { SongsListPage } from './features/songs/SongsListPage';
 import { SongForm } from './features/songs/SongForm';
 import { EditSongPage } from './features/songs/EditSongPage';
@@ -277,6 +280,40 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <EditProphetVersePage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* M6: the media feed. Same three-route shape as
+              /prophet-verses -- list, new, edit -- and the same RBAC:
+              every role reaches the page, firestore.rules decides who may
+              write. */}
+          <Route
+            path="/media"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <MediaListPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/media/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <MediaForm mode="create" />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/media/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EditMediaPage />
                 </AdminLayout>
               </ProtectedRoute>
             }

@@ -2,77 +2,51 @@
  * Turning a verse into text someone can send or paste.
  *
  * =====================================================================
- * WHY THE TRANSLATION IS NAMED, NOT JUST THE REFERENCE
+ * WHAT A SHARED VERSE CONTAINS -- AND WHAT IT NO LONGER DOES
  * =====================================================================
- * The Telugu text is the Indian Revised Version, licensed CC BY-SA 4.0
- * -- a licence that conditions REDISTRIBUTION on attribution, and
- * sharing a verse into a chat is redistribution. So a shared Telugu
- * verse carries the translation and its copyright line; the English WEB
- * is public domain and needs none, but is still named so the recipient
- * knows which Bible they are reading. See /BIBLE_LICENSING.md.
+ * The verse, and its reference. Nothing else.
+ *
+ * Until M6 a shared verse also carried the translation's published title
+ * and, for the Telugu IRV, its CC BY-SA copyright line. The reasoning
+ * was that sharing into a chat is redistribution; the result in practice
+ * was that every verse a member sent their family read like a licence
+ * notice with some scripture attached:
+ *
+ *     "యెహోవా నా కాపరి. నాకు ఏ లోటూ లేదు."
+ *
+ *     కీర్తనల గ్రంథము 23:1 (Indian Revised Version (IRV) 2019)
+ *     © Bridge Connectivity Solutions, CC BY-SA 4.0
+ *
+ * THE ATTRIBUTION HAS NOT BEEN REMOVED FROM THE APP. It lives in
+ * ../translationCredits.ts and is shown, in full and permanently, on the
+ * Settings screen's "Bible translations" card -- which is where the
+ * licence obligation on bundling the text actually sits. Quoting a verse
+ * into a message is a person citing scripture, and it now reads like
+ * one. See /BIBLE_LICENSING.md.
  *
  * =====================================================================
  * BILINGUAL
  * =====================================================================
- * A paired verse is formatted as a reference, then each translation as
- * its own quoted block with its own name underneath. NOT as a dumped
- * object, and not as two texts run together where the recipient cannot
- * tell which is which.
- *
- * The single-translation formatter is ../alignment.ts's
- * formatVerseForSharing(), reused rather than rewritten -- that function
- * is the M1 code that already decides what a shared reference looks
- * like.
+ * A paired verse is the reference, then each language as its own quoted
+ * block -- NOT a dumped object, and not two texts run together where the
+ * recipient cannot tell which is which.
  */
 import { Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { formatVerseForSharing } from '../alignment';
-import type { TranslationId } from '../../../services/firebase/readerAnnotations';
 
 /**
- * Translation names. NOT localized and NOT in the i18n catalogue: these
- * are the published titles of two specific translations, which is a
- * proper noun, not interface copy. See ../../../i18n/strings.ts's header
- * ("WHAT IS NOT HERE").
+ * What goes into a share sheet for one verse: the words, then the
+ * reference. The `translationId` the reader passes is deliberately NOT
+ * used to name the translation -- see this file's header.
  */
-export const TRANSLATION_NAMES: Record<TranslationId, string> = {
-  en: 'World English Bible',
-  te: 'Indian Revised Version (IRV) 2019',
-};
-
-/**
- * The attribution a share must carry. `null` for the WEB, which is
- * public domain; the IRV's line is the same one the Settings screen's
- * attribution card shows.
- */
-export const TRANSLATION_ATTRIBUTION: Record<TranslationId, string | null> = {
-  en: null,
-  te: '© Bridge Connectivity Solutions, CC BY-SA 4.0',
-};
-
-function attributionSuffix(translationId: TranslationId): string {
-  const attribution = TRANSLATION_ATTRIBUTION[translationId];
-  return attribution ? `\n${attribution}` : '';
-}
-
-/** What goes into a share sheet for one translation's verse. */
 export function buildShareText(options: {
   bookName: string;
   chapter: number;
   label: string;
   text: string;
-  translationId: TranslationId;
 }): string {
-  const { bookName, chapter, label, text, translationId } = options;
-  return (
-    formatVerseForSharing({
-      bookName,
-      chapter,
-      label,
-      text,
-      translationName: TRANSLATION_NAMES[translationId],
-    }) + attributionSuffix(translationId)
-  );
+  const { bookName, chapter, label, text } = options;
+  return `"${text.trim()}"\n\n${bookName} ${chapter}:${label}`;
 }
 
 /** What goes into a share sheet for a paired bilingual verse. */
@@ -84,15 +58,12 @@ export function buildBilingualShareText(options: {
   telugu: string;
 }): string {
   const { bookName, chapter, label, english, telugu } = options;
-  const attribution = TRANSLATION_ATTRIBUTION.te;
   return [
     `${bookName} ${chapter}:${label}`,
     '',
     `"${english.trim()}"`,
-    `— ${TRANSLATION_NAMES.en}`,
     '',
     `"${telugu.trim()}"`,
-    `— ${TRANSLATION_NAMES.te}${attribution ? `, ${attribution}` : ''}`,
   ].join('\n');
 }
 

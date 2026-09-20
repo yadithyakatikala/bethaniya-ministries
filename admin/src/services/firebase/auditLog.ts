@@ -32,7 +32,9 @@ export type AuditCollection =
   // M5. The VOTD configuration is logged under 'settings', which is
   // where the document lives (settings/dailyVerse).
   | 'verse_pool'
-  | 'prophet_verses';
+  | 'prophet_verses'
+  // M6. The media feed's own collection.
+  | 'media';
 
 export interface LogAdminActionInput {
   action: AuditAction;

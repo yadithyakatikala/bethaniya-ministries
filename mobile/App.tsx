@@ -8,6 +8,7 @@ import { useAppFonts, useTheme } from './src/theme';
 import { LoadingScreen } from './src/features/auth/LoadingScreen';
 import { SignInScreen } from './src/features/auth/SignInScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { OnboardingGate } from './src/features/onboarding/OnboardingGate';
 import {
   configureNotificationHandler,
   useNotificationListeners,
@@ -111,7 +112,17 @@ function AuthGate() {
   useNotificationListeners();
 
   if (status === 'loading') return <LoadingScreen />;
-  if (status === 'authenticated') return <AppNavigator />;
+  if (status === 'authenticated') {
+    // M6. A signed-in member who has never answered the profile
+    // questionnaire is shown it first; everyone else passes straight
+    // through. Here rather than as a route, so the tab bar and the back
+    // gesture do not sit behind a form -- see OnboardingGate.tsx.
+    return (
+      <OnboardingGate>
+        <AppNavigator />
+      </OnboardingGate>
+    );
+  }
   // 'unauthenticated' and 'error' both resolve to the sign-in screen -- an
   // Auth-subsystem error (see AuthContext.tsx) still needs a way for the
   // user to retry signing in, and authErrorMessage surfaces what went wrong.

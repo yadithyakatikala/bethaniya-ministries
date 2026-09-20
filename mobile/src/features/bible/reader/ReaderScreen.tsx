@@ -359,7 +359,6 @@ export function ReaderScreen({ route, navigation }: Props) {
             chapter: chapterNumber,
             label,
             text: single,
-            translationId: selected?.translationId ?? language,
           });
     const ok = await shareText(payload);
     setSelected(null);

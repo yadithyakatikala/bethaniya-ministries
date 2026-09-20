@@ -20,6 +20,7 @@ import {
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
 import { ProphetVerseCard } from '../prophet-verses/ProphetVerseCard';
+import { HomeMediaSection } from '../media/HomeMediaSection';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   subscribeToChurchSettings,
@@ -529,6 +530,15 @@ export function HomeScreen() {
           22dp of unexplained whitespace. Returning null from the card
           leaves no element, and therefore no gap. */}
       <ProphetVerseCard />
+
+      {/* M6: a short strip of the newest media, with a way into the full
+          feed. Placed after the two devotional blocks and before the
+          reading plan, so Home still opens on scripture. Like
+          ProphetVerseCard above it, this renders NOTHING when the church
+          has posted no media -- and for the same reason: this screen's
+          container has `gap`, so an empty wrapper would leave a band of
+          unexplained whitespace. See ../media/HomeMediaSection.tsx. */}
+      <HomeMediaSection />
 
       {/* The ANNOUNCEMENTS content block that used to sit here is gone.
           It occupied the middle of Home with a permanent "No

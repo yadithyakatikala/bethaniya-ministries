@@ -234,14 +234,26 @@ describe('firestore.rules', () => {
         );
       });
 
-      it('blocks a member from self-updating their phoneNumber field', async () => {
+      // M6 REVERSED THIS ONE, DELIBERATELY. It used to assert that a
+      // member could NOT change their own phone number, which was right
+      // while nothing in the app collected one: the field was set from
+      // whatever Firebase Auth happened to know and was server-controlled
+      // thereafter. M6's onboarding questionnaire asks for it, so the
+      // owner has to be able to write it -- otherwise a member who signed
+      // up with an email address can never give the church their number.
+      // The widening is safe because a phone number is not an
+      // authentication factor anywhere in this app (no phone provider, no
+      // OTP) and nothing reads it to decide anything. Rewritten rather
+      // than deleted, so the reversal reads as a decision rather than as
+      // lost coverage.
+      it('lets a member change their own phone number -- M6, blocked before', async () => {
         await seed(async (db) =>
           db
             .doc('users/member-1')
             .set({ role: 'member', displayName: 'A', phoneNumber: '+10000000000' })
         );
         const db = dbFor('member-1');
-        await assertFails(
+        await assertSucceeds(
           db.doc('users/member-1').update({ phoneNumber: '+19999999999' })
         );
       });
@@ -320,6 +332,236 @@ describe('firestore.rules', () => {
         );
         const db = dbFor('member-1');
         await assertFails(db.doc('users/member-1').update({ photoURL: 12345 }));
+      });
+    });
+
+    /**
+     * M6 BUG 1 + BUG 2 REGRESSION -- the profile shape the app actually
+     * creates, which every test above quietly avoided.
+     *
+     * mobile/src/services/firebase/userProfile.ts's
+     * ensureOwnProfileExists() writes `displayName: user.displayName ?? null`,
+     * and Firebase Auth gives no displayName to an email/password account
+     * whose sign-up left the name blank -- so that field is genuinely
+     * `null` for a large share of real members. Every case in the describe
+     * block above seeds `displayName: 'A'`, so nothing ever exercised
+     * that shape, and isValidUserProfileSelfUpdate()'s unconditional
+     * `data.displayName is string && size() > 0` denied EVERY self-update
+     * those members made -- which is what "the Bible language toggle does
+     * not stick" and "the theme resets itself" actually were. The Firestore
+     * SDK applies an update locally before the server sees it and rolls it
+     * back on denial, so the app briefly showed the new value and then
+     * reverted: a permissions bug wearing a state-management costume.
+     *
+     * A self-update must therefore leave a VALID displayName -- where
+     * absent or null is valid, because that is the state the app itself
+     * creates -- and these cases pin the shape rather than the symptom.
+     */
+    describe('M6: a member whose displayName was never set', () => {
+      /** Exactly what ensureOwnProfileExists() writes for such a member. */
+      async function seedNamelessMember() {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({
+            role: 'member',
+            displayName: null,
+            email: 'member@example.com',
+            phoneNumber: null,
+            createdAt: new Date(),
+          })
+        );
+      }
+
+      it('can still change their Bible mode (BUG 1)', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({ bibleMode: 'en', languagePreference: 'en' })
+        );
+      });
+
+      it('can still change their theme (BUG 2)', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({ themePreference: 'dark' })
+        );
+      });
+
+      it('can still change their app language, independently of the Bible', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(db.doc('users/member-1').update({ appLanguage: 'te' }));
+      });
+
+      it('can still change their notification preference', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({ notificationsEnabled: false })
+        );
+      });
+
+      it('can fill in their name -- the onboarding write', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({ displayName: 'Ruth Samuel' })
+        );
+      });
+
+      // Tolerating null must not become tolerating rubbish: the value
+      // checks the describe block above pins still apply to this shape.
+      it('still cannot set an empty name, or a 201-character one', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ displayName: '' }));
+        await assertFails(
+          db.doc('users/member-1').update({ displayName: 'x'.repeat(201) })
+        );
+      });
+
+      it('still cannot set an invalid preference value, or touch a locked field', async () => {
+        await seedNamelessMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ bibleMode: 'fr' }));
+        await assertFails(db.doc('users/member-1').update({ themePreference: 'blue' }));
+        await assertFails(db.doc('users/member-1').update({ role: 'super_admin' }));
+        await assertFails(
+          db.doc('users/member-1').update({ email: 'attacker@example.com' })
+        );
+      });
+
+      // A member who has a name may clear it -- it is their own optional
+      // display field -- but that is the only way displayName may become
+      // null, and it must not let anything else through with it.
+      it('may clear a name they had, and nothing else with it', async () => {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({ role: 'member', displayName: 'A' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ displayName: null, role: 'host' })
+        );
+        await assertSucceeds(db.doc('users/member-1').update({ displayName: null }));
+      });
+    });
+
+    /**
+     * M6 ONBOARDING -- the profile questionnaire a member answers once
+     * after signing in (mobile/src/features/onboarding/). It is NOT an
+     * authentication step: there is no phone sign-in provider and no OTP
+     * anywhere in this app, and nothing reads these fields to decide
+     * anything. They are congregation details the church keeps.
+     *
+     * Three keys became owner-writable for it: 'gender' and
+     * 'profileCompletedAt' are new, and 'phoneNumber' MOVED from
+     * server-controlled to owner-writable -- a member who signed up with
+     * an email address had no way to give the church their number. The
+     * cases below pin both halves: the new writes are allowed, and the
+     * fields that stayed locked (email, createdAt, role) still are.
+     */
+    describe('M6: the onboarding questionnaire', () => {
+      async function seedNewMember() {
+        await seed(async (db) =>
+          db.doc('users/member-1').set({
+            role: 'member',
+            displayName: null,
+            email: 'member@example.com',
+            phoneNumber: null,
+            createdAt: new Date(),
+          })
+        );
+      }
+
+      it('lets a member write all four answers in one update', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({
+            displayName: 'Ruth Samuel',
+            phoneNumber: '+919876543210',
+            gender: 'female',
+            appLanguage: 'te',
+            profileCompletedAt: new Date(),
+          })
+        );
+      });
+
+      it('lets a member change those answers later', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1').update({ phoneNumber: '9876543210', gender: 'male' })
+        );
+      });
+
+      it('lets a member withdraw a phone number they gave', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(db.doc('users/member-1').update({ phoneNumber: null }));
+      });
+
+      it('rejects a gender outside the two supported values', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ gender: 'other' }));
+        await assertFails(db.doc('users/member-1').update({ gender: '' }));
+        await assertFails(db.doc('users/member-1').update({ gender: 1 }));
+      });
+
+      it('rejects an app language outside en/te', async () => {
+        // The questionnaire's language answer is the APP language, and it
+        // is the same field and the same closed set Settings writes.
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ appLanguage: 'fr' }));
+        // 'bilingual' is a BIBLE mode. There is no bilingual interface.
+        await assertFails(db.doc('users/member-1').update({ appLanguage: 'bilingual' }));
+      });
+
+      it('rejects a phone number that is not a short string', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ phoneNumber: '' }));
+        await assertFails(db.doc('users/member-1').update({ phoneNumber: 9876543210 }));
+        await assertFails(
+          db.doc('users/member-1').update({ phoneNumber: '9'.repeat(33) })
+        );
+      });
+
+      it('rejects a non-timestamp completion marker', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ profileCompletedAt: 'yesterday' })
+        );
+        await assertFails(db.doc('users/member-1').update({ profileCompletedAt: 1 }));
+      });
+
+      it('still cannot reach the fields that were never theirs', async () => {
+        // The widening was three keys and no more.
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1').update({ gender: 'male', role: 'super_admin' })
+        );
+        await assertFails(
+          db.doc('users/member-1').update({ gender: 'male', email: 'attacker@example.com' })
+        );
+        await assertFails(
+          db.doc('users/member-1').update({ gender: 'male', createdAt: new Date() })
+        );
+      });
+
+      it("cannot fill in another member's questionnaire", async () => {
+        await seedNewMember();
+        await seed(async (db) =>
+          db.doc('users/member-2').set({ role: 'member', displayName: 'B' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-2').update({ gender: 'male', phoneNumber: '9876543210' })
+        );
       });
     });
 
@@ -2060,4 +2302,378 @@ describe('firestore.rules', () => {
       await assertSucceeds(dbFor('admin-1').doc('daily_verses/2026-04-03').set(verse));
     });
   });
+
+  /**
+   * M6 MEDIA FEED.
+   *
+   * The rules here carry more weight than most in this file, because the
+   * media feed is the one collection a SIGNED-OUT visitor can read, and
+   * because a media post is nothing but an external URL -- so "what may be
+   * stored as a URL" is a security question rather than a formatting one.
+   *
+   * Four things are pinned: who can see a post, who can write one, what a
+   * post may contain, and that no member can touch another member's
+   * interactions.
+   */
+  describe('M6: the media feed', () => {
+    const past = new Date('2026-01-01T00:00:00Z');
+    const future = new Date('2099-01-01T00:00:00Z');
+
+    /** A valid post, as the admin form produces one. */
+    function post(partial: Record<string, unknown> = {}) {
+      return {
+        type: 'image',
+        mediaUrl: 'https://example.org/photo.jpg',
+        caption: 'Sunday worship',
+        verseReference: 'John 3:16',
+        verseText: null,
+        published: true,
+        publishAt: past,
+        authorName: 'Pastor',
+        authorUid: 'admin-1',
+        createdAt: past,
+        updatedAt: past,
+        ...partial,
+      };
+    }
+
+    async function seedPost(id: string, partial: Record<string, unknown> = {}) {
+      await seed(async (db) => db.doc(`media/${id}`).set(post(partial)));
+    }
+
+    async function seedRoles() {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+      });
+    }
+
+    describe('who can see a post', () => {
+      it('lets a SIGNED-OUT visitor read a published, due post', async () => {
+        // The deliberate difference from every other content collection in
+        // this file: the media feed is the church's public face.
+        await seedPost('m1');
+        await assertSucceeds(dbFor(null).doc('media/m1').get());
+      });
+
+      it('lets a signed-in member read one too', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await assertSucceeds(dbFor('member-1').doc('media/m1').get());
+      });
+
+      it('hides an UNPUBLISHED post from everyone but an admin', async () => {
+        await seedRoles();
+        await seedPost('draft', { published: false });
+        await assertFails(dbFor(null).doc('media/draft').get());
+        await assertFails(dbFor('member-1').doc('media/draft').get());
+        await assertSucceeds(dbFor('admin-1').doc('media/draft').get());
+      });
+
+      it('hides a SCHEDULED post until its moment arrives', async () => {
+        // publishAt is compared to request.time -- the SERVER's clock -- so
+        // winding a phone forward does not bring tomorrow's post forward.
+        await seedRoles();
+        await seedPost('later', { publishAt: future });
+        await assertFails(dbFor(null).doc('media/later').get());
+        await assertFails(dbFor('member-1').doc('media/later').get());
+        await assertSucceeds(dbFor('admin-1').doc('media/later').get());
+      });
+    });
+
+    describe('who can write one', () => {
+      it('lets a content admin create, edit, publish and delete', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertSucceeds(db.doc('media/new').set(post()));
+        await assertSucceeds(db.doc('media/new').set(post({ caption: 'Edited' })));
+        await assertSucceeds(db.doc('media/new').set(post({ published: false })));
+        await assertSucceeds(db.doc('media/new').delete());
+      });
+
+      it('blocks a member, a host and a signed-out visitor', async () => {
+        await seedRoles();
+        await assertFails(dbFor('member-1').doc('media/new').set(post()));
+        // A host runs live streams; media is content, so it is a content
+        // admin's job -- same split as announcements and community.
+        await assertFails(dbFor('host-1').doc('media/new').set(post()));
+        await assertFails(dbFor(null).doc('media/new').set(post()));
+      });
+
+      it('blocks a member from editing or unpublishing an existing post', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await assertFails(dbFor('member-1').doc('media/m1').update({ caption: 'mine' }));
+        await assertFails(dbFor('member-1').doc('media/m1').update({ published: false }));
+        await assertFails(dbFor('member-1').doc('media/m1').delete());
+      });
+    });
+
+    describe('what may be stored as a media URL', () => {
+      it('refuses anything that is not https', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        for (const mediaUrl of [
+          'http://example.org/photo.jpg',
+          'javascript:alert(1)',
+          'data:text/html;base64,PHNjcmlwdD4=',
+          'file:///etc/passwd',
+          'blob:https://example.org/abc',
+          'content://media/external/images/1',
+          'ftp://example.org/photo.jpg',
+          '//example.org/photo.jpg',
+          'example.org/photo.jpg',
+        ]) {
+          await assertFails(db.doc('media/bad').set(post({ mediaUrl })));
+        }
+      });
+
+      it('refuses an empty, whitespace-only or over-long URL', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertFails(db.doc('media/bad').set(post({ mediaUrl: '' })));
+        await assertFails(db.doc('media/bad').set(post({ mediaUrl: 'https:// ' })));
+        await assertFails(
+          db.doc('media/bad').set(post({ mediaUrl: `https://e.org/${'x'.repeat(2000)}` }))
+        );
+      });
+
+      it('refuses a non-string URL', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertFails(db.doc('media/bad').set(post({ mediaUrl: 42 })));
+        await assertFails(db.doc('media/bad').set(post({ mediaUrl: null })));
+      });
+
+      it('accepts a real https link, with a query string', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertSucceeds(
+          db.doc('media/ok').set(
+            post({ mediaUrl: 'https://cdn.example.org/a/b.jpg?w=800&sig=abc' })
+          )
+        );
+        await assertSucceeds(
+          db.doc('media/ok2').set(
+            post({ type: 'video', mediaUrl: 'https://www.youtube.com/watch?v=abcdefghijk' })
+          )
+        );
+      });
+    });
+
+    describe('what else a post must and must not contain', () => {
+      it('refuses a type that is neither image nor video', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertFails(db.doc('media/bad').set(post({ type: 'audio' })));
+        await assertFails(db.doc('media/bad').set(post({ type: '' })));
+      });
+
+      it('refuses a post with no publishAt, since the read rule needs one', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        const withoutPublishAt = post();
+        delete (withoutPublishAt as Record<string, unknown>).publishAt;
+        await assertFails(db.doc('media/bad').set(withoutPublishAt));
+        await assertFails(db.doc('media/bad').set(post({ publishAt: 'tomorrow' })));
+      });
+
+      it('refuses a non-boolean published flag', async () => {
+        await seedRoles();
+        await assertFails(dbFor('admin-1').doc('media/bad').set(post({ published: 'yes' })));
+      });
+
+      it('allows a post with no verse at all, and one with a reference but no text', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertSucceeds(
+          db.doc('media/v1').set(post({ verseReference: null, verseText: null }))
+        );
+        await assertSucceeds(
+          db.doc('media/v2').set(post({ verseReference: 'Psalm 23:1', verseText: null }))
+        );
+      });
+
+      it('caps the caption and the verse text', async () => {
+        await seedRoles();
+        const db = dbFor('admin-1');
+        await assertFails(db.doc('media/bad').set(post({ caption: 'x'.repeat(2001) })));
+        await assertFails(db.doc('media/bad').set(post({ verseText: 'x'.repeat(2001) })));
+      });
+    });
+
+    describe('comments', () => {
+      const comment = {
+        text: 'Amen',
+        authorUid: 'member-1',
+        authorName: 'Ruth',
+        createdAt: new Date(),
+      };
+
+      it('are readable by anyone, including a signed-out visitor', async () => {
+        await seedPost('m1');
+        await seed(async (db) => db.doc('media/m1/comments/c1').set(comment));
+        await assertSucceeds(dbFor(null).doc('media/m1/comments/c1').get());
+      });
+
+      it('can be written by a signed-in member, as themselves', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await assertSucceeds(dbFor('member-1').doc('media/m1/comments/c1').set(comment));
+      });
+
+      it('CANNOT be written as somebody else', async () => {
+        // The ownership boundary for creation: authorUid must be the caller.
+        await seedRoles();
+        await seedPost('m1');
+        await assertFails(
+          dbFor('member-2').doc('media/m1/comments/c1').set(comment)
+        );
+      });
+
+      it('cannot be written by a signed-out visitor', async () => {
+        await seedPost('m1');
+        await assertFails(dbFor(null).doc('media/m1/comments/c1').set(comment));
+      });
+
+      it('cannot be edited by anyone, including their own author', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await seed(async (db) => db.doc('media/m1/comments/c1').set(comment));
+        await assertFails(
+          dbFor('member-1').doc('media/m1/comments/c1').update({ text: 'changed' })
+        );
+        await assertFails(
+          dbFor('admin-1').doc('media/m1/comments/c1').update({ text: 'changed' })
+        );
+      });
+
+      it('can be deleted by their own author', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await seed(async (db) => db.doc('media/m1/comments/c1').set(comment));
+        await assertSucceeds(dbFor('member-1').doc('media/m1/comments/c1').delete());
+      });
+
+      it("cannot be deleted by another member", async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await seed(async (db) => db.doc('media/m1/comments/c1').set(comment));
+        await assertFails(dbFor('member-2').doc('media/m1/comments/c1').delete());
+      });
+
+      it('CAN be deleted by a content admin -- the moderation this app has', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        await seed(async (db) => db.doc('media/m1/comments/c1').set(comment));
+        await assertSucceeds(dbFor('admin-1').doc('media/m1/comments/c1').delete());
+      });
+
+      it('refuses an empty or over-long comment', async () => {
+        await seedRoles();
+        await seedPost('m1');
+        const db = dbFor('member-1');
+        await assertFails(db.doc('media/m1/comments/c1').set({ ...comment, text: '' }));
+        await assertFails(
+          db.doc('media/m1/comments/c1').set({ ...comment, text: 'x'.repeat(1001) })
+        );
+      });
+    });
+
+    describe('likes and saves belong to one member and nobody else', () => {
+      it('lets a member like, unlike, save and unsave for themselves', async () => {
+        await seedRoles();
+        const db = dbFor('member-1');
+        await assertSucceeds(
+          db.doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() })
+        );
+        await assertSucceeds(db.doc('users/member-1/mediaLikes/m1').delete());
+        await assertSucceeds(
+          db.doc('users/member-1/mediaSaves/m1').set({
+            type: 'image',
+            mediaUrl: 'https://example.org/photo.jpg',
+            caption: 'Sunday worship',
+            createdAt: new Date(),
+          })
+        );
+        await assertSucceeds(db.doc('users/member-1/mediaSaves/m1').delete());
+      });
+
+      it("blocks a member from writing into another member's likes", async () => {
+        await seedRoles();
+        await assertFails(
+          dbFor('member-2').doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() })
+        );
+      });
+
+      it("blocks a member from DELETING another member's like", async () => {
+        await seedRoles();
+        await seed(async (db) =>
+          db.doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() })
+        );
+        await assertFails(dbFor('member-2').doc('users/member-1/mediaLikes/m1').delete());
+      });
+
+      it("blocks a member from READING another member's likes and saves", async () => {
+        await seedRoles();
+        await seed(async (db) => {
+          await db.doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() });
+          await db.doc('users/member-1/mediaSaves/m1').set({ createdAt: new Date() });
+        });
+        await assertFails(dbFor('member-2').doc('users/member-1/mediaLikes/m1').get());
+        await assertFails(dbFor('member-2').doc('users/member-1/mediaSaves/m1').get());
+      });
+
+      it("blocks even a super admin from writing into a member's interactions", async () => {
+        // Interactions are private to the member. An administrator has no
+        // business liking things on somebody's behalf.
+        await seed(async (db) => {
+          await db.doc('users/super-1').set({ role: 'super_admin' });
+          await db.doc('users/member-1').set({ role: 'member' });
+        });
+        await assertFails(
+          dbFor('super-1').doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() })
+        );
+      });
+
+      it('blocks a signed-out visitor from liking or saving anything', async () => {
+        await assertFails(
+          dbFor(null).doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date() })
+        );
+      });
+
+      it('refuses extra fields smuggled into a like or a save', async () => {
+        // A like is a marker, not a place to store things.
+        await seedRoles();
+        const db = dbFor('member-1');
+        await assertFails(
+          db.doc('users/member-1/mediaLikes/m1').set({ createdAt: new Date(), role: 'admin' })
+        );
+        await assertFails(
+          db.doc('users/member-1/mediaSaves/m1').set({
+            type: 'image',
+            mediaUrl: 'https://example.org/p.jpg',
+            caption: 'x',
+            createdAt: new Date(),
+            extra: 'anything',
+          })
+        );
+      });
+
+      it('refuses a save whose copied URL is not https', async () => {
+        await seedRoles();
+        await assertFails(
+          dbFor('member-1').doc('users/member-1/mediaSaves/m1').set({
+            type: 'image',
+            mediaUrl: 'javascript:alert(1)',
+            caption: 'x',
+            createdAt: new Date(),
+          })
+        );
+      });
+    });
+  });
+
 });

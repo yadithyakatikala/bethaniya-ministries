@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Text, View } from 'react-native';
-import { cleanup, render, waitFor, fireEvent } from '@testing-library/react-native';
+import { act, cleanup, render, waitFor, fireEvent } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
@@ -25,6 +25,7 @@ function Probe() {
       <Text testID="isDark">{String(prefs.isDark)}</Text>
       <Text testID="notifications">{String(prefs.notificationsEnabled)}</Text>
       <Text testID="isLoaded">{String(prefs.isLoaded)}</Text>
+      <Text testID="syncFailed">{String(prefs.syncFailed)}</Text>
       <Button
         title="app-te"
         testID="set-app-language-te"
@@ -157,16 +158,14 @@ describe('PreferencesContext', () => {
     // ever receive anything never fired.
     await AsyncStorage.setItem('notifications_enabled_preference', 'false');
     const { getByTestId } = await renderProbe();
-    await waitFor(() => expect(getByTestId('notifications').props.children).toBe('false'));
+    await waitFor(() =>
+      expect(getByTestId('notifications').props.children).toBe('false')
+    );
 
     await fireEvent.press(getByTestId('enable-notifications'));
 
-    await waitFor(() =>
-      expect(getByTestId('notifications').props.children).toBe('true')
-    );
-    await waitFor(() =>
-      expect(Notifications.getPermissionsAsync).toHaveBeenCalled()
-    );
+    await waitFor(() => expect(getByTestId('notifications').props.children).toBe('true'));
+    await waitFor(() => expect(Notifications.getPermissionsAsync).toHaveBeenCalled());
   });
 
   it('does not request OS notification permission when turning notifications off', async () => {
@@ -243,7 +242,9 @@ describe('the two language preferences are independent', () => {
 
   it('keeps both choices across a remount, which is what "restart" means here', async () => {
     const first = await renderProbe();
-    await waitFor(() => expect(first.getByTestId('isLoaded').props.children).toBe('true'));
+    await waitFor(() =>
+      expect(first.getByTestId('isLoaded').props.children).toBe('true')
+    );
 
     await fireEvent.press(first.getByTestId('set-app-language-te'));
     await fireEvent.press(first.getByTestId('set-bible-mode-bilingual'));
@@ -385,5 +386,168 @@ describe('Firestore sync of the two language preferences', () => {
     await waitFor(() =>
       expect(getByTestId('bibleMode').props.children).toBe('bilingual')
     );
+  });
+
+  /**
+   * M6 BUG 1 + BUG 2 REGRESSION.
+   *
+   * The denial itself lived in firestore.rules (a member with no
+   * displayName could not write any preference -- see
+   * firebase-tests/src/firestore.rules.test.ts), but what the member SAW
+   * was produced here: the Firestore SDK applies a write to its local
+   * cache and emits a snapshot for it, then, when the server rejects it,
+   * rolls the cache back and emits ANOTHER snapshot carrying the old
+   * document. This provider's snapshot handler writes through to state and
+   * to AsyncStorage, so that second snapshot silently undid the member's
+   * choice on both tiers. The toggle moved and moved back, and the
+   * rejection went nowhere because the callers press these setters as
+   * `void setBibleMode(v)`.
+   *
+   * These cases drive that exact sequence -- rejected write, then a
+   * rollback snapshot carrying the pre-write document -- so the behaviour
+   * is pinned independently of whichever rule happens to reject a write
+   * next.
+   */
+  describe('M6: a rejected profile write must not undo the choice', () => {
+    /** Signs a member in and hands back a way to push snapshots by hand,
+     *  so a test can emit the SDK's rollback snapshot itself. */
+    function mockSignedInWithManualSnapshots(uid: string) {
+      (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
+        onNext({ uid, displayName: null, email: null, phoneNumber: null });
+        return jest.fn();
+      });
+      let emit: ((data: Record<string, unknown>) => void) | null = null;
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+        emit = (data) => next({ exists: () => true, id: uid, data: () => data });
+        return jest.fn();
+      });
+      return {
+        // Wrapped in act(): a snapshot is React state arriving from
+        // outside the component tree, exactly as it is on a device.
+        emit: async (data: Record<string, unknown>) => {
+          if (!emit) throw new Error('no snapshot listener was registered');
+          const deliver = emit;
+          await act(async () => {
+            deliver(data);
+          });
+        },
+      };
+    }
+
+    it('keeps the new Bible mode when the rollback snapshot carries the old one (BUG 1)', async () => {
+      const server = mockSignedInWithManualSnapshots('user-7');
+      (updateDoc as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('Missing or insufficient permissions.'), {
+          code: 'permission-denied',
+        })
+      );
+
+      const { getByTestId } = await renderProbe();
+      // The profile as the server holds it: a Telugu Bible.
+      await server.emit({ role: 'member', bibleMode: 'te' });
+      await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('te'));
+
+      await fireEvent.press(getByTestId('set-bible-mode-en'));
+      await waitFor(() => expect(getByTestId('syncFailed').props.children).toBe('true'));
+
+      // The rollback: the SDK re-emits the document as the server still
+      // has it. This is the snapshot that used to revert the choice.
+      await server.emit({ role: 'member', bibleMode: 'te' });
+
+      await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('en'));
+      expect(await AsyncStorage.getItem('bible_mode_preference')).toBe('en');
+    });
+
+    it('keeps the new theme when the rollback snapshot carries the old one (BUG 2)', async () => {
+      const server = mockSignedInWithManualSnapshots('user-8');
+      (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+
+      const { getByTestId } = await renderProbe();
+      await server.emit({ role: 'member', themePreference: 'light' });
+      await waitFor(() => expect(getByTestId('theme').props.children).toBe('light'));
+
+      await fireEvent.press(getByTestId('set-theme-dark'));
+      await waitFor(() => expect(getByTestId('syncFailed').props.children).toBe('true'));
+
+      await server.emit({ role: 'member', themePreference: 'light' });
+
+      await waitFor(() => expect(getByTestId('theme').props.children).toBe('dark'));
+      expect(getByTestId('isDark').props.children).toBe('true');
+      expect(await AsyncStorage.getItem('theme_preference')).toBe('dark');
+    });
+
+    it('does not make the rejection an unhandled promise rejection', async () => {
+      // The setters are pressed as `void set...(value)` throughout the app,
+      // so a rejection they re-throw is reported by nothing and crashes
+      // nothing -- it simply disappears. Awaiting the setter directly here
+      // is the assertion: it must resolve.
+      mockSignedIn('user-9');
+      (updateDoc as jest.Mock).mockRejectedValue(new Error('offline'));
+
+      let resolved = false;
+      function AwaitProbe() {
+        const { setThemePreference } = usePreferences();
+        return (
+          <Button
+            title="await"
+            testID="await-set-theme"
+            onPress={() => {
+              void setThemePreference('dark').then(() => {
+                resolved = true;
+              });
+            }}
+          />
+        );
+      }
+      const { getByTestId } = await render(
+        <AuthProvider>
+          <PreferencesProvider>
+            <AwaitProbe />
+          </PreferencesProvider>
+        </AuthProvider>
+      );
+
+      await fireEvent.press(getByTestId('await-set-theme'));
+      await waitFor(() => expect(resolved).toBe(true));
+    });
+
+    it('goes back to trusting the server once a write succeeds', async () => {
+      // The guard that ignores snapshots must not be permanent: a member
+      // who changes a setting on another device should still see it here.
+      const server = mockSignedInWithManualSnapshots('user-10');
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+
+      const { getByTestId } = await renderProbe();
+      await server.emit({ role: 'member', bibleMode: 'te' });
+      await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('te'));
+
+      await fireEvent.press(getByTestId('set-bible-mode-en'));
+      await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('en'));
+      expect(getByTestId('syncFailed').props.children).toBe('false');
+
+      // Another device switches the account to bilingual.
+      await server.emit({ role: 'member', bibleMode: 'bilingual' });
+      await waitFor(() =>
+        expect(getByTestId('bibleMode').props.children).toBe('bilingual')
+      );
+    });
+
+    it('leaves the other preferences free to sync -- one failure is not a blanket freeze', async () => {
+      const server = mockSignedInWithManualSnapshots('user-11');
+      (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+
+      const { getByTestId } = await renderProbe();
+      await server.emit({ role: 'member', bibleMode: 'te', appLanguage: 'en' });
+      await waitFor(() => expect(getByTestId('bibleMode').props.children).toBe('te'));
+
+      await fireEvent.press(getByTestId('set-bible-mode-en'));
+      await waitFor(() => expect(getByTestId('syncFailed').props.children).toBe('true'));
+
+      // The member never touched the interface language, so a remote change
+      // to THAT field is still adopted -- the guard is per-field.
+      await server.emit({ role: 'member', bibleMode: 'te', appLanguage: 'te' });
+      await waitFor(() => expect(getByTestId('appLanguage').props.children).toBe('te'));
+      expect(getByTestId('bibleMode').props.children).toBe('en');
+    });
   });
 });

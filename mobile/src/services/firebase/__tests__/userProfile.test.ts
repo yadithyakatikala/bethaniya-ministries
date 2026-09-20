@@ -1,6 +1,10 @@
 import { doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import { ensureOwnProfileExists, subscribeToOwnProfile, updateOwnProfile } from '../userProfile';
+import {
+  ensureOwnProfileExists,
+  subscribeToOwnProfile,
+  updateOwnProfile,
+} from '../userProfile';
 
 jest.mock('../app');
 
@@ -51,7 +55,57 @@ describe('subscribeToOwnProfile', () => {
       bibleMode: 'bilingual',
       themePreference: 'dark',
       notificationsEnabled: true,
+      // M6's onboarding fields. A document written before onboarding
+      // existed carries neither, and both map to null rather than being
+      // left off the object -- OnboardingGate reads profileCompletedAt,
+      // and an absent key would be indistinguishable from a profile that
+      // has not loaded.
+      gender: null,
+      profileCompletedAt: null,
     });
+  });
+
+  it('maps the M6 onboarding fields when a profile has been completed', async () => {
+    const onNext = jest.fn();
+    const completedAt = new Date('2026-04-03T09:00:00.000Z');
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'uid-1m6',
+        data: () => ({
+          role: 'member',
+          gender: 'female',
+          profileCompletedAt: completedAt,
+        }),
+      });
+      return jest.fn();
+    });
+
+    subscribeToOwnProfile('uid-1m6', onNext, jest.fn());
+
+    expect(onNext).toHaveBeenCalledWith(
+      expect.objectContaining({ gender: 'female', profileCompletedAt: completedAt })
+    );
+  });
+
+  it('rejects a gender value outside the two the app supports', async () => {
+    // Same defensive mapping as the language fields above: whatever is in
+    // the document, this returns something the app's types allow.
+    const onNext = jest.fn();
+    (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+      next({
+        exists: () => true,
+        id: 'uid-1m7',
+        data: () => ({ role: 'member', gender: 'other', profileCompletedAt: 'soon' }),
+      });
+      return jest.fn();
+    });
+
+    subscribeToOwnProfile('uid-1m7', onNext, jest.fn());
+
+    expect(onNext).toHaveBeenCalledWith(
+      expect.objectContaining({ gender: null, profileCompletedAt: null })
+    );
   });
 
   it('maps a V1 profile that has no V2 language fields', async () => {

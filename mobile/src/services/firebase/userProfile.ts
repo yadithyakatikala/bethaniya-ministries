@@ -43,6 +43,7 @@
 import {
   type FirestoreError,
   type Unsubscribe,
+  Timestamp,
   doc,
   onSnapshot,
   runTransaction,
@@ -69,6 +70,17 @@ export type BibleModePreference = 'en' | 'te' | 'bilingual';
  */
 export type ThemePreference = 'light' | 'dark' | 'system';
 
+/**
+ * M6 onboarding. Exactly the two values the church asked to collect, and
+ * a closed union rather than a free string so an unexpected value is a
+ * compile error here and a rejected write in firestore.rules.
+ *
+ * NOT part of authentication, and not required for anything the app
+ * does -- it is congregation information the church keeps, the same kind
+ * of thing as a phone number.
+ */
+export type Gender = 'male' | 'female';
+
 export interface UserProfile {
   uid: string;
   role: string;
@@ -76,6 +88,20 @@ export interface UserProfile {
   email: string | null;
   phoneNumber: string | null;
   photoURL: string | null;
+  /** M6 onboarding. `null` for every account created before it. */
+  gender: Gender | null;
+  /**
+   * When the member finished the onboarding questionnaire -- M6.
+   *
+   * THIS, NOT A FIELD-BY-FIELD GUESS, is what decides whether onboarding
+   * is shown again. Deriving "have they done it?" from whether the four
+   * answers happen to be present sounds tidier and is worse: a member who
+   * later clears their phone number from Profile would be dragged back
+   * through onboarding, and a member who legitimately has no answer to
+   * give could never get past it. One explicit marker, written once, is
+   * the thing that can be reasoned about.
+   */
+  profileCompletedAt: Date | null;
   /**
    * V1's single language value. RETAINED, not removed: a V1 build
    * installed over V2 still reads it, and deleting a field users' older
@@ -107,6 +133,15 @@ export interface UpdatableUserProfileFields {
   bibleMode?: BibleModePreference;
   themePreference?: ThemePreference;
   notificationsEnabled?: boolean;
+  /**
+   * M6 onboarding fields. `phoneNumber` was already stored -- what is new
+   * is that the OWNER may now write it. It used to be set once, from
+   * whatever Firebase Auth happened to know, and be unreachable
+   * afterwards, which is no use for a member who signed up with an email
+   * address and wants the church to have their number.
+   */
+  phoneNumber?: string | null;
+  gender?: Gender;
 }
 
 function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile {
@@ -126,6 +161,7 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     data.themePreference === 'system'
       ? data.themePreference
       : null;
+  const completedAt = data.profileCompletedAt;
   return {
     uid,
     role: typeof data.role === 'string' ? data.role : 'member',
@@ -133,6 +169,19 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     email: typeof data.email === 'string' ? data.email : null,
     phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : null,
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
+    gender: data.gender === 'male' || data.gender === 'female' ? data.gender : null,
+    // serverTimestamp() resolves to null in the LOCAL snapshot that fires
+    // before the server acknowledges the write. Treating that tick as
+    // "not completed" is exactly the flicker back into onboarding this
+    // field exists to prevent, which is why the gate reading it also
+    // holds its own decision once made -- see
+    // ../../features/onboarding/OnboardingGate.tsx.
+    profileCompletedAt:
+      completedAt instanceof Timestamp
+        ? completedAt.toDate()
+        : completedAt instanceof Date
+          ? completedAt
+          : null,
     languagePreference,
     appLanguage,
     bibleMode,
@@ -186,8 +235,53 @@ export async function updateOwnProfile(
   if ('themePreference' in fields) update.themePreference = fields.themePreference;
   if ('notificationsEnabled' in fields)
     update.notificationsEnabled = fields.notificationsEnabled;
+  if ('phoneNumber' in fields) update.phoneNumber = fields.phoneNumber;
+  if ('gender' in fields) update.gender = fields.gender;
 
   await updateDoc(doc(db, 'users', uid), update);
+}
+
+/** What the M6 onboarding questionnaire collects. See ./onboarding's
+ *  screen and ../../features/onboarding/profileCompleteness.ts. */
+export interface OnboardingAnswers {
+  fullName: string;
+  phoneNumber: string;
+  gender: Gender;
+  /** Becomes the member's APP language. Never their Bible language and
+   *  never their theme -- those are separate preferences and M2/M4's
+   *  whole point. See ../../context/PreferencesContext.tsx. */
+  preferredLanguage: LanguagePreference;
+}
+
+/**
+ * Writes the onboarding answers and marks the questionnaire done, in ONE
+ * update.
+ *
+ * One write, not five, because a half-finished profile is the state this
+ * whole flow exists to get rid of: either every answer lands and the
+ * member is through, or the write fails, nothing changes, and they are
+ * shown the error with their answers still in the form. `updateDoc` is
+ * atomic over the fields it carries, so there is no partial outcome to
+ * design around.
+ *
+ * `profileCompletedAt` uses the SERVER's clock. A device with a wrong
+ * clock should not be able to stamp a profile in 1970 or 2099, and
+ * nothing here needs the value to be readable before the server has it.
+ *
+ * Rejections are NOT swallowed -- the caller shows them. See
+ * ../../features/onboarding/OnboardingScreen.tsx.
+ */
+export async function completeOnboarding(
+  uid: string,
+  answers: OnboardingAnswers
+): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), {
+    displayName: answers.fullName,
+    phoneNumber: answers.phoneNumber,
+    gender: answers.gender,
+    appLanguage: answers.preferredLanguage,
+    profileCompletedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -224,6 +318,9 @@ export async function ensureOwnProfileExists(user: User): Promise<void> {
       });
     });
   } catch (error) {
-    console.warn('[userProfile] ensureOwnProfileExists failed (will retry next sign-in):', error);
+    console.warn(
+      '[userProfile] ensureOwnProfileExists failed (will retry next sign-in):',
+      error
+    );
   }
 }

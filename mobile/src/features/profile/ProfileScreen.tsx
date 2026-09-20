@@ -16,13 +16,19 @@ import { storage } from '../../services/firebase/app';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { AppButton } from '../../theme/ui/AppButton';
+import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   subscribeToOwnProfile,
   updateOwnProfile,
+  type Gender,
   type UserProfile,
 } from '../../services/firebase/userProfile';
+import {
+  isValidPhoneNumber,
+  normalizePhoneNumber,
+} from '../onboarding/profileCompleteness';
 import { resendEmailVerification } from '../../services/firebase/authService';
 import { toFriendlyUploadMessage } from '../../services/firebase/storageErrors';
 import { logAuthError, toFriendlyAuthMessage } from '../../services/firebase/authErrors';
@@ -87,6 +93,15 @@ export function ProfileScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [nameSaved, setNameSaved] = useState(false);
 
+  // M6: the two onboarding answers that have no other home. Seeded from
+  // the profile exactly once, for the same reason the name is -- a
+  // snapshot arriving mid-edit must not overwrite what is being typed.
+  const [phoneInput, setPhoneInput] = useState('');
+  const [genderInput, setGenderInput] = useState<Gender | null>(null);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsSaved, setDetailsSaved] = useState(false);
+
   const [resendingVerification, setResendingVerification] = useState(false);
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -136,6 +151,8 @@ export function ProfileScreen() {
         // text the user is still mid-edit on.
         if (!seededNameRef.current && next) {
           setDisplayNameInput(next.displayName ?? '');
+          setPhoneInput(next.phoneNumber ?? '');
+          setGenderInput(next.gender);
           seededNameRef.current = true;
         }
       },
@@ -169,6 +186,41 @@ export function ProfileScreen() {
       setNameError(t('profile.nameSaveFailed'));
     } finally {
       setIsSavingName(false);
+    }
+  }
+
+  /**
+   * M6. Saves the phone number and gender together, since they sit in one
+   * card with one button.
+   *
+   * An EMPTY phone field is a legitimate answer -- withdrawing a number
+   * you gave -- and is written as null rather than rejected. Anything
+   * else has to look like a phone number, by the same rule the onboarding
+   * form uses (see features/onboarding/profileCompleteness.ts), so the
+   * two can never disagree about what is acceptable.
+   */
+  async function handleSaveDetails() {
+    if (!uid) return;
+    setDetailsError(null);
+    setDetailsSaved(false);
+
+    const trimmed = phoneInput.trim();
+    if (trimmed.length > 0 && !isValidPhoneNumber(trimmed)) {
+      setDetailsError(t('onboarding.phoneError'));
+      return;
+    }
+
+    setIsSavingDetails(true);
+    try {
+      await updateOwnProfile(uid, {
+        phoneNumber: trimmed.length > 0 ? normalizePhoneNumber(trimmed) : null,
+        ...(genderInput ? { gender: genderInput } : {}),
+      });
+      setDetailsSaved(true);
+    } catch {
+      setDetailsError(t('profile.nameSaveFailed'));
+    } finally {
+      setIsSavingDetails(false);
     }
   }
 
@@ -373,11 +425,10 @@ export function ProfileScreen() {
         </View>
 
         <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-          <Text style={[type.overline, { color: colors.secondaryText }]}>{t('profile.emailLabel')}</Text>
-          <Text
-            style={[type.body, { color: colors.text }]}
-            testID="profile-email"
-          >
+          <Text style={[type.overline, { color: colors.secondaryText }]}>
+            {t('profile.emailLabel')}
+          </Text>
+          <Text style={[type.body, { color: colors.text }]} testID="profile-email">
             {displayProfile?.email ?? t('profile.notSet')}
           </Text>
           {/* Email/Password is V1's primary sign-in method, and account
@@ -392,12 +443,15 @@ export function ProfileScreen() {
           {user?.email ? (
             <>
               <Text
-                style={[type.label,
+                style={[
+                  type.label,
                   { color: user.emailVerified ? colors.success : colors.secondaryText },
                 ]}
                 testID="profile-email-verified-status"
               >
-                {t(user.emailVerified ? 'profile.emailVerified' : 'profile.emailUnverified')}
+                {t(
+                  user.emailVerified ? 'profile.emailVerified' : 'profile.emailUnverified'
+                )}
               </Text>
               {!user.emailVerified ? (
                 <>
@@ -431,29 +485,87 @@ export function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* Phone number is optional profile information, never an
-            authentication requirement, and V1 has no flow that collects it
-            (sign-up asks for name/email/password only -- phone OTP was
-            removed from V1 scope). Rendering the field unconditionally
-            therefore showed every member a permanent "Not set" row with no
-            way to act on it, so it only appears when a value actually
-            exists -- e.g. a profile populated by an admin, or a future
-            release that collects it. The field itself stays in the data
-            model and in firestore.rules' server-controlled allowlist (it is
-            NOT owner-writable; see services/firebase/userProfile.ts). */}
-        {displayProfile?.phoneNumber ? (
-          <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-            <Text style={[type.overline, { color: colors.secondaryText }]}>
-              {t('profile.phoneNumber')}
-            </Text>
+        {/* Phone number is optional profile information and NEVER an
+            authentication requirement -- this app has no phone sign-in and
+            no OTP. V1 had no flow that collected it, so this used to be a
+            read-only row that appeared only if some other system had
+            filled it in, and a member could do nothing about it either
+            way. M6's onboarding questionnaire collects it and made the
+            field owner-writable (see firestore.rules and
+            services/firebase/userProfile.ts), so it is editable here --
+            which is also the "change these answers later" the onboarding
+            brief asks for. Gender sits with it for the same reason: they
+            are the two questionnaire answers that are not already
+            editable somewhere else (the name is above, the language is in
+            Settings). */}
+        <View
+          style={[styles.field, styles.divider, { borderTopColor: colors.border }]}
+          testID="profile-details"
+        >
+          <Text style={[type.overline, { color: colors.secondaryText }]}>
+            {t('profile.phoneNumber')}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                borderRadius: radii.control,
+              },
+            ]}
+            value={phoneInput}
+            onChangeText={(text) => {
+              setPhoneInput(text);
+              setDetailsSaved(false);
+            }}
+            testID="profile-phone-input"
+            accessibilityLabel={t('profile.phoneNumber')}
+            keyboardType="phone-pad"
+            placeholder={t('onboarding.phonePlaceholder')}
+            placeholderTextColor={colors.secondaryText}
+          />
+
+          <Text style={[type.overline, { color: colors.secondaryText }]}>
+            {t('onboarding.gender')}
+          </Text>
+          <SegmentedChoice
+            testID="profile-gender"
+            accessibilityLabel={t('onboarding.gender')}
+            options={[
+              { value: 'male' as Gender, label: t('onboarding.genderMale') },
+              { value: 'female' as Gender, label: t('onboarding.genderFemale') },
+            ]}
+            selected={genderInput ?? ('' as Gender)}
+            onSelect={(value) => {
+              setGenderInput(value);
+              setDetailsSaved(false);
+            }}
+          />
+
+          <AppButton
+            title={t('common.save')}
+            loading={isSavingDetails}
+            onPress={() => void handleSaveDetails()}
+            testID="save-profile-details-button"
+          />
+          {detailsError ? (
             <Text
-              style={[type.body, { color: colors.text }]}
-              testID="profile-phone"
+              style={[type.bodySmall, { color: colors.danger }]}
+              testID="profile-details-error"
             >
-              {displayProfile.phoneNumber}
+              {detailsError}
             </Text>
-          </View>
-        ) : null}
+          ) : null}
+          {detailsSaved ? (
+            <Text
+              style={[type.bodySmall, { color: colors.success }]}
+              testID="profile-details-saved"
+            >
+              {t('profile.saved')}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       <AppButton

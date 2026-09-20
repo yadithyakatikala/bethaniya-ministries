@@ -37,6 +37,10 @@ import { AnnouncementsScreen } from '../features/announcements/AnnouncementsScre
 import { AnnouncementDetailScreen } from '../features/announcements/AnnouncementDetailScreen';
 import type { PublishedAnnouncement } from '../services/firebase/announcements';
 import { DailyVerseScreen } from '../features/daily-verses/DailyVerseScreen';
+import { MediaFeedScreen } from '../features/media/MediaFeedScreen';
+import { MediaDetailScreen } from '../features/media/MediaDetailScreen';
+import { SavedMediaScreen } from '../features/media/SavedMediaScreen';
+import type { MediaPost } from '../services/firebase/media';
 import { PrayersScreen } from '../features/prayers/PrayersScreen';
 import { CommunityListScreen } from '../features/community/CommunityListScreen';
 import { CommunityPostDetailScreen } from '../features/community/CommunityPostDetailScreen';
@@ -137,6 +141,20 @@ export type RootStackParamList = {
   AnnouncementDetail: { announcement: PublishedAnnouncement };
   /** See ../features/daily-verses/DailyVerseScreen.tsx. */
   DailyVerse: undefined;
+  /**
+   * M6's media feed. Reached from Home's media section and from the More
+   * tab -- NOT from the bottom bar, which stays Home | Bible | Songs |
+   * Events | More exactly as it was. Media is content, like
+   * Announcements and Community, and those live behind More too.
+   */
+  MediaFeed: undefined;
+  /** The full post. Takes the whole object rather than an id, the same
+   *  reasoning as SongDetail/EventDetail -- the feed already holds it.
+   *  SavedMediaScreen re-reads the real post before navigating, so a
+   *  stale saved copy never reaches this screen. */
+  MediaDetail: { post: MediaPost };
+  /** The member's bookmarks. See ../features/media/SavedMediaScreen.tsx. */
+  SavedMedia: undefined;
   /** New V1 feature -- see ../features/prayers/PrayersScreen.tsx. Reached
    * from the More tab, not the bottom tab bar (existing
    * Home/Bible/Songs/Events/More navigation is kept unchanged per
@@ -328,7 +346,8 @@ export function AppNavigator() {
               component={ChaptersListScreen}
               options={({ route }) => ({
                 title:
-                  getBookNameById(route.params.bookId, bookNameLanguage) ?? t('bible.chapters'),
+                  getBookNameById(route.params.bookId, bookNameLanguage) ??
+                  t('bible.chapters'),
               })}
             />
             <Stack.Screen
@@ -380,6 +399,21 @@ export function AppNavigator() {
               name="DailyVerse"
               component={DailyVerseScreen}
               options={{ title: t('dailyVerse.title'), headerShown: false }}
+            />
+            <Stack.Screen
+              name="MediaFeed"
+              component={MediaFeedScreen}
+              options={{ title: t('media.title') }}
+            />
+            <Stack.Screen
+              name="MediaDetail"
+              component={MediaDetailScreen}
+              options={{ title: t('media.title') }}
+            />
+            <Stack.Screen
+              name="SavedMedia"
+              component={SavedMediaScreen}
+              options={{ title: t('media.savedTitle') }}
             />
             <Stack.Screen
               name="Prayers"

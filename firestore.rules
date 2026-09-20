@@ -173,8 +173,33 @@ service cloud.firestore {
     // never in the owner-editable field allowlist, so this function never
     // needs to validate them for a self-update.
     function isValidUserProfileSelfUpdate(data) {
-      return data.displayName is string
-        && data.displayName.size() > 0 && data.displayName.size() <= 200
+      // M6 BUG 1 + BUG 2: displayName is OPTIONAL here, and null is a
+      // legitimate value for it.
+      //
+      // This used to read `data.displayName is string && size() > 0`
+      // unconditionally, which made this whole function -- and therefore
+      // EVERY self-update a member can make -- silently conditional on
+      // their having a display name. Firebase Auth gives none to an
+      // email/password account created without one, and
+      // mobile/src/services/firebase/userProfile.ts's
+      // ensureOwnProfileExists() faithfully stores that as `null`, so those
+      // members could never change their Bible language, their theme, their
+      // interface language or their notification setting. The Firestore SDK
+      // applies such a write locally before the server rejects it and then
+      // rolls it back, so the app looked like it had FORGOTTEN the setting
+      // rather than like it had been denied -- which is what BUG 1 and BUG
+      // 2 were, one permissions bug wearing a state-management costume.
+      //
+      // The value checks below are unchanged: an empty or over-long name is
+      // still rejected, as is every invalid preference value. Only the
+      // "you must have a name to have preferences" coupling is gone. See
+      // firebase-tests/src/firestore.rules.test.ts's "a member whose
+      // displayName was never set".
+      return (!('displayName' in data)
+            || data.displayName == null
+            || (data.displayName is string
+                && data.displayName.size() > 0
+                && data.displayName.size() <= 200))
         && (!('photoURL' in data)
             || data.photoURL == null
             || (data.photoURL is string && data.photoURL.size() <= 2000))
@@ -199,7 +224,81 @@ service cloud.firestore {
         && (!('themePreference' in data)
             || data.themePreference in ['light', 'dark', 'system'])
         && (!('notificationsEnabled' in data)
-            || data.notificationsEnabled is bool);
+            || data.notificationsEnabled is bool)
+        // M6 onboarding. A phone number is stored as the member typed it
+        // (normalized client-side to digits and an optional leading '+'),
+        // and the only thing worth enforcing here is that it is a short
+        // string rather than a place to park arbitrary data -- E.164 tops
+        // out at 15 digits, so 32 is generous. Null is allowed: a member
+        // may withdraw a number they gave.
+        && (!('phoneNumber' in data)
+            || data.phoneNumber == null
+            || (data.phoneNumber is string
+                && data.phoneNumber.size() > 0
+                && data.phoneNumber.size() <= 32))
+        // Exactly the two values the church asked for, and no others --
+        // this is a closed set, not free text.
+        && (!('gender' in data) || data.gender in ['male', 'female'])
+        // The onboarding marker is a timestamp or nothing. NOT checked
+        // against request.time: the client writes serverTimestamp(), so
+        // the server sets the value and a device's own clock never
+        // reaches this field.
+        && (!('profileCompletedAt' in data)
+            || data.profileCompletedAt == null
+            || data.profileCompletedAt is timestamp);
+    }
+
+    // M6 media post validation.
+    //
+    // THE URL RULES ARE THE POINT OF THIS FUNCTION. Nothing is uploaded
+    // anywhere -- this project has no Cloud Storage bucket -- so a media
+    // post is a link, and the link is the whole attack surface. https
+    // only: http would be blocked by Android's cleartext policy anyway,
+    // and every other scheme (javascript:, data:, file:, blob:, ...) is
+    // refused by requiring the string to START with 'https://' rather
+    // than by listing what is banned. A scheme nobody thought of cannot
+    // get past a rule that names the one that is allowed.
+    //
+    // The matching client-side check, including the executable-extension
+    // refusal and why each rejection exists, is in
+    // mobile/src/features/media/mediaUrl.ts. That one is a courtesy to
+    // the person filling in the form; this one is the boundary.
+    //
+    // `publishAt` is required and is a timestamp, because the read rule
+    // compares it to request.time -- a post without one would be
+    // unreadable by members and would look like a publishing bug.
+    // `verseReference` and `verseText` are independently optional: a post
+    // may cite a verse without quoting it.
+    function isValidMediaPost(data) {
+      return data.type in ['image', 'video']
+        && data.mediaUrl is string
+        && data.mediaUrl.size() > 0
+        && data.mediaUrl.size() <= 2000
+        && data.mediaUrl.matches('^https://[^\\s]+$')
+        && data.caption is string
+        && data.caption.size() <= 2000
+        && data.published is bool
+        && data.publishAt is timestamp
+        && data.authorName is string
+        && data.authorName.size() <= 200
+        && (!('verseReference' in data)
+            || data.verseReference == null
+            || (data.verseReference is string && data.verseReference.size() <= 200))
+        && (!('verseText' in data)
+            || data.verseText == null
+            || (data.verseText is string && data.verseText.size() <= 2000));
+    }
+
+    // M6 comment validation. Short, attributed, and not empty -- an empty
+    // comment is a tap someone did not mean, and a 10,000-character one
+    // is not a comment.
+    function isValidMediaComment(data) {
+      return data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 1000
+        && data.authorUid is string
+        && data.authorName is string
+        && data.authorName.size() <= 200;
     }
 
     // Prayer request field-level validation -- new V1 feature, added per
@@ -561,12 +660,25 @@ service cloud.firestore {
       // still demote themselves out of Super Admin with no remaining
       // path back short of direct database access -- exactly what the
       // guard exists to prevent.
+      //
+      // M6 adds three owner-writable keys for the onboarding
+      // questionnaire: 'gender' and 'profileCompletedAt' are new, and
+      // 'phoneNumber' MOVES from server-controlled to owner-writable.
+      // That last one is a deliberate widening, and a small one: a phone
+      // number is the member's own contact detail, it is not an
+      // authentication factor anywhere in this app (there is no OTP, no
+      // phone sign-in provider), and nothing reads it to make a decision.
+      // It used to be set once from whatever Firebase Auth happened to
+      // know and then be unreachable, which is no use to a member who
+      // signed up with an email address. 'email' and 'createdAt' stay
+      // server-controlled, and 'role' remains Super-Admin-only.
       allow update: if (isOwner(userId)
           && request.resource.data.diff(resource.data)
                .affectedKeys()
                .hasOnly(['displayName', 'photoURL', 'languagePreference',
                          'appLanguage', 'bibleMode',
-                         'themePreference', 'notificationsEnabled'])
+                         'themePreference', 'notificationsEnabled',
+                         'phoneNumber', 'gender', 'profileCompletedAt'])
           && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()
           && !isOwner(userId)
@@ -802,6 +914,97 @@ service cloud.firestore {
       allow create, update: if isContentAdminOrAbove()
         && isValidProphetVerse(request.resource.data);
       allow delete: if isContentAdminOrAbove();
+    }
+
+    // ---- media ---------------------------------------------------------
+    // M6: the church's media feed -- images and videos an administrator
+    // posts, with a caption and optionally a verse.
+    //
+    // PUBLIC READ, AND THAT IS DELIBERATE. Every other content collection
+    // in this file requires isSignedIn(). This one does not, because the
+    // brief is explicit that a signed-out visitor can view public media;
+    // it is the church's public face. What stays behind sign-in is every
+    // ACTION -- liking, saving, commenting -- because each of those is a
+    // write into a signed-in member's own space. A reader who is not
+    // signed in can see the feed and share a link, and nothing else.
+    //
+    // What is readable is still narrow: published AND due, measured on the
+    // SERVER's clock via request.time, so a scheduled post cannot be
+    // pulled forward by setting a phone's clock ahead. Content admins read
+    // everything, because drafts and future schedules are what their page
+    // manages.
+    //
+    // NO BINARY EVER ENTERS FIREBASE. `mediaUrl` is an external https
+    // link; this project has no Cloud Storage bucket (Spark plan) and no
+    // upload path. isValidMediaPost() below enforces the https-only rule
+    // a second time, after mobile/src/features/media/mediaUrl.ts has
+    // already enforced it client-side -- the client check is a courtesy
+    // and this one is the boundary.
+    match /media/{mediaId} {
+      allow read: if isContentAdminOrAbove()
+        || (resource.data.published == true
+            && resource.data.publishAt <= request.time);
+      allow create, update: if isContentAdminOrAbove()
+        && isValidMediaPost(request.resource.data);
+      allow delete: if isContentAdminOrAbove();
+
+      // ---- media/{mediaId}/comments ------------------------------------
+      // Readable by anyone who can read the post -- a comment is part of
+      // what a post says. Written only by its own author, and NEVER
+      // updated: an edited comment under someone else's post is a
+      // moderation problem this app has no answer for, so the operation
+      // does not exist. A content admin may delete any comment, which is
+      // the moderation this app does have.
+      //
+      // `authorUid` must equal the caller. That is the whole ownership
+      // boundary for creation, and it is checked on the incoming document
+      // rather than inferred, so a member cannot post as somebody else.
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && isValidMediaComment(request.resource.data);
+        allow update: if false;
+        allow delete: if isContentAdminOrAbove()
+          || (isSignedIn() && resource.data.authorUid == request.auth.uid);
+      }
+    }
+
+    // ---- users/{userId}/mediaLikes and /mediaSaves -----------------------
+    // M6. A member's own likes and bookmarks, one document per post, with
+    // THE MEDIA ID AS THE DOCUMENT ID.
+    //
+    // That choice is what makes these rules this short. Ownership is in
+    // the PATH, so isOwner(userId) is the entire authorization boundary --
+    // there is no field to spoof and no query to get wrong, and one member
+    // writing into another's likes is not a rule that has to be
+    // remembered, it is a path they cannot address. A deterministic id
+    // also makes "liked the same post twice" unrepresentable, so the
+    // collection cannot grow past one document per post per member.
+    //
+    // Same shape as users/{userId}/prayers above.
+    match /users/{userId}/mediaLikes/{mediaId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['createdAt']);
+    }
+
+    match /users/{userId}/mediaSaves/{mediaId} {
+      allow read, delete: if isOwner(userId);
+      // A save carries a small copy of the post so the Saved screen is one
+      // query rather than one read per save (see
+      // mobile/src/services/firebase/media.ts). The copy is the member's
+      // own data in their own space; it is bounded here so it stays a
+      // list row and does not become somewhere to park arbitrary content.
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(
+             ['type', 'mediaUrl', 'caption', 'createdAt'])
+        && request.resource.data.type in ['image', 'video']
+        && request.resource.data.mediaUrl is string
+        && request.resource.data.mediaUrl.size() <= 2000
+        && request.resource.data.mediaUrl.matches('^https://.+')
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() <= 2000;
     }
 
     // ---- settings -----------------------------------------------------

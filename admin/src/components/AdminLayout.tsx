@@ -77,6 +77,7 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
     path: '/prophet-verses',
     testId: 'sidebar-prophet-verses-link',
   },
+  { label: 'Media', path: '/media', testId: 'sidebar-media-link' },
   { label: 'Songs', path: '/songs', testId: 'sidebar-songs-link' },
   { label: 'Events', path: '/events', testId: 'sidebar-events-link' },
   { label: 'Community', path: '/community', testId: 'sidebar-community-link' },

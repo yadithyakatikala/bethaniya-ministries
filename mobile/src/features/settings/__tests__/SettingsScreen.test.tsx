@@ -9,6 +9,11 @@ import { onSnapshot, updateDoc } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { SettingsScreen } from '../SettingsScreen';
+import {
+  CC_BY_SA_URL,
+  TRANSLATION_ATTRIBUTION,
+  TRANSLATION_NAMES,
+} from '../../bible/translationCredits';
 import { translate } from '../../../i18n';
 
 jest.mock('../../../services/firebase/app');
@@ -178,12 +183,8 @@ describe('SettingsScreen', () => {
       getByTestId(`settings-bible-language-${v}`)
     );
 
-    expect(
-      appGroup.filter((o) => o.props.accessibilityState.selected)
-    ).toHaveLength(1);
-    expect(
-      bibleGroup.filter((o) => o.props.accessibilityState.selected)
-    ).toHaveLength(1);
+    expect(appGroup.filter((o) => o.props.accessibilityState.selected)).toHaveLength(1);
+    expect(bibleGroup.filter((o) => o.props.accessibilityState.selected)).toHaveLength(1);
     expect(selectedOption(appGroup)).toBe('settings-app-language-en');
     expect(selectedOption(bibleGroup)).toBe('settings-bible-language-te');
     // Every option keeps a 44dp target even though there are now five.
@@ -266,11 +267,57 @@ describe('SettingsScreen', () => {
     );
   });
 
+  it('says so when a change saved locally but could not reach the account', async () => {
+    // M6 BUG 1 + BUG 2. The denial that caused both was invisible: the
+    // context swallowed the rejected write and a rollback snapshot moved
+    // the control back, so the app looked like it had forgotten the
+    // setting. The choice now stands and the failure is stated.
+    mockSignedIn();
+    (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+    const { getByTestId, getByText, queryByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-bible-language')).toBeTruthy());
+    expect(queryByTestId('settings-sync-failed')).toBeNull();
+
+    await fireEvent.press(getByTestId('settings-bible-language-en'));
+
+    await waitFor(() => expect(getByTestId('settings-sync-failed')).toBeTruthy());
+    expect(getByTestId('settings-sync-failed').props.accessibilityLiveRegion).toBe(
+      'polite'
+    );
+    expect(getByText(translate('en', 'settings.syncFailed'))).toBeTruthy();
+    // The member's choice stands -- it is stored on this device.
+    expect(
+      getByTestId('settings-bible-language-en').props.accessibilityState.selected
+    ).toBe(true);
+    expect(await AsyncStorage.getItem('bible_mode_preference')).toBe('en');
+  });
+
   it('shows the required CC BY-SA 4.0 Telugu Bible attribution', async () => {
     const { getByTestId, getByText } = await renderScreen();
     await waitFor(() => expect(getByTestId('settings-bible-attribution')).toBeTruthy());
     expect(getByText(/Bridge Connectivity Solutions/)).toBeTruthy();
     expect(getByText(/CC BY-SA 4.0/)).toBeTruthy();
+  });
+
+  it('is the ONE place the licence lives, and matches what the app uses elsewhere', async () => {
+    // M6 took the copyright block out of the share payload (see
+    // ../../bible/reader/verseSharing.ts), so this card is now the app's
+    // only licence notice -- and it reads the same constants the rest of
+    // the app does, so the two cannot drift apart.
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('settings-credit-te')).toBeTruthy());
+
+    const flatten = (node: { props: { children?: unknown } }) =>
+      ([] as unknown[])
+        .concat(node.props.children as unknown[])
+        .flat(3)
+        .join('');
+
+    const telugu = flatten(getByTestId('settings-credit-te'));
+    expect(telugu).toContain(TRANSLATION_NAMES.te);
+    expect(telugu).toContain(TRANSLATION_ATTRIBUTION.te as string);
+    expect(telugu).toContain(CC_BY_SA_URL);
+    expect(flatten(getByTestId('settings-credit-en'))).toContain(TRANSLATION_NAMES.en);
   });
 
   it('navigates to the Privacy Policy screen when "Privacy policy" is pressed', async () => {

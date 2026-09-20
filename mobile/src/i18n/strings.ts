@@ -373,6 +373,81 @@ export interface Strings {
    *  section heading below the Verse of the Day. */
   'prophetVerse.title': string;
   'prophetVerse.imageLabel': string;
+
+  // --- M6 -------------------------------------------------------------
+  /**
+   * Shown on the Settings screen when a preference was saved on this
+   * device but could not be written to the member's account.
+   *
+   * BUG 1 and BUG 2 stayed invisible for exactly as long as this string
+   * did not exist: the write was denied, the context swallowed the
+   * rejection, and the setting appeared to undo itself. The local value
+   * is authoritative and still in effect, so this reports what happened
+   * rather than asking the member to do anything about it.
+   */
+  'settings.syncFailed': string;
+
+  // --- M6: first-login onboarding -------------------------------------
+  /** The screen's heading. Warm, not administrative: this is the first
+   *  thing a new member sees after signing in. */
+  'onboarding.title': string;
+  'onboarding.subtitle': string;
+  'onboarding.fullName': string;
+  'onboarding.fullNamePlaceholder': string;
+  'onboarding.fullNameError': string;
+  'onboarding.phone': string;
+  'onboarding.phonePlaceholder': string;
+  /** Says plainly that no code is coming -- people expect an OTP the
+   *  moment they are asked for a number, and there is none. */
+  'onboarding.phoneHelp': string;
+  'onboarding.phoneError': string;
+  'onboarding.gender': string;
+  'onboarding.genderMale': string;
+  'onboarding.genderFemale': string;
+  'onboarding.genderError': string;
+  'onboarding.language': string;
+  /** States what the choice does NOT change, for the same reason the two
+   *  Settings language rows do. */
+  'onboarding.languageHelp': string;
+  'onboarding.submit': string;
+  'onboarding.skip': string;
+  'onboarding.saveFailed': string;
+  /** The Profile row that leads back here for anyone who skipped. */
+  'onboarding.completePrompt': string;
+  'onboarding.completeAction': string;
+
+  // --- M6: the media feed ---------------------------------------------
+  'media.title': string;
+  /** The Home section heading, above a short preview row. */
+  'media.sectionTitle': string;
+  'media.empty': string;
+  'media.emptyMessage': string;
+  'media.loadError': string;
+  'media.loadingMore': string;
+  'media.like': string;
+  'media.unlike': string;
+  'media.liked': string;
+  'media.comment': string;
+  'media.comments': string;
+  'media.share': string;
+  'media.save': string;
+  'media.unsave': string;
+  'media.saved': string;
+  'media.savedTitle': string;
+  'media.savedEmpty': string;
+  'media.savedEmptyMessage': string;
+  /** Shown when a signed-out visitor taps Like, Save or Comment. Share
+   *  is deliberately absent -- it needs no account. */
+  'media.signInRequired': string;
+  'media.commentPlaceholder': string;
+  'media.postComment': string;
+  'media.commentFailed': string;
+  'media.noComments': string;
+  'media.deleteComment': string;
+  'media.playVideo': string;
+  'media.imageLabel': string;
+  'media.openPost': string;
+  'media.actionFailed': string;
 }
 
 export type StringKey = keyof Strings;
@@ -580,9 +655,11 @@ const en: Strings = {
   'announcements.title': 'Announcements',
 
   'settings.appLanguage': 'App language',
-  'settings.appLanguageHelp': 'Changes the app’s buttons, menus and messages. Does not change the Bible.',
+  'settings.appLanguageHelp':
+    'Changes the app’s buttons, menus and messages. Does not change the Bible.',
   'settings.bibleLanguage': 'Bible language',
-  'settings.bibleLanguageHelp': 'Changes the Bible text, book names and search. Does not change the app’s language.',
+  'settings.bibleLanguageHelp':
+    'Changes the Bible text, book names and search. Does not change the app’s language.',
   'bible.modeTelugu': 'Telugu',
   'bible.modeEnglish': 'English',
   'bible.modeBilingual': 'English + Telugu',
@@ -661,6 +738,64 @@ const en: Strings = {
   'dailyVerse.loading': "Loading today's verse",
   'prophetVerse.title': 'Prophet Verse',
   'prophetVerse.imageLabel': 'Illustration for this prophet verse',
+
+  // --- M6 ---
+  'settings.syncFailed':
+    'Saved on this device. We could not sync it to your account just now.',
+
+  'onboarding.title': 'Welcome to {app}',
+  'onboarding.subtitle':
+    'A few details, so the church knows who you are. You can change any of these later in your profile.',
+  'onboarding.fullName': 'Full name',
+  'onboarding.fullNamePlaceholder': 'Your name',
+  'onboarding.fullNameError': 'Please enter your name.',
+  'onboarding.phone': 'Phone number',
+  'onboarding.phonePlaceholder': '98765 43210',
+  'onboarding.phoneHelp':
+    'So the church can reach you. We will not send you a code, and this is not used to sign in.',
+  'onboarding.phoneError': 'Please enter a valid phone number.',
+  'onboarding.gender': 'Gender',
+  'onboarding.genderMale': 'Male',
+  'onboarding.genderFemale': 'Female',
+  'onboarding.genderError': 'Please choose one.',
+  'onboarding.language': 'Preferred language',
+  'onboarding.languageHelp':
+    'Sets the language of the app. You can choose your Bible language separately in Settings.',
+  'onboarding.submit': 'Continue',
+  'onboarding.skip': 'Not now',
+  'onboarding.saveFailed': 'We could not save your details. Please try again.',
+  'onboarding.completePrompt': 'Finish setting up your profile',
+  'onboarding.completeAction': 'Complete',
+
+  'media.title': 'Media',
+  'media.sectionTitle': 'Latest media',
+  'media.empty': 'Nothing here yet',
+  'media.emptyMessage': 'The church has not posted any media yet.',
+  'media.loadError': 'Media could not be loaded.',
+  'media.loadingMore': 'Loading more',
+  'media.like': 'Like',
+  'media.unlike': 'Remove like',
+  'media.liked': 'Liked',
+  'media.comment': 'Comment',
+  'media.comments': 'Comments',
+  'media.share': 'Share',
+  'media.save': 'Save',
+  'media.unsave': 'Remove from saved',
+  'media.saved': 'Saved',
+  'media.savedTitle': 'Saved media',
+  'media.savedEmpty': 'Nothing saved yet',
+  'media.savedEmptyMessage': 'Media you save will appear here.',
+  'media.signInRequired':
+    'Sign in to like, save and comment. You can keep browsing and sharing without an account.',
+  'media.commentPlaceholder': 'Write a comment',
+  'media.postComment': 'Post',
+  'media.commentFailed': 'Your comment could not be posted.',
+  'media.noComments': 'No comments yet.',
+  'media.deleteComment': 'Delete comment',
+  'media.playVideo': 'Play video',
+  'media.imageLabel': 'Media image',
+  'media.openPost': 'Open post',
+  'media.actionFailed': 'That did not work. Please try again.',
 };
 
 /**
@@ -954,6 +1089,64 @@ const te: Strings = {
   'dailyVerse.loading': 'నేటి వచనం లోడ్ అవుతోంది',
   'prophetVerse.title': 'ప్రవక్త వచనం',
   'prophetVerse.imageLabel': 'ఈ ప్రవక్త వచనానికి చిత్రం',
+
+  // --- M6 ---
+  'settings.syncFailed':
+    'ఈ పరికరంలో సేవ్ అయింది. ప్రస్తుతం దాన్ని మీ ఖాతాకు సింక్ చేయలేకపోయాం.',
+
+  'onboarding.title': '{app}కు స్వాగతం',
+  'onboarding.subtitle':
+    'మీరు ఎవరో చర్చికి తెలియడం కోసం కొన్ని వివరాలు. వీటిని తర్వాత మీ ప్రొఫైల్‌లో మార్చుకోవచ్చు.',
+  'onboarding.fullName': 'పూర్తి పేరు',
+  'onboarding.fullNamePlaceholder': 'మీ పేరు',
+  'onboarding.fullNameError': 'దయచేసి మీ పేరు నమోదు చేయండి.',
+  'onboarding.phone': 'ఫోన్ నంబర్',
+  'onboarding.phonePlaceholder': '98765 43210',
+  'onboarding.phoneHelp':
+    'చర్చి మిమ్మల్ని సంప్రదించడానికి. మేము ఏ కోడ్ పంపం, ఇది సైన్ ఇన్ కోసం కాదు.',
+  'onboarding.phoneError': 'దయచేసి సరైన ఫోన్ నంబర్ నమోదు చేయండి.',
+  'onboarding.gender': 'లింగం',
+  'onboarding.genderMale': 'పురుషుడు',
+  'onboarding.genderFemale': 'స్త్రీ',
+  'onboarding.genderError': 'దయచేసి ఒకటి ఎంపిక చేయండి.',
+  'onboarding.language': 'ఇష్టమైన భాష',
+  'onboarding.languageHelp':
+    'యాప్ భాషను సెట్ చేస్తుంది. బైబిల్ భాషను సెట్టింగ్స్‌లో వేరేగా ఎంచుకోవచ్చు.',
+  'onboarding.submit': 'కొనసాగండి',
+  'onboarding.skip': 'ఇప్పుడు వద్దు',
+  'onboarding.saveFailed': 'మీ వివరాలను సేవ్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  'onboarding.completePrompt': 'మీ ప్రొఫైల్ సెటప్ పూర్తి చేయండి',
+  'onboarding.completeAction': 'పూర్తి చేయండి',
+
+  'media.title': 'మీడియా',
+  'media.sectionTitle': 'తాజా మీడియా',
+  'media.empty': 'ఇక్కడ ఇంకా ఏమీ లేదు',
+  'media.emptyMessage': 'చర్చి ఇంకా ఏ మీడియాను పోస్ట్ చేయలేదు.',
+  'media.loadError': 'మీడియాను లోడ్ చేయలేకపోయాం.',
+  'media.loadingMore': 'మరిన్ని లోడ్ చేస్తోంది',
+  'media.like': 'ఇష్టం',
+  'media.unlike': 'ఇష్టం తీసివేయండి',
+  'media.liked': 'ఇష్టపడ్డారు',
+  'media.comment': 'వ్యాఖ్య',
+  'media.comments': 'వ్యాఖ్యలు',
+  'media.share': 'షేర్ చేయండి',
+  'media.save': 'సేవ్ చేయండి',
+  'media.unsave': 'సేవ్ నుండి తీసివేయండి',
+  'media.saved': 'సేవ్ చేసారు',
+  'media.savedTitle': 'సేవ్ చేసిన మీడియా',
+  'media.savedEmpty': 'ఏమీ సేవ్ చేయలేదు',
+  'media.savedEmptyMessage': 'మీరు సేవ్ చేసిన మీడియా ఇక్కడ కనిపిస్తుంది.',
+  'media.signInRequired':
+    'ఇష్టం, సేవ్, వ్యాఖ్య కోసం సైన్ ఇన్ చేయండి. ఖాతా లేకుండానే చూడవచ్చు, షేర్ చేయవచ్చు.',
+  'media.commentPlaceholder': 'వ్యాఖ్య రాయండి',
+  'media.postComment': 'పోస్ట్',
+  'media.commentFailed': 'మీ వ్యాఖ్యను పోస్ట్ చేయలేకపోయాం.',
+  'media.noComments': 'ఇంకా వ్యాఖ్యలు లేవు.',
+  'media.deleteComment': 'వ్యాఖ్యను తొలగించండి',
+  'media.playVideo': 'వీడియో ప్లే చేయండి',
+  'media.imageLabel': 'మీడియా చిత్రం',
+  'media.openPost': 'పోస్ట్ తెరవండి',
+  'media.actionFailed': 'అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

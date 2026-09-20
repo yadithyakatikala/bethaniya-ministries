@@ -121,15 +121,28 @@ installed:
 #### One-time: generate a release signing key
 
 Play Store rejects debug-signed builds outright, and the native project
-Expo generates (`android/`) is **not committed to this repo** — every
-`expo prebuild` regenerates it from scratch, wiping any hand-edit to
-`android/app/build.gradle`. So: run `prebuild` exactly once, apply the
-signing edit below exactly once, and don't run `expo prebuild` again
-afterwards unless you're prepared to redo this step.
+Expo generates (`android/`) is **not committed to this repo**.
+
+> **Corrected in M6.** This section used to say to run `prebuild` exactly
+> once and never again, because the signing configuration was a hand-edit
+> to `android/app/build.gradle` that a regeneration would wipe. It is no
+> longer a hand-edit — `mobile/plugins/withReleaseSigning.js` applies it on
+> every prebuild — and following the old instruction caused a real bug.
+> A plain `expo prebuild` **does not overwrite an existing `android/`**, so
+> a native project generated before the M0 rename kept the old launcher
+> label and the old icons in its `res/` folder and shipped them in every
+> later build. That is what "the app's name went back to the old one"
+> was: stale generated metadata, not a runtime or theme problem. See
+> `mobile/src/__tests__/appIdentity.test.ts`.
+>
+> **Always regenerate with `--clean` before a release build**, so the
+> native project matches `app.json`.
 
 ```bash
 cd mobile
-npx expo prebuild --platform android   # generates android/ — do this ONCE
+# --clean is not optional: without it an existing android/ is reused as-is,
+# app name and icons included.
+npx expo prebuild --platform android --clean
 
 # Generate a real release keystore (entirely free/local, no account
 # needed, never expires by default with -validity 10000 ~= 27 years).

@@ -54,6 +54,33 @@ import { requestNotificationPermissionsAsync } from '../services/notifications/n
  *     the local value still stands; the caller (Settings screen) decides
  *     how to surface that failure.
  *
+ * WHEN A SYNC FAILS -- M6 BUG 1 + BUG 2.
+ * The two-tier scheme above says "if that call fails, the local value
+ * still stands". It did not. A rejected `updateDoc` does not simply do
+ * nothing: the Firestore SDK applies every write to its local cache
+ * FIRST, emits a snapshot for it, and then, when the server rejects it,
+ * rolls the cache back and emits ANOTHER snapshot carrying the old
+ * document. The snapshot handler below is write-through -- it sets React
+ * state AND AsyncStorage -- so that rollback snapshot undid the member's
+ * choice on both tiers. The setting visibly moved and then moved back,
+ * which is what BUG 1 ("the Bible language toggle does not stick") and
+ * BUG 2 ("the theme resets itself") looked like from the outside. The
+ * denial behind it -- see firestore.rules'
+ * isValidUserProfileSelfUpdate() -- was invisible, because the setters
+ * were called as `void setBibleMode(v)` and the rejection went nowhere.
+ *
+ * Two things follow, and both are here rather than in the screens:
+ *   - `pendingChoiceRef` records a field the member has just chosen and
+ *     whose write has not been confirmed. The snapshot handler skips such
+ *     a field entirely, so no snapshot -- rollback or otherwise -- can
+ *     overwrite an explicit choice with a value the server never accepted.
+ *     A successful write clears the guard, since the server then agrees;
+ *     a failed one keeps it, because the member's choice outranks a
+ *     remote value we could not update.
+ *   - every setter AWAITS its write inside a try/catch and sets
+ *     `syncFailed`, so the failure reaches the UI (Settings shows
+ *     'settings.syncFailed') instead of becoming an unhandled rejection.
+ *
  * Theme has no stored default of its own the way language defaults to
  * 'en' -- until the user (or their synced profile) has ever set one, the
  * *system* color scheme is used, exactly matching Day 8's per-screen
@@ -91,6 +118,14 @@ interface PreferencesContextValue {
    * scheme / sensible defaults) -- but Settings shows a brief loading
    * state with it rather than flashing default toggle positions. */
   isLoaded: boolean;
+  /**
+   * True when a preference was stored on this device but its write to the
+   * member's Firestore profile failed -- see M6 BUG 1 + BUG 2 in this
+   * file's "WHEN A SYNC FAILS" section. The local value is in effect
+   * either way; Settings shows a notice so the failure is visible instead
+   * of looking like the app forgetting the setting.
+   */
+  syncFailed: boolean;
   setAppLanguage: (language: BibleLanguage) => Promise<void>;
   setBibleMode: (mode: BibleMode) => Promise<void>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
@@ -149,6 +184,44 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     notifications: false,
   });
 
+  /**
+   * Fields the member has explicitly chosen whose Firestore write has not
+   * been confirmed -- see this file's "WHEN A SYNC FAILS". While a field is
+   * in here the snapshot handler leaves it alone, so a rollback snapshot
+   * from a rejected write cannot revert the choice in state or in
+   * AsyncStorage. Marked before the write, cleared only when the server
+   * accepts it.
+   */
+  const pendingChoiceRef = useRef({
+    appLanguage: false,
+    bibleMode: false,
+    theme: false,
+    notifications: false,
+  });
+  const [syncFailed, setSyncFailed] = useState(false);
+
+  /**
+   * Runs one preference's Firestore write, if there is an account to write
+   * it to. Shared by all four setters so the pending-guard bookkeeping and
+   * the failure reporting exist once, not four times.
+   */
+  async function syncField(
+    field: keyof typeof pendingChoiceRef.current,
+    write: () => Promise<void>
+  ) {
+    pendingChoiceRef.current[field] = true;
+    try {
+      await write();
+      pendingChoiceRef.current[field] = false;
+      if (mountedRef.current) setSyncFailed(false);
+    } catch (error) {
+      // The guard STAYS set: the stored local value is the member's
+      // choice, and the server still holds the old one.
+      console.warn(`[preferences] could not sync ${field} to the profile:`, error);
+      if (mountedRef.current) setSyncFailed(true);
+    }
+  }
+
   // Local (AsyncStorage) load -- runs once, independent of auth state, so
   // preferences are available immediately for a signed-out/offline user.
   useEffect(() => {
@@ -198,26 +271,32 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         // set the interface language, or a Telugu-Bible member would get
         // a Telugu interface they never chose. See
         // ./languagePreferences.ts.
-        if (profile.appLanguage) {
+        // A field with an unconfirmed local choice is skipped outright --
+        // see pendingChoiceRef. This is what stops a rejected write's
+        // rollback snapshot from undoing the member's choice.
+        const pending = pendingChoiceRef.current;
+        if (profile.appLanguage && !pending.appLanguage) {
           firestoreFieldSetRef.current.appLanguage = true;
           setAppLanguageState(profile.appLanguage);
           void setStoredAppLanguage(profile.appLanguage);
         }
-        if (profile.bibleMode) {
-          firestoreFieldSetRef.current.bibleMode = true;
-          setBibleModeState(profile.bibleMode);
-          void setStoredBibleMode(profile.bibleMode);
-        } else if (profile.languagePreference) {
-          firestoreFieldSetRef.current.bibleMode = true;
-          setBibleModeState(profile.languagePreference);
-          void setStoredBibleMode(profile.languagePreference);
+        if (!pending.bibleMode) {
+          if (profile.bibleMode) {
+            firestoreFieldSetRef.current.bibleMode = true;
+            setBibleModeState(profile.bibleMode);
+            void setStoredBibleMode(profile.bibleMode);
+          } else if (profile.languagePreference) {
+            firestoreFieldSetRef.current.bibleMode = true;
+            setBibleModeState(profile.languagePreference);
+            void setStoredBibleMode(profile.languagePreference);
+          }
         }
-        if (profile.themePreference) {
+        if (profile.themePreference && !pending.theme) {
           firestoreFieldSetRef.current.theme = true;
           setThemePreferenceState(profile.themePreference);
           void setStoredThemePreference(profile.themePreference);
         }
-        if (profile.notificationsEnabled !== null) {
+        if (profile.notificationsEnabled !== null && !pending.notifications) {
           firestoreFieldSetRef.current.notifications = true;
           setNotificationsEnabledState(profile.notificationsEnabled);
           void setStoredNotificationsEnabled(profile.notificationsEnabled);
@@ -247,6 +326,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           : themePreference === 'dark',
       notificationsEnabled,
       isLoaded: localLoaded && (uid ? firestoreLoaded : true),
+      syncFailed,
       // Marking the refs here too (not just in the Firestore-snapshot
       // handler above) means an explicit choice the user makes while the
       // one-time local-load effect is still in flight can never be
@@ -258,7 +338,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         await setStoredAppLanguage(language);
         // Writes ONLY appLanguage. The Bible mode is a separate field and
         // a separate decision; this must not touch it.
-        if (uid) await updateOwnProfile(uid, { appLanguage: language });
+        if (uid) {
+          await syncField('appLanguage', () =>
+            updateOwnProfile(uid, { appLanguage: language })
+          );
+        }
       },
       setBibleMode: async (mode: BibleMode) => {
         firestoreFieldSetRef.current.bibleMode = true;
@@ -269,11 +353,13 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           // single language, so an older client still reads something it
           // understands. 'bilingual' is left out of the mirror rather
           // than written as a value V1 would misread.
-          await updateOwnProfile(
-            uid,
-            mode === 'bilingual'
-              ? { bibleMode: mode }
-              : { bibleMode: mode, languagePreference: mode }
+          await syncField('bibleMode', () =>
+            updateOwnProfile(
+              uid,
+              mode === 'bilingual'
+                ? { bibleMode: mode }
+                : { bibleMode: mode, languagePreference: mode }
+            )
           );
         }
       },
@@ -281,13 +367,21 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         firestoreFieldSetRef.current.theme = true;
         setThemePreferenceState(theme);
         await setStoredThemePreference(theme);
-        if (uid) await updateOwnProfile(uid, { themePreference: theme });
+        if (uid) {
+          await syncField('theme', () =>
+            updateOwnProfile(uid, { themePreference: theme })
+          );
+        }
       },
       setNotificationsEnabled: async (enabled: boolean) => {
         firestoreFieldSetRef.current.notifications = true;
         setNotificationsEnabledState(enabled);
         await setStoredNotificationsEnabled(enabled);
-        if (uid) await updateOwnProfile(uid, { notificationsEnabled: enabled });
+        if (uid) {
+          await syncField('notifications', () =>
+            updateOwnProfile(uid, { notificationsEnabled: enabled })
+          );
+        }
         // Actually asks the OS for permission when the user turns this on
         // -- added during the V1 production-readiness audit, after this
         // toggle was found to only ever flip a stored boolean, never call
@@ -308,6 +402,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       notificationsEnabled,
       localLoaded,
       firestoreLoaded,
+      syncFailed,
       uid,
     ]
   );

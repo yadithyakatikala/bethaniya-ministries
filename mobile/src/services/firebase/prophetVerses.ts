@@ -151,9 +151,27 @@ export async function fetchCurrentProphetVerse(
   try {
     return await firstOf(now);
   } catch (error) {
+    const code = (error as FirestoreError | undefined)?.code;
+    // M6 BUG 4, the part that is a deployment mistake rather than a code
+    // one. Without the composite index this file's header names, the query
+    // fails with 'failed-precondition' -- and the caller turns any failure
+    // into the section simply not rendering, which is indistinguishable
+    // from "the church has published nothing". Someone then goes looking
+    // in the admin dashboard for a verse that is saved and correct. Say
+    // which it is, once, where a developer will see it.
+    if (code === 'failed-precondition') {
+      console.warn(
+        `[prophetVerses] the query was rejected, which usually means the ` +
+          `composite index for '${PROPHET_VERSES_COLLECTION}' ` +
+          `(published ASC, publishAt DESC) has not been deployed. See ` +
+          `/firestore.indexes.json.`,
+        error
+      );
+    }
     // Only a denial is worth retrying with an earlier bound; anything
-    // else (offline, deadline exceeded) would fail the same way twice.
-    if ((error as FirestoreError | undefined)?.code !== 'permission-denied') throw error;
+    // else (offline, deadline exceeded, a missing index) would fail the
+    // same way twice.
+    if (code !== 'permission-denied') throw error;
     return firstOf(new Date(now.getTime() - CLOCK_SKEW_ALLOWANCE_MS));
   }
 }

@@ -178,7 +178,14 @@ describe('bilingual', () => {
 });
 
 describe('sharing reuses the M4 formatter', () => {
-  it('shares a corpus verse with its translation name and licence line', async () => {
+  it('shares the verse and its reference, with NO licence block', async () => {
+    // M6 regression. The share used to read like a licence notice with
+    // some scripture attached:
+    //   "యెహోవా నా కాపరి…"
+    //   కీర్తనల గ్రంథము 23:1 (Indian Revised Version (IRV) 2019)
+    //   © Bridge Connectivity Solutions, CC BY-SA 4.0
+    // The attribution obligation is on bundling the text, and it is met
+    // by the Settings credits card -- ../../bible/translationCredits.ts.
     const share = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' });
@@ -188,11 +195,10 @@ describe('sharing reuses the M4 formatter', () => {
     fireEvent.press(screen.getByTestId('daily-verse-share'));
     await waitFor(() => expect(share).toHaveBeenCalled());
     const message = (share.mock.calls[0]![0] as { message: string }).message;
-    expect(message).toContain('John 3:16');
-    expect(message).toContain('Indian Revised Version (IRV) 2019');
-    // CC BY-SA conditions redistribution on attribution, and a share into
-    // a chat is redistribution. See /BIBLE_LICENSING.md.
-    expect(message).toContain('CC BY-SA 4.0');
+    expect(message).toBe('"దేవుడు"\n\nJohn 3:16');
+    expect(message).not.toContain('Indian Revised Version');
+    expect(message).not.toContain('CC BY-SA');
+    expect(message).not.toContain('©');
   });
 
   it('claims no translation for an override, whose source is unknown', async () => {

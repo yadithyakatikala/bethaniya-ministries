@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { CC_BY_SA_URL, translationCreditLine } from '../bible/translationCredits';
 import { Tappable } from '../../theme/ui/Tappable';
 import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
 import { Divider } from '../../theme/ui/Divider';
@@ -51,6 +52,7 @@ export function SettingsScreen() {
     bibleMode,
     themePreference,
     notificationsEnabled,
+    syncFailed,
     setAppLanguage,
     setBibleMode,
     setThemePreference,
@@ -82,13 +84,39 @@ export function SettingsScreen() {
     []
   );
 
-
-
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
       testID="settings-screen"
     >
+      {/* M6: a preference that saved locally but could not reach the
+          member's account says so. Before this, such a write was denied by
+          firestore.rules and the rejection was swallowed (see
+          ../../context/PreferencesContext.tsx's "WHEN A SYNC FAILS"), so
+          BUG 1 and BUG 2 presented as the app forgetting the setting. Not
+          colour-only, and announced politely rather than as an alert: the
+          local value is in effect, so there is nothing for the member to
+          do. */}
+      {syncFailed ? (
+        <View
+          testID="settings-sync-failed"
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.notice,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.danger,
+              borderRadius: radii.card,
+              padding: spacing.md,
+            },
+          ]}
+        >
+          <Text style={[type.bodySmall, { color: colors.ink }]}>
+            {t('settings.syncFailed')}
+          </Text>
+        </View>
+      ) : null}
+
       <View
         style={[
           styles.card,
@@ -223,12 +251,24 @@ export function SettingsScreen() {
             <Text style={[type.label, { color: colors.ink }]}>
               {t('settings.bibleTranslations')}
             </Text>
-            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-              English: World English Bible (public domain).
+            {/* Read from ../bible/translationCredits.ts rather than typed
+                here. THIS CARD IS NOW THE APP'S ONLY LICENCE NOTICE: M6
+                removed the copyright block from the share payload (see
+                ../bible/reader/verseSharing.ts), so the CC BY-SA
+                attribution appears here and nowhere else, and it must not
+                be able to drift from the values the app uses elsewhere. */}
+            <Text
+              testID="settings-credit-en"
+              style={[type.bodySmall, { color: colors.inkMuted }]}
+            >
+              English: {translationCreditLine('en')}.
             </Text>
-            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-              Telugu: Indian Revised Version (IRV) 2019, © Bridge Connectivity Solutions,
-              licensed under CC BY-SA 4.0 (creativecommons.org/licenses/by-sa/4.0/).
+            <Text
+              testID="settings-credit-te"
+              style={[type.bodySmall, { color: colors.inkMuted }]}
+            >
+              Telugu: {translationCreditLine('te')}, licensed under CC BY-SA 4.0 (
+              {CC_BY_SA_URL}).
             </Text>
           </View>
         </View>
@@ -265,9 +305,7 @@ export function SettingsScreen() {
           onPress={() => navigation.navigate('Terms')}
           style={[styles.row, { padding: spacing.md }]}
         >
-          <Text style={[type.label, { color: colors.ink }]}>
-            {t('settings.terms')}
-          </Text>
+          <Text style={[type.label, { color: colors.ink }]}>{t('settings.terms')}</Text>
           <Text style={[type.label, { color: colors.primary }]}>
             {t('settings.view')}
           </Text>
@@ -283,9 +321,7 @@ export function SettingsScreen() {
           { borderColor: colors.liveTint, borderRadius: radii.control },
         ]}
       >
-        <Text style={[type.label, { color: colors.danger }]}>
-          {t('settings.logOut')}
-        </Text>
+        <Text style={[type.label, { color: colors.danger }]}>{t('settings.logOut')}</Text>
       </Tappable>
     </ScrollView>
   );
@@ -294,6 +330,10 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, gap: 16 },
   card: { borderWidth: StyleSheet.hairlineWidth },
+  // A full-weight border, not the hairline the cards use: this one is
+  // carrying meaning, so it has to read as a distinct band rather than as
+  // another settings card.
+  notice: { borderWidth: 1.5 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -112,7 +112,7 @@ describe('ProfileScreen', () => {
     await waitFor(() => expect(getByTestId('profile-screen')).toBeTruthy());
     expect(getByTestId('display-name-input').props.value).toBe('Jane Doe');
     expect(getByTestId('profile-email').props.children).toBe('jane@example.com');
-    expect(getByTestId('profile-phone').props.children).toBe('+15551234567');
+    expect(getByTestId('profile-phone-input').props.value).toBe('+15551234567');
     expect(getByTestId('profile-photo-placeholder')).toBeTruthy();
   });
 
@@ -361,33 +361,117 @@ describe('ProfileScreen', () => {
 
   // --- Phone number: optional profile info, never an auth requirement ---
 
-  it('omits the phone field entirely when the profile has no phone number', async () => {
-    // V1 has no flow that collects a phone number (sign-up asks for
-    // name/email/password; phone OTP is out of scope), so rendering the row
-    // unconditionally showed every member a permanent "Not set" they could
-    // not act on.
+  // M6 CHANGED THESE TWO. The phone row used to be read-only and hidden
+  // unless some other system had filled it in, because V1 collected no
+  // number and a permanent unactionable "Not set" was worse than nothing.
+  // The onboarding questionnaire now asks for one and the field became
+  // owner-writable, so the row is an editable field that is always
+  // present -- an empty box a member can fill in is the opposite of an
+  // unactionable placeholder. Still no phone authentication anywhere.
+  it('offers an empty, editable phone field when the profile has no number', async () => {
     mockSignedIn();
     mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
 
-    const { getByTestId, queryByTestId, queryByText } = await renderScreen();
+    const { getByTestId } = await renderScreen();
     await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
 
-    expect(queryByTestId('profile-phone')).toBeNull();
-    expect(queryByText('Phone Number')).toBeNull();
+    expect(getByTestId('profile-phone-input').props.value).toBe('');
+    // Not a "Not set" placeholder -- a field.
+    expect(getByTestId('save-profile-details-button')).toBeTruthy();
   });
 
-  it('shows the phone field when the profile actually has a phone number', async () => {
+  it('seeds the phone field and gender from the profile', async () => {
     mockSignedIn();
     mockProfileSnapshot({
       role: 'member',
       displayName: 'Jane Doe',
       phoneNumber: '+15555550123',
+      gender: 'female',
     });
 
     const { getByTestId } = await renderScreen();
     await waitFor(() =>
-      expect(getByTestId('profile-phone').props.children).toBe('+15555550123')
+      expect(getByTestId('profile-phone-input').props.value).toBe('+15555550123')
     );
+    expect(getByTestId('profile-gender-female').props.accessibilityState.selected).toBe(
+      true
+    );
+  });
+
+  it('saves a changed phone number and gender together, normalized', async () => {
+    // The "change these later" half of the onboarding brief.
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+    (updateDoc as jest.Mock).mockResolvedValue(undefined);
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
+
+    await fireEvent.changeText(getByTestId('profile-phone-input'), '98765 43210');
+    await fireEvent.press(getByTestId('profile-gender-male'));
+    await fireEvent.press(getByTestId('save-profile-details-button'));
+
+    await waitFor(() =>
+      expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+        phoneNumber: '9876543210',
+        gender: 'male',
+      })
+    );
+    await waitFor(() => expect(getByTestId('profile-details-saved')).toBeTruthy());
+  });
+
+  it('refuses a phone number that is not one, and says so', async () => {
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
+
+    await fireEvent.changeText(getByTestId('profile-phone-input'), '123');
+    await fireEvent.press(getByTestId('save-profile-details-button'));
+
+    await waitFor(() => expect(getByTestId('profile-details-error')).toBeTruthy());
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('lets a member withdraw a number they gave', async () => {
+    mockSignedIn();
+    mockProfileSnapshot({
+      role: 'member',
+      displayName: 'Jane Doe',
+      phoneNumber: '9876543210',
+    });
+    (updateDoc as jest.Mock).mockResolvedValue(undefined);
+
+    const { getByTestId } = await renderScreen();
+    await waitFor(() =>
+      expect(getByTestId('profile-phone-input').props.value).toBe('9876543210')
+    );
+
+    await fireEvent.changeText(getByTestId('profile-phone-input'), '');
+    await fireEvent.press(getByTestId('save-profile-details-button'));
+
+    await waitFor(() =>
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ phoneNumber: null })
+      )
+    );
+  });
+
+  it('shows a failed save rather than pretending it worked', async () => {
+    mockSignedIn();
+    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+    (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+
+    const { getByTestId, queryByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
+
+    await fireEvent.changeText(getByTestId('profile-phone-input'), '9876543210');
+    await fireEvent.press(getByTestId('save-profile-details-button'));
+
+    await waitFor(() => expect(getByTestId('profile-details-error')).toBeTruthy());
+    expect(queryByTestId('profile-details-saved')).toBeNull();
   });
 
   it('shows no "Not set" placeholder anywhere for a realistic V1 profile', async () => {

@@ -491,7 +491,7 @@ describe('verse actions', () => {
     await waitFor(() => expect(getByTestId('reader-notice')).toBeTruthy());
   });
 
-  it('shares the verse with its reference and translation', async () => {
+  it('shares the verse and its reference, and nothing else', async () => {
     const share = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' });
@@ -505,13 +505,19 @@ describe('verse actions', () => {
     await waitFor(() => expect(share).toHaveBeenCalled());
     const message = (share.mock.calls[0][0] as { message: string }).message;
     expect(message).toContain('John 3:16');
-    expect(message).toContain('World English Bible');
+    expect(message).toContain('For God so loved the world');
+    // The translation's name is not part of a shared verse -- see
+    // ../../translationCredits.ts.
+    expect(message).not.toContain('World English Bible');
     share.mockRestore();
   });
 
-  it('carries the CC BY-SA attribution when sharing Telugu scripture', async () => {
-    // The IRV is CC BY-SA 4.0, and sharing a verse into a chat IS
-    // redistribution -- the licence conditions that on attribution.
+  it('shares Telugu scripture with NO licence block, the same as English', async () => {
+    // M6 regression, and the same rule the VOTD share follows (see
+    // ../../../daily-verses/__tests__/DailyVerseCard.test.tsx). Quoting a
+    // verse into a chat is quoting, not publishing a derivative work; the
+    // CC BY-SA attribution the bundled IRV requires is met by the
+    // Settings credits card, which is now the app's only licence notice.
     const share = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' });
@@ -524,8 +530,10 @@ describe('verse actions', () => {
     fireEvent.press(getByTestId('share-verse-button'));
     await waitFor(() => expect(share).toHaveBeenCalled());
     const message = (share.mock.calls[0][0] as { message: string }).message;
-    expect(message).toContain('Indian Revised Version');
-    expect(message).toContain('CC BY-SA 4.0');
+    expect(message).toContain('3:16');
+    expect(message).not.toContain('Indian Revised Version');
+    expect(message).not.toContain('CC BY-SA');
+    expect(message).not.toContain('©');
     share.mockRestore();
   });
 
@@ -1013,7 +1021,7 @@ describe('bilingual mode', () => {
     expect(ref.path).toBe('users/member-1/highlights/te_genesis_1_1');
   });
 
-  it('shares a paired verse as readable text, naming each translation', async () => {
+  it('shares a paired verse as readable text, both languages, no licence block', async () => {
     const share = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' });
@@ -1028,8 +1036,11 @@ describe('bilingual mode', () => {
     const message = (share.mock.calls[0][0] as { message: string }).message;
     expect(message).toContain('In the beginning God created the heavens and the earth.');
     expect(message).toContain('ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.');
-    expect(message).toContain('World English Bible');
-    expect(message).toContain('Indian Revised Version');
+    // Both texts, neither translation named, and no copyright line -- a
+    // bilingual share is the same quotation twice, not a licence notice.
+    expect(message).not.toContain('World English Bible');
+    expect(message).not.toContain('Indian Revised Version');
+    expect(message).not.toContain('CC BY-SA');
     // Not a dumped object.
     expect(message).not.toContain('{');
     share.mockRestore();

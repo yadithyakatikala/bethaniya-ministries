@@ -49,9 +49,9 @@ export function buildVotdShareText(content: VotdContent): string {
     });
   }
   if (body.kind === 'englishOnly') {
-    return buildShareText({ ...citation, text: body.english, translationId: 'en' });
+    return buildShareText({ ...citation, text: body.english });
   }
-  return buildShareText({ ...citation, text: body.text, translationId: body.language });
+  return buildShareText({ ...citation, text: body.text });
 }
 
 export function buildVotdCopyText(content: VotdContent): string {
