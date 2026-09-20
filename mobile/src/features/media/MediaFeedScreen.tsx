@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme';
@@ -50,6 +50,7 @@ export function MediaFeedScreen() {
   const [posts, setPosts] = useState<MediaPost[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [signInNotice, setSignInNotice] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const cursorRef = useRef<MediaCursor | null>(null);
@@ -93,6 +94,34 @@ export function MediaFeedScreen() {
     cursorRef.current = null;
     exhaustedRef.current = false;
     setReloadToken((token) => token + 1);
+  }, []);
+
+  /**
+   * M7: pull-to-refresh.
+   *
+   * Deliberately NOT the retry path above -- that one blanks the screen
+   * to a spinner, which is right for "this failed, try again" and wrong
+   * for "show me what is new". This one keeps the posts on screen behind
+   * the platform's own refresh indicator and REPLACES the list when the
+   * new first page arrives; merging would leave a post an administrator
+   * has just unpublished sitting above the fold.
+   */
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const page = await fetchMediaPage();
+      if (!mountedRef.current) return;
+      setPosts(page.posts);
+      cursorRef.current = page.cursor;
+      exhaustedRef.current = page.cursor === null;
+      setStatus('ready');
+    } catch (error) {
+      // A failed refresh leaves what is already on screen alone: the
+      // member asked for newer posts, not to lose the ones they had.
+      console.warn('[media] could not refresh the feed:', error);
+    } finally {
+      if (mountedRef.current) setRefreshing(false);
+    }
   }, []);
 
   const loadMore = useCallback(async () => {
@@ -150,6 +179,13 @@ export function MediaFeedScreen() {
         styles.list,
         { padding: spacing.md, gap: spacing.md, backgroundColor: colors.background },
       ]}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
+          tintColor={colors.inkMuted}
+        />
+      }
       ListHeaderComponent={
         signInNotice || interactions.actionFailed ? (
           <View

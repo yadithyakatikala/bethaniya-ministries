@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme, useTypographyFor } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { formatShortDate } from '../../i18n/locale';
 import { usePreferences } from '../../context/PreferencesContext';
 import { Tappable } from '../../theme/ui/Tappable';
 import {
@@ -136,9 +137,28 @@ export function MediaCard({
           </View>
         ) : null}
 
-        {post.authorName.length > 0 ? (
-          <Text style={[type.caption, { color: colors.inkMuted }]}>
-            {post.authorName}
+        {/* M7: the author AND the publication date. A feed without dates
+            reads as though everything happened at once, and "is this this
+            Sunday's service or last year's?" is the first question a
+            member has about a photograph. The date shown is `publishAt` --
+            when the church chose to show it -- not when the document was
+            written, because those differ for a scheduled post and the
+            first one is the one that means anything to a reader. */}
+        {post.authorName.length > 0 || post.publishAt ? (
+          <Text
+            testID={`media-meta-${post.id}`}
+            style={[type.caption, { color: colors.inkMuted }]}
+          >
+            {[
+              post.authorName.length > 0 ? post.authorName : null,
+              post.publishAt
+                ? t('media.publishedOn', {
+                    date: formatShortDate(post.publishAt, appLanguage),
+                  })
+                : null,
+            ]
+              .filter((part): part is string => part !== null)
+              .join(' · ')}
           </Text>
         ) : null}
       </View>

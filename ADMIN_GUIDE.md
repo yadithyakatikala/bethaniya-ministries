@@ -206,3 +206,80 @@ record-keeping tool, not as a way to actually reach people urgently.
   that testing phase needs. Note what you were doing, what device/browser
   you were using, and pass it along to whoever manages this project's
   technical side.
+
+---
+
+## Reports — reviewing what members have flagged
+
+**Sidebar → Reports.** New in M7.
+
+Members can report a media post, a comment on one, a chat message or a
+prayer request. Each report lands here.
+
+The page opens on **Open** reports only; switch to **All** to see what has
+already been dealt with. Two administrators can work the queue at the
+same time — it updates live, so a report somebody else has just closed
+disappears from your list.
+
+**Review** opens the report and fetches **the content itself**, so you can
+read what was actually said before deciding. Three things you can do:
+
+- **Remove content** — takes it down AND resolves the report in one
+  action. A chat message and a prayer request are hidden behind "This
+  message was removed"; a comment is deleted; a media post is
+  unpublished.
+- **Dismiss** — closes the report and leaves the content alone.
+- **Cancel** — changes nothing.
+
+The optional **note** stays on the report for whoever reads it next.
+
+Two things to expect:
+
+- **A prayer request posted anonymously shows "Anonymous".** That is not
+  the page hiding it from you — the request genuinely carries no author,
+  and only a Super Admin has any path to that information. You can remove
+  an abusive request without knowing who wrote it.
+- **"This has already been deleted by its author."** The author removed
+  it between reporting and review. Dismiss the report; there is nothing
+  left to remove.
+
+Only Content Admins and Super Admins can open this page. Reporters
+cannot read the queue at all, including their own reports — a queue a
+reporter can read is one that tells them who else has reported the same
+person.
+
+## Users — the fuller view
+
+**Sidebar → Users.** Super Admin only, as before.
+
+**Search** matches a name, an email address, a phone number or a user ID.
+A phone number is found with or without its spaces and country code, so
+"9876543210" finds "+91 98765 43210".
+
+**View** opens the member's full record: display name, email, phone,
+gender, preferred app language, how they sign in, role, join date,
+whether they finished onboarding, when they were last active, account
+status and their user ID.
+
+Two fields say **"Not recorded yet"** rather than guessing:
+
+- **Signs in with** and **Last active** are written by the member's own
+  app the next time they open it. An account that has not been opened
+  since this release has neither, and the page says so instead of
+  printing a plausible-looking default.
+
+### Pausing somebody's posting
+
+In the member's detail panel: **Pause posting**.
+
+- They can no longer post chat messages, prayer requests, comments or
+  reports. The app tells them why.
+- **They can still read everything**, and they stay signed in. This is an
+  app-level pause, not a deleted or disabled account — the app cannot
+  disable a Firebase sign-in without a paid plan.
+- It is reversible with the same button (**Allow posting again**).
+- You cannot pause your own account.
+
+Use it when somebody needs to be stopped now and spoken to afterwards.
+For a permanent change, speak to whoever administers the Firebase
+project.

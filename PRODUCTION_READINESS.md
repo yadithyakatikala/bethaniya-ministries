@@ -247,3 +247,120 @@ for those two pieces) — only the Android Gradle Plugin's dependency on
 the explicitly policy-blocked `dl.google.com` remains, and that
 specifically requires your own machine's network, not more local
 tooling.
+
+---
+
+## M7 checkpoint
+
+### What was added
+
+The group chat (`community_messages`), the shared prayer wall
+(`prayer_requests`, with a real anonymity model), reporting and a
+moderation queue (`reports`), a fuller super-admin user view with
+app-level suspension, media-feed polish (publication date,
+pull-to-refresh, reporting), and a guard against Bible attribution
+reappearing in scripture presentation. See `ARCHITECTURE.md`'s "M7:
+member-authored content" and `SECURITY.md`'s "M7: member-authored
+content, anonymity and moderation".
+
+### Verified in this checkpoint
+
+| Check | Result |
+| --- | --- |
+| Mobile typecheck / lint | Clean |
+| Mobile tests | 95 suites, 1128 tests, all passing |
+| Admin typecheck / lint | Clean |
+| Admin tests | 51+ files, all passing |
+| Firestore rules (emulator) | 306 passed, 2 documented skips; 57 of them new for M7 |
+| Placeholder / debug-artifact scan | Clean — no TODO, no `console.log`, no "coming soon" in shipped source |
+| Release AAB build | **Attempted and blocked — see below** |
+
+### Bugs found and fixed by this milestone's own tests
+
+1. **`authProvider` and `lastActiveAt` could never be written.** Their
+   value checks were added to `isValidUserProfileSelfUpdate()` but the
+   keys were not added to the update rule's `affectedKeys().hasOnly()`
+   allowlist, so every write was denied. `recordSignInActivity()`
+   swallows its failures by design, so this would have shipped as a
+   permanently empty column in the admin dashboard rather than as an
+   error. Caught by a new emulator test; allowlist fixed.
+2. **The rules test harness had a cross-suite race.** All four suites
+   share one emulator and each clears Firestore in `afterEach`; run in
+   parallel, one suite deletes another's seeded `/users` mid-test, and
+   the victim fails with a rules evaluation error that reads like a
+   broken rule. `firebase-tests/jest.config.js` now pins
+   `maxWorkers: 1`, with the reasoning recorded there.
+3. **Comments and the More tab greeted members by their email address.**
+   Both read Firebase Auth's `displayName`, which is empty for anyone who
+   signed up with an email and typed their name during onboarding —
+   onboarding writes the Firestore profile, not the Auth record. Both now
+   resolve through `useMemberIdentity()`.
+4. **A stale doc comment claimed shared verses carry a licence block.**
+   M6 removed it from the payload and left `votdSharing.ts` describing
+   the old behaviour. Corrected rather than deleted, and
+   `attributionPlacement.test.ts` now fails if the licence text appears
+   in any module's code outside `translationCredits.ts` and the Settings
+   screen.
+
+### Still blocked, and why
+
+**No Android release artifact can be produced in this environment.**
+This was attempted, not assumed:
+
+```
+$ npx expo prebuild --platform android --clean   # succeeded
+$ ./gradlew :app:bundleRelease --no-daemon
+> Could not resolve com.android.tools.build:gradle:8.5.0.
+  > Could not GET 'https://dl.google.com/dl/android/maven2/com/android/
+    tools/build/gradle/8.5.0/gradle-8.5.0.pom'.
+    Received status code 403 from server: Forbidden
+```
+
+`maven.google.com` redirects (301) to `dl.google.com`, which the network
+policy refuses, so the Android Gradle Plugin cannot be resolved at all.
+There is also no Android SDK installed here. **Neither an APK nor an AAB
+exists, and none is claimed.**
+
+What WAS verified, from the generated native project before it was
+removed again:
+
+- `app_name` is `Maranatha`
+- `applicationId` and `namespace` are `com.bethaniyaministries.app`
+- `versionCode 1`, `versionName "1.0.0"`
+- **no `<monochrome>` adaptive-icon layer** (the M6 themed-icon fix holds)
+- the release signing config reads `BETHANIYA_UPLOAD_*` from
+  `~/.gradle/gradle.properties` and **never from this repository**, and
+  logs a warning when unset rather than silently signing a release build
+  with the debug key
+
+`mobile/android/` was deleted afterwards and `mobile/package.json` /
+`package-lock.json` restored to their exact pre-prebuild checksums — the
+prebuild rewrites a script line, and that change is not part of this
+milestone.
+
+**To produce the AAB**, on a machine with Android SDK access:
+
+```bash
+cd mobile && npx expo prebuild --platform android --clean
+cd android && ./gradlew :app:bundleRelease \
+  -PBETHANIYA_UPLOAD_STORE_FILE=/abs/path/to/upload.jks \
+  -PBETHANIYA_UPLOAD_STORE_PASSWORD=… \
+  -PBETHANIYA_UPLOAD_KEY_ALIAS=… \
+  -PBETHANIYA_UPLOAD_KEY_PASSWORD=…
+# -> app/build/outputs/bundle/release/app-release.aab
+```
+
+Signing credentials do not exist in this repository and were not
+invented. `DEPLOYMENT.md` has the `keytool -genkeypair` command that
+creates the upload key.
+
+**Firestore rules and indexes are still not deployed from here** — there
+are no production Firebase credentials in this environment. M7 adds no
+new composite index: every one of its queries sorts on a single field,
+which Firestore indexes automatically.
+
+**Google Sign-In configuration is still Console-only.** The app code is
+complete and tested; the OAuth clients, SHA-1/SHA-256 fingerprints and
+the Firebase provider toggle are not, and cannot be done from a
+repository. `GOOGLE_SIGN_IN_SETUP.md` is the step-by-step for whoever
+holds the project.

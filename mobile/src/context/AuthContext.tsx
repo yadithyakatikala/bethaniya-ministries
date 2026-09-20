@@ -3,7 +3,12 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '../services/firebase/app';
 import { signOutUser } from '../services/firebase/authService';
 import { logAuthError, toFriendlyAuthMessage } from '../services/firebase/authErrors';
-import { ensureOwnProfileExists } from '../services/firebase/userProfile';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  LAST_ACTIVE_STORAGE_KEY,
+  ensureOwnProfileExists,
+  recordSignInActivity,
+} from '../services/firebase/userProfile';
 
 /**
  * App-wide authentication state, per FINAL_ARCHITECTURE_SPECIFICATION.md's
@@ -51,7 +56,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (nextUser) => {
         setUser(nextUser);
         setStatus(nextUser ? 'authenticated' : 'unauthenticated');
-        if (nextUser) void ensureOwnProfileExists(nextUser);
+        // Sequenced, not fired in parallel: recordSignInActivity()
+        // updates the profile document, so it has to run after the
+        // document is known to exist or its updateDoc hits not-found on
+        // a brand-new account. Both swallow their own failures -- neither
+        // is allowed to be the reason somebody cannot open the app.
+        if (nextUser) {
+          void ensureOwnProfileExists(nextUser).then(() =>
+            recordSignInActivity(nextUser, {
+              readLastRecord: () => AsyncStorage.getItem(LAST_ACTIVE_STORAGE_KEY),
+              writeLastRecord: (record) =>
+                AsyncStorage.setItem(LAST_ACTIVE_STORAGE_KEY, record),
+            })
+          );
+        }
       },
       (error) => {
         setStatus('error');

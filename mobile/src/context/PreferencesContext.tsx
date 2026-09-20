@@ -18,6 +18,7 @@ import {
 import {
   subscribeToOwnProfile,
   updateOwnProfile,
+  type AccountStatus,
   type ThemePreference,
 } from '../services/firebase/userProfile';
 import {
@@ -126,6 +127,31 @@ interface PreferencesContextValue {
    * of looking like the app forgetting the setting.
    */
   syncFailed: boolean;
+  /**
+   * The member's own display name, from their profile document -- M7.
+   *
+   * EXPOSED HERE RATHER THAN READ AGAIN. This provider already holds a
+   * live subscription to users/{uid}; a feature that needs the member's
+   * name to stamp on a chat message or a prayer request would otherwise
+   * open a SECOND listener on the same document, or fall back to
+   * Firebase Auth's `user.displayName` -- which is empty for a member who
+   * signed up with an email address and typed their name in onboarding,
+   * because onboarding writes the Firestore profile, not the Auth record.
+   * That was the "author line is blank" case. See ../features/community
+   * and ../features/prayer-wall.
+   *
+   * `null` while signing in, and for a profile that genuinely has no
+   * name; callers fall back to Auth's value and then to a placeholder.
+   */
+  memberName: string | null;
+  /**
+   * Whether a super admin has paused this member's posting -- M7.
+   *
+   * The composer surfaces use it to explain why, instead of letting the
+   * member type a message and watch it be refused. firestore.rules is
+   * the boundary (see isActiveMember there); this is the explanation.
+   */
+  accountStatus: AccountStatus;
   setAppLanguage: (language: BibleLanguage) => Promise<void>;
   setBibleMode: (mode: BibleMode) => Promise<void>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
@@ -153,6 +179,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
   const [localLoaded, setLocalLoaded] = useState(false);
   const [firestoreLoaded, setFirestoreLoaded] = useState(false);
+  // M7. Read from the SAME profile snapshot the preferences come from --
+  // see memberName / accountStatus on the context value for why these
+  // are here rather than in a second listener of their own.
+  const [memberName, setMemberName] = useState<string | null>(null);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>('active');
 
   // Guards against a slower earlier AsyncStorage read overwriting a
   // faster-resolving later one if this ever re-mounts quickly (e.g. Fast
@@ -265,6 +296,13 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           setFirestoreLoaded(true);
           return;
         }
+        // M7. Not guarded by pendingChoiceRef: neither is a preference
+        // this device ever writes optimistically, so there is no local
+        // choice for a rollback snapshot to undo. accountStatus in
+        // particular must always reflect the server -- a member whose
+        // posting was just paused should see that, not a cached 'active'.
+        setMemberName(profile.displayName);
+        setAccountStatus(profile.accountStatus);
         // The V2 fields are authoritative when present. V1's single
         // `languagePreference` only SEEDS the Bible mode, and only for an
         // account that has never run V2 -- it must never be allowed to
@@ -312,6 +350,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       // never makes isLoaded look true for a new uid's not-yet-arrived
       // snapshot.
       setFirestoreLoaded(false);
+      // Same reasoning, and it matters more here: one member's name must
+      // never be stamped on the next member's message, and one member's
+      // suspension must never follow the next one into the app.
+      setMemberName(null);
+      setAccountStatus('active');
     };
   }, [uid]);
 
@@ -327,6 +370,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       notificationsEnabled,
       isLoaded: localLoaded && (uid ? firestoreLoaded : true),
       syncFailed,
+      memberName,
+      accountStatus,
       // Marking the refs here too (not just in the Firestore-snapshot
       // handler above) means an explicit choice the user makes while the
       // one-time local-load effect is still in flight can never be
@@ -403,6 +448,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       localLoaded,
       firestoreLoaded,
       syncFailed,
+      memberName,
+      accountStatus,
       uid,
     ]
   );

@@ -68,6 +68,21 @@ export const serverTimestamp = jest.fn(() => new MockTimestamp(0));
 export const addDoc = jest.fn();
 export const deleteDoc = jest.fn();
 
+// M7: the shared prayer wall writes THREE documents atomically -- the
+// request, its private author record, and the member's own index entry
+// -- because a request whose author record failed to write is one nobody
+// could ever edit or delete. See src/services/firebase/prayerRequests.ts.
+//
+// The default hands back a fresh recorder per call, so a test can read
+// what was staged and in what order. Tests override it the same way they
+// override runTransaction below.
+export const writeBatch = jest.fn(() => ({
+  set: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  commit: jest.fn(async () => undefined),
+}));
+
 // userProfile.ts's ensureOwnProfileExists(): the first mobile module to use
 // a transaction (get-then-set, matching functions/src/createUserProfile.ts's
 // own idempotency strategy). Default resolves the updateFunction against a

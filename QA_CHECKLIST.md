@@ -338,3 +338,82 @@ overall pass/fail. Every FAIL found here should be fixed, the relevant
 automated test suite re-run, the APK rebuilt, and this checklist run
 again on the rebuilt APK before calling V1 done — see PRODUCTION_READINESS.md's
 "FINAL V1 DEFINITION OF DONE" section.
+
+---
+
+## M7 — new surfaces to test on a device
+
+Run these on a real Android phone, signed in as an ordinary member unless
+a step says otherwise.
+
+### Church chat
+
+- [ ] More → Church chat opens; earlier messages load on scroll up.
+- [ ] Send a message. It appears **once**, immediately, at the bottom.
+- [ ] With the keyboard open, the composer is still visible and the Send
+      button reachable.
+- [ ] A long, multi-line message wraps in full — nothing is truncated.
+- [ ] Your own messages are on the right and say "You"; other people's
+      are on the left and carry their name.
+- [ ] Delete your own message → it disappears for everyone.
+- [ ] Report someone else's → the control then reads "Reported".
+- [ ] Turn airplane mode on and send → "Your message was not sent." and
+      **the text you typed is still in the box**.
+- [ ] Android back closes the chat and returns to More.
+
+### Prayer requests (the shared wall)
+
+- [ ] More → Prayer requests, and Home's tile, both open it.
+- [ ] Pull down to refresh; scroll to load more.
+- [ ] Post a request with your name → your name is shown.
+- [ ] Post one with **Post anonymously** on → it shows "Anonymous" and
+      **your name appears nowhere on the card**.
+- [ ] Both of your requests show Edit / Mark answered / Delete.
+- [ ] Editing an anonymous request says the anonymity cannot be changed,
+      and offers no switch.
+- [ ] Mark answered → the badge changes; reopen it again.
+- [ ] Delete → confirmation first, then the row goes.
+- [ ] Somebody else's request offers Report, not Delete.
+- [ ] With TalkBack on, an anonymous request is announced as "Anonymous"
+      and never reads out a name or an ID.
+
+### Reporting
+
+- [ ] Report a media post, a comment, a chat message and a prayer
+      request. Each says thank you, then reads "Reported".
+- [ ] As a Content Admin, each one appears in the dashboard's Reports
+      queue with the right content attached.
+- [ ] Remove the content → it shows as removed in the app, in place,
+      rather than the list jumping.
+
+### A paused account
+
+- [ ] As a Super Admin, pause a test member's posting.
+- [ ] On that member's phone: chat and the prayer wall explain that
+      posting is paused, the composer is disabled, and **reading still
+      works everywhere** — Bible, songs, events, media.
+- [ ] Allow posting again → they can post immediately.
+
+### Media
+
+- [ ] Each card shows the author and the date it was posted.
+- [ ] Pull down on the feed to refresh.
+- [ ] Open a post → Report is offered; your own comments offer Delete.
+
+### Scripture attribution (M7 §5)
+
+- [ ] No translation name and no copyright line appears anywhere in the
+      Bible reader, on a verse card, on the Verse of the Day, on a
+      Prophet Verse, in a shared or copied verse, or in a prayer or chat
+      message.
+- [ ] Settings still shows the "Bible translations" card in full,
+      including the Telugu IRV's CC BY-SA line. **This is a legal
+      requirement — it must not be removed.**
+
+### Regression (must still be true)
+
+- [ ] The bottom bar is still Home | Bible | Songs | Events | More.
+- [ ] Bible: change the Bible language while reading — the verses change
+      on the spot, the chapter does not, and your text size is kept.
+- [ ] Sign out and back in: onboarding does not run again, and your
+      bookmarks, highlights, notes and reading position are all there.

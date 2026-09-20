@@ -81,6 +81,31 @@ export type ThemePreference = 'light' | 'dark' | 'system';
  */
 export type Gender = 'male' | 'female';
 
+/**
+ * How this member signs in -- M7.
+ *
+ * Firebase's own provider ids, not a private spelling, so the value the
+ * admin list shows is the value Firebase itself uses. Recorded by the
+ * MEMBER'S OWN client, because reading another user's providerData needs
+ * the Admin SDK and therefore a deployed Cloud Function, which this
+ * project's plan does not allow -- see the admin Users page, which says
+ * "not recorded" for an account that has not signed in since M7 rather
+ * than guessing.
+ */
+export type AuthProvider = 'password' | 'google.com' | 'apple.com';
+
+/**
+ * Whether a super admin has suspended this member -- M7.
+ *
+ * APP-LEVEL, NOT AUTH-LEVEL, and the difference is written down in
+ * firestore.rules at isActiveMember(): a suspended member keeps a valid
+ * Firebase Auth token (disabling the account needs the Admin SDK), and
+ * every member-authored write is refused on the server. Reading is not
+ * blocked -- suspension is about somebody posting, not about cutting them
+ * off from scripture.
+ */
+export type AccountStatus = 'active' | 'suspended';
+
 export interface UserProfile {
   uid: string;
   role: string;
@@ -119,6 +144,15 @@ export interface UserProfile {
   bibleMode: BibleModePreference | null;
   themePreference: ThemePreference | null;
   notificationsEnabled: boolean | null;
+  /** M7. `null` for an account that has not signed in since M7 shipped. */
+  authProvider: AuthProvider | null;
+  /** M7. Recorded at most once a day -- see recordSignInActivity(). */
+  lastActiveAt: Date | null;
+  /**
+   * M7. Defaults to 'active': a field nobody has set must never read as
+   * a suspension, and every account predating M7 has no value here.
+   */
+  accountStatus: AccountStatus;
 }
 
 /** Exactly the fields an owner is ever allowed to write -- see this file's
@@ -188,6 +222,22 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     themePreference,
     notificationsEnabled:
       typeof data.notificationsEnabled === 'boolean' ? data.notificationsEnabled : null,
+    authProvider:
+      data.authProvider === 'password' ||
+      data.authProvider === 'google.com' ||
+      data.authProvider === 'apple.com'
+        ? data.authProvider
+        : null,
+    lastActiveAt:
+      data.lastActiveAt instanceof Timestamp
+        ? data.lastActiveAt.toDate()
+        : data.lastActiveAt instanceof Date
+          ? data.lastActiveAt
+          : null,
+    // Anything other than the one value that means "suspended" reads as
+    // active -- an unreadable or missing value must not lock a member out
+    // of their own church's app.
+    accountStatus: data.accountStatus === 'suspended' ? 'suspended' : 'active',
   };
 }
 
@@ -282,6 +332,104 @@ export async function completeOnboarding(
     appLanguage: answers.preferredLanguage,
     profileCompletedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Records that this member signed in, and with which provider -- M7.
+ *
+ * =====================================================================
+ * WHY THE MEMBER'S OWN CLIENT WRITES THIS
+ * =====================================================================
+ * The super admin's Users page has to show which provider an account
+ * uses and whether it is still in use. Both facts live in Firebase Auth,
+ * and reading ANOTHER user's Auth record needs the Admin SDK, which needs
+ * a deployed Cloud Function, which needs the Blaze plan -- the same wall
+ * functions/src/updateUserRole.ts and ./auditLog.ts already hit. So the
+ * only honest options were to make them up or to have each member's own
+ * client record them about itself. This is the second one. An account
+ * that has not signed in since M7 shipped has neither value, and the
+ * admin page says so rather than filling in a plausible-looking guess.
+ *
+ * =====================================================================
+ * AT MOST ONE WRITE A DAY
+ * =====================================================================
+ * `lastActiveAt` answers "is this account still in use", which needs a
+ * resolution of about a day, not of a launch. Writing on every app open
+ * would turn a question nobody asks urgently into one Firestore write per
+ * member per launch, forever, on a free-tier quota. The last write's day
+ * is kept in AsyncStorage, so the throttle costs nothing and survives a
+ * restart; losing it simply means one extra write.
+ *
+ * `authProvider` is written alongside whenever it CHANGES, which in
+ * practice means once. It is re-checked rather than written once and
+ * forgotten because a member who signed up with email and later links
+ * Google should not be listed forever as an email account.
+ *
+ * Failures are swallowed. This is bookkeeping for an admin list; it must
+ * never be the reason somebody cannot open the app. Same decision, same
+ * reason, as ensureOwnProfileExists() below.
+ */
+export const LAST_ACTIVE_STORAGE_KEY = 'maranatha.lastActiveRecord';
+
+export function providerIdOf(user: User): AuthProvider | null {
+  // providerData is the linked providers; providerId on the entry is
+  // Firebase's own spelling. A user signed in anonymously or with a
+  // provider this app does not offer gets null rather than a wrong label.
+  for (const entry of user.providerData) {
+    if (
+      entry.providerId === 'password' ||
+      entry.providerId === 'google.com' ||
+      entry.providerId === 'apple.com'
+    ) {
+      return entry.providerId;
+    }
+  }
+  return null;
+}
+
+/**
+ * What was last written, as one stored string: the day, the provider and
+ * the uid together.
+ *
+ * The uid is in there because two members can share a phone. Without it,
+ * the second person to sign in today would be skipped by the first
+ * person's throttle and never recorded at all.
+ */
+export function lastActiveRecord(
+  uid: string,
+  provider: AuthProvider | null,
+  now: Date
+): string {
+  const day = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  return `${uid}|${day}|${provider ?? ''}`;
+}
+
+export async function recordSignInActivity(
+  user: User,
+  options: {
+    now?: Date;
+    readLastRecord: () => Promise<string | null>;
+    writeLastRecord: (record: string) => Promise<void>;
+  }
+): Promise<void> {
+  const { now = new Date(), readLastRecord, writeLastRecord } = options;
+  try {
+    const provider = providerIdOf(user);
+    const record = lastActiveRecord(user.uid, provider, now);
+    // Same member, same day, same provider -- nothing has changed that
+    // the admin list would show differently, so nothing is written.
+    if ((await readLastRecord()) === record) return;
+
+    const update: Record<string, unknown> = { lastActiveAt: serverTimestamp() };
+    // Omitted rather than written as null when unknown: a member signed
+    // in with a provider this app does not offer should leave the
+    // recorded value alone, not erase it.
+    if (provider !== null) update.authProvider = provider;
+    await updateDoc(doc(db, 'users', user.uid), update);
+    await writeLastRecord(record);
+  } catch (error) {
+    console.warn('[userProfile] recordSignInActivity failed (not fatal):', error);
+  }
 }
 
 /**

@@ -27,6 +27,12 @@ import {
   subscribeToComments,
   type MediaComment,
 } from '../../services/firebase/media';
+import {
+  fetchReportedItemKeys,
+  reportedItemKey,
+} from '../../services/firebase/reports';
+import { useMemberIdentity } from '../../context/useMemberIdentity';
+import { ReportSheet } from '../moderation/ReportSheet';
 import { toYouTubeEmbedUrl } from '../events/youtube';
 import { useMediaInteractions } from './useMediaInteractions';
 
@@ -64,6 +70,7 @@ export function MediaDetailScreen({ route }: Props) {
   const { appLanguage } = usePreferences();
   const interfaceType = useTypographyFor(appLanguage);
   const { user } = useAuth();
+  const identity = useMemberIdentity();
   const interactions = useMediaInteractions();
 
   const [comments, setComments] = useState<MediaComment[] | null>(null);
@@ -72,6 +79,12 @@ export function MediaDetailScreen({ route }: Props) {
   const [posting, setPosting] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [signInNotice, setSignInNotice] = useState(false);
+  // M7 reporting. `reporting` holds what is being reported: the post
+  // itself, or one of its comments -- one sheet, two possible targets.
+  const [reporting, setReporting] = useState<
+    { type: 'media'; id: string } | { type: 'media_comment'; id: string } | null
+  >(null);
+  const [reportedKeys, setReportedKeys] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     const unsubscribe = subscribeToComments(
@@ -88,8 +101,38 @@ export function MediaDetailScreen({ route }: Props) {
     return unsubscribe;
   }, [post.id]);
 
+  // M7. One read for the whole screen, covering the post and every
+  // comment on it -- see ../../services/firebase/reports.ts.
+  useEffect(() => {
+    if (!user) return undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const keys = await fetchReportedItemKeys(user.uid);
+        if (!cancelled) setReportedKeys(keys);
+      } catch (error) {
+        // Not knowing what is already reported costs an affordance, not
+        // the screen: a duplicate report is refused by the deterministic
+        // marker id anyway.
+        console.warn('[media] could not read report markers:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const liked = interactions.likedIds.has(post.id);
   const saved = interactions.savedIds.has(post.id);
+  const postReported = reportedKeys.has(reportedItemKey('media', post.id));
+
+  function markReported(type: 'media' | 'media_comment', id: string) {
+    setReportedKeys((current) => {
+      const next = new Set(current);
+      next.add(reportedItemKey(type, id));
+      return next;
+    });
+  }
   const embedUrl = post.type === 'video' ? toYouTubeEmbedUrl(post.mediaUrl) : null;
 
   function guarded(action: () => void) {
@@ -108,7 +151,11 @@ export function MediaDetailScreen({ route }: Props) {
       await addComment({
         mediaId: post.id,
         uid: user.uid,
-        authorName: user.displayName ?? '',
+        // M7: the resolved name, not Firebase Auth's. Auth's displayName
+        // is empty for a member who signed up with an email address and
+        // typed their name in onboarding, so comments were posted with a
+        // blank author line. See ../../context/useMemberIdentity.ts.
+        authorName: identity.displayName,
         text: draft,
       });
       // Cleared only AFTER the write was accepted. A draft wiped by a
@@ -242,6 +289,32 @@ export function MediaDetailScreen({ route }: Props) {
           </Tappable>
         </View>
 
+        {/* M7. A word rather than an icon: reporting is rare, deliberate
+            and consequential, and a glyph in the action row would sit a
+            thumb's width from Like. It is only offered to a signed-in
+            member, because firestore.rules requires an account to file
+            one -- a signed-out visitor pressing it would only ever get a
+            permission error. */}
+        {identity.uid ? (
+          <Tappable
+            testID="media-detail-report"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: postReported }}
+            disabled={postReported}
+            onPress={() => setReporting({ type: 'media', id: post.id })}
+            style={[styles.reportRow, { minHeight: 44 }]}
+          >
+            <Text
+              style={[
+                type.bodySmall,
+                { color: postReported ? colors.disabledInk : colors.inkMuted },
+              ]}
+            >
+              {postReported ? t('report.alreadyReported') : t('report.action')}
+            </Text>
+          </Tappable>
+        ) : null}
+
         {signInNotice || interactions.actionFailed ? (
           <View
             testID={
@@ -328,6 +401,28 @@ export function MediaDetailScreen({ route }: Props) {
                   {t('common.delete')}
                 </Text>
               </Tappable>
+            ) : identity.uid ? (
+              // M7. Somebody else's comment can be reported; your own can
+              // be deleted. Neither offers the other, because "report my
+              // own comment" is not a thing anybody means to do.
+              <Tappable
+                testID={`media-comment-report-${comment.id}`}
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: reportedKeys.has(
+                    reportedItemKey('media_comment', comment.id)
+                  ),
+                }}
+                disabled={reportedKeys.has(reportedItemKey('media_comment', comment.id))}
+                onPress={() => setReporting({ type: 'media_comment', id: comment.id })}
+                style={styles.deleteComment}
+              >
+                <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
+                  {reportedKeys.has(reportedItemKey('media_comment', comment.id))
+                    ? t('report.alreadyReported')
+                    : t('report.action')}
+                </Text>
+              </Tappable>
             ) : null}
           </View>
         ))}
@@ -364,6 +459,21 @@ export function MediaDetailScreen({ route }: Props) {
           </Text>
         )}
       </ScrollView>
+
+      {reporting ? (
+        <ReportSheet
+          visible
+          targetType={reporting.type}
+          targetId={reporting.id}
+          // A reported COMMENT carries the post it sits under, so an
+          // administrator reviewing the queue can find it. A reported
+          // post is its own parent, so this is null.
+          targetParentId={reporting.type === 'media_comment' ? post.id : null}
+          onClose={() => setReporting(null)}
+          onReported={() => markReported(reporting.type, reporting.id)}
+          testID="media-report"
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -382,6 +492,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   notice: { borderWidth: 1 },
+  reportRow: { alignItems: 'flex-end', justifyContent: 'center' },
   comment: { borderWidth: StyleSheet.hairlineWidth, gap: 2 },
   deleteComment: { minHeight: 44, justifyContent: 'center' },
 });

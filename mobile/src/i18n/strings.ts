@@ -448,6 +448,106 @@ export interface Strings {
   'media.imageLabel': string;
   'media.openPost': string;
   'media.actionFailed': string;
+  /** M7: "Posted 3 March 2026", under a card. */
+  'media.publishedOn': string;
+  'media.refresh': string;
+
+  // --- M7: the group chat ----------------------------------------------
+  // NOT `community.*`: that prefix belongs to the admin-authored posts
+  // feature (see ../features/community/CommunityListScreen.tsx), which is
+  // a different thing in a different collection. Two features, two
+  // prefixes, so neither can borrow the other's wording by accident.
+  'chat.title': string;
+  'chat.sectionTitle': string;
+  'chat.placeholder': string;
+  'chat.send': string;
+  'chat.empty': string;
+  'chat.emptyMessage': string;
+  'chat.loadError': string;
+  'chat.loadErrorMessage': string;
+  'chat.loadOlder': string;
+  'chat.loadingOlder': string;
+  'chat.sendFailed': string;
+  /** The tombstone left where an administrator removed a message. */
+  'chat.removed': string;
+  'chat.deleteLabel': string;
+  'chat.deleteConfirmTitle': string;
+  'chat.deleteConfirmMessage': string;
+  'chat.you': string;
+  'chat.sending': string;
+  /** Screen-reader label for one message: who said it, and what. */
+  'chat.messageLabel': string;
+
+  // --- M7: the shared prayer wall --------------------------------------
+  // Distinct from `prayers.*`, which is the PRIVATE prayer journal at
+  // users/{uid}/prayers. A member can use either or both.
+  'prayerWall.title': string;
+  'prayerWall.sectionTitle': string;
+  'prayerWall.newRequest': string;
+  'prayerWall.editRequest': string;
+  'prayerWall.titleLabel': string;
+  'prayerWall.titlePlaceholder': string;
+  'prayerWall.bodyLabel': string;
+  'prayerWall.bodyPlaceholder': string;
+  'prayerWall.categoryLabel': string;
+  'prayerWall.categoryNone': string;
+  'prayerWall.category.healing': string;
+  'prayerWall.category.family': string;
+  'prayerWall.category.guidance': string;
+  'prayerWall.category.thanksgiving': string;
+  'prayerWall.category.provision': string;
+  'prayerWall.category.other': string;
+  /** The word shown in place of a name. Never a stored value. */
+  'prayerWall.anonymousLabel': string;
+  'prayerWall.anonymousToggle': string;
+  'prayerWall.anonymousHelp': string;
+  /** Shown while editing: the choice cannot be undone afterwards. */
+  'prayerWall.anonymousLocked': string;
+  'prayerWall.submit': string;
+  'prayerWall.submitFailed': string;
+  'prayerWall.titleRequired': string;
+  'prayerWall.bodyRequired': string;
+  'prayerWall.empty': string;
+  'prayerWall.emptyMessage': string;
+  'prayerWall.loadError': string;
+  'prayerWall.loadErrorMessage': string;
+  'prayerWall.loadingMore': string;
+  'prayerWall.refresh': string;
+  'prayerWall.status.open': string;
+  'prayerWall.status.answered': string;
+  'prayerWall.status.closed': string;
+  'prayerWall.markAnswered': string;
+  'prayerWall.reopen': string;
+  'prayerWall.edit': string;
+  'prayerWall.yours': string;
+  'prayerWall.deleteConfirmTitle': string;
+  'prayerWall.deleteConfirmMessage': string;
+  'prayerWall.removed': string;
+  'prayerWall.signInRequired': string;
+
+  // --- M7: reporting ----------------------------------------------------
+  'report.action': string;
+  'report.title': string;
+  'report.intro': string;
+  'report.reasonLabel': string;
+  'report.reason.spam': string;
+  'report.reason.harassment': string;
+  'report.reason.hate': string;
+  'report.reason.sexual': string;
+  'report.reason.violence': string;
+  'report.reason.misinformation': string;
+  'report.reason.other': string;
+  'report.detailsLabel': string;
+  'report.detailsPlaceholder': string;
+  'report.submit': string;
+  'report.submitted': string;
+  'report.submittedMessage': string;
+  'report.alreadyReported': string;
+  'report.failed': string;
+
+  // --- M7: a suspended account ------------------------------------------
+  'account.suspendedTitle': string;
+  'account.suspendedMessage': string;
 }
 
 export type StringKey = keyof Strings;
@@ -796,6 +896,93 @@ const en: Strings = {
   'media.imageLabel': 'Media image',
   'media.openPost': 'Open post',
   'media.actionFailed': 'That did not work. Please try again.',
+  'media.publishedOn': 'Posted {date}',
+  'media.refresh': 'Refresh',
+
+  'chat.title': 'Church chat',
+  'chat.sectionTitle': 'Church chat',
+  'chat.placeholder': 'Write a message',
+  'chat.send': 'Send',
+  'chat.empty': 'No messages yet',
+  'chat.emptyMessage': 'Say hello to the church family.',
+  'chat.loadError': 'Chat could not be loaded',
+  'chat.loadErrorMessage': 'Check your connection and try again.',
+  'chat.loadOlder': 'Load earlier messages',
+  'chat.loadingOlder': 'Loading earlier messages…',
+  'chat.sendFailed': 'Your message was not sent.',
+  'chat.removed': 'This message was removed.',
+  'chat.deleteLabel': 'Delete your message',
+  'chat.deleteConfirmTitle': 'Delete this message?',
+  'chat.deleteConfirmMessage': 'It will be removed for everyone. This cannot be undone.',
+  'chat.you': 'You',
+  'chat.sending': 'Sending…',
+  'chat.messageLabel': '{name} said: {text}',
+
+  'prayerWall.title': 'Prayer requests',
+  'prayerWall.sectionTitle': 'Prayer requests',
+  'prayerWall.newRequest': 'Ask for prayer',
+  'prayerWall.editRequest': 'Edit your request',
+  'prayerWall.titleLabel': 'Subject',
+  'prayerWall.titlePlaceholder': 'What would you like prayer for?',
+  'prayerWall.bodyLabel': 'Details',
+  'prayerWall.bodyPlaceholder': 'Tell the church as much as you would like to share.',
+  'prayerWall.categoryLabel': 'Category',
+  'prayerWall.categoryNone': 'No category',
+  'prayerWall.category.healing': 'Healing',
+  'prayerWall.category.family': 'Family',
+  'prayerWall.category.guidance': 'Guidance',
+  'prayerWall.category.thanksgiving': 'Thanksgiving',
+  'prayerWall.category.provision': 'Provision',
+  'prayerWall.category.other': 'Other',
+  'prayerWall.anonymousLabel': 'Anonymous',
+  'prayerWall.anonymousToggle': 'Post anonymously',
+  'prayerWall.anonymousHelp':
+    'Your name is not saved with this request and nobody in the church can see who wrote it.',
+  'prayerWall.anonymousLocked': 'Whether this request shows your name cannot be changed.',
+  'prayerWall.submit': 'Share request',
+  'prayerWall.submitFailed': 'Your request could not be shared.',
+  'prayerWall.titleRequired': 'Please write a subject.',
+  'prayerWall.bodyRequired': 'Please write a little more.',
+  'prayerWall.empty': 'No requests yet',
+  'prayerWall.emptyMessage': 'Be the first to ask the church to pray with you.',
+  'prayerWall.loadError': 'Requests could not be loaded',
+  'prayerWall.loadErrorMessage': 'Check your connection and try again.',
+  'prayerWall.loadingMore': 'Loading more…',
+  'prayerWall.refresh': 'Refresh',
+  'prayerWall.status.open': 'Praying',
+  'prayerWall.status.answered': 'Answered',
+  'prayerWall.status.closed': 'Closed',
+  'prayerWall.markAnswered': 'Mark answered',
+  'prayerWall.reopen': 'Still praying',
+  'prayerWall.edit': 'Edit',
+  'prayerWall.yours': 'Your request',
+  'prayerWall.deleteConfirmTitle': 'Delete this request?',
+  'prayerWall.deleteConfirmMessage': 'It will be removed for everyone. This cannot be undone.',
+  'prayerWall.removed': 'This request was removed.',
+  'prayerWall.signInRequired': 'Sign in to share a prayer request.',
+
+  'report.action': 'Report',
+  'report.title': 'Report this',
+  'report.intro': 'A church administrator will look at this. Your name is not shown to anyone else.',
+  'report.reasonLabel': 'Why are you reporting it?',
+  'report.reason.spam': 'Spam or advertising',
+  'report.reason.harassment': 'Harassment or bullying',
+  'report.reason.hate': 'Hateful language',
+  'report.reason.sexual': 'Sexual content',
+  'report.reason.violence': 'Violence or threats',
+  'report.reason.misinformation': 'False information',
+  'report.reason.other': 'Something else',
+  'report.detailsLabel': 'Anything else we should know? (optional)',
+  'report.detailsPlaceholder': 'Add a little detail',
+  'report.submit': 'Send report',
+  'report.submitted': 'Thank you',
+  'report.submittedMessage': 'A church administrator will look at this.',
+  'report.alreadyReported': 'Reported',
+  'report.failed': 'Your report could not be sent.',
+
+  'account.suspendedTitle': 'Posting is paused',
+  'account.suspendedMessage':
+    'A church administrator has paused posting on your account. You can still read everything. Please speak to the church office.',
 };
 
 /**
@@ -1147,6 +1334,96 @@ const te: Strings = {
   'media.imageLabel': 'మీడియా చిత్రం',
   'media.openPost': 'పోస్ట్ తెరవండి',
   'media.actionFailed': 'అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  'media.publishedOn': '{date}న పోస్ట్ చేయబడింది',
+  'media.refresh': 'రిఫ్రెష్ చేయండి',
+
+  'chat.title': 'సంఘ సంభాషణ',
+  'chat.sectionTitle': 'సంఘ సంభాషణ',
+  'chat.placeholder': 'సందేశం రాయండి',
+  'chat.send': 'పంపండి',
+  'chat.empty': 'ఇంకా సందేశాలు లేవు',
+  'chat.emptyMessage': 'సంఘ కుటుంబానికి పలకరింపు చెప్పండి.',
+  'chat.loadError': 'సంభాషణను లోడ్ చేయలేకపోయాం',
+  'chat.loadErrorMessage': 'మీ కనెక్షన్‌ను చూసి మళ్లీ ప్రయత్నించండి.',
+  'chat.loadOlder': 'పాత సందేశాలను చూడండి',
+  'chat.loadingOlder': 'పాత సందేశాలు లోడ్ అవుతున్నాయి…',
+  'chat.sendFailed': 'మీ సందేశం పంపబడలేదు.',
+  'chat.removed': 'ఈ సందేశం తొలగించబడింది.',
+  'chat.deleteLabel': 'మీ సందేశాన్ని తొలగించండి',
+  'chat.deleteConfirmTitle': 'ఈ సందేశాన్ని తొలగించాలా?',
+  'chat.deleteConfirmMessage':
+    'ఇది అందరి నుండి తొలగించబడుతుంది. దీనిని తిరిగి పొందలేరు.',
+  'chat.you': 'మీరు',
+  'chat.sending': 'పంపుతోంది…',
+  'chat.messageLabel': '{name} చెప్పారు: {text}',
+
+  'prayerWall.title': 'ప్రార్థన విన్నపాలు',
+  'prayerWall.sectionTitle': 'ప్రార్థన విన్నపాలు',
+  'prayerWall.newRequest': 'ప్రార్థన కోరండి',
+  'prayerWall.editRequest': 'మీ విన్నపాన్ని సవరించండి',
+  'prayerWall.titleLabel': 'విషయం',
+  'prayerWall.titlePlaceholder': 'దేని కోసం ప్రార్థన కావాలి?',
+  'prayerWall.bodyLabel': 'వివరాలు',
+  'prayerWall.bodyPlaceholder': 'మీరు పంచుకోదలచినంత సంఘానికి తెలియజేయండి.',
+  'prayerWall.categoryLabel': 'విభాగం',
+  'prayerWall.categoryNone': 'విభాగం లేదు',
+  'prayerWall.category.healing': 'స్వస్థత',
+  'prayerWall.category.family': 'కుటుంబం',
+  'prayerWall.category.guidance': 'నడిపింపు',
+  'prayerWall.category.thanksgiving': 'కృతజ్ఞతాస్తుతులు',
+  'prayerWall.category.provision': 'అవసరాలు',
+  'prayerWall.category.other': 'ఇతరం',
+  'prayerWall.anonymousLabel': 'పేరు లేకుండా',
+  'prayerWall.anonymousToggle': 'పేరు లేకుండా పంచుకోండి',
+  'prayerWall.anonymousHelp':
+    'ఈ విన్నపంతో మీ పేరు భద్రపరచబడదు, ఎవరు రాశారో సంఘంలో ఎవరికీ తెలియదు.',
+  'prayerWall.anonymousLocked': 'ఈ విన్నపంలో మీ పేరు కనిపించడాన్ని ఇక మార్చలేరు.',
+  'prayerWall.submit': 'విన్నపాన్ని పంచుకోండి',
+  'prayerWall.submitFailed': 'మీ విన్నపాన్ని పంచుకోలేకపోయాం.',
+  'prayerWall.titleRequired': 'దయచేసి ఒక విషయం రాయండి.',
+  'prayerWall.bodyRequired': 'దయచేసి కొంచెం ఎక్కువ రాయండి.',
+  'prayerWall.empty': 'ఇంకా విన్నపాలు లేవు',
+  'prayerWall.emptyMessage': 'సంఘం మీతో కలిసి ప్రార్థించేలా మొదటివారు మీరే అవ్వండి.',
+  'prayerWall.loadError': 'విన్నపాలను లోడ్ చేయలేకపోయాం',
+  'prayerWall.loadErrorMessage': 'మీ కనెక్షన్‌ను చూసి మళ్లీ ప్రయత్నించండి.',
+  'prayerWall.loadingMore': 'మరిన్ని లోడ్ అవుతున్నాయి…',
+  'prayerWall.refresh': 'రిఫ్రెష్ చేయండి',
+  'prayerWall.status.open': 'ప్రార్థిస్తున్నాం',
+  'prayerWall.status.answered': 'జవాబు దొరికింది',
+  'prayerWall.status.closed': 'ముగిసింది',
+  'prayerWall.markAnswered': 'జవాబు దొరికిందని గుర్తించండి',
+  'prayerWall.reopen': 'ఇంకా ప్రార్థిస్తున్నాం',
+  'prayerWall.edit': 'సవరించండి',
+  'prayerWall.yours': 'మీ విన్నపం',
+  'prayerWall.deleteConfirmTitle': 'ఈ విన్నపాన్ని తొలగించాలా?',
+  'prayerWall.deleteConfirmMessage':
+    'ఇది అందరి నుండి తొలగించబడుతుంది. దీనిని తిరిగి పొందలేరు.',
+  'prayerWall.removed': 'ఈ విన్నపం తొలగించబడింది.',
+  'prayerWall.signInRequired': 'ప్రార్థన విన్నపం పంచుకోవడానికి సైన్ ఇన్ చేయండి.',
+
+  'report.action': 'ఫిర్యాదు చేయండి',
+  'report.title': 'దీనిపై ఫిర్యాదు',
+  'report.intro':
+    'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. మీ పేరు ఇతరులకు కనిపించదు.',
+  'report.reasonLabel': 'దేనికి ఫిర్యాదు చేస్తున్నారు?',
+  'report.reason.spam': 'స్పామ్ లేదా ప్రకటన',
+  'report.reason.harassment': 'వేధింపు',
+  'report.reason.hate': 'ద్వేషపూరిత మాటలు',
+  'report.reason.sexual': 'లైంగిక విషయం',
+  'report.reason.violence': 'హింస లేదా బెదిరింపు',
+  'report.reason.misinformation': 'తప్పుడు సమాచారం',
+  'report.reason.other': 'మరేదైనా',
+  'report.detailsLabel': 'ఇంకేమైనా చెప్పాలనుకుంటున్నారా? (ఐచ్ఛికం)',
+  'report.detailsPlaceholder': 'కొంచెం వివరం రాయండి',
+  'report.submit': 'ఫిర్యాదు పంపండి',
+  'report.submitted': 'ధన్యవాదాలు',
+  'report.submittedMessage': 'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు.',
+  'report.alreadyReported': 'ఫిర్యాదు చేశారు',
+  'report.failed': 'మీ ఫిర్యాదు పంపబడలేదు.',
+
+  'account.suspendedTitle': 'పోస్ట్ చేయడం నిలిపివేయబడింది',
+  'account.suspendedMessage':
+    'సంఘ నిర్వాహకులు మీ ఖాతాలో పోస్ట్ చేయడాన్ని నిలిపివేశారు. మీరు అన్నీ చదవగలరు. దయచేసి సంఘ కార్యాలయంతో మాట్లాడండి.',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

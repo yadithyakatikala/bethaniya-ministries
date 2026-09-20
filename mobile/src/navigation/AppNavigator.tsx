@@ -44,6 +44,8 @@ import type { MediaPost } from '../services/firebase/media';
 import { PrayersScreen } from '../features/prayers/PrayersScreen';
 import { CommunityListScreen } from '../features/community/CommunityListScreen';
 import { CommunityPostDetailScreen } from '../features/community/CommunityPostDetailScreen';
+import { CommunityChatScreen } from '../features/community/CommunityChatScreen';
+import { PrayerWallScreen } from '../features/prayer-wall/PrayerWallScreen';
 import type { PublishedCommunityPost } from '../services/firebase/communityPosts';
 import { PlansListScreen } from '../features/plans/PlansListScreen';
 import { PlanDetailScreen } from '../features/plans/PlanDetailScreen';
@@ -164,6 +166,18 @@ export type RootStackParamList = {
    * object, not just an id" reasoning as AnnouncementDetail. */
   CommunityList: undefined;
   CommunityPostDetail: { post: PublishedCommunityPost };
+  /**
+   * M7's group chat. A SEPARATE route from CommunityList, and a separate
+   * collection: CommunityList is the admin-authored posts feed, this is
+   * the congregation talking to each other. Reached from the More tab;
+   * the bottom bar stays Home | Bible | Songs | Events | More.
+   */
+  CommunityChat: undefined;
+  /**
+   * M7's shared prayer wall. Distinct from `Prayers`, which is the
+   * member's own private journal -- see ../features/prayer-wall/.
+   */
+  PrayerWall: undefined;
   /** New V1 feature -- see ../features/plans/. */
   PlansList: undefined;
   PlanDetail: { plan: PublishedPlan };
@@ -429,6 +443,16 @@ export function AppNavigator() {
               name="CommunityPostDetail"
               component={CommunityPostDetailScreen}
               options={({ route }) => ({ title: route.params.post.title })}
+            />
+            <Stack.Screen
+              name="CommunityChat"
+              component={CommunityChatScreen}
+              options={{ title: t('chat.title') }}
+            />
+            <Stack.Screen
+              name="PrayerWall"
+              component={PrayerWallScreen}
+              options={{ title: t('prayerWall.title') }}
             />
             <Stack.Screen
               name="PlansList"

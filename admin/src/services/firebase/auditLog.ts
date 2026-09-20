@@ -34,7 +34,14 @@ export type AuditCollection =
   | 'verse_pool'
   | 'prophet_verses'
   // M6. The media feed's own collection.
-  | 'media';
+  | 'media'
+  // M7. The member-authored collections, and the moderation queue over
+  // them. Logged separately from the content collections above because
+  // "who removed a member's message, and when" is the question a
+  // moderation audit is actually for.
+  | 'community_messages'
+  | 'prayer_requests'
+  | 'reports';
 
 export interface LogAdminActionInput {
   action: AuditAction;

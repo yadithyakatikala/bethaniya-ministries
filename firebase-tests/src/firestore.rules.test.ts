@@ -2676,4 +2676,644 @@ describe('firestore.rules', () => {
     });
   });
 
+
+  // ==================================================================
+  // M7 -- the member-authored collections, and moderation over them.
+  //
+  // These are the first collections in this file that MEMBERS write to,
+  // which changes what the rules have to prove. The anonymity tests
+  // below are the important ones: they check that an anonymous prayer
+  // request cannot carry an author, rather than that the app chooses not
+  // to render one.
+  // ==================================================================
+  describe('M7 community_messages, prayer_requests and reports', () => {
+    async function seedM7Roles() {
+      await seed(async (db) => {
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/member-2').set({ role: 'member' });
+        await db.doc('users/suspended-1').set({
+          role: 'member',
+          accountStatus: 'suspended',
+        });
+      });
+    }
+
+    function message(overrides: Record<string, unknown> = {}) {
+      return {
+        text: 'Good morning church',
+        authorUid: 'member-1',
+        authorName: 'Member One',
+        createdAt: new Date(),
+        removed: false,
+        ...overrides,
+      };
+    }
+
+    describe('the group chat', () => {
+      it('lets a signed-in member send a message as themselves', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('member-1').doc('community_messages/c1').set(message())
+        );
+      });
+
+      it('refuses a message signed with somebody else’s uid', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1')
+            .doc('community_messages/c1')
+            .set(message({ authorUid: 'member-2' }))
+        );
+      });
+
+      it('refuses a signed-out sender', async () => {
+        await assertFails(
+          dbFor(null).doc('community_messages/c1').set(message({ authorUid: 'nobody' }))
+        );
+      });
+
+      it('refuses a message that arrives already claiming to be removed', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('community_messages/c1').set(message({ removed: true }))
+        );
+      });
+
+      it('refuses an empty message and an over-long one', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('community_messages/c1').set(message({ text: '' }))
+        );
+        await assertFails(
+          dbFor('member-1')
+            .doc('community_messages/c2')
+            .set(message({ text: 'x'.repeat(2001) }))
+        );
+      });
+
+      it('lets any signed-in member READ the conversation', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertSucceeds(dbFor('member-2').doc('community_messages/c1').get());
+      });
+
+      it('does NOT let a signed-out visitor read it', async () => {
+        // The deliberate difference from the media feed, which is the
+        // church's public face. This is the congregation talking.
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertFails(dbFor(null).doc('community_messages/c1').get());
+      });
+
+      it('lets nobody EDIT a message -- not even its author', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertFails(
+          dbFor('member-1').doc('community_messages/c1').update({ text: 'rewritten' })
+        );
+        await assertFails(
+          dbFor('admin-1').doc('community_messages/c1').update({ text: 'rewritten' })
+        );
+      });
+
+      it('lets a content admin flag a message removed, and only those fields', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertSucceeds(
+          dbFor('admin-1').doc('community_messages/c1').update({
+            removed: true,
+            removedAt: new Date(),
+            removedByUid: 'admin-1',
+          })
+        );
+        await assertFails(
+          dbFor('admin-1')
+            .doc('community_messages/c1')
+            .update({ removed: true, authorName: 'someone else' })
+        );
+      });
+
+      it('does not let a member remove somebody else’s message', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertFails(
+          dbFor('member-2').doc('community_messages/c1').update({ removed: true })
+        );
+      });
+
+      it('lets an author delete their own message, and nobody else’s', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertFails(dbFor('member-2').doc('community_messages/c1').delete());
+        await assertSucceeds(dbFor('member-1').doc('community_messages/c1').delete());
+      });
+
+      it('refuses a SUSPENDED member’s message but not their reading', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('community_messages/c1').set(message()));
+        await assertFails(
+          dbFor('suspended-1')
+            .doc('community_messages/c2')
+            .set(message({ authorUid: 'suspended-1', authorName: 'Suspended' }))
+        );
+        // Suspension is about posting, not about cutting somebody off.
+        await assertSucceeds(dbFor('suspended-1').doc('community_messages/c1').get());
+      });
+    });
+
+    describe('the prayer wall, and what anonymity actually means', () => {
+      function request(overrides: Record<string, unknown> = {}) {
+        return {
+          title: 'Please pray',
+          body: 'For my family this week.',
+          category: 'family',
+          anonymous: false,
+          authorUid: 'member-1',
+          authorName: 'Member One',
+          status: 'open',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          removed: false,
+          ...overrides,
+        };
+      }
+
+      function anonymousRequest(overrides: Record<string, unknown> = {}) {
+        return {
+          title: 'Please pray',
+          body: 'Something I would rather not put my name to.',
+          category: 'other',
+          anonymous: true,
+          status: 'open',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          removed: false,
+          ...overrides,
+        };
+      }
+
+      it('lets a member post a named request', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('member-1').doc('prayer_requests/p1').set(request())
+        );
+      });
+
+      it('lets a member post an anonymous one with no identity at all', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('member-1').doc('prayer_requests/p1').set(anonymousRequest())
+        );
+      });
+
+      it('REFUSES an anonymous request that carries the author uid', async () => {
+        // This is the whole privacy model in one assertion. Any member can
+        // read this collection, so a uid on the document is a uid every
+        // member can read, whatever the app chooses to render.
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1')
+            .doc('prayer_requests/p1')
+            .set(anonymousRequest({ authorUid: 'member-1' }))
+        );
+      });
+
+      it('REFUSES an anonymous request that carries the author name', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1')
+            .doc('prayer_requests/p1')
+            .set(anonymousRequest({ authorName: 'Member One' }))
+        );
+      });
+
+      it('refuses a named request attributed to somebody else', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1')
+            .doc('prayer_requests/p1')
+            .set(request({ authorUid: 'member-2' }))
+        );
+      });
+
+      it('refuses a request that arrives already answered or already removed', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('prayer_requests/p1').set(request({ status: 'answered' }))
+        );
+        await assertFails(
+          dbFor('member-1').doc('prayer_requests/p2').set(request({ removed: true }))
+        );
+      });
+
+      it('refuses a category outside the closed set', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1')
+            .doc('prayer_requests/p1')
+            .set(request({ category: 'whatever-i-like' }))
+        );
+      });
+
+      it('refuses a SUSPENDED member’s request', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('suspended-1')
+            .doc('prayer_requests/p1')
+            .set(request({ authorUid: 'suspended-1', authorName: 'Suspended' }))
+        );
+      });
+
+      describe('the private author record', () => {
+        async function seedAnonymousRequest() {
+          await seed(async (db) => {
+            await db.doc('prayer_requests/p1').set(anonymousRequest());
+            await db
+              .doc('prayer_requests/p1/private/author')
+              .set({ uid: 'member-1', createdAt: new Date() });
+          });
+        }
+
+        it('lets the author read it', async () => {
+          await seedM7Roles();
+          await seedAnonymousRequest();
+          await assertSucceeds(
+            dbFor('member-1').doc('prayer_requests/p1/private/author').get()
+          );
+        });
+
+        it('lets a SUPER admin read it -- the documented moderation path', async () => {
+          await seedM7Roles();
+          await seedAnonymousRequest();
+          await assertSucceeds(
+            dbFor('super-1').doc('prayer_requests/p1/private/author').get()
+          );
+        });
+
+        it('does NOT let a content admin read it', async () => {
+          // Moderation does not require identity. A content admin can
+          // remove an abusive request without learning who wrote it.
+          await seedM7Roles();
+          await seedAnonymousRequest();
+          await assertFails(
+            dbFor('admin-1').doc('prayer_requests/p1/private/author').get()
+          );
+        });
+
+        it('does NOT let another member read it', async () => {
+          await seedM7Roles();
+          await seedAnonymousRequest();
+          await assertFails(
+            dbFor('member-2').doc('prayer_requests/p1/private/author').get()
+          );
+        });
+
+        it('does not let a signed-out visitor read it', async () => {
+          await seedAnonymousRequest();
+          await assertFails(dbFor(null).doc('prayer_requests/p1/private/author').get());
+        });
+
+        it('refuses a member claiming authorship as somebody else', async () => {
+          await seedM7Roles();
+          await seed(async (db) => db.doc('prayer_requests/p1').set(anonymousRequest()));
+          await assertFails(
+            dbFor('member-2')
+              .doc('prayer_requests/p1/private/author')
+              .set({ uid: 'member-1', createdAt: new Date() })
+          );
+        });
+
+        it('is immutable once written', async () => {
+          await seedM7Roles();
+          await seedAnonymousRequest();
+          await assertFails(
+            dbFor('member-1')
+              .doc('prayer_requests/p1/private/author')
+              .update({ uid: 'member-2' })
+          );
+        });
+      });
+
+      describe('editing and removing', () => {
+        async function seedOwned(anonymous: boolean) {
+          await seed(async (db) => {
+            await db
+              .doc('prayer_requests/p1')
+              .set(anonymous ? anonymousRequest() : request());
+            await db
+              .doc('prayer_requests/p1/private/author')
+              .set({ uid: 'member-1', createdAt: new Date() });
+          });
+        }
+
+        it('lets the author reword their own ANONYMOUS request', async () => {
+          // Ownership is proved by the private record, which is the only
+          // thing that knows -- the public document deliberately does not.
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertSucceeds(
+            dbFor('member-1').doc('prayer_requests/p1').update({
+              title: 'Please pray',
+              body: 'Updated wording.',
+              category: 'other',
+              status: 'answered',
+              updatedAt: new Date(),
+            })
+          );
+        });
+
+        it('does not let another member edit it', async () => {
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertFails(
+            dbFor('member-2')
+              .doc('prayer_requests/p1')
+              .update({ body: 'vandalised', updatedAt: new Date() })
+          );
+        });
+
+        it('does NOT let the author de-anonymise their own request', async () => {
+          // By now other people have responded on the understanding that
+          // it was anonymous.
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertFails(
+            dbFor('member-1')
+              .doc('prayer_requests/p1')
+              .update({ anonymous: false, authorName: 'Member One' })
+          );
+        });
+
+        it('does not let the author flag their own request removed', async () => {
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertFails(
+            dbFor('member-1').doc('prayer_requests/p1').update({ removed: true })
+          );
+        });
+
+        it('lets a content admin flag it removed without learning who wrote it', async () => {
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertSucceeds(
+            dbFor('admin-1').doc('prayer_requests/p1').update({
+              removed: true,
+              removedAt: new Date(),
+              removedByUid: 'admin-1',
+            })
+          );
+        });
+
+        it('lets the author delete their own request, and a content admin too', async () => {
+          await seedM7Roles();
+          await seedOwned(true);
+          await assertFails(dbFor('member-2').doc('prayer_requests/p1').delete());
+          await assertSucceeds(dbFor('member-1').doc('prayer_requests/p1').delete());
+        });
+
+        it('lets nobody edit a request whose private author record is missing', async () => {
+          // DENY is the safe direction: a request nobody can prove they
+          // own is one only an administrator can remove.
+          await seedM7Roles();
+          await seed(async (db) => db.doc('prayer_requests/p1').set(anonymousRequest()));
+          await assertFails(
+            dbFor('member-1')
+              .doc('prayer_requests/p1')
+              .update({ body: 'changed', updatedAt: new Date() })
+          );
+        });
+      });
+
+      describe('the member’s own index', () => {
+        it('is readable and writable only by its owner', async () => {
+          await seedM7Roles();
+          await assertSucceeds(
+            dbFor('member-1')
+              .doc('users/member-1/prayerRequests/p1')
+              .set({ createdAt: new Date(), anonymous: true })
+          );
+          await assertFails(
+            dbFor('member-2')
+              .doc('users/member-1/prayerRequests/p2')
+              .set({ createdAt: new Date(), anonymous: true })
+          );
+          await assertFails(
+            dbFor('member-2').doc('users/member-1/prayerRequests/p1').get()
+          );
+        });
+
+        it('refuses smuggled extra fields', async () => {
+          await seedM7Roles();
+          await assertFails(
+            dbFor('member-1')
+              .doc('users/member-1/prayerRequests/p1')
+              .set({ createdAt: new Date(), anonymous: true, body: 'the text' })
+          );
+        });
+      });
+    });
+
+    describe('reports', () => {
+      function report(overrides: Record<string, unknown> = {}) {
+        return {
+          targetType: 'community_message',
+          targetId: 'c1',
+          targetParentId: null,
+          reason: 'harassment',
+          details: 'This was unkind.',
+          reporterUid: 'member-1',
+          createdAt: new Date(),
+          status: 'open',
+          ...overrides,
+        };
+      }
+
+      it('lets a member file a report as themselves', async () => {
+        await seedM7Roles();
+        await assertSucceeds(dbFor('member-1').doc('reports/r1').set(report()));
+      });
+
+      it('refuses a report filed under somebody else’s name', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('reports/r1').set(report({ reporterUid: 'member-2' }))
+        );
+      });
+
+      it('refuses a report that arrives already resolved', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('reports/r1').set(report({ status: 'resolved' }))
+        );
+        await assertFails(
+          dbFor('member-1')
+            .doc('reports/r2')
+            .set(report({ resolvedByUid: 'member-1', resolvedAt: new Date() }))
+        );
+      });
+
+      it('refuses a reason outside the closed set', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('reports/r1').set(report({ reason: 'i-dislike-them' }))
+        );
+      });
+
+      it('refuses a SUSPENDED member’s report', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('suspended-1')
+            .doc('reports/r1')
+            .set(report({ reporterUid: 'suspended-1' }))
+        );
+      });
+
+      it('does NOT let the reporter read their own report back', async () => {
+        // A queue a reporter can read is a queue that tells them whether
+        // anyone else has reported the same person.
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertFails(dbFor('member-1').doc('reports/r1').get());
+      });
+
+      it('does not let a host read the queue', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertFails(dbFor('host-1').doc('reports/r1').get());
+      });
+
+      it('lets a content admin read and resolve one', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertSucceeds(dbFor('admin-1').doc('reports/r1').get());
+        await assertSucceeds(
+          dbFor('admin-1').doc('reports/r1').update({
+            status: 'resolved',
+            resolvedByUid: 'admin-1',
+            resolvedAt: new Date(),
+            resolutionNote: 'Removed the message.',
+          })
+        );
+      });
+
+      it('refuses an administrator recording somebody else as the resolver', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertFails(
+          dbFor('admin-1').doc('reports/r1').update({
+            status: 'resolved',
+            resolvedByUid: 'super-1',
+            resolvedAt: new Date(),
+          })
+        );
+      });
+
+      it('does not let a member resolve a report', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertFails(
+          dbFor('member-1').doc('reports/r1').update({ status: 'dismissed' })
+        );
+      });
+
+      it('lets only a super admin delete one', async () => {
+        await seedM7Roles();
+        await seed(async (db) => db.doc('reports/r1').set(report()));
+        await assertFails(dbFor('admin-1').doc('reports/r1').delete());
+        await assertSucceeds(dbFor('super-1').doc('reports/r1').delete());
+      });
+
+      it('keeps a member’s own report markers private to them', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('member-1')
+            .doc('users/member-1/reportedItems/community_message_c1')
+            .set({ createdAt: new Date() })
+        );
+        await assertFails(
+          dbFor('member-2').doc('users/member-1/reportedItems/community_message_c1').get()
+        );
+      });
+    });
+
+    describe('account status', () => {
+      it('lets a super admin suspend and reinstate another member', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'suspended' })
+        );
+        await assertSucceeds(
+          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'active' })
+        );
+      });
+
+      it('does not let a super admin suspend THEMSELVES', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1').doc('users/super-1').update({ accountStatus: 'suspended' })
+        );
+      });
+
+      it('does not let a content admin suspend anyone', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('admin-1').doc('users/member-1').update({ accountStatus: 'suspended' })
+        );
+      });
+
+      it('does not let a member lift their own suspension', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('suspended-1')
+            .doc('users/suspended-1')
+            .update({ accountStatus: 'active' })
+        );
+      });
+
+      it('refuses a value outside the closed set', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'banned' })
+        );
+      });
+
+      it('does not let one write change both role and account status', async () => {
+        // Two different decisions, two different audit entries.
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({ role: 'host', accountStatus: 'suspended' })
+        );
+      });
+    });
+
+    describe('the M7 profile fields an owner may write', () => {
+      it('lets a member record their own provider and last-active stamp', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('member-1')
+            .doc('users/member-1')
+            .update({ authProvider: 'google.com', lastActiveAt: new Date() })
+        );
+      });
+
+      it('refuses a provider value this app does not offer', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('users/member-1').update({ authProvider: 'facebook.com' })
+        );
+      });
+
+      it('still refuses a member writing their own accountStatus', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('member-1').doc('users/member-1').update({ accountStatus: 'active' })
+        );
+      });
+    });
+  });
+
 });

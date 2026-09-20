@@ -1,18 +1,24 @@
 /**
  * Sharing and copying the Verse of the Day.
  *
- * THERE IS NO SHARING LOGIC HERE. M4 already decided what a shared verse
- * looks like -- quoted text, the reference, the translation's published
- * name, and the IRV's CC BY-SA attribution, which a share into a chat
- * legally requires (see ../bible/reader/verseSharing.ts and
- * /BIBLE_LICENSING.md). This module only maps a VotdContent onto those
+ * THERE IS NO SHARING LOGIC HERE. ../bible/reader/verseSharing.ts decides
+ * what a shared verse looks like -- the quoted text and its reference,
+ * and nothing else. This module only maps a VotdContent onto those
  * builders and picks the right one.
  *
- * THE ONE CASE M4 CANNOT COVER is an administrator's override. Its
- * reference is a string a person typed -- "Isaiah 53:5 (NIV)", or a range
- * -- so it cannot be taken apart into book/chapter/label, and its
- * translation is unknown, so no translation name or licence line can
- * honestly be attached. That share is therefore the reference as written
+ * NO TRANSLATION NAME AND NO LICENCE LINE. This header used to say a
+ * shared verse carried the translation's published title and the IRV's
+ * CC BY-SA copyright line; M6 removed both from the payload and left this
+ * comment describing the old behaviour. It is corrected here rather than
+ * deleted, because "the docs said the opposite" is how the removal would
+ * get undone. The attribution obligation is met, permanently, by the
+ * Settings screen's "Bible translations" card -- see
+ * ../bible/translationCredits.ts and /BIBLE_LICENSING.md.
+ *
+ * THE ONE CASE THE SHARED BUILDERS CANNOT COVER is an administrator's
+ * override. Its reference is a string a person typed -- "Isaiah 53:5
+ * (NIV)", or a range -- so it cannot be taken apart into
+ * book/chapter/label. That share is therefore the reference as written
  * and the text as written, and nothing invented.
  */
 import {

@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import { usePreferences } from '../../context/PreferencesContext';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { Tappable } from '../../theme/ui/Tappable';
@@ -19,13 +20,18 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 export function MoreScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
+  const { memberName } = usePreferences();
   const { colors, radii, spacing, type } = useTheme();
   const { t } = useTranslation();
 
+  // M7: the PROFILE's name first. Firebase Auth's displayName is empty
+  // for a member who signed up with an email address and typed their name
+  // in onboarding -- onboarding writes the Firestore profile, not the
+  // Auth record -- so this row greeted them by their email address.
   // The final fallback is a WORD rather than a name, so it is translated:
   // a Telugu interface should not address the member in English.
   const displayLabel =
-    user?.displayName || user?.email || user?.phoneNumber || t('common.member');
+    memberName || user?.displayName || user?.email || user?.phoneNumber || t('common.member');
 
   return (
     <ScrollView
@@ -98,6 +104,27 @@ export function MoreScreen() {
             <Text style={[type.label, { color: colors.text }]}>{t('more.prayers')}</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
+          {/* M7. The shared prayer wall sits next to the private prayer
+              journal above, because "ask the church to pray" and "keep my
+              own list" are the two halves of the same thing to a member
+              -- they are separate collections with separate permissions,
+              and the two rows are named so the difference is readable
+              without opening either. */}
+          <Tappable
+            testID="more-prayer-wall-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('PrayerWall')}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
+          >
+            <Text style={[type.label, { color: colors.text }]}>
+              {t('prayerWall.title')}
+            </Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Tappable>
           <Tappable
             testID="more-community-link"
             accessibilityRole="button"
@@ -111,6 +138,21 @@ export function MoreScreen() {
             <Text style={[type.label, { color: colors.text }]}>
               {t('more.community')}
             </Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Tappable>
+          {/* M7. The group chat, distinct from the admin-authored
+              community posts above it. */}
+          <Tappable
+            testID="more-chat-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('CommunityChat')}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
+          >
+            <Text style={[type.label, { color: colors.text }]}>{t('chat.title')}</Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
           {/* M6. Media lives here rather than in the bottom bar, which

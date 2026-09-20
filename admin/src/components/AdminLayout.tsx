@@ -87,6 +87,10 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
     path: '/notifications',
     testId: 'sidebar-notifications-link',
   },
+  // M7. Moderation sits next to Users: it is day-to-day work on the
+  // congregation's own content, and it is the people whose content it is
+  // that an administrator reaches for next.
+  { label: 'Reports', path: '/reports', testId: 'sidebar-reports-link' },
   { label: 'Users', path: '/users', testId: 'sidebar-users-link' },
   { label: 'Settings', path: '/settings', testId: 'sidebar-settings-link' },
 ];

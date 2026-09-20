@@ -62,6 +62,20 @@ describe('users service', () => {
 
       const users = await fetchAllUsers();
 
+      // M7's fields map to null for a document that does not carry them,
+      // which is every document written before M7 -- except
+      // accountStatus, which defaults to 'active': a member with no
+      // stored status is not suspended, and treating a missing value as
+      // a suspension would silently mute the whole congregation.
+      const m7Defaults = {
+        gender: null,
+        appLanguage: null,
+        authProvider: null,
+        lastActiveAt: null,
+        profileCompletedAt: null,
+        accountStatus: 'active',
+      };
+
       expect(users).toEqual([
         {
           uid: 'uid-1',
@@ -70,6 +84,7 @@ describe('users service', () => {
           phoneNumber: '+10000000000',
           role: 'content_admin',
           createdAt: new Date(1000 * 1000),
+          ...m7Defaults,
         },
         {
           uid: 'uid-2',
@@ -78,6 +93,7 @@ describe('users service', () => {
           phoneNumber: null,
           role: 'member',
           createdAt: null,
+          ...m7Defaults,
         },
       ]);
     });

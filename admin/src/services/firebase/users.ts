@@ -42,11 +42,15 @@ import {
 } from 'firebase/firestore';
 import { db } from './app';
 import { logAdminAction } from './auditLog';
-import type { AdminUserSummary, UserRole } from '../../types';
+import type { AccountStatus, AdminUserSummary, UserRole } from '../../types';
 
 const USERS_COLLECTION = 'users';
 
-function toAdminUserSummary(
+function asDate(value: unknown): Date | null {
+  return value instanceof Timestamp ? value.toDate() : null;
+}
+
+export function toAdminUserSummary(
   uid: string,
   data: Record<string, unknown>
 ): AdminUserSummary {
@@ -56,7 +60,25 @@ function toAdminUserSummary(
     email: typeof data.email === 'string' ? data.email : null,
     phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : null,
     role: typeof data.role === 'string' ? (data.role as UserRole) : 'member',
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    createdAt: asDate(data.createdAt),
+    // M7 fields. Each one maps an UNRECOGNISED or missing value to null
+    // rather than to a default that reads like a fact -- "not recorded"
+    // and "email account" are different answers, and the page shows the
+    // difference. accountStatus is the single exception: anything other
+    // than the literal 'suspended' is an active account, because a
+    // missing value must never lock a member out.
+    gender: data.gender === 'male' || data.gender === 'female' ? data.gender : null,
+    appLanguage:
+      data.appLanguage === 'en' || data.appLanguage === 'te' ? data.appLanguage : null,
+    authProvider:
+      data.authProvider === 'password' ||
+      data.authProvider === 'google.com' ||
+      data.authProvider === 'apple.com'
+        ? data.authProvider
+        : null,
+    lastActiveAt: asDate(data.lastActiveAt),
+    profileCompletedAt: asDate(data.profileCompletedAt),
+    accountStatus: data.accountStatus === 'suspended' ? 'suspended' : 'active',
   };
 }
 
@@ -101,4 +123,43 @@ export async function updateUserRole(
     changeSummary: `Changed role to "${newRole}"`,
   });
   return { uid: targetUid, role: newRole };
+}
+
+/**
+ * Suspends or reinstates a member -- M7.
+ *
+ * =====================================================================
+ * WHAT THIS ACTUALLY DOES, AND WHAT IT CANNOT
+ * =====================================================================
+ * It writes `accountStatus` on the member's own document. From that
+ * moment firestore.rules' isActiveMember() refuses every member-authored
+ * WRITE they attempt -- chat messages, prayer requests, media comments,
+ * reports -- on the SERVER, whatever client they use. That is a real
+ * boundary, not a UI state.
+ *
+ * It does NOT disable their Firebase Auth account, and cannot: that needs
+ * the Admin SDK, which needs a deployed Cloud Function, which needs the
+ * Blaze plan this project deliberately stays off (the same wall
+ * ./auditLog.ts and functions/src/updateUserRole.ts already document).
+ * So a suspended member stays signed in and can still READ the app --
+ * scripture, songs, service times. Suspension here is about somebody
+ * posting, not about cutting them off from their church.
+ *
+ * A separate write from updateUserRole() above, and a separate rules
+ * branch, so one action can never do both: "changed their role" and
+ * "suspended them" are different decisions and belong in different audit
+ * entries. rules also refuse a super admin suspending themselves.
+ */
+export async function setAccountStatus(
+  targetUid: string,
+  status: AccountStatus
+): Promise<void> {
+  await updateDoc(doc(db, USERS_COLLECTION, targetUid), { accountStatus: status });
+  await logAdminAction({
+    action: 'update',
+    collection: 'users',
+    documentId: targetUid,
+    changeSummary:
+      status === 'suspended' ? 'Paused posting on this account' : 'Restored posting',
+  });
 }

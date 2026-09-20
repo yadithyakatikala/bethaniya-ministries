@@ -34,6 +34,7 @@ import { EventsListPage } from './features/events/EventsListPage';
 import { EventForm } from './features/events/EventForm';
 import { EditEventPage } from './features/events/EditEventPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { ReportsPage } from './features/moderation/ReportsPage';
 import { UsersPage } from './features/users/UsersPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -384,6 +385,20 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <NotificationsPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* M7. The moderation queue. Behind ProtectedRoute like every
+              other admin screen; firestore.rules' /reports read rule
+              (content admin or above) is the boundary that actually
+              decides who can see anything, exactly as elsewhere. */}
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <ReportsPage />
                 </AdminLayout>
               </ProtectedRoute>
             }

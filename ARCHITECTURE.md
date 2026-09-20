@@ -404,3 +404,131 @@ authorization boundary instead of introducing a new one.
   card). The existing `Home/Bible/Songs/Events/More` bottom tab bar is
   unchanged — these are reached via More and Home's quick-links grid, not
   new bottom-tab destinations.
+
+---
+
+## M7: member-authored content — code patterns
+
+M7 adds the first three collections in this project that MEMBERS write
+to. Every content collection before it was written by an administrator
+and read by the congregation, and that difference is what shaped the
+decisions below.
+
+### `community_messages` is not `community`
+
+Two features, two collections, deliberately not one:
+
+| | `community` | `community_messages` |
+| --- | --- | --- |
+| Who writes | Content admin | Any active member |
+| What it is | Testimonies, church-family posts | The group chat |
+| Read by | Signed-in members (published only) | Signed-in members |
+| Editable | Yes, by an admin | **By nobody** |
+| Mobile screen | `CommunityListScreen` | `CommunityChatScreen` |
+| i18n prefix | `community.*` | `chat.*` |
+
+Merging them would have meant one rule set trying to express "an
+administrator may edit this, a member may not, and a member may create
+one but only of the second kind", which is three rules pretending to be
+one. Separate collections make each rule a sentence.
+
+**A chat message is immutable.** `allow update` is moderation-only. An
+editable message means a reported message can be rewritten into something
+innocuous before an administrator reads the report, and it means one
+member's screen can disagree with another's about what was said. A member
+who got it wrong deletes and sends again.
+
+### Anonymity is a property of the document, not of the UI
+
+`prayer_requests/{id}` carries **no author identity at all** when
+`anonymous` is true — `isValidPrayerRequest()` refuses the write if
+`authorUid` or `authorName` is present. The easy version of this feature
+keeps the uid and has the UI render "Anonymous", which is not anonymity:
+every signed-in member can read this collection, so a field that is
+present is a field they can read with the SDK, a REST call or the
+emulator UI, whatever the app draws.
+
+The author is still recorded, because otherwise they could neither edit
+nor delete their own request. Three documents, one batch:
+
+```
+prayer_requests/{id}                   public; no identity when anonymous
+prayer_requests/{id}/private/author    { uid } -- author + SUPER admin only
+users/{uid}/prayerRequests/{id}        the member's own index
+```
+
+The private record is what `isPrayerRequestAuthor()` reads to authorise an
+edit. The index exists so the app can show ITS author an edit button
+without one read per row — the same shape as `users/{uid}/mediaLikes`.
+
+**A content admin deliberately cannot read the private record.**
+Moderation does not require identity: an abusive request can be removed
+without anyone learning it was written by the member three rows in front.
+Only a super admin can look, and that is the one privileged path the
+brief permits.
+
+**`anonymous` cannot be changed afterwards, by anyone.** It is outside
+the author's update allowlist. By the time somebody edits their request,
+others have responded on the understanding that it was, or was not,
+anonymous.
+
+### Removal is soft; reports point at something real
+
+A chat message and a prayer request are flagged `removed`, and the app
+draws a tombstone in their place. A hard delete would take the evidence
+out of the hands of the administrator reviewing the report, and would
+make the list reflow under whoever was reading it. A media comment is the
+exception — rules have never allowed a comment to be updated, so it is
+deleted.
+
+### One listener, and it is bounded
+
+The chat is the only standing real-time subscription in the app, and it
+covers the newest page only (`limit(30)`). History is plain reads. The
+prayer wall and the media feed are paginated with pull-to-refresh and no
+listener at all. See `mobile/src/services/firebase/communityChat.ts` for
+why the chat is the exception and why nothing is inserted optimistically
+(the SDK's own local write already renders it; a hand-added row is how a
+message appears twice).
+
+### Suspension is app-level, and says so
+
+`users/{uid}.accountStatus` is written by a super admin;
+`isActiveMember()` in the rules refuses every member-authored write from
+a suspended account, on the server. It does **not** disable the Firebase
+Auth account — that needs the Admin SDK, hence a Cloud Function, hence
+Blaze, which this project stays off. Reads are not gated: suspension is
+about somebody posting, not about cutting them off from scripture.
+
+### `authProvider` and `lastActiveAt` are self-reported, on purpose
+
+The super admin's user list has to show how a member signs in and whether
+the account is still in use. Both facts live in Firebase Auth, and
+reading ANOTHER user's Auth record needs the Admin SDK. The only honest
+options were to invent them or to have each member's own client record
+them about itself; `recordSignInActivity()` does the second, throttled to
+at most one write a day. An account that has not signed in since M7 has
+neither value, and the admin page prints "Not recorded yet" rather than a
+plausible-looking guess.
+
+### Where this code lives
+
+- Rules: `firestore.rules` — `isActiveMember()`, `isValidCommunityMessage()`,
+  `isValidPrayerRequest()`, `isValidReport()`, `isPrayerRequestAuthor()`,
+  `isModerationOnlyChange()`, and the `community_messages`,
+  `prayer_requests` (+ `private/author`), `reports`,
+  `users/{uid}/prayerRequests` and `users/{uid}/reportedItems` blocks.
+  **No new composite index is required** — every M7 query sorts on a
+  single field, which Firestore indexes automatically.
+- Rules tests: `firebase-tests/src/firestore.rules.test.ts`, the
+  "M7 community_messages, prayer_requests and reports" block.
+- Mobile: `mobile/src/services/firebase/{communityChat,prayerRequests,reports}.ts`,
+  `mobile/src/features/{community,prayer-wall,moderation}/*`,
+  `mobile/src/context/useMemberIdentity.ts`, wired into
+  `AppNavigator.tsx`, `MoreScreen.tsx` and `HomeScreen.tsx`'s tile grid.
+  The `Home | Bible | Songs | Events | More` bottom bar is unchanged.
+- Admin: `admin/src/services/firebase/reports.ts`,
+  `admin/src/features/moderation/ReportsPage.tsx`,
+  `admin/src/features/users/{UsersPage.tsx,userSearch.ts}`,
+  `admin/src/services/firebase/users.ts`, `/reports` route and sidebar
+  entry.

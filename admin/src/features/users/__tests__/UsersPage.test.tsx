@@ -17,6 +17,22 @@ function asUser(uid: string): User {
   return { uid } as unknown as User;
 }
 
+/**
+ * M7's fields, defaulted here so each fixture below states only what it
+ * is actually about. `authProvider: null` and `lastActiveAt: null` are
+ * the REAL shape of an account that has not signed in since M7 shipped,
+ * which is every existing member on the day it does -- so this is the
+ * common case, not a convenience.
+ */
+const M7_DEFAULTS = {
+  gender: null,
+  appLanguage: null,
+  authProvider: null,
+  lastActiveAt: null,
+  profileCompletedAt: null,
+  accountStatus: 'active',
+} satisfies Partial<AdminUserSummary>;
+
 const OTHER_USER: AdminUserSummary = {
   uid: 'other-uid',
   displayName: 'Jane Doe',
@@ -24,6 +40,7 @@ const OTHER_USER: AdminUserSummary = {
   phoneNumber: '+10000000000',
   role: 'member',
   createdAt: new Date('2026-01-01T00:00:00Z'),
+  ...M7_DEFAULTS,
 };
 
 const SELF_USER: AdminUserSummary = {
@@ -33,6 +50,7 @@ const SELF_USER: AdminUserSummary = {
   phoneNumber: null,
   role: 'super_admin',
   createdAt: new Date('2025-06-01T00:00:00Z'),
+  ...M7_DEFAULTS,
 };
 
 describe('UsersPage', () => {

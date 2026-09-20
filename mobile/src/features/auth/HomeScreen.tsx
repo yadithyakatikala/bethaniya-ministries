@@ -585,10 +585,18 @@ export function HomeScreen() {
         </View>
       ) : null}
 
-      {/* Compact icon tiles, NOT content cards: the three secondary
-          features the bottom tab bar does not cover. Songs / Bible /
-          Events / Profile are deliberately absent -- the first three are
-          tabs and Profile is the header icon above. */}
+      {/* Compact icon tiles, NOT content cards: the secondary features
+          the bottom tab bar does not cover. Songs / Bible / Events /
+          Profile are deliberately absent -- the first three are tabs and
+          Profile is the header icon above.
+
+          M7 adds the prayer wall and the group chat, which takes the row
+          to five and therefore onto two rows on a phone. The row WRAPS
+          rather than shrinking the tiles: five 78dp tiles across a 390dp
+          screen would leave each one below a comfortable target once
+          padding is counted, and the labels -- up to twice as long in
+          Telugu -- would have nowhere to go. Each tile keeps a third of
+          the width, so it reads as a grid rather than as a broken row. */}
       <View style={styles.tileRow} testID="home-feature-tiles">
         <FeatureTile
           testID="prayers-nav-button"
@@ -596,6 +604,14 @@ export function HomeScreen() {
           onPress={() => navigation.navigate('Prayers')}
         >
           <PrayerIcon color={colors.primary} size={26} />
+        </FeatureTile>
+        {/* The SHARED wall, beside the private journal it is not. */}
+        <FeatureTile
+          testID="prayer-wall-nav-button"
+          label={t('prayerWall.title')}
+          onPress={() => navigation.navigate('PrayerWall')}
+        >
+          <PrayerIcon color={colors.accent} size={26} />
         </FeatureTile>
         <FeatureTile
           testID="plans-nav-button"
@@ -610,6 +626,13 @@ export function HomeScreen() {
           onPress={() => navigation.navigate('CommunityList')}
         >
           <PeopleIcon color={colors.primary} size={26} />
+        </FeatureTile>
+        <FeatureTile
+          testID="chat-nav-button"
+          label={t('chat.title')}
+          onPress={() => navigation.navigate('CommunityChat')}
+        >
+          <PeopleIcon color={colors.accent} size={26} />
         </FeatureTile>
       </View>
     </ScrollView>
@@ -659,8 +682,12 @@ const styles = StyleSheet.create({
   // Compact icon tiles. Square with a large radius, sized so three fit a
   // narrow phone comfortably; the label sits OUTSIDE the tile so the
   // glyph stays the whole of the tappable square.
-  tileRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  tileColumn: { flex: 1, alignItems: 'center', gap: 8 },
+  // M7: wraps, and each tile takes a third of the width rather than an
+  // equal share of however many there are -- `flex: 1` on a wrapping row
+  // makes the last row's one or two tiles stretch to fill it, which
+  // reads as a mistake. See the tile row's own comment.
+  tileRow: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16, columnGap: 12 },
+  tileColumn: { width: '30%', alignItems: 'center', gap: 8 },
   tile: {
     width: '100%',
     aspectRatio: 1,

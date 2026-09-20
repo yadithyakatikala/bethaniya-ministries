@@ -871,3 +871,125 @@ boundary:
   Cloud Functions) — unchanged from prior checkpoints.
 - **Secrets scan re-run**: clean, same method and result as every prior
   checkpoint.
+
+---
+
+## M7: member-authored content, anonymity and moderation
+
+### What M7 added to the threat model
+
+Three collections that **members write to**. Everything before M7 was
+administrator-authored and member-read, so "can this caller write here?"
+had one answer per collection. It now has one per document, and the rules
+below are what enforce that.
+
+| Collection | Read | Create | Update | Delete |
+| --- | --- | --- | --- | --- |
+| `community_messages` | Signed in | Active member, as themselves | **Moderation flag only**, content admin+ | Own author, or content admin+ |
+| `prayer_requests` | Signed in | Active member; anonymous carries no identity | Author (not `anonymous`), or moderation flag by content admin+ | Author, or content admin+ |
+| `prayer_requests/{id}/private/author` | **Author or super admin only** | Author, once | **Nobody** | Super admin |
+| `reports` | **Content admin+ only** | Active member, as themselves, status `open` | Content admin+, resolution fields only | Super admin |
+| `users/{uid}/prayerRequests` | Owner | Owner | Owner | Owner |
+| `users/{uid}/reportedItems` | Owner | Owner | Owner | Owner |
+
+### The anonymity guarantee, and how it is enforced
+
+A prayer request marked anonymous carries **no `authorUid` and no
+`authorName`** — `isValidPrayerRequest()` refuses the write outright if
+either key is present. This is the whole model, and it is deliberately
+stronger than "the app does not display it":
+
+- Any signed-in member can read `prayer_requests`. A field on the
+  document is a field they can read with the SDK, a REST call, or the
+  emulator UI, whatever the app chooses to draw.
+- So there is no uid on the device to leak into a navigation param, an
+  analytics event, a log line, an accessibility label or a share payload
+  — the value never arrives.
+- Ownership is proved instead by `prayer_requests/{id}/private/author`,
+  readable by the author and by a **super admin**, and by nobody else.
+  `isPrayerRequestAuthor()` reads it, and DENIES when it is missing.
+- A **content admin cannot read it.** Moderation does not require
+  identity. An abusive request can be removed without the moderator
+  learning who wrote it; only the super admin has the privileged path,
+  which is the single exception the brief permits and is documented here
+  because it exists.
+- `anonymous` is outside the author's update allowlist, so a request
+  cannot be de-anonymised later — including by its own author, by which
+  time others have responded on the understanding that it was anonymous.
+- A report names the **content**, never its author (see
+  `mobile/src/services/firebase/reports.ts`), so reporting somebody
+  cannot de-anonymise them either.
+
+Covered by emulator-backed tests in
+`firebase-tests/src/firestore.rules.test.ts` — "REFUSES an anonymous
+request that carries the author uid", "…the author name", "does NOT let a
+content admin read it", "does NOT let the author de-anonymise their own
+request", and the rest of the M7 block. The client side is covered
+independently in `mobile/src/services/firebase/__tests__/prayerRequests.test.ts`
+and `mobile/src/features/prayer-wall/__tests__/PrayerRequestCard.test.tsx`
+(which serialises the whole rendered tree and asserts no identifying
+string appears anywhere in it, accessibility labels included), so the two
+halves fail separately rather than relying on each other.
+
+### Account suspension: what it does, and what it cannot
+
+`users/{uid}.accountStatus` is `'active'` (the default for any document
+without the field) or `'suspended'`. `isActiveMember()` gates every
+member-authored write:
+
+- **Enforced server-side.** A suspended member cannot post a chat
+  message, a prayer request, a media comment or a report, whatever client
+  they use. Existing rules were TIGHTENED, never widened — the media
+  comment create rule gained `isActiveMember()` in place of
+  `isSignedIn()`, and every caller it used to allow is still allowed
+  unless a super admin has explicitly suspended them.
+- **Reads are not gated.** Suspension is about somebody posting, not
+  about cutting them off from scripture, songs or service times.
+- **It does not disable the Firebase Auth account, and cannot.** That
+  needs the Admin SDK, therefore a deployed Cloud Function, therefore the
+  Blaze plan this project deliberately stays off. A suspended member
+  keeps a valid token. This is a real limitation and it is written down
+  rather than papered over.
+- **Only a super admin may set it, and never on themselves** — a separate
+  rules branch from the role change, so one write can never do both.
+- **A member cannot lift their own suspension**: `accountStatus` is not
+  in the owner-writable allowlist.
+
+### Two new owner-writable profile fields
+
+`authProvider` and `lastActiveAt` were added to the owner's allowlist in
+the `users/{userId}` update rule. Both are facts about the member's own
+session that only their own client can observe, both are value-checked
+(`authProvider` against a closed set of Firebase provider ids), and
+neither is read to make an authorization decision anywhere. They exist so
+the super admin's user list can state how somebody signs in and whether
+the account is still in use rather than guessing — reading another user's
+Firebase Auth record would need the Admin SDK.
+
+**A bug this milestone's tests caught:** the value checks were added to
+`isValidUserProfileSelfUpdate()` before the two keys were added to the
+`affectedKeys().hasOnly([...])` allowlist, so every write of them was
+denied. Because `recordSignInActivity()` swallows its own failures by
+design, this would have shipped as a silently empty column in the admin
+dashboard. The emulator test "lets a member record their own provider and
+last-active stamp" failed, and the allowlist was fixed.
+
+### A test-harness defect fixed at the same time
+
+`firebase-tests` shares one emulator across all four suites and each
+suite calls `clearFirestore()` in `afterEach`. Run in parallel, one
+file's cleanup deletes another file's seeded `/users` documents
+mid-test — and because `callerRole()` reads the caller's own user
+document, the victim fails with a rules **evaluation error** ("Null value
+error"), which reads like a broken rule rather than a deleted fixture.
+M7's tests made the suite heavy enough for the race to land, and two
+untouched tests began failing at rules the change had not been near.
+`firebase-tests/jest.config.js` now pins `maxWorkers: 1`, with the
+reasoning and the rejected alternatives written down there.
+
+### Emulator-backed coverage after M7
+
+`306 passed, 2 documented skips` across the four suites, run with
+`firebase emulators:exec --only firestore,storage,auth`. The M7 block
+alone adds 57 tests covering ownership, anonymity, moderation,
+report access, suspension and the new profile fields.

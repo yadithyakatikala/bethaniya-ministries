@@ -62,6 +62,13 @@ describe('subscribeToOwnProfile', () => {
       // has not loaded.
       gender: null,
       profileCompletedAt: null,
+      // M7's fields, on the same reasoning. `accountStatus` is the one
+      // that does NOT default to null: a member whose document says
+      // nothing about suspension is active, and a missing value must
+      // never read as "suspended".
+      authProvider: null,
+      lastActiveAt: null,
+      accountStatus: 'active',
     });
   });
 

@@ -11,19 +11,36 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Divider,
+  Drawer,
   MenuItem,
   Select,
   type SelectChangeEvent,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { fetchAllUsers, updateUserRole } from '../../services/firebase/users';
+import {
+  fetchAllUsers,
+  setAccountStatus,
+  updateUserRole,
+} from '../../services/firebase/users';
+import {
+  ACCOUNT_STATUS_LABELS,
+  appLanguageLabel,
+  authProviderLabel,
+  filterUsers,
+  genderLabel,
+  lastActiveLabel,
+  profileCompletionLabel,
+} from './userSearch';
 import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
@@ -91,6 +108,28 @@ interface PendingRoleChange {
   newRole: UserRole;
 }
 
+/** One label-and-value line in the detail drawer. */
+function DetailRow({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: string;
+  testId?: string;
+}) {
+  return (
+    <Box>
+      <Typography variant="overline" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography sx={{ wordBreak: 'break-all' }} data-testid={testId}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
 export function UsersPage() {
   const role = useAuthStore((s) => s.role);
   const ownUid = useAuthStore((s) => s.user?.uid ?? null);
@@ -99,6 +138,11 @@ export function UsersPage() {
   const [users, setUsers] = useState<AdminUserSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [search, setSearch] = useState('');
+  // M7. The detail view -- the uid rather than the object, so the drawer
+  // shows the CURRENT row after a refetch rather than a stale snapshot of
+  // the member as they were when it was opened.
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
   const [pendingChange, setPendingChange] = useState<PendingRoleChange | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -153,6 +197,39 @@ export function UsersPage() {
     }
   }
 
+  /**
+   * M7. Suspending or reinstating a member.
+   *
+   * No confirmation dialogue, unlike a role change: this is reversible
+   * with the same button, and it is the action an administrator reaches
+   * for while something is actively going wrong in the chat. A role
+   * change is not reversible in the same sense -- demoting the wrong
+   * super admin can lock the church out of its own dashboard -- which is
+   * why that one asks first and this one does not.
+   */
+  async function handleToggleSuspension(user: AdminUserSummary) {
+    const next = user.accountStatus === 'suspended' ? 'active' : 'suspended';
+    setSubmitting(true);
+    setSubmitError(null);
+    setSuccessMessage(null);
+    try {
+      await setAccountStatus(user.uid, next);
+      setSuccessMessage(
+        next === 'suspended'
+          ? `Posting is paused for ${userDisplayLabel(user)}. They can still read the app.`
+          : `${userDisplayLabel(user)} can post again.`
+      );
+      setRefreshKey((k) => k + 1);
+    } catch {
+      setSubmitError('Could not change that. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selected = (users ?? []).find((user) => user.uid === selectedUid) ?? null;
+  const visible = users ? filterUsers(users, search) : [];
+
   if (!canManage) {
     return (
       <Box sx={{ p: 4 }} data-testid="users-page">
@@ -190,11 +267,32 @@ export function UsersPage() {
         </Box>
       ) : null}
 
+      {users && users.length > 0 ? (
+        <TextField
+          fullWidth
+          size="small"
+          sx={{ mb: 2 }}
+          label="Search"
+          placeholder="Name, email, phone or user ID"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          helperText="A phone number is found with or without its spaces and country code."
+          slotProps={{ htmlInput: { 'data-testid': 'users-search' } }}
+        />
+      ) : null}
+
       {users && users.length === 0 ? (
         <AdminEmptyState message="No users yet." testId="users-empty" />
       ) : null}
 
-      {users && users.length > 0 ? (
+      {users && users.length > 0 && visible.length === 0 ? (
+        <AdminEmptyState
+          message={`Nobody matches "${search.trim()}".`}
+          testId="users-no-matches"
+        />
+      ) : null}
+
+      {visible.length > 0 ? (
         <AdminTableCard>
           <TableContainer>
             <Table>
@@ -204,11 +302,13 @@ export function UsersPage() {
                   <TableCell>Email</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Role</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell>Joined</TableCell>
+                  <TableCell align="right">Details</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.map((user) => {
+                {visible.map((user) => {
                   const isSelf = user.uid === ownUid;
                   return (
                     <TableRow key={user.uid} data-testid={`user-row-${user.uid}`}>
@@ -269,7 +369,26 @@ export function UsersPage() {
                           </span>
                         </Tooltip>
                       </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={ACCOUNT_STATUS_LABELS[user.accountStatus]}
+                          color={
+                            user.accountStatus === 'suspended' ? 'warning' : 'default'
+                          }
+                          data-testid={`user-status-${user.uid}`}
+                        />
+                      </TableCell>
                       <TableCell>{formatJoinDate(user.createdAt)}</TableCell>
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          onClick={() => setSelectedUid(user.uid)}
+                          data-testid={`user-details-${user.uid}`}
+                        >
+                          View
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -278,6 +397,93 @@ export function UsersPage() {
           </TableContainer>
         </AdminTableCard>
       ) : null}
+
+      {/* M7. A drawer rather than a second page: looking a member up is
+          something an administrator does WHILE working through the list,
+          and a route change would lose the search they typed to find
+          them. */}
+      <Drawer
+        anchor="right"
+        open={Boolean(selected)}
+        onClose={() => setSelectedUid(null)}
+        slotProps={{ paper: { sx: { width: { xs: '100%', sm: 420 } } } }}
+      >
+        {selected ? (
+          <Box sx={{ p: 3 }} data-testid="user-detail">
+            <Typography variant="h6" gutterBottom>
+              {userDisplayLabel(selected)}
+            </Typography>
+
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              <DetailRow
+                label="Display name"
+                value={selected.displayName ?? 'Not set'}
+                testId="user-detail-name"
+              />
+              <DetailRow label="Email" value={selected.email ?? 'Not set'} />
+              <DetailRow label="Phone" value={selected.phoneNumber ?? 'Not set'} />
+              <DetailRow label="Gender" value={genderLabel(selected.gender)} />
+              <DetailRow
+                label="Preferred app language"
+                value={appLanguageLabel(selected.appLanguage)}
+              />
+              <DetailRow
+                label="Signs in with"
+                value={authProviderLabel(selected.authProvider)}
+                testId="user-detail-provider"
+              />
+              <DetailRow label="Role" value={ROLE_LABELS[selected.role]} />
+              <DetailRow label="Joined" value={formatJoinDate(selected.createdAt)} />
+              <DetailRow
+                label="Profile"
+                value={profileCompletionLabel(selected.profileCompletedAt)}
+                testId="user-detail-profile-completion"
+              />
+              <DetailRow
+                label="Last active"
+                value={lastActiveLabel(selected.lastActiveAt)}
+                testId="user-detail-last-active"
+              />
+              <DetailRow
+                label="Account status"
+                value={ACCOUNT_STATUS_LABELS[selected.accountStatus]}
+              />
+              {/* The uid is last, and shown in full: it is what a support
+                  question or a log line is keyed by, and a truncated one
+                  cannot be copied. */}
+              <DetailRow label="User ID" value={selected.uid} testId="user-detail-uid" />
+            </Stack>
+
+            <Divider sx={{ my: 3 }} />
+
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Pausing posting stops this member writing anything new -- chat messages,
+              prayer requests, comments and reports. They can still read the app, and
+              they stay signed in.
+            </Typography>
+            <Tooltip
+              title={
+                selected.uid === ownUid ? 'You cannot pause your own account.' : ''
+              }
+              disableHoverListener={selected.uid !== ownUid}
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  color={selected.accountStatus === 'suspended' ? 'primary' : 'warning'}
+                  disabled={selected.uid === ownUid || submitting}
+                  onClick={() => void handleToggleSuspension(selected)}
+                  data-testid="user-detail-toggle-suspension"
+                >
+                  {selected.accountStatus === 'suspended'
+                    ? 'Allow posting again'
+                    : 'Pause posting'}
+                </Button>
+              </span>
+            </Tooltip>
+          </Box>
+        ) : null}
+      </Drawer>
 
       <Dialog open={Boolean(pendingChange)} onClose={() => setPendingChange(null)}>
         <DialogTitle>Change role?</DialogTitle>

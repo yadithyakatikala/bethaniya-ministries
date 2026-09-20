@@ -72,6 +72,45 @@ service cloud.firestore {
       return role in ['member', 'host', 'content_admin', 'super_admin'];
     }
 
+    // ================================================================
+    // M7 -- ACCOUNT STATUS, AND WHAT IT CAN AND CANNOT DO
+    // ================================================================
+    // A super admin can suspend a member. That suspension is an
+    // APP-LEVEL one, not a Firebase Auth one, and the difference matters
+    // enough to write down.
+    //
+    // Disabling an Auth account requires the Admin SDK, which requires a
+    // deployed Cloud Function, which requires the Blaze plan -- this
+    // project stays on Spark by explicit decision, so that door is shut
+    // (same constraint as functions/src/updateUserRole.ts and
+    // ./auditLog.ts). What is NOT shut is this: a suspended member can
+    // still hold a valid token, but every rule below that calls
+    // isActiveMember() refuses their writes on the SERVER. They cannot
+    // post to the group chat, file a prayer request, comment, or report.
+    // The mobile app also shows them a notice, but that is a courtesy;
+    // this is the boundary.
+    //
+    // Reads are deliberately NOT gated. Suspension is about somebody
+    // posting, not about cutting them off from scripture, songs or
+    // service times.
+    //
+    // MISSING PROFILE DOCUMENT: get() on a document that does not exist
+    // makes this expression error, which denies the request. That is the
+    // safe direction, and it matches callerRole() above, which has always
+    // had the same shape -- every signed-in member has a profile by the
+    // time they can reach any of these screens (see
+    // mobile/src/services/firebase/userProfile.ts's
+    // ensureOwnProfileExists()).
+    //
+    // `accountStatus` is absent on every account created before M7, so
+    // the default is 'active' -- a field nobody has set must never mean
+    // "suspended".
+    function isActiveMember() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.get('accountStatus', 'active') == 'active';
+    }
+
     // Announcement field-level validation (Day 4). Re-validates the
     // client's input server-side, per FINAL_ARCHITECTURE_SPECIFICATION.md's
     // "Server-Side (Cloud Functions): re-validate all inputs (do not trust
@@ -245,7 +284,26 @@ service cloud.firestore {
         // reaches this field.
         && (!('profileCompletedAt' in data)
             || data.profileCompletedAt == null
-            || data.profileCompletedAt is timestamp);
+            || data.profileCompletedAt is timestamp)
+        // M7: which provider this member actually signs in with, so the
+        // super admin's user list can say so instead of guessing. The
+        // member's own client records it, because the alternative --
+        // reading another user's Firebase Auth providerData -- needs the
+        // Admin SDK and therefore a Cloud Function this project cannot
+        // deploy. The closed set mirrors Firebase's own provider ids; an
+        // account created before M7 simply has no value here, and the
+        // admin page says "not recorded" rather than inventing one.
+        && (!('authProvider' in data)
+            || data.authProvider == null
+            || data.authProvider in ['password', 'google.com', 'apple.com'])
+        // M7: last time this member opened the app. Written by their own
+        // client, at most once a day (see
+        // mobile/src/services/firebase/userProfile.ts) -- it is a
+        // "is this account still in use" signal for the admin list, not
+        // a session log, and it must not become one write per launch.
+        && (!('lastActiveAt' in data)
+            || data.lastActiveAt == null
+            || data.lastActiveAt is timestamp);
     }
 
     // M6 media post validation.
@@ -299,6 +357,164 @@ service cloud.firestore {
         && data.authorUid is string
         && data.authorName is string
         && data.authorName.size() <= 200;
+    }
+
+    // ================================================================
+    // M7 -- the group chat, the shared prayer wall, and reports.
+    //
+    // All three are MEMBER-AUTHORED, which nothing in this file was
+    // before: every other content collection is written by an
+    // administrator and read by the congregation. That changes what the
+    // rules have to do, so the three validators below are stricter than
+    // the admin-authored ones above -- they pin the author to the caller,
+    // they pin the initial state, and they keep moderation fields out of
+    // a member's reach.
+    // ================================================================
+
+    /**
+     * One message in the church's group chat.
+     *
+     * `authorName` is denormalized onto the message because rules do not
+     * let a member read another member's profile -- a lookup at read time
+     * would not merely be slow, it would be denied. Same decision, same
+     * reason, as isValidMediaPost()'s authorName above.
+     *
+     * `removed` is the moderation flag and must be FALSE on the document
+     * a member writes. A message is never edited, by anyone: see the
+     * match block below for why only removal exists.
+     */
+    function isValidCommunityMessage(data) {
+      return data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 2000
+        && data.authorUid is string
+        && data.authorName is string
+        && data.authorName.size() > 0
+        && data.authorName.size() <= 200
+        && data.createdAt is timestamp
+        && data.removed is bool
+        && data.keys().hasOnly(
+             ['text', 'authorUid', 'authorName', 'createdAt', 'removed',
+              'removedAt', 'removedByUid']);
+    }
+
+    /**
+     * A prayer request on the shared wall.
+     *
+     * =================================================================
+     * THE ANONYMOUS BRANCH IS THE WHOLE POINT OF THIS FUNCTION
+     * =================================================================
+     * When `anonymous` is true the document carries NO author identity:
+     * no uid, no name, nothing. Not "a uid the app agrees not to
+     * display" -- the field is refused outright, because any signed-in
+     * member can read this collection and a field that is present is a
+     * field that is readable, whatever the app chooses to render.
+     *
+     * The author is still known, and still has to be, or they could
+     * neither edit nor delete their own request. Their identity lives in
+     * prayer_requests/{requestId}/private/author, which only they and a
+     * super admin can read -- see isPrayerRequestAuthor() and that match
+     * block below.
+     *
+     * `anonymous` itself is NOT in the author's update allowlist. A
+     * request published anonymously cannot later be de-anonymised, by
+     * anyone, including its author: by then other people have replied to
+     * it on the understanding that it was anonymous.
+     */
+    function isValidPrayerRequest(data) {
+      return data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.body is string
+        && data.body.size() > 0 && data.body.size() <= 5000
+        && (!('category' in data)
+            || data.category == null
+            || data.category in ['healing', 'family', 'guidance',
+                                 'thanksgiving', 'provision', 'other'])
+        && data.anonymous is bool
+        && data.status in ['open', 'answered', 'closed']
+        && data.createdAt is timestamp
+        && data.removed is bool
+        && (data.anonymous
+              ? (!('authorUid' in data) || data.authorUid == null)
+                && (!('authorName' in data) || data.authorName == null)
+              : data.authorUid is string
+                && data.authorUid.size() > 0
+                && data.authorName is string
+                && data.authorName.size() > 0
+                && data.authorName.size() <= 200)
+        && data.keys().hasOnly(
+             ['title', 'body', 'category', 'anonymous', 'authorUid',
+              'authorName', 'status', 'createdAt', 'updatedAt', 'removed',
+              'removedAt', 'removedByUid']);
+    }
+
+    /**
+     * A member's report of something they think should not be there.
+     *
+     * `status` and the three resolution fields are the ADMINISTRATOR's,
+     * not the reporter's -- the create rule below refuses a report that
+     * arrives already resolved, and the update rule lets nobody but an
+     * administrator touch them.
+     */
+    function isValidReport(data) {
+      return data.targetType in ['media', 'media_comment',
+                                 'community_message', 'prayer_request']
+        && data.targetId is string
+        && data.targetId.size() > 0 && data.targetId.size() <= 200
+        && (!('targetParentId' in data)
+            || data.targetParentId == null
+            || (data.targetParentId is string
+                && data.targetParentId.size() <= 200))
+        && data.reason in ['spam', 'harassment', 'hate', 'sexual',
+                           'violence', 'misinformation', 'other']
+        && (!('details' in data)
+            || data.details == null
+            || (data.details is string && data.details.size() <= 1000))
+        && data.reporterUid is string
+        && data.reporterUid.size() > 0
+        && data.createdAt is timestamp
+        && data.status in ['open', 'resolved', 'dismissed']
+        && (!('resolutionNote' in data)
+            || data.resolutionNote == null
+            || (data.resolutionNote is string
+                && data.resolutionNote.size() <= 1000))
+        && data.keys().hasOnly(
+             ['targetType', 'targetId', 'targetParentId', 'reason',
+              'details', 'reporterUid', 'createdAt', 'status',
+              'resolvedByUid', 'resolvedAt', 'resolutionNote']);
+    }
+
+    /**
+     * Whether the caller wrote this prayer request.
+     *
+     * Reads the private author document rather than the public one,
+     * because the public one deliberately does not say for an anonymous
+     * request. Costs one document read per evaluation -- the same
+     * tradeoff callerRole() above already accepts at this project's
+     * scale -- and DENIES when the private document is missing, which is
+     * the safe direction: a request nobody can prove they own is one
+     * only an administrator can remove.
+     */
+    function isPrayerRequestAuthor(requestId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/prayer_requests/$(requestId)/private/author)
+             .data.uid == request.auth.uid;
+    }
+
+    // The three moderation fields, and nothing else. Used by the group
+    // chat and the prayer wall, which both hide removed content rather
+    // than deleting it -- a deleted message takes the report that
+    // referred to it out of an administrator's reach mid-review.
+    function isModerationOnlyChange(before, after) {
+      return after.diff(before).affectedKeys()
+               .hasOnly(['removed', 'removedAt', 'removedByUid'])
+        && after.removed is bool
+        && (!('removedByUid' in after)
+            || after.removedByUid == null
+            || after.removedByUid == request.auth.uid)
+        && (!('removedAt' in after)
+            || after.removedAt == null
+            || after.removedAt is timestamp);
     }
 
     // Prayer request field-level validation -- new V1 feature, added per
@@ -672,19 +888,46 @@ service cloud.firestore {
       // know and then be unreachable, which is no use to a member who
       // signed up with an email address. 'email' and 'createdAt' stay
       // server-controlled, and 'role' remains Super-Admin-only.
+      //
+      // M7 adds two more owner-writable keys, 'authProvider' and
+      // 'lastActiveAt'. Both are facts about the member's OWN session
+      // that only their own client can observe -- see isActiveMember()
+      // above and mobile/src/services/firebase/userProfile.ts's
+      // recordSignInActivity(). Neither is read to make any decision;
+      // they exist so the super admin's user list can say how somebody
+      // signs in and whether the account is still in use, instead of
+      // guessing. 'accountStatus' is deliberately NOT here: a member
+      // lifting their own suspension is the whole thing it prevents.
       allow update: if (isOwner(userId)
           && request.resource.data.diff(resource.data)
                .affectedKeys()
                .hasOnly(['displayName', 'photoURL', 'languagePreference',
                          'appLanguage', 'bibleMode',
                          'themePreference', 'notificationsEnabled',
-                         'phoneNumber', 'gender', 'profileCompletedAt'])
+                         'phoneNumber', 'gender', 'profileCompletedAt',
+                         'authProvider', 'lastActiveAt'])
           && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()
           && !isOwner(userId)
           && request.resource.data.diff(resource.data)
                .affectedKeys().hasOnly(['role'])
-          && isValidRole(request.resource.data.role));
+          && isValidRole(request.resource.data.role))
+        // M7: suspending and reinstating a member. A separate branch
+        // from the role change above rather than a widened allowlist, so
+        // one write can never do both -- "changed their role" and
+        // "suspended them" are different decisions and should be
+        // different actions in the audit trail. The same
+        // `!isOwner(userId)` guard applies: a super admin cannot suspend
+        // themselves out of the dashboard.
+        //
+        // What this actually enforces is described at isActiveMember()
+        // above -- it stops a suspended member WRITING, on the server.
+        // It does not and cannot disable their Firebase Auth account.
+        || (isSuperAdmin()
+          && !isOwner(userId)
+          && request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly(['accountStatus'])
+          && request.resource.data.accountStatus in ['active', 'suspended']);
 
       allow delete: if isSuperAdmin();
     }
@@ -959,9 +1202,15 @@ service cloud.firestore {
       // `authorUid` must equal the caller. That is the whole ownership
       // boundary for creation, and it is checked on the incoming document
       // rather than inferred, so a member cannot post as somebody else.
+      //
+      // M7 adds isActiveMember() to the create rule -- a suspended member
+      // may still READ the feed and its comments, and may not add to
+      // them. That is a tightening, never a widening: every caller this
+      // used to allow is still allowed unless a super admin has
+      // explicitly suspended them. See isActiveMember() above.
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isSignedIn()
+        allow create: if isActiveMember()
           && request.resource.data.authorUid == request.auth.uid
           && isValidMediaComment(request.resource.data);
         allow update: if false;
@@ -1005,6 +1254,176 @@ service cloud.firestore {
         && request.resource.data.mediaUrl.matches('^https://.+')
         && request.resource.data.caption is string
         && request.resource.data.caption.size() <= 2000;
+    }
+
+    // ---- community_messages --------------------------------------------
+    // M7: the church's group chat. The first collection in this file that
+    // MEMBERS write to and every member reads.
+    //
+    // READ IS SIGNED-IN, NOT PUBLIC. The media feed is the church's public
+    // face and is readable by a visitor; this is the congregation talking
+    // among themselves, and it is not.
+    //
+    // THERE IS NO EDIT, FOR ANYONE. `allow update` is moderation-only:
+    // the text, the author and the timestamp of a sent message are
+    // immutable. An editable message means a reported message can be
+    // rewritten into something innocuous before an administrator reads
+    // the report, and it means the copy on one member's screen can differ
+    // from the copy on another's. A member who got it wrong deletes their
+    // message and sends another, which is what the delete rule is for.
+    //
+    // REMOVAL IS SOFT. An administrator sets `removed`, and the app shows
+    // a tombstone in the message's place. A hard delete would take the
+    // evidence out of the reviewing administrator's hands and leave the
+    // report in /reports pointing at nothing.
+    match /community_messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isActiveMember()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.removed == false
+        && !('removedAt' in request.resource.data)
+        && !('removedByUid' in request.resource.data)
+        && isValidCommunityMessage(request.resource.data);
+      allow update: if isContentAdminOrAbove()
+        && isModerationOnlyChange(resource.data, request.resource.data);
+      allow delete: if isContentAdminOrAbove()
+        || (isSignedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    // ---- prayer_requests -------------------------------------------------
+    // M7: the shared prayer wall. Distinct from /users/{uid}/prayers above,
+    // which is a PRIVATE journal and stays exactly as it was -- a member
+    // keeps their own list and, separately, may ask the church to pray.
+    //
+    // ===================================================================
+    // ANONYMITY IS ENFORCED BY THE SHAPE OF THE DOCUMENT
+    // ===================================================================
+    // isValidPrayerRequest() refuses an anonymous request that carries an
+    // author uid or an author name, so the identity is not merely hidden
+    // by the client -- it is not in the document any member can read. See
+    // that function's comment for why "store it but don't render it" is
+    // not good enough.
+    //
+    // The author is recorded in the private/author subcollection below,
+    // readable by the author and by a super admin (the explicit,
+    // documented moderation path the brief allows), and by nobody else.
+    match /prayer_requests/{requestId} {
+      allow read: if isSignedIn();
+
+      // A new request always starts open, un-removed, and -- when it is
+      // not anonymous -- attributed to the caller and nobody else.
+      allow create: if isActiveMember()
+        && request.resource.data.status == 'open'
+        && request.resource.data.removed == false
+        && !('removedAt' in request.resource.data)
+        && !('removedByUid' in request.resource.data)
+        && (request.resource.data.anonymous
+            || request.resource.data.authorUid == request.auth.uid)
+        && isValidPrayerRequest(request.resource.data);
+
+      // The author may reword their request and mark it answered. They
+      // may NOT change `anonymous` -- see isValidPrayerRequest(). They
+      // may not touch the moderation fields either; that branch is an
+      // administrator's.
+      allow update: if (isPrayerRequestAuthor(requestId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['title', 'body', 'category', 'status', 'updatedAt'])
+          && isValidPrayerRequest(request.resource.data))
+        || (isContentAdminOrAbove()
+          && isModerationOnlyChange(resource.data, request.resource.data));
+
+      allow delete: if isPrayerRequestAuthor(requestId)
+        || isContentAdminOrAbove();
+
+      // ---- prayer_requests/{requestId}/private/author ------------------
+      // WHO WROTE IT. One document, one field, and the tightest read rule
+      // in this file: the author themselves, or a super admin.
+      //
+      // Content admins deliberately do NOT get this. They can remove an
+      // abusive prayer request without ever learning that the person who
+      // wrote it is the member sitting three rows in front of them --
+      // moderation does not require identity, and the brief only permits
+      // the SUPER admin to have it.
+      //
+      // Immutable once written (`allow update: if false`), and created
+      // in the same batch as the request itself, so a second member
+      // cannot race in and claim authorship of somebody else's request.
+      match /private/author {
+        allow read: if isSuperAdmin()
+          || (isSignedIn() && resource.data.uid == request.auth.uid);
+        allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'createdAt']);
+        allow update: if false;
+        // Cleanup when a super admin removes the request itself --
+        // Firestore does not cascade, so this would otherwise outlive
+        // the document it describes.
+        allow delete: if isSuperAdmin();
+      }
+    }
+
+    // ---- users/{userId}/prayerRequests -----------------------------------
+    // M7: a member's own index of the requests they have written, keyed by
+    // the request id.
+    //
+    // WHY THIS EXISTS. An anonymous request says nothing about its author,
+    // which is the point -- but the app still has to show ITS author an
+    // edit and a delete button. Reading every request's private/author
+    // document to find out would be one read per row. This is one read for
+    // the whole screen, in the member's own private space, and it is the
+    // same shape as users/{uid}/mediaLikes above.
+    //
+    // It holds no prayer text and no identity beyond the fact that this
+    // member wrote this request -- which is a fact only this member and a
+    // super admin can already establish.
+    match /users/{userId}/prayerRequests/{requestId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['createdAt', 'anonymous'])
+        && request.resource.data.anonymous is bool;
+    }
+
+    // ---- reports ---------------------------------------------------------
+    // M7: what a member reports, and what an administrator does about it.
+    //
+    // MEMBERS WRITE AND NEVER READ. Not even their own report: a report
+    // queue that a reporter can read back is a queue that tells them
+    // whether anyone else has reported the same person, and that is not
+    // information the congregation should have about each other. What the
+    // app shows the reporter instead is their own marker document under
+    // users/{uid}/reportedItems -- "you reported this" -- and nothing
+    // about anybody else's.
+    //
+    // The three resolution fields are refused on creation and writable
+    // only by an administrator, so a report cannot arrive pre-resolved.
+    match /reports/{reportId} {
+      allow read: if isContentAdminOrAbove();
+      allow create: if isActiveMember()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.status == 'open'
+        && !('resolvedByUid' in request.resource.data)
+        && !('resolvedAt' in request.resource.data)
+        && !('resolutionNote' in request.resource.data)
+        && isValidReport(request.resource.data);
+      allow update: if isContentAdminOrAbove()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'resolvedByUid', 'resolvedAt',
+                       'resolutionNote'])
+        && request.resource.data.resolvedByUid == request.auth.uid
+        && isValidReport(request.resource.data);
+      allow delete: if isSuperAdmin();
+    }
+
+    // ---- users/{userId}/reportedItems ------------------------------------
+    // M7: "you already reported this". The document id is
+    // `${targetType}_${targetId}`, which makes reporting the same thing
+    // twice unrepresentable rather than merely discouraged -- the same
+    // deterministic-id decision as users/{uid}/mediaLikes above, and for
+    // the same reason.
+    match /users/{userId}/reportedItems/{itemKey} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['createdAt']);
     }
 
     // ---- settings -----------------------------------------------------

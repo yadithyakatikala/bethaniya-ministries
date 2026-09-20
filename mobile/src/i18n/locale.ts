@@ -82,6 +82,37 @@ export function formatShortDate(date: Date, appLanguage: BibleLanguage): string 
   );
 }
 
+/** Just the clock -- "9:14 am". For a chat, where the day is context. */
+export function formatTimeOfDay(date: Date, appLanguage: BibleLanguage): string {
+  const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+  return safely(
+    () => date.toLocaleTimeString(localeFor(appLanguage), options),
+    () => date.toLocaleTimeString(undefined, options)
+  );
+}
+
+/**
+ * The timestamp on a chat message -- M7.
+ *
+ * A time alone for TODAY's messages, because the day is obvious from the
+ * conversation; the date as well for anything older, because "9:14 am"
+ * on a message from last week is worse than no timestamp at all. `now`
+ * is a parameter rather than a call to the clock, so this stays pure and
+ * a test can pin the boundary.
+ */
+export function formatMessageTimestamp(
+  date: Date,
+  appLanguage: BibleLanguage,
+  now: Date = new Date()
+): string {
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const time = formatTimeOfDay(date, appLanguage);
+  return sameDay ? time : `${formatShortDate(date, appLanguage)} · ${time}`;
+}
+
 /** A date and time together -- for events and notification timestamps. */
 export function formatDateTime(date: Date, appLanguage: BibleLanguage): string {
   return safely(

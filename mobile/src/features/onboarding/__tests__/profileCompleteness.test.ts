@@ -30,6 +30,12 @@ function profile(partial: Partial<UserProfile> = {}): UserProfile {
     bibleMode: null,
     themePreference: null,
     notificationsEnabled: null,
+    // M7 fields. An account created before M7 has neither of the first
+    // two, and accountStatus defaults to active -- so this is also the
+    // shape a long-standing member's profile really has.
+    authProvider: null,
+    lastActiveAt: null,
+    accountStatus: 'active',
     ...partial,
   };
 }

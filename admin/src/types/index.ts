@@ -202,7 +202,19 @@ export interface SendNotificationFormInput {
  * users, name, email, phone, role, join date"). Sourced from exactly the
  * fields functions/src/createUserProfile.ts's own header comment says the
  * Admin Users page needs -- nothing more.
+ *
+ * M7 widens it, because the brief asks the super admin's view to answer
+ * "who is this member, how do they sign in, and are they still here" --
+ * questions the five original fields cannot. Every addition below is a
+ * field that already exists on the document or is written by the
+ * member's own client; nothing here is inferred or invented.
  */
+/** M7. Firebase's own provider ids -- see AdminUserSummary.authProvider. */
+export type AuthProvider = 'password' | 'google.com' | 'apple.com';
+
+/** M7. An app-level suspension -- see AdminUserSummary.accountStatus. */
+export type AccountStatus = 'active' | 'suspended';
+
 export interface AdminUserSummary {
   uid: string;
   displayName: string | null;
@@ -210,6 +222,35 @@ export interface AdminUserSummary {
   phoneNumber: string | null;
   role: UserRole;
   createdAt: Date | null;
+  /** M6 onboarding answer. Null for an account that predates it. */
+  gender: 'male' | 'female' | null;
+  /** The member's chosen INTERFACE language -- not their Bible language. */
+  appLanguage: 'en' | 'te' | null;
+  /**
+   * M7. Which provider this member signs in with.
+   *
+   * `null` means NOT RECORDED, never "email". Reading another user's
+   * Firebase Auth record needs the Admin SDK and therefore a deployed
+   * Cloud Function, which this project's plan does not allow -- so the
+   * value is written by the member's own client on sign-in (see
+   * mobile/src/services/firebase/userProfile.ts), and an account that has
+   * not signed in since M7 shipped simply has none. The page says so
+   * rather than filling in a plausible-looking guess.
+   */
+  authProvider: AuthProvider | null;
+  /** M7. Last app open, recorded at most once a day. Null if never. */
+  lastActiveAt: Date | null;
+  /** M7. When the member finished onboarding, or null if they have not. */
+  profileCompletedAt: Date | null;
+  /**
+   * M7. An APP-LEVEL suspension, not a Firebase Auth one.
+   *
+   * A suspended member keeps a valid token -- disabling the Auth account
+   * needs the Admin SDK -- and firestore.rules refuses every
+   * member-authored WRITE they attempt. Reads are unaffected. Defaults to
+   * 'active' for every account that has no value.
+   */
+  accountStatus: AccountStatus;
 }
 
 /** Every role a Super Admin may assign via the Users page -- mirrors

@@ -1150,3 +1150,173 @@ describe('side-by-side bilingual needs the room', () => {
     expect(getByTestId('reader-layout-sideBySide')).toBeTruthy();
   });
 });
+
+/**
+ * M7 §4: CHANGING THE BIBLE WHILE THE READER IS OPEN.
+ *
+ * =====================================================================
+ * WHY THE EXISTING TESTS DO NOT COVER THIS
+ * =====================================================================
+ * "which language the reader uses" above seeds a mode and opens the
+ * reader, so it proves the reader STARTS in the right translation.
+ * "offers the three Bible modes" proves the control WRITES the right
+ * key. Neither proves the thing a member actually does, which is change
+ * the setting with the chapter already on screen and expect the words in
+ * front of them to change.
+ *
+ * That is a real failure mode, not a hypothetical one: the reader loads
+ * its chapter in an effect, and a mode change that is stored but never
+ * re-read leaves the previous translation on screen until the screen is
+ * closed and reopened -- which looks exactly like the setting not
+ * working.
+ *
+ * Each arm of the brief's matrix is one test: en->te, te->en,
+ * en->bilingual, bilingual->te. Each asserts on the SCRIPTURE, because
+ * that is the only thing that proves the reload happened.
+ */
+describe('switching the Bible with the reader open', () => {
+  const ENGLISH_GENESIS_1_1 = 'In the beginning God created the heavens and the earth.';
+  const TELUGU_GENESIS_1_1 = 'ఆరంభంలో దేవుడు ఆకాశాలనూ భూమినీ సృష్టించాడు.';
+
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+    (onAuthStateChanged as jest.Mock).mockImplementation(() => jest.fn());
+    (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
+  });
+
+  /**
+   * Lets the chapter reload finish.
+   *
+   * waitFor() retries the ASSERTION, not the work behind it: the reader
+   * reloads its chapter through a promise chain whose continuations need
+   * a real macrotask, and re-running a query inside act() never gives
+   * them one.
+   */
+  async function settle() {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  /**
+   * Opens the settings sheet, picks a Bible mode, and CLOSES THE SHEET.
+   *
+   * Closing it is not tidiness. The sheet is a Modal, so while it is
+   * open everything behind it is hidden from the accessibility tree --
+   * and RNTL's queries skip hidden elements by default, exactly as a
+   * screen reader would. Assertions made with the sheet still open
+   * report "unable to find" for scripture that is demonstrably rendered,
+   * which reads as a broken reader rather than an obscured one. A member
+   * closes the sheet to see their chapter; so does this.
+   */
+  async function switchModeTo(
+    mode: BibleMode,
+    utils: { getByTestId: (id: string) => unknown }
+  ) {
+    await waitFor(() => expect(utils.getByTestId('reader-settings-button')).toBeTruthy());
+    await fireEvent.press(utils.getByTestId('reader-settings-button') as never);
+    await waitFor(() =>
+      expect(utils.getByTestId(`reader-bible-mode-${mode}`)).toBeTruthy()
+    );
+    await fireEvent.press(utils.getByTestId(`reader-bible-mode-${mode}`) as never);
+    await fireEvent.press(utils.getByTestId('reader-settings-sheet-close') as never);
+    await settle();
+  }
+
+  it('English to Telugu: the verses on screen become Telugu', async () => {
+    await seedBibleMode('en');
+    const utils = await renderScreen('genesis', 1);
+    await waitFor(() => expect(utils.getByText(ENGLISH_GENESIS_1_1)).toBeTruthy());
+
+    await switchModeTo('te', utils);
+
+    await waitFor(() => expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy());
+    expect(utils.queryByText(ENGLISH_GENESIS_1_1)).toBeNull();
+  });
+
+  it('Telugu to English: the verses on screen become English', async () => {
+    await seedBibleMode('te');
+    const utils = await renderScreen('genesis', 1);
+    await waitFor(() => expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy());
+
+    await switchModeTo('en', utils);
+
+    await waitFor(() => expect(utils.getByText(ENGLISH_GENESIS_1_1)).toBeTruthy());
+    expect(utils.queryByText(TELUGU_GENESIS_1_1)).toBeNull();
+  });
+
+  it('English to bilingual: BOTH translations appear', async () => {
+    await seedBibleMode('en');
+    const utils = await renderScreen('genesis', 1);
+    await waitFor(() => expect(utils.getByText(ENGLISH_GENESIS_1_1)).toBeTruthy());
+
+    await switchModeTo('bilingual', utils);
+    // Waited on the PAIRED layout, not on one language's text: bilingual
+    // mode resolves through the M1 alignment policy, so the reader
+    // renders a single-language frame first and the pairing a tick
+    // later. Waiting on the Telugu alone would match that intermediate
+    // frame and then look for English that has not arrived yet.
+    expect(utils.getByTestId('bilingual-paired')).toBeTruthy();
+    expect(utils.getByText(ENGLISH_GENESIS_1_1)).toBeTruthy();
+    expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy();
+  });
+
+  it('bilingual to Telugu: the English side goes away', async () => {
+    await seedBibleMode('bilingual');
+    const utils = await renderScreen('genesis', 1);
+    await waitFor(() => expect(utils.getByText(ENGLISH_GENESIS_1_1)).toBeTruthy());
+
+    await switchModeTo('te', utils);
+
+    await waitFor(() => expect(utils.queryByText(ENGLISH_GENESIS_1_1)).toBeNull());
+    expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy();
+  });
+
+  it('stays on the same chapter -- a language change is not a navigation', async () => {
+    await seedBibleMode('en');
+    const utils = await renderScreen('genesis', 2);
+    // Gated on the settings button, like every other test here: it is the
+    // control that only exists once the chapter has loaded.
+    await waitFor(() => expect(utils.getByTestId('reader-settings-button')).toBeTruthy());
+    expect(referenceOf(utils.getByTestId as never)).toBe('Genesis 2');
+
+    await switchModeTo('te', utils);
+
+    // The book name follows the Bible in a single-language mode, so the
+    // WORD changes; the chapter number must not.
+    expect(String(referenceOf(utils.getByTestId as never))).toContain('2');
+    expect(utils.navigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the reading size a member chose across the switch', async () => {
+    // The M6 preference-rollback class of bug, in the place a member
+    // would actually notice it: changing one setting must not quietly
+    // undo another.
+    await seedBibleMode('en');
+    const utils = await renderScreen('genesis', 1);
+    await waitFor(() => expect(utils.getByTestId('reader-settings-button')).toBeTruthy());
+
+    fireEvent.press(utils.getByTestId('reader-settings-button'));
+    await waitFor(() => expect(utils.getByTestId('reader-size-increase')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('reader-size-increase'));
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem('reading_prefs')).toContain('"size":"lg"')
+    );
+
+    // The sheet is still open, so the Bible control is one press away --
+    // and it has to be CLOSED again before anything behind it can be
+    // queried. See switchModeTo() above for why.
+    await fireEvent.press(utils.getByTestId('reader-bible-mode-te'));
+    await fireEvent.press(utils.getByTestId('reader-settings-sheet-close'));
+    await waitFor(() => expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy());
+
+    // The larger size is still in effect on the newly loaded chapter --
+    // the scripture is the largest text in a verse row (the 13pt verse
+    // number is the other one, and the reading settings do not scale it).
+    const sizes = [
+      ...JSON.stringify(
+        utils.getByTestId('verse-1', { includeHiddenElements: true })
+      ).matchAll(/"fontSize":([0-9.]+)/g),
+    ].map((match) => Number(match[1]));
+    expect(Math.max(...sizes)).toBe(readingScale.size.lg);
+  });
+});
