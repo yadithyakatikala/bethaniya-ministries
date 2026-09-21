@@ -70,6 +70,18 @@ function CommunityStub() {
   return <Text testID="community-stub">Community stub</Text>;
 }
 
+function PrayerWallStub() {
+  return <Text testID="prayer-wall-stub">Prayer wall stub</Text>;
+}
+
+function ChatStub() {
+  return <Text testID="chat-stub">Chat stub</Text>;
+}
+
+function MediaFeedStub() {
+  return <Text testID="media-feed-stub">Media feed stub</Text>;
+}
+
 function renderHomeScreen() {
   return render(
     <NavigationContainer>
@@ -87,6 +99,9 @@ function renderHomeScreen() {
             <Stack.Screen name="PlanDay" component={PlanDayStub} />
             <Stack.Screen name="Prayers" component={PrayersStub} />
             <Stack.Screen name="CommunityList" component={CommunityStub} />
+            <Stack.Screen name="PrayerWall" component={PrayerWallStub} />
+            <Stack.Screen name="CommunityChat" component={ChatStub} />
+            <Stack.Screen name="MediaFeed" component={MediaFeedStub} />
           </Stack.Navigator>
         </PreferencesProvider>
       </AuthProvider>
@@ -468,12 +483,21 @@ describe('HomeScreen', () => {
     expect(getByTestId('home-plan-percent').props.children).toMatch(/\d+%/);
   });
 
-  // --- The three feature tiles are icon tiles, not content cards --------
+  // --- The feature tiles are icon tiles, not content cards -------------
+  //
+  // FIVE TILES, FIVE DIFFERENT DESTINATIONS. A tester found the M7 grid
+  // presented "Prayers" and "Prayer requests" as separate features that
+  // opened the same kind of thing, so Prayers now opens the SHARED WALL
+  // and the private journal lives in More under its own name. Media is
+  // here because it previously had no Home entry at all. The table below
+  // is the guarantee that no two tiles land in the same place.
 
   it.each([
-    ['prayers-nav-button', 'prayers-stub'],
+    ['prayers-nav-button', 'prayer-wall-stub'],
     ['plans-nav-button', 'plans-list-stub'],
     ['community-nav-button', 'community-stub'],
+    ['chat-nav-button', 'chat-stub'],
+    ['media-nav-button', 'media-feed-stub'],
   ])('%s is an icon tile that navigates', async (testID, stub) => {
     signedIn();
     const { getByTestId } = await renderHomeScreen();
@@ -490,7 +514,45 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId(stub)).toBeTruthy());
   });
 
-  it('labels the three tiles in the active language', async () => {
+  it('sends every tile somewhere DIFFERENT', async () => {
+    // The duplicate-destination bug in one assertion: two tiles that
+    // navigate to the same route are two buttons for one feature, which
+    // is what a tester reported about Prayers / Prayer requests.
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
+
+    const every = [
+      'prayers-nav-button',
+      'plans-nav-button',
+      'community-nav-button',
+      'chat-nav-button',
+      'media-nav-button',
+    ] as const;
+    // Every tile is present on the one screen...
+    for (const testID of every) expect(getByTestId(testID)).toBeTruthy();
+
+    // ...and each lands somewhere no other tile does. Pressed on its own
+    // fresh render, because the first press pushes a screen over Home and
+    // the next tile would no longer be on it.
+    const reached: string[] = [];
+    for (const [testID, stub] of [
+      ['prayers-nav-button', 'prayer-wall-stub'],
+      ['plans-nav-button', 'plans-list-stub'],
+      ['community-nav-button', 'community-stub'],
+      ['chat-nav-button', 'chat-stub'],
+      ['media-nav-button', 'media-feed-stub'],
+    ] as const) {
+      const fresh = await renderHomeScreen();
+      await waitFor(() => expect(fresh.getByTestId('home-feature-tiles')).toBeTruthy());
+      await fireEvent.press(fresh.getByTestId(testID));
+      await waitFor(() => expect(fresh.getByTestId(stub)).toBeTruthy());
+      reached.push(stub);
+    }
+    expect(new Set(reached).size).toBe(reached.length);
+  });
+
+  it('labels the tiles in the active language', async () => {
     signedIn();
     const { getByTestId } = await renderHomeScreen();
     await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
@@ -498,6 +560,8 @@ describe('HomeScreen', () => {
       ['prayers-nav-button', 'more.prayers'],
       ['plans-nav-button', 'more.readingPlans'],
       ['community-nav-button', 'more.community'],
+      ['chat-nav-button', 'chat.title'],
+      ['media-nav-button', 'media.title'],
     ] as const) {
       expect(getByTestId(testID).props.accessibilityLabel).toBe(translate('en', key));
     }

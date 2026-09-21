@@ -38,16 +38,51 @@ import {
   collection,
   doc,
   getDocs,
+  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from './app';
+import { auth, db } from './app';
 import { logAdminAction } from './auditLog';
-import type { AccountStatus, AdminUserSummary, UserRole } from '../../types';
+import type {
+  AdminUserSummary,
+  Suspension,
+  SuspensionKind,
+  UserRole,
+} from '../../types';
 
 const USERS_COLLECTION = 'users';
 
 function asDate(value: unknown): Date | null {
   return value instanceof Timestamp ? value.toDate() : null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+/**
+ * M8. The suspension terms, or null.
+ *
+ * Null for an account nobody suspended, and ALSO for one suspended
+ * before the terms existed -- those documents carry only
+ * `accountStatus`. ../../features/users/suspension.ts treats a missing
+ * expiry as permanent, which is the safe reading: the alternative would
+ * reinstate every pre-M8 suspension the moment this shipped.
+ *
+ * An unrecognised `kind` is read as 'permanent' for the same reason. A
+ * value nobody wrote must not become the weakest option.
+ */
+function toSuspension(value: unknown): Suspension | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const data = value as Record<string, unknown>;
+  return {
+    kind: data.kind === 'temporary' ? 'temporary' : 'permanent',
+    reason: asString(data.reason),
+    startedAt: asDate(data.startedAt),
+    expiresAt: asDate(data.expiresAt),
+    byUid: asString(data.byUid),
+    byName: asString(data.byName),
+  };
 }
 
 export function toAdminUserSummary(
@@ -79,6 +114,7 @@ export function toAdminUserSummary(
     lastActiveAt: asDate(data.lastActiveAt),
     profileCompletedAt: asDate(data.profileCompletedAt),
     accountStatus: data.accountStatus === 'suspended' ? 'suspended' : 'active',
+    suspension: toSuspension(data.suspension),
   };
 }
 
@@ -126,40 +162,109 @@ export async function updateUserRole(
 }
 
 /**
- * Suspends or reinstates a member -- M7.
+ * Suspends a member -- M7, with terms since M8.
  *
  * =====================================================================
  * WHAT THIS ACTUALLY DOES, AND WHAT IT CANNOT
  * =====================================================================
- * It writes `accountStatus` on the member's own document. From that
- * moment firestore.rules' isActiveMember() refuses every member-authored
- * WRITE they attempt -- chat messages, prayer requests, media comments,
- * reports -- on the SERVER, whatever client they use. That is a real
- * boundary, not a UI state.
+ * It writes `accountStatus` and the `suspension` terms on the member's
+ * own document. From that moment firestore.rules' isActiveMember()
+ * refuses every member-authored WRITE they attempt -- chat messages,
+ * prayer requests, media comments, reports -- on the SERVER, whatever
+ * client they use. That is a real boundary, not a UI state, and it
+ * survives the member reinstalling the app.
  *
  * It does NOT disable their Firebase Auth account, and cannot: that needs
  * the Admin SDK, which needs a deployed Cloud Function, which needs the
  * Blaze plan this project deliberately stays off (the same wall
  * ./auditLog.ts and functions/src/updateUserRole.ts already document).
- * So a suspended member stays signed in and can still READ the app --
- * scripture, songs, service times. Suspension here is about somebody
- * posting, not about cutting them off from their church.
+ * A suspended member therefore keeps a valid token. The app shows them a
+ * suspension notice instead of the app on every launch (see
+ * mobile/src/features/account/SuspendedScreen.tsx), and the rules refuse
+ * their writes; nobody should describe this as the account being
+ * disabled, because it is not.
+ *
+ * =====================================================================
+ * NOTHING RUNS WHEN A TEMPORARY SUSPENSION ENDS
+ * =====================================================================
+ * There is no job, and there does not need to be one. `expiresAt` is
+ * written once, here, and compared against the clock wherever the
+ * question is asked -- by the rules on every write, and by the app and
+ * this dashboard when they display the state. When it passes, the member
+ * simply writes again. `accountStatus` is left saying 'suspended',
+ * because it is a record of what was decided, not a cache of whether it
+ * still applies. See ../../features/users/suspension.ts.
  *
  * A separate write from updateUserRole() above, and a separate rules
  * branch, so one action can never do both: "changed their role" and
  * "suspended them" are different decisions and belong in different audit
- * entries. rules also refuse a super admin suspending themselves.
+ * entries. The rules also refuse a super admin suspending themselves.
  */
-export async function setAccountStatus(
+export interface SuspendUserInput {
+  kind: SuspensionKind;
+  /** Required for 'temporary'; ignored (and written as null) otherwise. */
+  expiresAt: Date | null;
+  reason: string | null;
+}
+
+export async function suspendUser(
   targetUid: string,
-  status: AccountStatus
+  input: SuspendUserInput
 ): Promise<void> {
-  await updateDoc(doc(db, USERS_COLLECTION, targetUid), { accountStatus: status });
+  const actor = auth.currentUser;
+  const expiresAt =
+    input.kind === 'temporary' && input.expiresAt
+      ? Timestamp.fromDate(input.expiresAt)
+      : null;
+  const reason = input.reason?.trim() ? input.reason.trim() : null;
+
+  await updateDoc(doc(db, USERS_COLLECTION, targetUid), {
+    accountStatus: 'suspended',
+    suspension: {
+      kind: input.kind,
+      reason,
+      // The SERVER's clock, not the administrator's browser: "when did
+      // this start" is a fact about the record, and a skewed laptop
+      // should not be able to date it.
+      startedAt: serverTimestamp(),
+      expiresAt,
+      // The rules require this to equal the caller, so an attribution
+      // can never name somebody who did not act.
+      byUid: actor?.uid ?? null,
+      byName: actor?.displayName ?? actor?.email ?? null,
+    },
+  });
+
   await logAdminAction({
     action: 'update',
     collection: 'users',
     documentId: targetUid,
     changeSummary:
-      status === 'suspended' ? 'Paused posting on this account' : 'Restored posting',
+      input.kind === 'permanent'
+        ? 'Suspended this account permanently'
+        : `Suspended this account until ${input.expiresAt?.toISOString() ?? 'an unspecified date'}`,
+  });
+}
+
+/**
+ * Lifts a suspension, whatever kind it was.
+ *
+ * Clears the terms as well as the status: the two must agree or the
+ * rules refuse the write, and leaving stale terms on a restored account
+ * would have the dashboard reporting a suspension nobody is serving.
+ * The audit entry is where the history lives -- or would, on a plan that
+ * allowed one (see ./auditLog.ts).
+ */
+export async function restoreUserAccess(targetUid: string): Promise<void> {
+  await updateDoc(doc(db, USERS_COLLECTION, targetUid), {
+    accountStatus: 'active',
+    suspension: null,
+  });
+
+  await logAdminAction({
+    action: 'update',
+    collection: 'users',
+    documentId: targetUid,
+    changeSummary: 'Restored access to this account',
   });
 }

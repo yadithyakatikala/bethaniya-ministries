@@ -105,13 +105,83 @@ describe('the states an administrator can see', () => {
   });
 });
 
+/**
+ * "What is on the home screen right now" -- the question this page was
+ * not answering.
+ *
+ * Only one prophet verse shows at a time, and which one it is was
+ * deducible only from a chip inside a table row. A pastor should not
+ * have to read a table to learn what their church is reading, and when
+ * the list is empty a table says nothing at all.
+ */
+describe('on the home screen now', () => {
+  it('names the record the app is showing, above the table', async () => {
+    withRecords([
+      record({ id: 'older', title: 'Last month', publishAt: new Date('2019-01-01') }),
+      record({ id: 'newer', title: 'This week', publishAt: new Date('2021-01-01') }),
+    ]);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByTestId('prophet-verse-now-title')).toHaveTextContent('This week')
+    );
+  });
+
+  it('says plainly that nothing is showing, rather than leaving a blank', async () => {
+    withRecords([]);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByTestId('prophet-verse-now-none')).toBeInTheDocument()
+    );
+    // And explains what a member sees, which is nothing at all -- not an
+    // empty box.
+    expect(screen.getByText(/leaves this section out/i)).toBeInTheDocument();
+  });
+
+  it('treats a draft and a scheduled record as not showing', async () => {
+    withRecords([
+      record({ id: 'draft', published: false }),
+      record({ id: 'later', publishAt: new Date('2099-01-01T00:00:00.000Z') }),
+    ]);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByTestId('prophet-verse-now-none')).toBeInTheDocument()
+    );
+  });
+
+  it('counts what is queued behind it', async () => {
+    withRecords([
+      record({ id: 'live' }),
+      record({ id: 'later', publishAt: new Date('2099-01-01T00:00:00.000Z') }),
+    ]);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/1 more is scheduled/i)).toBeInTheDocument()
+    );
+  });
+});
+
+describe('telling the two verse features apart', () => {
+  it('says on the page that this is not the Verse of the Day', async () => {
+    // They sit next to each other on the home screen and share most of
+    // a name. The distinction cannot be left to be guessed.
+    withRecords([]);
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/is not the Verse of the Day/i)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/Nothing here happens automatically/i)).toBeInTheDocument();
+  });
+});
+
 describe('who can do what', () => {
   it('hides every write control from a Host', async () => {
     useAuthStore.setState({ role: 'host' });
     withRecords([record()]);
     renderPage();
+    // The title appears twice for a record that is showing -- once in
+    // the "on the home screen now" summary and once in the table.
     await waitFor(() =>
-      expect(screen.getByText('A word for the church')).toBeInTheDocument()
+      expect(screen.getAllByText('A word for the church').length).toBeGreaterThan(0)
     );
     expect(screen.queryByTestId('new-prophet-verse-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('prophet-verse-toggle-p1')).not.toBeInTheDocument();

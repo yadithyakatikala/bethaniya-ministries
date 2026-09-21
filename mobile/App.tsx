@@ -9,6 +9,7 @@ import { LoadingScreen } from './src/features/auth/LoadingScreen';
 import { SignInScreen } from './src/features/auth/SignInScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { OnboardingGate } from './src/features/onboarding/OnboardingGate';
+import { SuspensionGate } from './src/features/account/SuspensionGate';
 import {
   configureNotificationHandler,
   useNotificationListeners,
@@ -113,14 +114,22 @@ function AuthGate() {
 
   if (status === 'loading') return <LoadingScreen />;
   if (status === 'authenticated') {
+    // M8. A suspension is checked FIRST, before onboarding: somebody who
+    // has been suspended should not be walked through a profile form on
+    // the way to being told. Like onboarding it is a STATE the app can
+    // be in rather than a route, which is the whole point -- see
+    // SuspensionGate.tsx.
+    //
     // M6. A signed-in member who has never answered the profile
     // questionnaire is shown it first; everyone else passes straight
     // through. Here rather than as a route, so the tab bar and the back
     // gesture do not sit behind a form -- see OnboardingGate.tsx.
     return (
-      <OnboardingGate>
-        <AppNavigator />
-      </OnboardingGate>
+      <SuspensionGate>
+        <OnboardingGate>
+          <AppNavigator />
+        </OnboardingGate>
+      </SuspensionGate>
     );
   }
   // 'unauthenticated' and 'error' both resolve to the sign-in screen -- an

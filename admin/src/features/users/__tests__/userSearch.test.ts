@@ -32,6 +32,7 @@ function user(overrides: Partial<AdminUserSummary> = {}): AdminUserSummary {
     lastActiveAt: null,
     profileCompletedAt: null,
     accountStatus: 'active',
+    suspension: null,
     ...overrides,
   };
 }

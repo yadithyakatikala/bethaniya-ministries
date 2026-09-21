@@ -17,10 +17,9 @@ import { EditPlanPage } from './features/plans/EditPlanPage';
 import { PlanDaysPage } from './features/plans/PlanDaysPage';
 import { PlanDayForm } from './features/plans/PlanDayForm';
 import { EditPlanDayPage } from './features/plans/EditPlanDayPage';
-import { DailyVersesListPage } from './features/daily-verses/DailyVersesListPage';
+import { VerseOfTheDayPage } from './features/daily-verses/VerseOfTheDayPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
-import { VotdAutomationPage } from './features/daily-verses/VotdAutomationPage';
 import { ProphetVersesListPage } from './features/prophet-verses/ProphetVersesListPage';
 import { ProphetVerseForm } from './features/prophet-verses/ProphetVerseForm';
 import { EditProphetVersePage } from './features/prophet-verses/EditProphetVersePage';
@@ -51,7 +50,7 @@ import { subscribeToAuthChanges } from './store/authStore';
  * ProtectedRoute -- the same authenticated/authorized boundary applies to
  * every admin screen, not just the dashboard shell; write actions within
  * those screens are further gated by role, see AnnouncementsListPage.tsx).
- * Day 5 adds /daily-verses* the same way (see DailyVersesListPage.tsx).
+ * Day 5 adds /daily-verses* the same way (see VerseOfTheDayPage.tsx).
  * Day 6 adds /songs* the same way (see SongsListPage.tsx) -- songs has the
  * same publish-concept RBAC shape as announcements, unlike daily_verses.
  * Day 7 adds /events* the same way (see EventsListPage.tsx) -- events adds
@@ -62,12 +61,18 @@ import { subscribeToAuthChanges } from './store/authStore';
  * a one-shot action rather than CRUD on persistent editable documents.
  * Day 11 adds /users (see UsersPage.tsx) -- also a single page (a table
  * with an inline role selector per row), Super-Admin-only.
- * M5 adds /daily-verses/automation (the Verse of the Day rotation and its
- * pool -- see VotdAutomationPage.tsx) and /prophet-verses* (a separate
- * content system with its own list/new/edit trio -- see
- * ProphetVersesListPage.tsx). The automation route sits UNDER
- * /daily-verses because it configures the same feature; prophet verses
+ * M5 added /daily-verses/automation (the Verse of the Day rotation and
+ * its pool) and /prophet-verses* (a separate content system with its own
+ * list/new/edit trio -- see ProphetVersesListPage.tsx). Prophet verses
  * get a top-level path because they are not daily verses at all.
+ *
+ * The automation route is now a REDIRECT. It sat under /daily-verses
+ * because it configured the same feature -- which turned out to be the
+ * argument against its existing at all: two sidebar entries for one
+ * feature left a church administrator unable to tell which of them the
+ * congregation was reading. /daily-verses is a single tabbed page (see
+ * VerseOfTheDayPage.tsx), and the old path lands on it so that anything
+ * bookmarked still works.
  * Day 13 adds /settings (see SettingsPage.tsx) -- also a single page,
  * viewable by every dashboard role but editable Super-Admin-only (see
  * that file's own doc comment for the RBAC reasoning) -- and wraps every
@@ -220,7 +225,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <DailyVersesListPage />
+                  <VerseOfTheDayPage />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -245,15 +250,12 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* The Verse of the Day is one page now. This path was its
+              "Verse Automation" half and may well be bookmarked, so it
+              still resolves -- to the tab it used to be. */}
           <Route
             path="/daily-verses/automation"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <VotdAutomationPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/daily-verses" replace />}
           />
           <Route
             path="/prophet-verses"

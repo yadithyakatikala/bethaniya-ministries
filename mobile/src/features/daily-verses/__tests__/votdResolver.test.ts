@@ -149,7 +149,7 @@ describe('the fallback', () => {
     expect(unresolved).toEqual([]);
   });
 
-  it('lists no duplicates, so the rotation really visits twelve verses', () => {
+  it('lists no duplicates, so the rotation really visits every one of them', () => {
     const keys = FALLBACK_REFERENCES.map((r) => `${r.bookId}:${r.chapter}:${r.verse}`);
     expect(new Set(keys).size).toBe(keys.length);
     expect(FALLBACK_CONFIG.enabled).toBe(true);

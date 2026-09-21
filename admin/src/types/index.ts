@@ -215,6 +215,37 @@ export type AuthProvider = 'password' | 'google.com' | 'apple.com';
 /** M7. An app-level suspension -- see AdminUserSummary.accountStatus. */
 export type AccountStatus = 'active' | 'suspended';
 
+/** M8. A suspension either ends by itself, or it does not. */
+export type SuspensionKind = 'temporary' | 'permanent';
+
+/**
+ * M8. The TERMS of a suspension.
+ *
+ * `accountStatus` could only ever say WHETHER. This says for how long,
+ * why, and who decided -- the three things a church administrator is
+ * asked when a member complains, and the three that had no answer
+ * anywhere in the system before it existed.
+ *
+ * `expiresAt` is the one the software reads. A temporary suspension
+ * carries one and ends by itself when it passes; a permanent suspension
+ * carries none and ends only when an administrator lifts it. That
+ * comparison is made in firestore.rules against the SERVER's clock as
+ * well as here, which is what makes the expiry a fact rather than a
+ * label (see that file's suspensionIsInForce()).
+ */
+export interface Suspension {
+  kind: SuspensionKind;
+  /** What the administrator wrote down, or null if they wrote nothing. */
+  reason: string | null;
+  startedAt: Date | null;
+  /** null for a permanent suspension. */
+  expiresAt: Date | null;
+  /** The administrator who acted. The rules require it to be the caller. */
+  byUid: string | null;
+  /** Their name at the time, if the dashboard knew it. */
+  byName: string | null;
+}
+
 export interface AdminUserSummary {
   uid: string;
   displayName: string | null;
@@ -249,8 +280,23 @@ export interface AdminUserSummary {
    * needs the Admin SDK -- and firestore.rules refuses every
    * member-authored WRITE they attempt. Reads are unaffected. Defaults to
    * 'active' for every account that has no value.
+   *
+   * M8: this field records what was DECIDED. Whether a suspension is
+   * still in force is `suspension` plus the clock -- see
+   * ../features/users/suspension.ts's suspensionState(), which every
+   * part of the dashboard goes through rather than reading this field
+   * on its own.
    */
   accountStatus: AccountStatus;
+  /**
+   * M8. The terms, or null for an account nobody has suspended.
+   *
+   * Null is also what an account suspended BEFORE M8 has: only
+   * `accountStatus` was written then. Such a suspension is treated as
+   * permanent, because a missing expiry must never read as "expired"
+   * and quietly reinstate everybody on deploy.
+   */
+  suspension: Suspension | null;
 }
 
 /** Every role a Super Admin may assign via the Users page -- mirrors

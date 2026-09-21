@@ -29,11 +29,11 @@ import {
 } from '@mui/material';
 import {
   fetchAllUsers,
-  setAccountStatus,
+  restoreUserAccess,
+  suspendUser,
   updateUserRole,
 } from '../../services/firebase/users';
 import {
-  ACCOUNT_STATUS_LABELS,
   appLanguageLabel,
   authProviderLabel,
   filterUsers,
@@ -41,6 +41,16 @@ import {
   lastActiveLabel,
   profileCompletionLabel,
 } from './userSearch';
+import { SuspendUserDialog } from './SuspendUserDialog';
+import {
+  SUSPENSION_STATE_LABELS,
+  formatWhen,
+  isSuspensionInForce,
+  suspensionState,
+  timeRemaining,
+  type SuspensionRequest,
+  type SuspensionState,
+} from './suspension';
 import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
@@ -108,6 +118,24 @@ interface PendingRoleChange {
   newRole: UserRole;
 }
 
+/**
+ * M8. How each account state is coloured in the table.
+ *
+ * 'expired' is deliberately NOT a warning colour. The suspension is
+ * over; the row is saying "this happened", not "this is happening", and
+ * colouring it like an active restriction would have administrators
+ * chasing members who are already back.
+ */
+const SUSPENSION_CHIP_COLOR: Record<
+  SuspensionState,
+  'default' | 'warning' | 'error'
+> = {
+  active: 'default',
+  temporary: 'warning',
+  permanent: 'error',
+  expired: 'default',
+};
+
 /** One label-and-value line in the detail drawer. */
 function DetailRow({
   label,
@@ -145,6 +173,8 @@ export function UsersPage() {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
   const [pendingChange, setPendingChange] = useState<PendingRoleChange | null>(null);
+  /** The member the suspension dialogue is open for, if any. */
+  const [suspendTarget, setSuspendTarget] = useState<AdminUserSummary | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -198,30 +228,51 @@ export function UsersPage() {
   }
 
   /**
-   * M7. Suspending or reinstating a member.
+   * M8. Suspending a member, on the terms chosen in the dialogue.
    *
-   * No confirmation dialogue, unlike a role change: this is reversible
-   * with the same button, and it is the action an administrator reaches
-   * for while something is actively going wrong in the chat. A role
-   * change is not reversible in the same sense -- demoting the wrong
-   * super admin can lock the church out of its own dashboard -- which is
-   * why that one asks first and this one does not.
+   * The dialogue asks first, unlike M7's single toggle. Not because the
+   * action is irreversible -- restoring access is one button -- but
+   * because "for how long" and "why" are part of the decision, and a
+   * control that cannot express them quietly turns every suspension
+   * into a permanent one that nobody wrote a reason for.
    */
-  async function handleToggleSuspension(user: AdminUserSummary) {
-    const next = user.accountStatus === 'suspended' ? 'active' : 'suspended';
+  async function handleSuspend(user: AdminUserSummary, request: SuspensionRequest) {
     setSubmitting(true);
     setSubmitError(null);
     setSuccessMessage(null);
     try {
-      await setAccountStatus(user.uid, next);
+      await suspendUser(user.uid, request);
       setSuccessMessage(
-        next === 'suspended'
-          ? `Posting is paused for ${userDisplayLabel(user)}. They can still read the app.`
-          : `${userDisplayLabel(user)} can post again.`
+        request.kind === 'permanent'
+          ? `${userDisplayLabel(user)} is suspended until an admin restores access.`
+          : `${userDisplayLabel(user)} is suspended until ${formatWhen(request.expiresAt)}.`
       );
+      setSuspendTarget(null);
       setRefreshKey((k) => k + 1);
     } catch {
-      setSubmitError('Could not change that. Please try again.');
+      setSubmitError('Could not suspend that account. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /**
+   * Restoring access, whatever kind of suspension it was.
+   *
+   * No confirmation: this is the direction that gives somebody their
+   * church back, and making an administrator confirm it twice would
+   * serve nobody.
+   */
+  async function handleRestore(user: AdminUserSummary) {
+    setSubmitting(true);
+    setSubmitError(null);
+    setSuccessMessage(null);
+    try {
+      await restoreUserAccess(user.uid);
+      setSuccessMessage(`${userDisplayLabel(user)} can post again.`);
+      setRefreshKey((k) => k + 1);
+    } catch {
+      setSubmitError('Could not restore access. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -370,11 +421,16 @@ export function UsersPage() {
                         </Tooltip>
                       </TableCell>
                       <TableCell>
+                        {/* The state, not the stored field: a temporary
+                            suspension that has run out is over, and the
+                            table must not go on calling it a suspension
+                            (see ./suspension.ts). */}
                         <Chip
                           size="small"
-                          label={ACCOUNT_STATUS_LABELS[user.accountStatus]}
-                          color={
-                            user.accountStatus === 'suspended' ? 'warning' : 'default'
+                          label={SUSPENSION_STATE_LABELS[suspensionState(user)]}
+                          color={SUSPENSION_CHIP_COLOR[suspensionState(user)]}
+                          variant={
+                            suspensionState(user) === 'expired' ? 'outlined' : 'filled'
                           }
                           data-testid={`user-status-${user.uid}`}
                         />
@@ -446,7 +502,8 @@ export function UsersPage() {
               />
               <DetailRow
                 label="Account status"
-                value={ACCOUNT_STATUS_LABELS[selected.accountStatus]}
+                value={SUSPENSION_STATE_LABELS[suspensionState(selected)]}
+                testId="user-detail-status"
               />
               {/* The uid is last, and shown in full: it is what a support
                   question or a log line is keyed by, and a truncated one
@@ -456,34 +513,112 @@ export function UsersPage() {
 
             <Divider sx={{ my: 3 }} />
 
+            {/* M8. The terms, whenever there are any. An administrator
+                asked "why is this person suspended" should not have to
+                go and ask a colleague. */}
+            {selected.suspension || selected.accountStatus === 'suspended' ? (
+              <Stack spacing={2} sx={{ mb: 3 }} data-testid="user-detail-suspension">
+                <Typography variant="subtitle2">
+                  {suspensionState(selected) === 'expired'
+                    ? 'Last suspension'
+                    : 'This suspension'}
+                </Typography>
+                <DetailRow
+                  label="Kind"
+                  value={
+                    selected.suspension?.kind === 'temporary'
+                      ? 'Temporary'
+                      : 'Permanent'
+                  }
+                  testId="user-detail-suspension-kind"
+                />
+                <DetailRow
+                  label="Reason"
+                  value={selected.suspension?.reason ?? 'None recorded'}
+                  testId="user-detail-suspension-reason"
+                />
+                <DetailRow
+                  label="Started"
+                  value={formatWhen(selected.suspension?.startedAt ?? null)}
+                  testId="user-detail-suspension-started"
+                />
+                <DetailRow
+                  label="Ends"
+                  value={
+                    selected.suspension?.expiresAt
+                      ? `${formatWhen(selected.suspension.expiresAt)}${
+                          timeRemaining(selected.suspension)
+                            ? ` (${timeRemaining(selected.suspension)})`
+                            : ' (already passed)'
+                        }`
+                      : 'Only when an admin restores access'
+                  }
+                  testId="user-detail-suspension-ends"
+                />
+                <DetailRow
+                  label="Suspended by"
+                  value={
+                    selected.suspension?.byName ??
+                    selected.suspension?.byUid ??
+                    'Not recorded'
+                  }
+                  testId="user-detail-suspension-by"
+                />
+              </Stack>
+            ) : null}
+
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Pausing posting stops this member writing anything new -- chat messages,
-              prayer requests, comments and reports. They can still read the app, and
-              they stay signed in.
+              A suspended member cannot write anything new &mdash; chat messages, prayer
+              requests, comments or reports. They can still read the app, and they stay
+              signed in: this app cannot disable a Firebase sign-in, so the app shows them
+              a notice instead and the server refuses their writes.
             </Typography>
-            <Tooltip
-              title={
-                selected.uid === ownUid ? 'You cannot pause your own account.' : ''
-              }
-              disableHoverListener={selected.uid !== ownUid}
-            >
-              <span>
+
+            <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
+              <Tooltip
+                title={selected.uid === ownUid ? 'You cannot suspend your own account.' : ''}
+                disableHoverListener={selected.uid !== ownUid}
+              >
+                <span>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    disabled={selected.uid === ownUid || submitting}
+                    onClick={() => setSuspendTarget(selected)}
+                    data-testid="user-detail-suspend"
+                  >
+                    {isSuspensionInForce(selected)
+                      ? 'Change this suspension'
+                      : 'Suspend user'}
+                  </Button>
+                </span>
+              </Tooltip>
+
+              {selected.accountStatus === 'suspended' ? (
                 <Button
-                  variant="outlined"
-                  color={selected.accountStatus === 'suspended' ? 'primary' : 'warning'}
-                  disabled={selected.uid === ownUid || submitting}
-                  onClick={() => void handleToggleSuspension(selected)}
-                  data-testid="user-detail-toggle-suspension"
+                  variant="contained"
+                  disabled={submitting}
+                  onClick={() => void handleRestore(selected)}
+                  data-testid="user-detail-restore"
                 >
-                  {selected.accountStatus === 'suspended'
-                    ? 'Allow posting again'
-                    : 'Pause posting'}
+                  Restore access
                 </Button>
-              </span>
-            </Tooltip>
+              ) : null}
+            </Stack>
           </Box>
         ) : null}
       </Drawer>
+
+      {suspendTarget ? (
+        <SuspendUserDialog
+          open
+          memberName={userDisplayLabel(suspendTarget)}
+          submitting={submitting}
+          error={submitError}
+          onCancel={() => setSuspendTarget(null)}
+          onConfirm={(request) => void handleSuspend(suspendTarget, request)}
+        />
+      ) : null}
 
       <Dialog open={Boolean(pendingChange)} onClose={() => setPendingChange(null)}>
         <DialogTitle>Change role?</DialogTitle>

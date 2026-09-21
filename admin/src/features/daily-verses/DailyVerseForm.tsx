@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
 import {
   createDailyVerse,
@@ -36,9 +36,16 @@ interface DailyVerseFormProps {
  */
 export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
   const navigate = useNavigate();
+  // The Verse of the Day page offers "set this day by hand" next to a
+  // day it has just shown, so the date is already known by the time the
+  // form opens. Read once, as the initial value only -- retyping the
+  // date must not be undone by the URL it was reached through.
+  const [searchParams] = useSearchParams();
   const [reference, setReference] = useState(verse?.reference ?? '');
   const [text, setText] = useState(verse?.text ?? '');
-  const [date, setDate] = useState(verse?.date ?? '');
+  const [date, setDate] = useState(
+    verse?.date ?? (mode === 'create' ? (searchParams.get('date') ?? '') : '')
+  );
   const [imageUrl] = useState<string | null>(verse?.imageUrl ?? null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);

@@ -66,14 +66,21 @@ const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
     path: '/announcements',
     testId: 'sidebar-announcements-link',
   },
-  { label: 'Daily Verses', path: '/daily-verses', testId: 'sidebar-daily-verses-link' },
+  // ONE entry per feature. "Daily Verses" and "Verse Automation" used to
+  // be two entries for what has only ever been one thing, which is
+  // precisely what made an automatic feature look like a manual one: a
+  // sidebar item called "Automation" reads as something you have to go
+  // and operate. The two verse streams below stay separate because they
+  // genuinely are separate -- a prophet verse is never a candidate for
+  // the Verse of the Day -- and the labels now say which is which
+  // instead of leaving it to be guessed.
   {
-    label: 'Verse Automation',
-    path: '/daily-verses/automation',
-    testId: 'sidebar-votd-automation-link',
+    label: 'Verse of the Day',
+    path: '/daily-verses',
+    testId: 'sidebar-daily-verses-link',
   },
   {
-    label: 'Prophet Verses',
+    label: 'Prophet Verse of the Day',
     path: '/prophet-verses',
     testId: 'sidebar-prophet-verses-link',
   },

@@ -74,6 +74,10 @@ describe('users service', () => {
         lastActiveAt: null,
         profileCompletedAt: null,
         accountStatus: 'active',
+        // M8. Same reasoning one level down: a document with no
+        // suspension map has no terms, and ../../features/users/
+        // suspension.ts is what decides what that means.
+        suspension: null,
       };
 
       expect(users).toEqual([

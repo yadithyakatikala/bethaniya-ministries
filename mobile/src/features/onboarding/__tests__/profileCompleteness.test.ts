@@ -36,6 +36,7 @@ function profile(partial: Partial<UserProfile> = {}): UserProfile {
     authProvider: null,
     lastActiveAt: null,
     accountStatus: 'active',
+    suspension: null,
     ...partial,
   };
 }

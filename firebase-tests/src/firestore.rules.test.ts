@@ -3238,28 +3238,75 @@ describe('firestore.rules', () => {
       });
     });
 
+    /**
+     * SUSPENSION -- the terms, and who may set them.
+     *
+     * M7 could say only "suspended". M8 says for how long, why and who
+     * decided, and the rules now require those terms to be coherent:
+     * accountStatus and the suspension map have to agree, a temporary
+     * suspension has to carry a future expiry, and a permanent one has
+     * to carry none.
+     */
+    function suspension(overrides: Record<string, unknown> = {}) {
+      return {
+        kind: 'temporary',
+        reason: 'Repeated abusive messages in the church chat',
+        startedAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        byUid: 'super-1',
+        byName: 'Pastor',
+        ...overrides,
+      };
+    }
+
+    const PERMANENT = { kind: 'permanent', expiresAt: null };
+
     describe('account status', () => {
-      it('lets a super admin suspend and reinstate another member', async () => {
+      it('lets a super admin suspend another member, with terms', async () => {
         await seedM7Roles();
         await assertSucceeds(
-          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'suspended' })
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({ accountStatus: 'suspended', suspension: suspension() })
         );
+      });
+
+      it('lets a super admin restore access, clearing the terms', async () => {
+        await seedM7Roles();
         await assertSucceeds(
-          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'active' })
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({ accountStatus: 'active', suspension: null })
+        );
+      });
+
+      it('lets a super admin suspend permanently, with no expiry', async () => {
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension(PERMANENT),
+            })
         );
       });
 
       it('does not let a super admin suspend THEMSELVES', async () => {
         await seedM7Roles();
         await assertFails(
-          dbFor('super-1').doc('users/super-1').update({ accountStatus: 'suspended' })
+          dbFor('super-1')
+            .doc('users/super-1')
+            .update({ accountStatus: 'suspended', suspension: suspension() })
         );
       });
 
       it('does not let a content admin suspend anyone', async () => {
         await seedM7Roles();
         await assertFails(
-          dbFor('admin-1').doc('users/member-1').update({ accountStatus: 'suspended' })
+          dbFor('admin-1')
+            .doc('users/member-1')
+            .update({ accountStatus: 'suspended', suspension: suspension() })
         );
       });
 
@@ -3268,14 +3315,16 @@ describe('firestore.rules', () => {
         await assertFails(
           dbFor('suspended-1')
             .doc('users/suspended-1')
-            .update({ accountStatus: 'active' })
+            .update({ accountStatus: 'active', suspension: null })
         );
       });
 
-      it('refuses a value outside the closed set', async () => {
+      it('refuses a status outside the closed set', async () => {
         await seedM7Roles();
         await assertFails(
-          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'banned' })
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({ accountStatus: 'banned', suspension: suspension() })
         );
       });
 
@@ -3287,6 +3336,285 @@ describe('firestore.rules', () => {
             .doc('users/member-1')
             .update({ role: 'host', accountStatus: 'suspended' })
         );
+      });
+    });
+
+    describe('the terms of a suspension', () => {
+      it('refuses a suspension with no terms at all', async () => {
+        // "Suspended" with nothing else is what M7 allowed, and it is
+        // exactly what a church administrator cannot act on: no reason,
+        // no end, nobody named.
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1').doc('users/member-1').update({ accountStatus: 'suspended' })
+        );
+      });
+
+      it('refuses terms attached to an ACTIVE account', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({ accountStatus: 'active', suspension: suspension() })
+        );
+      });
+
+      it('refuses a temporary suspension with no expiry', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ expiresAt: null }),
+            })
+        );
+      });
+
+      it('refuses a temporary suspension that has ALREADY expired', async () => {
+        // Accepting one would read as "suspended" in the dashboard
+        // while the member carried on writing.
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({
+                expiresAt: new Date(Date.now() - 60 * 1000),
+              }),
+            })
+        );
+      });
+
+      it('refuses a permanent suspension that carries an expiry', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ kind: 'permanent' }),
+            })
+        );
+      });
+
+      it('refuses a kind nobody defined', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ kind: 'forever-ish' }),
+            })
+        );
+      });
+
+      it('refuses an attribution naming somebody other than the caller', async () => {
+        // An attribution that can name anyone is worse than none: a
+        // church would read it as a fact about who acted.
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ byUid: 'admin-1' }),
+            })
+        );
+      });
+
+      it('refuses an unknown field smuggled into the terms', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: { ...suspension(), role: 'super_admin' },
+            })
+        );
+      });
+
+      it('refuses a reason long enough to be a payload', async () => {
+        await seedM7Roles();
+        await assertFails(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ reason: 'x'.repeat(501) }),
+            })
+        );
+      });
+
+      it('accepts a suspension with no reason given', async () => {
+        // Recording one is good practice, not a requirement -- refusing
+        // the write would just mean administrators typing a full stop.
+        await seedM7Roles();
+        await assertSucceeds(
+          dbFor('super-1')
+            .doc('users/member-1')
+            .update({
+              accountStatus: 'suspended',
+              suspension: suspension({ reason: null, byName: null }),
+            })
+        );
+      });
+    });
+
+    /**
+     * ENFORCEMENT -- the half that actually restrains anyone.
+     *
+     * The tests above are about what may be WRITTEN to the record.
+     * These are about what the record then DOES, which is the point of
+     * the feature: a suspended member's own writes are refused by the
+     * server, on every collection that calls isActiveMember(), whatever
+     * client they are using and however many times they restart it.
+     */
+    describe('what a suspension actually stops', () => {
+      /**
+       * Writes a member's profile straight past the rules, the way a
+       * super admin's write would have left it. `record` null means an
+       * ordinary active member; `{}` means a pre-M8 suspension with no
+       * terms recorded.
+       */
+      async function seedSuspended(
+        uid: string,
+        record: Record<string, unknown> | null
+      ) {
+        await seed(async (db) => {
+          await db.doc(`users/${uid}`).set({
+            role: 'member',
+            accountStatus: record === null ? 'active' : 'suspended',
+            ...(record === null || Object.keys(record).length === 0
+              ? {}
+              : { suspension: record }),
+          });
+        });
+      }
+
+      const IN_A_WEEK = () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const AN_HOUR_AGO = () => new Date(Date.now() - 60 * 60 * 1000);
+
+      function terms(overrides: Record<string, unknown> = {}) {
+        return {
+          kind: 'temporary',
+          reason: 'A pause',
+          startedAt: new Date(),
+          expiresAt: IN_A_WEEK(),
+          byUid: 'super-1',
+          byName: 'Pastor',
+          ...overrides,
+        };
+      }
+
+      it('stops a temporarily suspended member posting to the chat', async () => {
+        await seedSuspended('paused-1', terms());
+        await assertFails(
+          dbFor('paused-1')
+            .doc('community_messages/c-blocked')
+            .set({
+              text: 'Let me back in',
+              authorUid: 'paused-1',
+              authorName: 'Paused',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('stops them filing a prayer request', async () => {
+        await seedSuspended('paused-2', terms());
+        await assertFails(
+          dbFor('paused-2')
+            .doc('prayer_requests/pr-blocked')
+            .set({
+              title: 'Please pray',
+              body: 'For me.',
+              category: 'other',
+              anonymous: false,
+              authorUid: 'paused-2',
+              authorName: 'Paused',
+              status: 'open',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('LETS THEM BACK IN once the expiry has passed, with nothing rewritten', async () => {
+        // The whole point of putting the comparison in the rules: no
+        // scheduled job flipped anything, and accountStatus still reads
+        // 'suspended' on the document.
+        await seedSuspended('expired-1', terms({ expiresAt: AN_HOUR_AGO() }));
+        await assertSucceeds(
+          dbFor('expired-1')
+            .doc('community_messages/c-allowed')
+            .set({
+              text: 'Good to be back',
+              authorUid: 'expired-1',
+              authorName: 'Back',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('keeps a PERMANENT suspension in force, with no expiry to pass', async () => {
+        await seedSuspended('banned-1', terms({ kind: 'permanent', expiresAt: null }));
+        await assertFails(
+          dbFor('banned-1')
+            .doc('community_messages/c-never')
+            .set({
+              text: 'Hello?',
+              authorUid: 'banned-1',
+              authorName: 'Banned',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('treats a pre-M8 suspension with no terms as permanent', async () => {
+        // Accounts suspended before the terms existed carry only
+        // accountStatus. Reading a missing expiry as "expired" would
+        // quietly reinstate every one of them on deploy.
+        await seedSuspended('legacy-1', {});
+        await assertFails(
+          dbFor('legacy-1')
+            .doc('community_messages/c-legacy')
+            .set({
+              text: 'Still out',
+              authorUid: 'legacy-1',
+              authorName: 'Legacy',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('leaves an active member alone', async () => {
+        await seedSuspended('fine-1', null);
+        await assertSucceeds(
+          dbFor('fine-1')
+            .doc('community_messages/c-fine')
+            .set({
+              text: 'Morning all',
+              authorUid: 'fine-1',
+              authorName: 'Fine',
+              createdAt: new Date(),
+              removed: false,
+            })
+        );
+      });
+
+      it('still lets a suspended member READ, and read their own terms', async () => {
+        // Suspension is about somebody posting, not about cutting them
+        // off from scripture or from knowing why they were suspended.
+        await seedSuspended('paused-3', terms());
+        await assertSucceeds(dbFor('paused-3').doc('users/paused-3').get());
       });
     });
 

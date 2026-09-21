@@ -151,8 +151,46 @@ export interface UserProfile {
   /**
    * M7. Defaults to 'active': a field nobody has set must never read as
    * a suspension, and every account predating M7 has no value here.
+   *
+   * M8: this records what an administrator DECIDED. Whether it is still
+   * in force is this field plus `suspension` plus the clock -- see
+   * ../../features/account/suspension.ts, which every screen goes
+   * through rather than reading this field on its own.
    */
   accountStatus: AccountStatus;
+  /**
+   * M8. The terms of the suspension, or null.
+   *
+   * Null for an account nobody suspended, and also for one suspended
+   * before the terms existed. A missing expiry reads as PERMANENT, never
+   * as expired: the alternative would reinstate every pre-M8 suspension
+   * the day this shipped.
+   */
+  suspension: MemberSuspension | null;
+}
+
+/** M8. A suspension either ends by itself, or it does not. */
+export type SuspensionKind = 'temporary' | 'permanent';
+
+/**
+ * M8. What the APP is allowed to know about its own suspension.
+ *
+ * Deliberately not the reason. An administrator writes that for other
+ * administrators -- "third warning about the chat" is an internal note,
+ * not a message to the member -- and rendering it verbatim would turn
+ * every such note into something the member reads. The app says that
+ * they are suspended and until when, which is what somebody needs in
+ * order to know where they stand.
+ *
+ * The reason IS readable by this member, because they can read their own
+ * profile document; nothing here is a privacy boundary. It is an
+ * editorial decision about what the screen says.
+ */
+export interface MemberSuspension {
+  kind: SuspensionKind;
+  startedAt: Date | null;
+  /** null for a permanent suspension. */
+  expiresAt: Date | null;
 }
 
 /** Exactly the fields an owner is ever allowed to write -- see this file's
@@ -238,7 +276,32 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     // active -- an unreadable or missing value must not lock a member out
     // of their own church's app.
     accountStatus: data.accountStatus === 'suspended' ? 'suspended' : 'active',
+    suspension: toMemberSuspension(data.suspension),
   };
+}
+
+/**
+ * M8. The suspension terms, or null.
+ *
+ * An unrecognised `kind` reads as 'permanent', and a missing expiry
+ * stays null, for the same reason: a value nobody wrote must not become
+ * the lenient option. ../../features/account/suspension.ts turns this
+ * into a state.
+ */
+function toMemberSuspension(value: unknown): MemberSuspension | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const data = value as Record<string, unknown>;
+  return {
+    kind: data.kind === 'temporary' ? 'temporary' : 'permanent',
+    startedAt: toDateOrNull(data.startedAt),
+    expiresAt: toDateOrNull(data.expiresAt),
+  };
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  if (value instanceof Timestamp) return value.toDate();
+  if (value instanceof Date) return value;
+  return null;
 }
 
 /**

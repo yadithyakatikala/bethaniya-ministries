@@ -8,6 +8,37 @@
  * published-only shape for the plan library itself, plus a private
  * per-owner progress record at users/{uid}/planProgress/{planId} (same
  * isOwner(userId)-only authorization boundary as ./prayers.ts).
+ *
+ * =====================================================================
+ * THE FIVE STARTER PLANS SHIP WITH THE APP
+ * =====================================================================
+ * ../../features/plans/seedPlans.ts has defined five reading plans since
+ * V1, but nothing except its own test ever imported them: they reached
+ * members only if somebody ran scripts/seed-plans.mjs against production
+ * Firestore with credentials. Nobody had, so a member who tapped "Start a
+ * Reading Plan" got "No reading plans yet" -- a finished feature that
+ * looked unbuilt.
+ *
+ * The bundled plans are therefore a FALLBACK here, in the one module that
+ * already owns the Firestore-to-domain mapping. Every consumer -- the
+ * library, a plan's days, Home's "continue your plan" card -- gets them
+ * without re-implementing the decision.
+ *
+ * FIRESTORE ALWAYS WINS. The fallback applies only when the collection
+ * comes back EMPTY. The moment a content admin publishes one real plan,
+ * the bundled five disappear and the church's own library is what members
+ * see. There is no merge, and no way for a bundled plan to shadow an
+ * administrator's.
+ *
+ * PROGRESS IS UNAFFECTED. Seed plan ids are stable slugs
+ * ('seven-days-in-the-psalms'), so users/{uid}/planProgress/{planId}
+ * behaves exactly as it does for a Firestore plan -- and keeps working if
+ * that same plan is later seeded into Firestore under the same id, which
+ * is what scripts/seed-plans.mjs does.
+ *
+ * NOTHING IS WRITTEN, and no rule changes. This is a read-side fallback
+ * over data already compiled into the app, the same shape as the bundled
+ * Bible in ../../features/bible/.
  */
 import {
   type FirestoreError,
@@ -26,6 +57,38 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './app';
+import { SEED_PLANS } from '../../features/plans/seedPlans';
+
+/**
+ * The bundled plans, in the shape the app reads them.
+ *
+ * Built once at module load. The ids are the seed slugs, so a bundled
+ * plan and its later-seeded Firestore twin are the same plan as far as a
+ * member's saved progress is concerned.
+ */
+const BUNDLED_PLANS: PublishedPlan[] = SEED_PLANS.map((seed) => ({
+  id: seed.id,
+  ...seed.plan,
+}));
+
+/**
+ * A bundled plan's days, keyed by plan id, with a synthetic day id.
+ *
+ * `${planId}-day-${n}` mirrors what scripts/seed-plans.mjs writes, so a
+ * screen keyed on the day id behaves the same whether the plan came from
+ * Firestore or from here.
+ */
+const BUNDLED_PLAN_DAYS: Record<string, PublishedPlanDay[]> = Object.fromEntries(
+  SEED_PLANS.map((seed) => [
+    seed.id,
+    seed.days.map((day) => ({ id: `${seed.id}-day-${day.dayNumber}`, ...day })),
+  ])
+);
+
+/** Whether this id belongs to a plan that shipped with the app. */
+export function isBundledPlanId(planId: string): boolean {
+  return planId in BUNDLED_PLAN_DAYS;
+}
 
 export interface PublishedPlan {
   id: string;
@@ -98,8 +161,18 @@ export function subscribeToPublishedPlans(
   );
   return onSnapshot(
     q,
-    (snapshot) => onNext(snapshot.docs.map((d) => toPublishedPlan(d.id, d.data()))),
-    onError
+    (snapshot) => {
+      const published = snapshot.docs.map((d) => toPublishedPlan(d.id, d.data()));
+      // Only when the church has published NONE. One real plan and the
+      // bundled five step aside -- see this file's header.
+      onNext(published.length > 0 ? published : BUNDLED_PLANS);
+    },
+    // A failed read also falls back, rather than leaving a member who is
+    // offline staring at an error for content the app is carrying.
+    (error) => {
+      onNext(BUNDLED_PLANS);
+      onError(error);
+    }
   );
 }
 
@@ -109,11 +182,21 @@ export function subscribeToPlanDays(
   onNext: (days: PublishedPlanDay[]) => void,
   onError: (error: FirestoreError) => void
 ): Unsubscribe {
+  const bundled = BUNDLED_PLAN_DAYS[planId];
   const q = query(collection(db, 'plans', planId, 'days'), orderBy('dayNumber', 'asc'));
   return onSnapshot(
     q,
-    (snapshot) => onNext(snapshot.docs.map((d) => toPublishedPlanDay(d.id, d.data()))),
-    onError
+    (snapshot) => {
+      const days = snapshot.docs.map((d) => toPublishedPlanDay(d.id, d.data()));
+      // Same rule as the library above, per plan: a plan that exists in
+      // Firestore with real days shows those, and a bundled plan nobody
+      // has seeded shows the days it shipped with.
+      onNext(days.length > 0 ? days : (bundled ?? []));
+    },
+    (error) => {
+      if (bundled) onNext(bundled);
+      onError(error);
+    }
   );
 }
 
@@ -182,17 +265,30 @@ export function subscribeToMostRecentPlanProgress(
         return;
       }
       const progress = toPlanProgress(first.data());
-      void getDoc(doc(db, 'plans', first.id)).then((planSnapshot) => {
-        if (!planSnapshot.exists()) {
-          onNext(null);
-          return;
-        }
-        onNext({
-          planId: first.id,
-          plan: toPublishedPlan(planSnapshot.id, planSnapshot.data()),
-          progress,
+      // The bundled plan with this id, if there is one. Resolved BEFORE
+      // the read, so a member who started a plan that ships with the app
+      // still gets their "Continue your plan" card -- the plan document
+      // genuinely does not exist in Firestore, and returning null here
+      // would make the card vanish the moment they started reading.
+      const bundled = BUNDLED_PLANS.find((plan) => plan.id === first.id) ?? null;
+      void getDoc(doc(db, 'plans', first.id))
+        .then((planSnapshot) => {
+          if (planSnapshot.exists()) {
+            onNext({
+              planId: first.id,
+              plan: toPublishedPlan(planSnapshot.id, planSnapshot.data()),
+              progress,
+            });
+            return;
+          }
+          // No Firestore plan. Either it is a bundled one, or it is a
+          // plan an administrator has since deleted -- in which case
+          // there is nothing to continue and null is still right.
+          onNext(bundled ? { planId: first.id, plan: bundled, progress } : null);
+        })
+        .catch(() => {
+          onNext(bundled ? { planId: first.id, plan: bundled, progress } : null);
         });
-      });
     },
     onError
   );

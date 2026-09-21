@@ -105,10 +105,44 @@ service cloud.firestore {
     // `accountStatus` is absent on every account created before M7, so
     // the default is 'active' -- a field nobody has set must never mean
     // "suspended".
+    //
+    // ----------------------------------------------------------------
+    // M8 -- A TEMPORARY SUSPENSION EXPIRES HERE, ON THE SERVER
+    // ----------------------------------------------------------------
+    // A temporary suspension carries an `expiresAt`, and the moment
+    // `request.time` is past it the member may write again. THAT
+    // COMPARISON BELONGS IN THIS FILE and nowhere else: the obvious
+    // alternative -- a scheduled job that flips accountStatus back --
+    // needs a deployed Cloud Function, which needs Blaze; and an expiry
+    // checked only in the app is worth nothing, because the app is the
+    // party being restrained.
+    //
+    // A consequence worth writing down: an expired suspension leaves
+    // `accountStatus: 'suspended'` on the document, because nothing
+    // rewrites it. The stored field records what was DECIDED; whether
+    // it is still IN FORCE is this function's answer. The dashboard and
+    // the app both derive it the same way rather than trusting the
+    // field alone.
+    //
+    // A permanent suspension has no `expiresAt`, so it never expires.
+    // It ends when an administrator lifts it, and only then.
+    // Read in two steps, `suspension` then `expiresAt`, rather than by a
+    // nested path: a profile written before M8 has no `suspension` map
+    // at all, and this way the missing-key default is plainly a default
+    // rather than something to reason about. A document whose
+    // accountStatus is 'active' never reaches the second half, so a
+    // cleared `suspension: null` is not dereferenced.
+    function suspensionIsInForce(profile) {
+      return profile.get('accountStatus', 'active') == 'suspended'
+        && (profile.get('suspension', {}).get('expiresAt', null) == null
+            || request.time < profile.get('suspension', {}).get('expiresAt', null));
+    }
+
     function isActiveMember() {
       return isSignedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid))
-             .data.get('accountStatus', 'active') == 'active';
+        && !suspensionIsInForce(
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+           );
     }
 
     // Announcement field-level validation (Day 4). Re-validates the
@@ -200,6 +234,60 @@ service cloud.firestore {
         && data.youtubeUrl is string
         && data.youtubeUrl.size() <= 2000
         && data.youtubeUrl.matches('^$|^https?://.+');
+    }
+
+    // ================================================================
+    // M8 -- WHAT A SUSPENSION RECORD HAS TO LOOK LIKE
+    // ================================================================
+    // `accountStatus` alone could only ever say WHETHER. A church
+    // administrator also has to be able to answer: for how long, why,
+    // and who decided -- and, for a temporary suspension, the app has
+    // to be able to work out on its own when it is over. That is what
+    // the `suspension` map carries.
+    //
+    // The two fields must AGREE, which is the main thing validated
+    // here. A document saying 'suspended' with no terms, or carrying
+    // terms while active, is a record nobody can act on: the dashboard
+    // would not know what to display and suspensionIsInForce() above
+    // would be reading a field that means nothing. So:
+    //
+    //   accountStatus 'active'     <->  suspension absent or null
+    //   accountStatus 'suspended'  <->  a complete suspension map
+    //
+    // `expiresAt` is the load-bearing value. A temporary suspension
+    // MUST carry one and it must be in the future -- a suspension that
+    // has already expired when it is written is not a suspension, and
+    // accepting one would let a mistyped date read as "suspended" in
+    // the dashboard while the member writes on unhindered. A permanent
+    // suspension must carry none, so that suspensionIsInForce() has
+    // nothing to compare and the answer stays "yes" until an
+    // administrator says otherwise.
+    //
+    // `byUid` must be the caller. Not because it protects anything --
+    // only a super admin reaches this branch at all -- but because an
+    // attribution that could name somebody else is worse than no
+    // attribution: a church would read it as a fact about who acted.
+    function isValidSuspensionRecord(suspension) {
+      return suspension.keys().hasOnly(
+               ['kind', 'reason', 'startedAt', 'expiresAt', 'byUid', 'byName'])
+        && suspension.get('kind', '') in ['temporary', 'permanent']
+        && suspension.get('startedAt', null) is timestamp
+        && suspension.get('byUid', '') == request.auth.uid
+        && (suspension.kind == 'permanent'
+              ? suspension.get('expiresAt', null) == null
+              : suspension.get('expiresAt', null) is timestamp
+                && suspension.expiresAt > request.time)
+        && (suspension.get('reason', null) == null
+              || (suspension.reason is string && suspension.reason.size() <= 500))
+        && (suspension.get('byName', null) == null
+              || (suspension.byName is string && suspension.byName.size() <= 200));
+    }
+
+    function isValidSuspensionChange(data) {
+      return data.get('suspension', null) == null
+        ? data.accountStatus == 'active'
+        : data.accountStatus == 'suspended'
+          && isValidSuspensionRecord(data.suspension);
     }
 
     // Day 9: validates a member's self-service update to their own user
@@ -923,11 +1011,19 @@ service cloud.firestore {
         // What this actually enforces is described at isActiveMember()
         // above -- it stops a suspended member WRITING, on the server.
         // It does not and cannot disable their Firebase Auth account.
+        //
+        // M8 widens this branch by exactly one key. `accountStatus` says
+        // WHETHER; `suspension` says which kind, until when, why, and
+        // who decided -- and the two must move together or the record is
+        // incoherent (a suspended account with no terms, or terms on an
+        // active one). isValidSuspensionChange() below requires them to
+        // agree, which is why they share a branch rather than getting
+        // one each.
         || (isSuperAdmin()
           && !isOwner(userId)
           && request.resource.data.diff(resource.data)
-               .affectedKeys().hasOnly(['accountStatus'])
-          && request.resource.data.accountStatus in ['active', 'suspended']);
+               .affectedKeys().hasOnly(['accountStatus', 'suspension'])
+          && isValidSuspensionChange(request.resource.data));
 
       allow delete: if isSuperAdmin();
     }

@@ -19,6 +19,7 @@ import {
   subscribeToOwnProfile,
   updateOwnProfile,
   type AccountStatus,
+  type MemberSuspension,
   type ThemePreference,
 } from '../services/firebase/userProfile';
 import {
@@ -152,6 +153,15 @@ interface PreferencesContextValue {
    * the boundary (see isActiveMember there); this is the explanation.
    */
   accountStatus: AccountStatus;
+  /**
+   * M8. The terms of that suspension, or null.
+   *
+   * Carried beside the status because `accountStatus` alone cannot
+   * answer "is this still in force" -- a temporary suspension expires
+   * with nothing rewriting the field. ../features/account/suspension.ts
+   * turns the pair into a state; nothing should read either on its own.
+   */
+  suspension: MemberSuspension | null;
   setAppLanguage: (language: BibleLanguage) => Promise<void>;
   setBibleMode: (mode: BibleMode) => Promise<void>;
   setThemePreference: (theme: ThemePreference) => Promise<void>;
@@ -184,6 +194,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   // are here rather than in a second listener of their own.
   const [memberName, setMemberName] = useState<string | null>(null);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>('active');
+  const [suspension, setSuspension] = useState<MemberSuspension | null>(null);
 
   // Guards against a slower earlier AsyncStorage read overwriting a
   // faster-resolving later one if this ever re-mounts quickly (e.g. Fast
@@ -303,6 +314,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         // posting was just paused should see that, not a cached 'active'.
         setMemberName(profile.displayName);
         setAccountStatus(profile.accountStatus);
+        setSuspension(profile.suspension);
         // The V2 fields are authoritative when present. V1's single
         // `languagePreference` only SEEDS the Bible mode, and only for an
         // account that has never run V2 -- it must never be allowed to
@@ -355,6 +367,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       // suspension must never follow the next one into the app.
       setMemberName(null);
       setAccountStatus('active');
+      setSuspension(null);
     };
   }, [uid]);
 
@@ -372,6 +385,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       syncFailed,
       memberName,
       accountStatus,
+      suspension,
       // Marking the refs here too (not just in the Firestore-snapshot
       // handler above) means an explicit choice the user makes while the
       // one-time local-load effect is still in flight can never be
@@ -450,6 +464,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       syncFailed,
       memberName,
       accountStatus,
+      suspension,
       uid,
     ]
   );

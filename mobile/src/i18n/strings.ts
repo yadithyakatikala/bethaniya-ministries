@@ -119,6 +119,9 @@ export interface Strings {
   'more.viewProfile': string;
   'more.readingPlans': string;
   'more.prayers': string;
+  /** The PRIVATE journal at users/{uid}/prayers -- named apart from the
+   *  shared wall so the two rows cannot be mistaken for each other. */
+  'more.myPrayerJournal': string;
   'more.community': string;
   'more.notifications': string;
   'more.settings': string;
@@ -373,6 +376,29 @@ export interface Strings {
    *  section heading below the Verse of the Day. */
   'prophetVerse.title': string;
   'prophetVerse.imageLabel': string;
+  /** Shown when the church has not published one yet -- see
+   *  ../features/prophet-verses/ProphetVerseCard.tsx. */
+  'prophetVerse.empty': string;
+  'prophetVerse.emptyMessage': string;
+
+  // --- M8: suspension ---------------------------------------------------
+  /**
+   * The screen a suspended member sees instead of the app.
+   *
+   * It says what has happened and, for a temporary suspension, when it
+   * ends -- and nothing else. The REASON an administrator recorded is
+   * deliberately not shown: it is an internal note written for other
+   * administrators, and putting it on this screen would turn every such
+   * note into something the member reads.
+   */
+  'suspended.title': string;
+  'suspended.permanentMessage': string;
+  'suspended.temporaryMessage': string;
+  /** The end of a temporary suspension. `{when}` is a formatted date. */
+  'suspended.until': string;
+  'suspended.canStillRead': string;
+  'suspended.contactChurch': string;
+  'suspended.signOut': string;
 
   // --- M6 -------------------------------------------------------------
   /**
@@ -548,6 +574,16 @@ export interface Strings {
   // --- M7: a suspended account ------------------------------------------
   'account.suspendedTitle': string;
   'account.suspendedMessage': string;
+
+  // --- Community as a place, not just a list of posts -------------------
+  // The Community screen is the church's social area; the posts below are
+  // one part of it, and the chat and the media feed are the others.
+  'community.introMessage': string;
+  'community.postsSection': string;
+  'community.goToChat': string;
+  'community.goToChatHint': string;
+  'community.goToMedia': string;
+  'community.goToMediaHint': string;
 }
 
 export type StringKey = keyof Strings;
@@ -617,6 +653,7 @@ const en: Strings = {
   'more.viewProfile': 'View profile',
   'more.readingPlans': 'Reading Plans',
   'more.prayers': 'Prayers',
+  'more.myPrayerJournal': 'My prayer journal',
   'more.community': 'Community',
   'more.notifications': 'Notifications',
   'more.settings': 'Settings',
@@ -836,8 +873,26 @@ const en: Strings = {
   'dailyVerse.imageLabel': "Illustration for today's verse",
   'dailyVerse.unavailable': "Today's verse could not be loaded.",
   'dailyVerse.loading': "Loading today's verse",
-  'prophetVerse.title': 'Prophet Verse',
+  // "of the Day" is load-bearing: this block sits directly under the
+  // Verse of the Day, and a tester could not tell the two apart.
+  'prophetVerse.title': 'Prophet Verse of the Day',
   'prophetVerse.imageLabel': 'Illustration for this prophet verse',
+  'prophetVerse.empty': 'No prophet verse today',
+  'prophetVerse.emptyMessage':
+    'When the church shares one, it will appear here beneath the Verse of the Day.',
+
+  // --- M8: suspension ---
+  'suspended.title': 'Your account is suspended',
+  'suspended.permanentMessage':
+    'A church administrator has suspended this account. You can use the app again once an administrator restores access.',
+  'suspended.temporaryMessage':
+    'A church administrator has suspended this account for a while. It will unlock by itself when the time is up.',
+  'suspended.until': 'Until {when}',
+  'suspended.canStillRead':
+    'Nothing has been deleted, and you are still signed in.',
+  'suspended.contactChurch':
+    'If you think this is a mistake, please speak to someone at your church.',
+  'suspended.signOut': 'Sign out',
 
   // --- M6 ---
   'settings.syncFailed':
@@ -983,6 +1038,13 @@ const en: Strings = {
   'account.suspendedTitle': 'Posting is paused',
   'account.suspendedMessage':
     'A church administrator has paused posting on your account. You can still read everything. Please speak to the church office.',
+
+  'community.introMessage': 'Everything the church family shares, in one place.',
+  'community.postsSection': 'From the church',
+  'community.goToChat': 'Church chat',
+  'community.goToChatHint': 'Talk with the whole church',
+  'community.goToMedia': 'Photos and videos',
+  'community.goToMediaHint': 'Pictures and clips from church life',
 };
 
 /**
@@ -1056,6 +1118,7 @@ const te: Strings = {
   'more.viewProfile': 'ప్రొఫైల్ చూడండి',
   'more.readingPlans': 'పఠన ప్రణాళికలు',
   'more.prayers': 'ప్రార్థనలు',
+  'more.myPrayerJournal': 'నా ప్రార్థన పుస్తకం',
   'more.community': 'సమాజం',
   'more.notifications': 'నోటిఫికేషన్‌లు',
   'more.settings': 'సెట్టింగ్‌లు',
@@ -1274,8 +1337,20 @@ const te: Strings = {
   'dailyVerse.imageLabel': 'నేటి వచనానికి చిత్రం',
   'dailyVerse.unavailable': 'నేటి వచనం లోడ్ కాలేదు.',
   'dailyVerse.loading': 'నేటి వచనం లోడ్ అవుతోంది',
-  'prophetVerse.title': 'ప్రవక్త వచనం',
+  'prophetVerse.title': 'ఈ రోజు ప్రవక్త వచనం',
   'prophetVerse.imageLabel': 'ఈ ప్రవక్త వచనానికి చిత్రం',
+  'prophetVerse.empty': 'ఈ రోజు ప్రవక్త వచనం లేదు',
+  'prophetVerse.emptyMessage':
+    'సంఘం పంచుకున్నప్పుడు, అది ఈ రోజు వచనం క్రింద ఇక్కడ కనిపిస్తుంది.',
+
+  // --- M8: suspension ---
+  'suspended.title': 'మీ ఖాతా నిలిపివేయబడింది',
+  'suspended.permanentMessage': 'ఒక సంఘ నిర్వాహకుడు ఈ ఖాతాను నిలిపివేశారు. నిర్వాహకుడు తిరిగి అనుమతించిన తర్వాత మీరు యాప్‌ను మళ్లీ ఉపయోగించవచ్చు.',
+  'suspended.temporaryMessage': 'ఒక సంఘ నిర్వాహకుడు ఈ ఖాతాను కొంత కాలం పాటు నిలిపివేశారు. సమయం ముగిసిన వెంటనే ఇది దానంతట అదే తెరుచుకుంటుంది.',
+  'suspended.until': '{when} వరకు',
+  'suspended.canStillRead': 'ఏదీ తొలగించబడలేదు, మీరు ఇంకా సైన్ ఇన్‌లోనే ఉన్నారు.',
+  'suspended.contactChurch': 'ఇది పొరపాటు అని మీరు భావిస్తే, దయచేసి మీ సంఘంలో ఎవరితోనైనా మాట్లాడండి.',
+  'suspended.signOut': 'సైన్ అవుట్',
 
   // --- M6 ---
   'settings.syncFailed':
@@ -1424,6 +1499,13 @@ const te: Strings = {
   'account.suspendedTitle': 'పోస్ట్ చేయడం నిలిపివేయబడింది',
   'account.suspendedMessage':
     'సంఘ నిర్వాహకులు మీ ఖాతాలో పోస్ట్ చేయడాన్ని నిలిపివేశారు. మీరు అన్నీ చదవగలరు. దయచేసి సంఘ కార్యాలయంతో మాట్లాడండి.',
+
+  'community.introMessage': 'సంఘ కుటుంబం పంచుకునేదంతా ఒకే చోట.',
+  'community.postsSection': 'సంఘం నుండి',
+  'community.goToChat': 'సంఘ సంభాషణ',
+  'community.goToChatHint': 'సంఘం మొత్తంతో మాట్లాడండి',
+  'community.goToMedia': 'ఫోటోలు, వీడియోలు',
+  'community.goToMediaHint': 'సంఘ జీవితంలోని చిత్రాలు, క్లిప్‌లు',
 };
 
 export const CATALOGUES: Record<BibleLanguage, Strings> = { en, te };

@@ -12,6 +12,8 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +21,7 @@ import {
   TableHead,
   TableRow,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,10 +39,26 @@ import { currentProphetVerseId, stateOf } from './state';
 import { useNow } from './useNow';
 
 /**
- * Prophet Verses -- a content system of its own, listed and managed
- * separately from the Daily Verses page. The two are never mixed: a
- * prophet verse is not a candidate for the Verse of the Day, and the
- * Verse of the Day is not a prophet verse.
+ * =====================================================================
+ * PROPHET VERSE OF THE DAY -- ONE PAGE, AND ALWAYS HAS BEEN
+ * =====================================================================
+ * A content system of its own, listed and managed separately from the
+ * Verse of the Day. The two are never mixed: a prophet verse is not a
+ * candidate for the Verse of the Day, and the Verse of the Day is not a
+ * prophet verse. What they share is a name and a place on the home
+ * screen, which is exactly why the labels have to be explicit.
+ *
+ * THERE IS NO "PROPHET VERSE AUTOMATION" PAGE, and there never was --
+ * the Verse of the Day had one and this did not. There is nothing for
+ * such a page to configure: a prophet verse is a piece of writing
+ * somebody publishes, with a date and time it should appear, not a
+ * rotation over a pool. The two features are asymmetric on purpose.
+ *
+ * What this page was missing was not a second page. It was a straight
+ * answer at the top: WHICH ONE IS THE CONGREGATION READING RIGHT NOW.
+ * That fact lived in a chip inside a table row -- easy to miss, and
+ * absent altogether when there are no records -- so it is now stated
+ * before the table, in the words a pastor would use.
  *
  * ---------------------------------------------------------------------
  * THREE STATES, AND WHY EACH IS NAMED
@@ -101,6 +120,9 @@ export function ProphetVersesListPage() {
   // ./useNow.ts.
   const now = useNow();
   const currentId = verses ? currentProphetVerseId(verses, now) : null;
+  const current = verses?.find((verse) => verse.id === currentId) ?? null;
+  const scheduledCount =
+    verses?.filter((verse) => stateOf(verse, now) === 'scheduled').length ?? 0;
 
   async function handleTogglePublished(verse: ProphetVerseRecord) {
     setBusyId(verse.id);
@@ -130,7 +152,7 @@ export function ProphetVersesListPage() {
   return (
     <Box sx={{ p: 4 }} data-testid="prophet-verses-list-page">
       <AdminPageHeader
-        title="Prophet Verses"
+        title="Prophet Verse of the Day"
         action={
           canManage ? (
             <Button
@@ -144,6 +166,53 @@ export function ProphetVersesListPage() {
           ) : undefined
         }
       />
+
+      <Typography color="text.secondary" sx={{ fontSize: 14, mt: -2, mb: 3 }}>
+        {/* Said once, plainly, because the two features sit next to each
+            other on the home screen and share most of their name. */}
+        A word your church writes and publishes. This is not the Verse of the Day &mdash;
+        that one the app chooses by itself from scripture, and it is managed on its own
+        page. Nothing here happens automatically: a prophet verse appears when you
+        publish it, and stays until another one is due.
+      </Typography>
+
+      {/* THE ANSWER FIRST. Only one shows at a time, and which one is
+          not obvious from a list of dates. */}
+      <Paper
+        variant="outlined"
+        sx={{ borderRadius: 3, p: 3, mb: 3 }}
+        data-testid="prophet-verse-now-panel"
+      >
+        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
+          On the home screen now
+        </Typography>
+        {!verses ? (
+          <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+            Checking&hellip;
+          </Typography>
+        ) : current ? (
+          <Stack spacing={0.5}>
+            <Typography sx={{ fontSize: 20 }} data-testid="prophet-verse-now-title">
+              {current.title}
+            </Typography>
+            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+              {current.reference} &middot; showing since {formatWhen(current.publishAt)}
+            </Typography>
+          </Stack>
+        ) : (
+          <Typography color="text.secondary" sx={{ fontSize: 14 }} data-testid="prophet-verse-now-none">
+            Nothing. The app simply leaves this section out until something is published
+            and due &mdash; members are not shown an empty box.
+          </Typography>
+        )}
+        {scheduledCount > 0 ? (
+          <Typography color="text.secondary" sx={{ fontSize: 13, mt: 1.5 }}>
+            {scheduledCount === 1
+              ? '1 more is scheduled and will take over when its time comes.'
+              : `${scheduledCount} more are scheduled; the latest one due takes over.`}
+          </Typography>
+        ) : null}
+      </Paper>
 
       {error ? (
         <Alert severity="error" data-testid="prophet-verses-error">

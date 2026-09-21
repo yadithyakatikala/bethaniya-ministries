@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from './IconButton';
 import { CloseIcon } from './FeatureIcons';
 import { useTheme } from '../useTheme';
+import { sheetAnimation, useReducedMotion } from '../motion';
 
 /**
  * A bottom sheet.
@@ -25,6 +26,10 @@ import { useTheme } from '../useTheme';
  * SCROLLS BY DEFAULT, capped at most of the screen: the chapter picker
  * is 66 books long and a sheet that grows past the top of the display
  * takes its own controls with it.
+ *
+ * IT SLIDES UP, AND BACK DOWN -- and does neither when the phone's
+ * "reduce motion" setting is on, in which case it simply appears. That
+ * is the honest reading of "remove animations"; see ../motion.ts.
  */
 export function Sheet({
   visible,
@@ -47,6 +52,7 @@ export function Sheet({
 }) {
   const { colors, radii, spacing, type } = useTheme();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
 
   const body = (
     <View style={{ gap: spacing.lg, paddingBottom: spacing.lg }}>{children}</View>
@@ -56,7 +62,7 @@ export function Sheet({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType={sheetAnimation(reducedMotion)}
       onRequestClose={onClose}
       // Announces the sheet as a modal, so a screen reader does not read
       // the reader page underneath it.

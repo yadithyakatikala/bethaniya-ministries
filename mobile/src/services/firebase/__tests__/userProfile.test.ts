@@ -69,6 +69,10 @@ describe('subscribeToOwnProfile', () => {
       authProvider: null,
       lastActiveAt: null,
       accountStatus: 'active',
+      // M8. Null, and ../../features/account/suspension.ts reads that as
+      // "nothing recorded" -- or, on a suspended account, as a
+      // suspension that never expires.
+      suspension: null,
     });
   });
 

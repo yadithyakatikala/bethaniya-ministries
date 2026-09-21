@@ -91,25 +91,8 @@ export function MoreScreen() {
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>
-          <Tappable
-            testID="more-prayers-link"
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('Prayers')}
-            style={[
-              styles.row,
-              styles.divider,
-              { borderTopColor: colors.border, padding: spacing.md },
-            ]}
-          >
-            <Text style={[type.label, { color: colors.text }]}>{t('more.prayers')}</Text>
-            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
-          </Tappable>
-          {/* M7. The shared prayer wall sits next to the private prayer
-              journal above, because "ask the church to pray" and "keep my
-              own list" are the two halves of the same thing to a member
-              -- they are separate collections with separate permissions,
-              and the two rows are named so the difference is readable
-              without opening either. */}
+          {/* The SHARED wall -- what "Prayers" means to a member, and
+              what Home's Prayers tile opens. */}
           <Tappable
             testID="more-prayer-wall-link"
             accessibilityRole="button"
@@ -120,8 +103,28 @@ export function MoreScreen() {
               { borderTopColor: colors.border, padding: spacing.md },
             ]}
           >
+            <Text style={[type.label, { color: colors.text }]}>{t('more.prayers')}</Text>
+            <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
+          </Tappable>
+          {/* The PRIVATE journal at users/{uid}/prayers. It keeps its own
+              row, but named for what it is rather than sharing the word
+              "Prayers" with the wall above -- two rows called almost the
+              same thing is what a tester read as one feature listed
+              twice. It is deliberately NOT a Home tile: a personal list
+              nobody else can see is something a member goes looking for,
+              not a front door. */}
+          <Tappable
+            testID="more-prayers-link"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Prayers')}
+            style={[
+              styles.row,
+              styles.divider,
+              { borderTopColor: colors.border, padding: spacing.md },
+            ]}
+          >
             <Text style={[type.label, { color: colors.text }]}>
-              {t('prayerWall.title')}
+              {t('more.myPrayerJournal')}
             </Text>
             <View style={[styles.chevron, { borderColor: colors.secondaryText }]} />
           </Tappable>

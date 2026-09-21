@@ -1,5 +1,6 @@
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
+import { isSuspended } from '../features/account/suspension';
 
 /**
  * Who this member is when they post, and whether they may -- M7.
@@ -30,11 +31,23 @@ import { usePreferences } from './PreferencesContext';
  * =====================================================================
  * `canPost`
  * =====================================================================
- * False when a super admin has paused this member's posting. This is the
+ * False when a super admin has suspended this member. This is the
  * EXPLANATION, not the enforcement -- firestore.rules' isActiveMember()
  * refuses the write on the server whatever the app renders. What it buys
  * is that a suspended member is told, rather than typing a message and
  * watching it fail.
+ *
+ * M8: the answer comes from ../features/account/suspension.ts rather
+ * than from `accountStatus` alone, so a TEMPORARY suspension that has
+ * run out does not keep a composer disabled. Nothing rewrites the stored
+ * field when it expires, so reading the field on its own would leave the
+ * member locked out of the composer indefinitely while the server had
+ * long since started accepting their writes -- the worst of both.
+ *
+ * In practice ../features/account/SuspensionGate.tsx means a suspended
+ * member is not looking at a composer at all. This stays correct anyway:
+ * a suspension that lands mid-session reaches here through the same live
+ * snapshot, and one gate fewer to trust is one fewer to get wrong.
  */
 export function useMemberIdentity(): {
   uid: string | null;
@@ -45,11 +58,11 @@ export function useMemberIdentity(): {
   suspended: boolean;
 } {
   const { user } = useAuth();
-  const { memberName, accountStatus } = usePreferences();
+  const { memberName, accountStatus, suspension } = usePreferences();
 
   const fromProfile = memberName?.trim();
   const fromAuth = user?.displayName?.trim();
-  const suspended = accountStatus === 'suspended';
+  const suspended = isSuspended({ accountStatus, suspension });
 
   return {
     uid: user?.uid ?? null,

@@ -19,13 +19,30 @@ import type { ProphetVerse } from '../../services/firebase/prophetVerses';
  * overline and a slightly different rhythm -- the same Card surface, the
  * same hairline border as everything else on the screen.
  *
- * WHEN THERE IS NOTHING TO SHOW, NOTHING IS SHOWN. No empty state, no
- * placeholder, no heading standing over a blank card: a church that has
- * not published a prophet verse should simply not have this section, and
- * a member should not have to scroll past an explanation of a feature
- * they are not using. That is also why a failed read renders nothing
- * rather than an error -- the Verse of the Day above has its own bundled
- * fallback and is unaffected.
+ * ---------------------------------------------------------------------
+ * IT USED TO RENDER NOTHING WHEN EMPTY. THAT WAS THE BUG.
+ * ---------------------------------------------------------------------
+ * M5 decided that a church with no prophet verse should simply not have
+ * this section, so the empty state returned null. The reasoning was
+ * sound for a church that has chosen not to use the feature; it was
+ * wrong for every church that has not published one YET, which is all of
+ * them on day one. A tester looked for "Prophet Verse of the Day" in the
+ * release build and reported it missing -- the feature was complete and
+ * literally invisible, indistinguishable from never having been built.
+ *
+ * So an empty prophet verse now renders a quiet card that names the
+ * section and says there is none today. It is a SECOND, clearly labelled
+ * block under the Verse of the Day, never a replacement for it: the
+ * verse above keeps its own bundled fallback and is untouched by
+ * anything here.
+ *
+ * Nothing is invented to fill the space. The card says the church has
+ * not shared one; it does not manufacture a devotional, for the same
+ * reason ../plans/seedPlans.ts marks its own text as app-created.
+ *
+ * A FAILED READ still renders the same empty card rather than an error:
+ * a member cannot act on a Firestore failure, and the Verse of the Day
+ * above is unaffected either way.
  *
  * THE IMAGE IS OPTIONAL AND COLLAPSES. With no image there is no empty
  * frame and no reserved space -- the text simply starts at the top of the
@@ -45,10 +62,34 @@ export function ProphetVerseCard() {
       </Card>
     );
   }
-  // Deliberately nothing at all -- see this file's header.
-  if (state.status === 'empty') return null;
+  if (state.status === 'empty') return <ProphetVerseEmpty />;
 
   return <ProphetVerseBody verse={state.verse} />;
+}
+
+/**
+ * The section, named, with nothing in it yet.
+ *
+ * Carries the same overline as a real prophet verse, so a member can see
+ * that this is a distinct block from the Verse of the Day above it
+ * rather than a second, broken copy of it.
+ */
+function ProphetVerseEmpty() {
+  const { colors, spacing, type } = useTheme();
+  const { t } = useTranslation();
+  return (
+    <Card testID="prophet-verse-empty">
+      <View style={{ gap: spacing.xs }}>
+        <Text style={[type.overline, { color: colors.accent }]}>
+          {t('prophetVerse.title')}
+        </Text>
+        <Text style={[type.title, { color: colors.ink }]}>{t('prophetVerse.empty')}</Text>
+        <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
+          {t('prophetVerse.emptyMessage')}
+        </Text>
+      </View>
+    </Card>
+  );
 }
 
 function ProphetVerseBody({ verse }: { verse: ProphetVerse }) {

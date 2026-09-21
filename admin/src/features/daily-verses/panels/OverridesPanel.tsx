@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
@@ -11,58 +11,67 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import {
-  deleteDailyVerse,
-  subscribeToDailyVerses,
-} from '../../services/firebase/dailyVerses';
-import { useAuthStore } from '../../store/authStore';
-import { AdminEmptyState } from '../../components/AdminEmptyState';
-import { AdminPageHeader } from '../../components/AdminPageHeader';
-import { AdminTableCard } from '../../components/AdminTableCard';
-import type { DailyVerse } from '../../types';
+import { deleteDailyVerse } from '../../../services/firebase/dailyVerses';
+import { useAuthStore } from '../../../store/authStore';
+import { AdminEmptyState } from '../../../components/AdminEmptyState';
+import { AdminTableCard } from '../../../components/AdminTableCard';
+import type { DailyVerse } from '../../../types';
 
-/** Matches firestore.rules'/storage.rules' isContentAdminOrAbove(). Gating these buttons is a UX convenience only; the rules are the real boundary. */
+/**
+ * DAYS SET BY HAND -- the intentional manual override.
+ *
+ * This was the Daily Verses page until the Verse of the Day was
+ * consolidated. It is not a page any more, and that is the point: a
+ * church administrator was being shown "Daily Verses" and "Verse
+ * Automation" as two separate destinations in the sidebar, with no way
+ * to tell from either which one the congregation was actually reading.
+ * They were always one feature. Now they are one screen, and this is the
+ * part of it that holds the exceptions.
+ *
+ * NOTHING ABOUT THE DATA CHANGED. These are the same daily_verses
+ * documents, written by the same form, honoured by the app in the same
+ * way: a verse set for a date beats the rotation on that date, and only
+ * on that date. What changed is that the sentence above is now said
+ * where an administrator can read it.
+ *
+ * A verse here carries the administrator's OWN TEXT -- it predates the
+ * bundled Bible and may be a paraphrase, another translation, or a
+ * range -- which is why the app renders it verbatim rather than looking
+ * it up. See mobile/src/features/daily-verses/votdResolver.ts.
+ *
+ * RBAC: every dashboard role can read (the app's own rules make
+ * daily_verses world-readable); a content admin or above can write.
+ * The gate here is a convenience; firestore.rules is the boundary.
+ */
 function canManageDailyVerses(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }
 
-/**
- * Admin daily verses list -- Day 5. Table of every daily verse (every
- * role reads all, per the RBAC table's unconditional daily_verses "Read"
- * -- there is no admin-only read branch or publish status column here,
- * unlike AnnouncementsListPage.tsx) with, for Content Admin/Super Admin
- * only, edit/delete actions and a "New Daily Verse" button.
- */
-export function DailyVersesListPage() {
+export function OverridesPanel({
+  verses,
+  error,
+}: {
+  /** null while the first snapshot is still in flight. */
+  verses: DailyVerse[] | null;
+  error: string | null;
+}) {
   const role = useAuthStore((s) => s.role);
   const canManage = canManageDailyVerses(role);
 
-  const [verses, setVerses] = useState<DailyVerse[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DailyVerse | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToDailyVerses(
-      (next) => {
-        setVerses(next);
-        setError(null);
-      },
-      () => {
-        setError('Could not load daily verses. Please try again.');
-      }
-    );
-    return unsubscribe;
-  }, []);
 
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
@@ -76,22 +85,37 @@ export function DailyVersesListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="daily-verses-list-page">
-      <AdminPageHeader
-        title="Daily Verses"
-        action={
-          canManage ? (
-            <Button
-              variant="contained"
-              component={RouterLink}
-              to="/daily-verses/new"
-              data-testid="new-daily-verse-button"
-            >
-              New Daily Verse
-            </Button>
-          ) : undefined
-        }
-      />
+    <Paper
+      variant="outlined"
+      sx={{ borderRadius: 3, p: 3 }}
+      data-testid="daily-verses-list-page"
+    >
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1.5, mb: 2 }}
+      >
+        <Box>
+          <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
+            Days you set by hand
+          </Typography>
+          <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+            For a Sunday with a particular verse, or a verse in your own words. A day set
+            here is what the church sees on that day, whatever the rotation would have
+            chosen. Every other day looks after itself.
+          </Typography>
+        </Box>
+        {canManage ? (
+          <Button
+            variant="contained"
+            component={RouterLink}
+            to="/daily-verses/new"
+            sx={{ flexShrink: 0 }}
+            data-testid="new-daily-verse-button"
+          >
+            Set a day by hand
+          </Button>
+        ) : null}
+      </Stack>
 
       {error ? (
         <Alert severity="error" data-testid="daily-verses-error">
@@ -106,7 +130,10 @@ export function DailyVersesListPage() {
       ) : null}
 
       {verses && verses.length === 0 ? (
-        <AdminEmptyState message="No daily verses yet." testId="daily-verses-empty" />
+        <AdminEmptyState
+          message="No days set by hand. The app is choosing every day on its own, which is how it is meant to work."
+          testId="daily-verses-empty"
+        />
       ) : null}
 
       {verses && verses.length > 0 ? (
@@ -173,6 +200,6 @@ export function DailyVersesListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Paper>
   );
 }

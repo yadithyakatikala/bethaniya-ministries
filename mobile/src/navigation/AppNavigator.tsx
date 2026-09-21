@@ -59,6 +59,14 @@ import {
   TERMS_TITLE,
 } from '../features/legal/LegalScreen';
 import { TabBar, type TabRouteName } from './TabBar';
+import {
+  PUSH_ANIMATION_MS,
+  TAB_FADE_MS,
+  animationDuration,
+  pushAnimation,
+  tabAnimation,
+  useReducedMotion,
+} from '../theme/motion';
 
 /** The five top-level routes the hand-rolled tab bar switches between -- see TabBar.tsx. */
 const TAB_ROUTE_NAMES: ReadonlySet<string> = new Set([
@@ -244,11 +252,17 @@ function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
  * palette, so ../theme/__tests__/darkMode.test.tsx can assert the real
  * values without mounting twenty screens and their Firebase mocks.
  */
-export function buildScreenOptions(colors: ThemeColors): NativeStackNavigationOptions {
+export function buildScreenOptions(
+  colors: ThemeColors,
+  /** The system "reduce motion" setting -- see ./motion.ts. */
+  reducedMotion = false
+): NativeStackNavigationOptions {
   return {
     // The platform push transition, instead of the blanket
-    // `animation: 'none'` that made every drill-down an instant cut.
-    animation: 'default',
+    // `animation: 'none'` that made every drill-down an instant cut --
+    // and nothing at all when the phone asks for no animations.
+    animation: pushAnimation(reducedMotion),
+    animationDuration: animationDuration(reducedMotion, PUSH_ANIMATION_MS),
     headerStyle: { backgroundColor: colors.surface },
     headerTintColor: colors.ink,
     headerTitleStyle: { color: colors.ink, fontWeight: '600' },
@@ -280,12 +294,23 @@ export function buildNavigationTheme(colors: ThemeColors, isDark: boolean): Them
 }
 
 /**
- * The five tab destinations keep `animation: 'none'`. Switching tabs is a
- * lateral move, not a drill-down, so a slide-in would read as if the app
- * had pushed a new screen. Everything else gets the platform's own push
- * transition -- see AppNavigator's screenOptions.
+ * The five tab destinations CROSS-FADE.
+ *
+ * Switching tabs is a lateral move, not a drill-down, so they must not
+ * slide: a slide-in would read as if the app had pushed a new screen on
+ * top of the old one. They used to be an instant cut, which is the
+ * "abrupt" a tester was describing -- a fade is the smallest thing that
+ * says one view replaced another. Everything else gets the platform's
+ * own push transition; see buildScreenOptions above and ./motion.ts.
  */
-const TAB_SCREEN_OPTIONS: NativeStackNavigationOptions = { animation: 'none' };
+export function buildTabScreenOptions(
+  reducedMotion = false
+): NativeStackNavigationOptions {
+  return {
+    animation: tabAnimation(reducedMotion),
+    animationDuration: animationDuration(reducedMotion, TAB_FADE_MS),
+  };
+}
 
 export function AppNavigator() {
   const [activeRoute, setActiveRoute] = useState<string | undefined>('Home');
@@ -300,7 +325,18 @@ export function AppNavigator() {
   const { appLanguage, bibleMode } = usePreferences();
   const bookNameLanguage = bookNameLanguageFor(bibleMode, appLanguage);
 
-  const screenOptions = useMemo(() => buildScreenOptions(colors), [colors]);
+  // The phone's own "reduce animations" setting. Read here, applied to
+  // every transition in the app -- see ./motion.ts.
+  const reducedMotion = useReducedMotion();
+
+  const screenOptions = useMemo(
+    () => buildScreenOptions(colors, reducedMotion),
+    [colors, reducedMotion]
+  );
+  const tabScreenOptions = useMemo(
+    () => buildTabScreenOptions(reducedMotion),
+    [reducedMotion]
+  );
   const navigationTheme = useMemo(
     () => buildNavigationTheme(colors, isDark),
     [colors, isDark]
@@ -320,7 +356,7 @@ export function AppNavigator() {
               name="Home"
               component={HomeScreen}
               options={{
-                ...TAB_SCREEN_OPTIONS,
+                ...tabScreenOptions,
                 title: t('nav.home'),
                 headerShown: false,
               }}
@@ -328,7 +364,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="SongsList"
               component={SongsListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: t('songs.title') }}
+              options={{ ...tabScreenOptions, title: t('songs.title') }}
             />
             <Stack.Screen
               name="SongDetail"
@@ -338,7 +374,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="EventsList"
               component={EventsListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: t('events.title') }}
+              options={{ ...tabScreenOptions, title: t('events.title') }}
             />
             <Stack.Screen
               name="EventDetail"
@@ -353,7 +389,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="BibleBooks"
               component={BooksListScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: t('bible.title') }}
+              options={{ ...tabScreenOptions, title: t('bible.title') }}
             />
             <Stack.Screen
               name="BibleChapters"
@@ -397,7 +433,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="More"
               component={MoreScreen}
-              options={{ ...TAB_SCREEN_OPTIONS, title: t('more.title') }}
+              options={{ ...tabScreenOptions, title: t('more.title') }}
             />
             <Stack.Screen
               name="Announcements"

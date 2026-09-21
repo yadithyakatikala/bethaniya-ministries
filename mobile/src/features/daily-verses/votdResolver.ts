@@ -46,6 +46,7 @@ import {
   type VersePoolEntry,
   type VotdConfig,
 } from './votdSelection';
+import { VOTD_YEAR, VOTD_YEAR_CONFIG, bundledVerseYear } from './votdYear';
 
 /** Where a displayed verse came from. Surfaced in the admin preview. */
 export type VotdSource = 'override' | 'pool' | 'fallback';
@@ -70,7 +71,7 @@ export type VotdSelection =
   | { source: 'pool' | 'fallback'; reference: VotdReference; poolReference: string };
 
 /**
- * The bundled last resort.
+ * The bundled year -- the app's own 365 references.
  *
  * WHY IT EXISTS. Firestore is not available on a phone in a village with
  * no signal, and a Bible app that shows an error where the verse of the
@@ -78,41 +79,37 @@ export type VotdSelection =
  * the bundled corpus -- resolved through the same code path as
  * everything else, so nothing here is invented or hardcoded text.
  *
- * Deliberately short and well known. It is a fallback, not a curriculum;
- * the real pool is the administrator's.
+ * WHY IT IS 365 LONG. It used to be twelve, which was the wrong length
+ * for what it is actually used for. The rotation below visits every
+ * entry exactly once before repeating, so the pool's length IS the
+ * cycle's length: twelve references meant a church without a pool of its
+ * own saw the same verse every twelfth morning, and the Verse of the Day
+ * looked broken rather than automatic. A year's worth makes the default
+ * behaviour a full year. See ./votdYear.ts and
+ * scripts/derive-votd-year.mjs -- every entry is checked to resolve in
+ * both bundled translations before it ships.
+ *
+ * It is still the LAST resort. A verse set by hand for a date wins, then
+ * the church's own pool, then this.
  */
-export const FALLBACK_REFERENCES: VotdReference[] = [
-  { bookId: 'john', chapter: 3, verse: 16 },
-  { bookId: 'psalms', chapter: 23, verse: 1 },
-  { bookId: 'proverbs', chapter: 3, verse: 5 },
-  { bookId: 'isaiah', chapter: 41, verse: 10 },
-  { bookId: 'romans', chapter: 8, verse: 28 },
-  { bookId: 'philippians', chapter: 4, verse: 13 },
-  { bookId: 'joshua', chapter: 1, verse: 9 },
-  { bookId: 'matthew', chapter: 11, verse: 28 },
-  { bookId: 'psalms', chapter: 119, verse: 105 },
-  { bookId: 'jeremiah', chapter: 29, verse: 11 },
-  { bookId: '1-corinthians', chapter: 13, verse: 4 },
-  { bookId: 'hebrews', chapter: 11, verse: 1 },
-];
+export const FALLBACK_REFERENCES: VotdReference[] = VOTD_YEAR.map((entry) => ({
+  bookId: entry.bookId,
+  chapter: entry.chapter,
+  verse: entry.verse,
+}));
 
-/** The fallback uses a fixed configuration, so it is the same everywhere. */
-export const FALLBACK_CONFIG: VotdConfig = {
-  enabled: true,
-  seed: 'maranatha-fallback',
-  poolVersion: 1,
-};
+/**
+ * The fallback uses a fixed configuration, so it is the same everywhere.
+ *
+ * It comes from ./votdYear.ts, which the admin dashboard carries a
+ * byte-identical copy of: the dashboard's schedule has to rotate the
+ * built-in year exactly as the phone does, or it is showing a pastor
+ * days that will not happen.
+ */
+export const FALLBACK_CONFIG: VotdConfig = VOTD_YEAR_CONFIG;
 
 function fallbackPool(): VersePoolEntry[] {
-  return FALLBACK_REFERENCES.map((ref, index) => ({
-    id: `fallback-${index}`,
-    reference: `${ref.bookId} ${ref.chapter}:${ref.verse}`,
-    bookId: ref.bookId,
-    chapter: ref.chapter,
-    verse: ref.verse,
-    order: index,
-    active: true,
-  }));
+  return bundledVerseYear();
 }
 
 /**

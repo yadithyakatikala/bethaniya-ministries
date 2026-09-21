@@ -231,61 +231,84 @@ export function CommunityChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
-      <FlatList
-        testID="chat-list"
-        // Newest at the bottom, pinned there as messages arrive, with no
-        // scroll maths of our own. The data is already newest-first.
-        inverted
-        data={messages}
-        keyExtractor={(message) => message.id}
-        contentContainerStyle={[styles.list, { paddingVertical: spacing.md }]}
-        // Taps must reach a bubble's Delete/Report while the keyboard is
-        // open; without this the first tap only dismisses the keyboard.
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        ListEmptyComponent={
+      {/* =================================================================
+          THE EMPTY STATE IS OUTSIDE THE LIST, AND HAS TO BE
+          =================================================================
+          `inverted` is implemented as a 180-degree transform on the
+          scroll view, which every child inherits -- including
+          `ListEmptyComponent`. An empty state passed that way renders
+          UPSIDE DOWN on the device, which is exactly what a tester saw:
+          "No messages yet / Say hello to the church family" flipped.
+
+          Counter-rotating the empty component is the usual workaround and
+          is the wrong fix: it leaves an upside-down container with an
+          upside-down-again child inside it, which then mis-handles
+          padding and any future content. The list only needs to be
+          inverted when it HAS messages to pin to the bottom, so when
+          there are none the list is not rendered at all and a plain,
+          upright view takes its place.
+
+          Both branches are flex children of the same
+          KeyboardAvoidingView, above the same composer, so the
+          keyboard-safe layout is identical either way. */}
+      {messages.length === 0 ? (
+        <View style={styles.emptyWrap} testID="chat-empty-wrap">
           <EmptyState
             testID="chat-empty"
             title={t('chat.empty')}
             message={t('chat.emptyMessage')}
           />
-        }
-        renderItem={({ item }) => (
-          <ChatMessageBubble
-            message={item}
-            isOwn={item.authorUid === uid}
-            alreadyReported={reportedKeys.has(
-              reportedItemKey('community_message', item.id)
-            )}
-            onDelete={() => confirmDelete(item)}
-            onReport={() => setReporting(item)}
-          />
-        )}
-        // In an inverted list the END is the OLDEST message, so this is
-        // where history paging belongs.
-        onEndReached={() => void loadOlder()}
-        onEndReachedThreshold={0.4}
-        ListFooterComponent={
-          loadingOlder ? (
-            <LoadingState
-              compact
-              label={t('chat.loadingOlder')}
-              testID="chat-loading-older"
+        </View>
+      ) : (
+        <FlatList
+          testID="chat-list"
+          // Newest at the bottom, pinned there as messages arrive, with no
+          // scroll maths of our own. The data is already newest-first.
+          inverted
+          data={messages}
+          keyExtractor={(message) => message.id}
+          contentContainerStyle={[styles.list, { paddingVertical: spacing.md }]}
+          // Taps must reach a bubble's Delete/Report while the keyboard is
+          // open; without this the first tap only dismisses the keyboard.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          renderItem={({ item }) => (
+            <ChatMessageBubble
+              message={item}
+              isOwn={item.authorUid === uid}
+              alreadyReported={reportedKeys.has(
+                reportedItemKey('community_message', item.id)
+              )}
+              onDelete={() => confirmDelete(item)}
+              onReport={() => setReporting(item)}
             />
-          ) : !historyExhausted && historyAvailable ? (
-            <Tappable
-              testID="chat-load-older"
-              accessibilityRole="button"
-              onPress={() => void loadOlder()}
-              style={[styles.loadOlder, { minHeight: minTouchTarget }]}
-            >
-              <Text style={[type.label, { color: colors.primary }]}>
-                {t('chat.loadOlder')}
-              </Text>
-            </Tappable>
-          ) : null
-        }
-      />
+          )}
+          // In an inverted list the END is the OLDEST message, so this is
+          // where history paging belongs.
+          onEndReached={() => void loadOlder()}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingOlder ? (
+              <LoadingState
+                compact
+                label={t('chat.loadingOlder')}
+                testID="chat-loading-older"
+              />
+            ) : !historyExhausted && historyAvailable ? (
+              <Tappable
+                testID="chat-load-older"
+                accessibilityRole="button"
+                onPress={() => void loadOlder()}
+                style={[styles.loadOlder, { minHeight: minTouchTarget }]}
+              >
+                <Text style={[type.label, { color: colors.primary }]}>
+                  {t('chat.loadOlder')}
+                </Text>
+              </Tappable>
+            ) : null
+          }
+        />
+      )}
 
       {suspended ? (
         <View
@@ -382,6 +405,9 @@ export function CommunityChatScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   list: { flexGrow: 1 },
+  // Takes the space the list would have, so the composer stays pinned to
+  // the bottom whether or not there are any messages.
+  emptyWrap: { flex: 1, justifyContent: 'center', padding: 16 },
   loadOlder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
   composer: { borderTopWidth: StyleSheet.hairlineWidth },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end' },

@@ -17,6 +17,10 @@ import {
   PlanIcon,
   PrayerIcon,
 } from '../../theme/ui/FeatureIcons';
+// The media tile borrows the feed's own play marker rather than
+// introducing a sixth glyph: it is already the app's symbol for "there
+// is something to watch here". See ../../theme/ui/MediaIcons.tsx.
+import { PlayIcon } from '../../theme/ui/MediaIcons';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
 import { DailyVerseCard } from '../daily-verses/DailyVerseCard';
 import { ProphetVerseCard } from '../prophet-verses/ProphetVerseCard';
@@ -516,19 +520,20 @@ export function HomeScreen() {
         <DailyVerseCard />
       </View>
 
-      {/* M5: the Prophet Verse -- a SEPARATE content system, placed
-          directly below the Verse of the Day. It carries its own section
-          label inside the card and renders NOTHING at all when the church
-          has published none, so this does not become one more permanent
-          empty block in the middle of Home (see the note about the
-          announcements block below, which was removed for exactly that
-          reason).
+      {/* The Prophet Verse -- a SEPARATE content system from the Verse of
+          the Day above, placed directly below it and carrying its own
+          section label ("Prophet Verse of the Day") inside the card.
 
-          Deliberately NOT wrapped in a <View style={styles.section}>: this
-          screen's container has `gap: 22`, and an empty wrapper is still a
-          flex child, so a church with no prophet verse would be left with
-          22dp of unexplained whitespace. Returning null from the card
-          leaves no element, and therefore no gap. */}
+          It used to render nothing at all when the church had published
+          none, which made the whole feature invisible rather than quiet:
+          a tester went looking for it in the release build and reported
+          it missing. It now always renders -- a real verse, or a named
+          card saying there is none today. See
+          ../prophet-verses/ProphetVerseCard.tsx.
+
+          Still NOT wrapped in <View style={styles.section}>: the card
+          supplies its own heading, and a wrapper would add this screen's
+          22dp gap twice around a single card. */}
       <ProphetVerseCard />
 
       {/* M6: a short strip of the newest media, with a way into the full
@@ -590,28 +595,46 @@ export function HomeScreen() {
           Profile are deliberately absent -- the first three are tabs and
           Profile is the header icon above.
 
-          M7 adds the prayer wall and the group chat, which takes the row
-          to five and therefore onto two rows on a phone. The row WRAPS
-          rather than shrinking the tiles: five 78dp tiles across a 390dp
-          screen would leave each one below a comfortable target once
-          padding is counted, and the labels -- up to twice as long in
-          Telugu -- would have nowhere to go. Each tile keeps a third of
-          the width, so it reads as a grid rather than as a broken row. */}
+          =================================================================
+          FIVE TILES, FIVE DIFFERENT PLACES
+          =================================================================
+          M7 shipped six, and two pairs of them landed in the same place
+          as far as a member could tell:
+
+            "Prayers"         -> the private journal
+            "Prayer requests" -> the shared wall
+            "Community"       -> admin posts (empty)
+            "Church chat"     -> the group chat (empty)
+
+          A tester reported both pairs as duplicates, and they were right
+          about the effect even though the screens are genuinely
+          different: two of them were empty, and the other two are both
+          "somewhere I write a prayer".
+
+          So Prayers now means the SHARED WALL -- the thing a member
+          actually looks for, with "Ask for prayer" at the top of it --
+          and the private journal moves to More under its own name ("My
+          prayer journal"), where it is a personal tool rather than a
+          second front door to the same idea. Community and Church chat
+          stay, and Community is now an area rather than an empty list
+          (see ../community/CommunityListScreen.tsx).
+
+          Media joins the grid because it had NO entry point at all: its
+          Home strip hides itself when the church has posted nothing, and
+          the only other way in was two taps down the More tab.
+
+          The row WRAPS rather than shrinking the tiles: five 78dp tiles
+          across a 390dp screen would leave each below a comfortable
+          target once padding is counted, and the labels -- up to twice as
+          long in Telugu -- would have nowhere to go. Each tile keeps a
+          third of the width, so it reads as a grid, not a broken row. */}
       <View style={styles.tileRow} testID="home-feature-tiles">
         <FeatureTile
           testID="prayers-nav-button"
           label={t('more.prayers')}
-          onPress={() => navigation.navigate('Prayers')}
-        >
-          <PrayerIcon color={colors.primary} size={26} />
-        </FeatureTile>
-        {/* The SHARED wall, beside the private journal it is not. */}
-        <FeatureTile
-          testID="prayer-wall-nav-button"
-          label={t('prayerWall.title')}
           onPress={() => navigation.navigate('PrayerWall')}
         >
-          <PrayerIcon color={colors.accent} size={26} />
+          <PrayerIcon color={colors.primary} size={26} />
         </FeatureTile>
         <FeatureTile
           testID="plans-nav-button"
@@ -633,6 +656,13 @@ export function HomeScreen() {
           onPress={() => navigation.navigate('CommunityChat')}
         >
           <PeopleIcon color={colors.accent} size={26} />
+        </FeatureTile>
+        <FeatureTile
+          testID="media-nav-button"
+          label={t('media.title')}
+          onPress={() => navigation.navigate('MediaFeed')}
+        >
+          <PlayIcon color={colors.primary} size={26} />
         </FeatureTile>
       </View>
     </ScrollView>

@@ -14,11 +14,18 @@ jest.mock('../useProphetVerse');
 /**
  * The Prophet Verse block.
  *
- * The behaviour worth defending is the RESTRAINT: no empty state, no
- * orphan heading, no reserved image frame, no badge. A church that has
- * not published one should have no such section on its Home screen at
- * all, and a member should not scroll past an explanation of a feature
- * nobody is using.
+ * The restraint is still the design -- no badge, no accent fill, no
+ * reserved image frame. What CHANGED is the empty state. M5 rendered
+ * nothing at all when no verse was published, and the test below used to
+ * assert exactly that. A tester then looked for "Prophet Verse of the
+ * Day" in the release build and reported the feature missing: complete,
+ * and invisible to every church that had not published one yet, which on
+ * day one is all of them.
+ *
+ * The assertion is reversed here rather than deleted, so the reversal is
+ * legible to whoever reads this next: an empty prophet verse now renders
+ * a NAMED, quiet card, and the name is what stops it reading as a second
+ * copy of the Verse of the Day above it.
  */
 function verse(partial: Partial<ProphetVerse> = {}): ProphetVerse {
   return {
@@ -60,10 +67,22 @@ afterEach(async () => {
 });
 
 describe('when there is nothing to show', () => {
-  it('renders NOTHING -- no empty state, no heading standing over a blank card', async () => {
+  it('still renders the section, named, so the feature is visible', async () => {
+    // REVERSED from M5, deliberately -- see this file's header.
     mockState({ status: 'empty' });
     const screen = await render(<ProphetVerseCard />);
-    expect(screen.toJSON()).toBeNull();
+    expect(screen.getByTestId('prophet-verse-empty')).toBeTruthy();
+    expect(screen.getByText('Prophet Verse of the Day')).toBeTruthy();
+    expect(screen.getByText('No prophet verse today')).toBeTruthy();
+  });
+
+  it('invents no devotional to fill the space', async () => {
+    mockState({ status: 'empty' });
+    const screen = await render(<ProphetVerseCard />);
+    // Nothing that could be mistaken for scripture or for a word from
+    // the church -- only a statement that there is none today.
+    expect(screen.queryByTestId('prophet-verse-text')).toBeNull();
+    expect(screen.queryByTestId('prophet-verse-reference')).toBeNull();
   });
 
   it('shows only a quiet spinner while loading', async () => {
@@ -78,8 +97,10 @@ describe('a published verse', () => {
   it('shows its section label, title, reference and text', async () => {
     mockState({ status: 'ready', verse: verse() });
     const screen = await render(<ProphetVerseCard />);
+    // "of the Day" is asserted deliberately: it is what tells a member
+    // this block is not a second copy of the Verse of the Day above it.
     expect(screen.getByTestId('prophet-verse-section-title').props.children).toBe(
-      'Prophet Verse'
+      'Prophet Verse of the Day'
     );
     expect(screen.getByTestId('prophet-verse-title').props.children).toBe(
       'A word for the church'
