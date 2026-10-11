@@ -1,5 +1,6 @@
 import { usePreferences } from '../context/PreferencesContext';
 import {
+  brandGold,
   darkTokens,
   highlightTints,
   lightTokens,
@@ -42,6 +43,8 @@ export function useTheme() {
     reading: readingScale,
     /** Verse-highlight backgrounds for the active palette. */
     highlights: isDark ? highlightTints.dark : highlightTints.light,
+    /** The brand's metallic gold stops for the active palette. */
+    gold: isDark ? brandGold.dark : brandGold.light,
     minTouchTarget: MIN_TOUCH_TARGET,
     isDark,
   };

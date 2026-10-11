@@ -13,6 +13,7 @@ export {
   scriptureStyle,
   scriptureFontFamily,
   highlightTints,
+  brandGold,
   MIN_TOUCH_TARGET,
   TELUGU_LINE_HEIGHT_BOOST,
 } from './tokens';
@@ -25,6 +26,7 @@ export type {
   ReadingMeasure,
   ReadingFont,
   HighlightColor,
+  BrandGold,
 } from './tokens';
 export { Card } from './ui/Card';
 export { AppButton } from './ui/AppButton';

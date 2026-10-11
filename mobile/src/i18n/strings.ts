@@ -52,6 +52,9 @@ export interface Strings {
   'nav.events': string;
   'nav.more': string;
 
+  // --- The opening animation ---
+  'opening.skipHint': string;
+
   // --- Common actions and states ---
   'common.loading': string;
   'common.tryAgain': string;
@@ -595,6 +598,8 @@ const en: Strings = {
   'nav.events': 'Events',
   'nav.more': 'More',
 
+  'opening.skipHint': 'Double-tap to skip',
+
   'common.loading': 'Loading…',
   'common.tryAgain': 'Try again',
   'common.save': 'Save',
@@ -1059,6 +1064,8 @@ const te: Strings = {
   'nav.songs': 'పాటలు',
   'nav.events': 'కార్యక్రమాలు',
   'nav.more': 'మరిన్ని',
+
+  'opening.skipHint': 'దాటవేయడానికి రెండుసార్లు తట్టండి',
 
   'common.loading': 'లోడ్ అవుతోంది…',
   'common.tryAgain': 'మళ్లీ ప్రయత్నించండి',

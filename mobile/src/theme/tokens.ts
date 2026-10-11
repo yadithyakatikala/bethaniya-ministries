@@ -219,6 +219,67 @@ export const darkTokens: ThemeColors = {
 };
 
 /**
+ * =====================================================================
+ * THE BRAND'S METALLIC GOLD
+ * =====================================================================
+ * The fish and the gold it carries are brand, alongside the portrait.
+ * Gold is used thin and on purpose: hairlines, small marks, the opening
+ * and onboarding animations -- never a fill, a background or an icon
+ * colour (see the approved design's rule S2). `ThemeColors.accent` is
+ * the one gold that ever carries text; it is `base` below.
+ *
+ * Metal reads as metal because of the RANGE between a dark rim and a
+ * near-white specular, so the animation paints with these stops rather
+ * than one flat colour:
+ *
+ *   deep      the shadow side of a letter and the darkest bronze
+ *   rim       the edge of a bead of gold
+ *   base      the body of the metal; equal to `accent`
+ *   high      a lit surface
+ *   spec      the near-white glint (motes only; a letter filled with it
+ *             would vanish against the paper)
+ *   textPeak  the brightest a LETTER's sheen goes -- dimmer than `spec`
+ *   dust      the four brightness tiers a speck is drawn in
+ *   inkSoft   the faint lift through the middle of the ink-black fish
+ *
+ * Both palettes keep `base` equal to the matching `accent`, asserted in
+ * ./__tests__/brandGold.test.ts.
+ */
+export interface BrandGold {
+  deep: string;
+  rim: string;
+  base: string;
+  high: string;
+  spec: string;
+  textPeak: string;
+  dust: readonly [string, string, string, string];
+  inkSoft: string;
+}
+
+export const brandGold: { light: BrandGold; dark: BrandGold } = {
+  light: {
+    deep: '#4A2A06',
+    rim: '#6B4012',
+    base: '#8F5A26',
+    high: '#DDB06B',
+    spec: '#FFF8E4',
+    textPeak: '#B9863C',
+    dust: ['#6B4012', '#8F5A26', '#BE8637', '#E3B258'],
+    inkSoft: '#3A3F47',
+  },
+  dark: {
+    deep: '#6E4A1E',
+    rim: '#8A6330',
+    base: '#DCA766',
+    high: '#F5DCAC',
+    spec: '#FFFCF4',
+    textPeak: '#F0D6A4',
+    dust: ['#8A6330', '#B8863F', '#DCA766', '#F2D49B'],
+    inkSoft: '#C9CDD2',
+  },
+};
+
+/**
  * The spacing scale. A 4dp base, plus the semantic names screens
  * actually reach for -- `screen` existed as the literal `padding: 20` in
  * a dozen containers and was not on the old scale at all.
