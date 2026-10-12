@@ -57,18 +57,22 @@ Guntur). A verse shown in both languages is `scriptureBilingualStyle`: English
 |---|---|
 | `AppButton` | Pill, four variants (primary ink · secondary 1.5 pt border · **text in gold ink** · destructive). `compact`, `trailingIcon`, `muted` (looks disabled, still presses and explains), `loading` (keeps its fill and its width, spinner on top, spoken name kept). One primary per screen. |
 | `IconButton` | 44 round: `plain`, `outlined`, `tinted`. The accessibility label is **required**. |
-| `Icon` | 49 glyphs on a 24 grid, 1.75 stroke, round caps: vector data (`iconShapes.ts`) drawn by react-native-svg, tinted in code. Decorative. |
-| `Chip` | 36 pill; chosen = ink fill. |
+| `Icon` | 49 glyphs on a 24 grid, 1.75 stroke, round caps: vector data (`iconShapes.ts`) drawn by react-native-svg, tinted in code. Decorative. `filled` is the selected look: stroke 2 and a 14% wash of its own colour inside every shape (a solid glyph stays solid). |
+| `Chip` | 36 pill; chosen = ink fill. `icon` puts an 18-point glyph before the words and `tall` makes it a full 44, for a chip that is a door (Community's shelf) rather than a filter. |
 | `SegmentedChoice` | Two or three views of one thing: a pill track with a surface thumb. More than three become chips (still a radiogroup). |
-| `UnderlineTabs` | Sections inside a screen: ink word + 2 pt ink underline; no gold. |
+| `UnderlineTabs` | Sections inside a screen: ink word + 2 pt ink underline; no gold. The tabs sit left to right at their own width, 24 apart, over one full-width hairline; each is at least 44 across and high. |
 | `ListRow`, `ListGroup` | The one row (64/56), one button whose spoken label joins title, value and subtitle; hairlines between. A destructive row has no chevron. |
 | `Badge` | 24 high pill, tint fill; `live` is the one loud red, with a dot. `info` is retired (S8) and paints neutral. |
 | `TextField` | Label above (14/18), 48 high, 12 radius, help/error 13/18; an optional Show / Hide action in words. |
 | `Sheet`, `ConfirmDialog` | Sheet: 22 top radius, a 36×4 handle, 44 close. Dialog: Cancel then the action; the buttons stack, action on top, when a label is long. |
 | `EmptyState`, `ErrorState`, `LoadingState`, `Skeleton`, `SkeletonRows`, `NoticeBanner` | Say what is missing, once; never invent content. Skeletons pulse only when motion is allowed. |
 | `SectionHeader` | A tracked overline over a group, muted or `tone="gold"` (the one brand label on a screen), with an optional "See all": a text link flush to the right margin in gold ink, a **real 44-high row** whose spoken name carries the section ("See all, Upcoming events"). `tone="photo"` is white, for a label over a photograph. |
-| `GoldRule`, `GoldBar`, `GoldFill` | The three places gold is drawn as a **line**: a hairline that fades out to the right, a vertical bar (3 across; a Prophet Verse's is 2) beside a quoted block or a reading position, and the filled part of a 3-point progress line. The real five-stop metal as an SVG gradient; decorative. `GoldRule tone="photo"` takes the night metal whatever the theme. |
+| `GoldRule`, `GoldBar`, `GoldFill`, `GoldRibbon` | The places gold is drawn as a **line**: the 24 × 4 ribbon that hangs from the tab bar over the selected tab, and a hairline that fades out to the right, a vertical bar (3 across; a Prophet Verse's is 2) beside a quoted block or a reading position, and the filled part of a 3-point progress line. The real five-stop metal as an SVG gradient; decorative. `GoldRule tone="photo"` takes the night metal whatever the theme. |
 | `Avatar` | A monogram (26 to 96): the first letter **with its vowel signs** (`initialOf`). No photos anywhere. |
+| `Toast`, `useToast` | A confirmation: a primary pill with a tick and a few words, floated above the content, taking no touches, announced politely, gone after 3.2 s. A failure is a `NoticeBanner`, never a toast. |
+| `FloatingAction` | The one floating action on a screen: a primary pill with a glyph and a word, 20 from the right and 18 above the bottom; disabled paints the disabled pill and stays announced. |
+| `ScreenTitle` | A top-level screen's own title: the headline (26/32) as a heading in a row at least 56 high, with room at the right for icon buttons. |
+| `TopBar` (`features/common`) | The bar of a pushed screen: a 44-point round Back or Close, a centred title, room for one action. Drawn by the app so every pushed screen has the same bar. |
 | `BrandFish` (`features/opening`) | The fish: gold gradient from 24 points up, flat gold ink below; or ink. |
 
 ## Words over a photograph (`onPhoto`)

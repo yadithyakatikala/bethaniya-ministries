@@ -83,6 +83,34 @@ export function formatShortDate(date: Date, appLanguage: BibleLanguage): string 
 }
 
 /**
+ * The day and the abbreviated month, for a row in a list -- "9 Oct" -- with
+ * the year added only when it is not this one ("9 Oct 2025"): a date in the
+ * current year needs no year, and an older one must not read as recent.
+ *
+ * Built from the day number and the month name rather than one Intl pattern,
+ * so the day comes BEFORE the month in both languages (the en-US pattern
+ * would give "Oct 9"), the way the approved lists show it. `now` is a
+ * parameter, not a call to the clock, so this stays pure and a test can pin
+ * the year boundary.
+ */
+export function formatDayMonthShort(
+  date: Date,
+  appLanguage: BibleLanguage,
+  now: Date = new Date()
+): string {
+  const locale = localeFor(appLanguage);
+  const options: Intl.DateTimeFormatOptions = { month: 'short' };
+  const month = safely(
+    () => date.toLocaleDateString(locale, options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+  const base = `${date.getDate()} ${month}`;
+  return date.getFullYear() === now.getFullYear()
+    ? base
+    : `${base} ${date.getFullYear()}`;
+}
+
+/**
  * The day, as Home's date line says it -- "Sunday, 11 October".
  *
  * Built from the weekday, the day number and the month name rather than one

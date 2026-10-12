@@ -1,5 +1,6 @@
 import {
   formatDateTime,
+  formatDayMonthShort,
   formatIsoDateString,
   formatLongDate,
   formatShortDate,
@@ -92,6 +93,44 @@ describe('the weekday formats on Home and on an event row', () => {
 
   it('abbreviates the weekday', () => {
     expect(formatWeekdayShort(SUNDAY, 'en').length).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('formatDayMonthShort', () => {
+  const NOW = new Date(2026, 9, 12, 12, 0);
+
+  it('is the day then the abbreviated month for a date in this year', () => {
+    expect(formatDayMonthShort(new Date(2026, 9, 9, 12, 0), 'en', NOW)).toBe('9 Oct');
+    expect(formatDayMonthShort(new Date(2026, 8, 29, 12, 0), 'en', NOW)).toBe('29 Sep');
+    expect(formatDayMonthShort(new Date(2026, 0, 1, 12, 0), 'en', NOW)).toBe('1 Jan');
+  });
+
+  it('adds the year for any other year, so an old date does not read as recent', () => {
+    expect(formatDayMonthShort(new Date(2025, 11, 31, 12, 0), 'en', NOW)).toBe(
+      '31 Dec 2025'
+    );
+    expect(formatDayMonthShort(new Date(2027, 0, 1, 12, 0), 'en', NOW)).toBe(
+      '1 Jan 2027'
+    );
+  });
+
+  it('puts the day before the month in Telugu too, and carries a Telugu month name', () => {
+    const text = formatDayMonthShort(new Date(2026, 9, 9, 12, 0), 'te', NOW);
+    expect(text.startsWith('9 ')).toBe(true);
+    // A Telugu month where the engine has Telugu data; the English one where it does not.
+    expect(text.length).toBeGreaterThan(2);
+    if (formatsDatesInTelugu()) expect(text).toMatch(/[ఀ-౿]/u);
+  });
+
+  it('uses the clock only when it is not given one', () => {
+    const today = new Date();
+    expect(formatDayMonthShort(today, 'en')).toMatch(/^\d{1,2} [A-Za-z]+$/);
+  });
+
+  it('never throws and is never empty, whatever the engine supports', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatDayMonthShort(SAMPLE, language, NOW).length).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -227,6 +227,24 @@ export async function startPlan(uid: string, planId: string): Promise<void> {
   });
 }
 
+/**
+ * How many plans the member has started -- the number on the Saved tab's
+ * "Reading plans" row. A count of the documents under their own
+ * `planProgress`, read as one small listener; nothing about a plan is
+ * fetched.
+ */
+export function subscribeToStartedPlanCount(
+  uid: string,
+  onNext: (count: number) => void,
+  onError: (error: FirestoreError) => void
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'users', uid, 'planProgress'),
+    (snapshot) => onNext(snapshot.docs.length),
+    onError
+  );
+}
+
 export interface ActivePlanSummary {
   planId: string;
   plan: PublishedPlan;

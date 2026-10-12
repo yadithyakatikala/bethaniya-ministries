@@ -60,11 +60,20 @@ a key cannot be accidentally dropped while editing.
 | `home.askPray` | సంఘం మీతో కలిసి ప్రార్థించమని కోరండి | A full sentence under "Prayer requests" on Home. Check the polite plural register is how the church speaks to its members. |
 | `home.updatesLabel` | సమాచారాన్ని తెరవండి | Read aloud by a screen reader on Home's header button, which opens announcements and posts. "సమాచారం" is a broad word for "information"; confirm it is the church's word for updates. |
 | `prophetVerse.readMore` | ఇంకా చదవండి | The control under a long Prophet Verse; it pairs with `prophetVerse.showLess`. Check the two read naturally as a pair. |
+| `nav.prayers` | ప్రార్థనలు | The tab for prayer requests and the private journal. Confirm the plural "ప్రార్థనలు" reads as the place for both. |
+| `nav.you` | మీరు | "మీరు" ("you", polite) names the member's own corner: their saved things, profile and settings. Confirm it reads as that and not as a form of address. |
+| `prayers.tabRequests` | విన్నపాలు | "విన్నపాలు" ("petitions"). Confirm it is the word members use for a prayer request. |
+| `prayers.tabJournal` | నా పుస్తకం | Literally "my book". Confirm it reads as a prayer journal; "నా ప్రార్థన పుస్తకం" may be clearer, at more width. |
+| `prayers.shared` | మీ విన్నపం పంచుకోబడింది | The passive "పంచుకోబడింది" ("was shared") is formal; a simpler spoken form may be preferred. |
+| `community.tabUpdates` | సమాచారం | The same word as Home's Updates button (`home.updatesLabel`); keep the two the same. |
+| `you.tabSaved` | భద్రపరచినవి | "భద్రపరచినవి" ("things kept safe"). Confirm it reads as "saved". |
+| `prayerWall.anonymousHelp` | ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు. | A PRIVACY statement members rely on. Check it says plainly who can and cannot see a name: other members and the church team cannot; the church's main administrator can, only to deal with a report. |
+| `report.intro` | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు. | A promise that the reporter's name is not shown to other members. Check the wording is plain and exact. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-435 keys, grouped by screen area.
+464 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -75,6 +84,81 @@ a key cannot be accidentally dropped while editing.
 | `nav.songs` | Songs | పాటలు |  |
 | `nav.events` | Events | కార్యక్రమాలు |  |
 | `nav.more` | More | మరిన్ని |  |
+| `nav.prayers` | Prayers | ప్రార్థనలు | ⚠️ |
+| `nav.community` | Community | సమాజం |  |
+| `nav.you` | You | మీరు | ⚠️ |
+
+### Prayers
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `prayers.tabRequests` | Requests | విన్నపాలు | ⚠️ |
+| `prayers.tabJournal` | My journal | నా పుస్తకం | ⚠️ |
+| `prayers.filterAll` | All | అన్నీ |  |
+| `prayers.filterYours` | Yours | మీవి |  |
+| `prayers.noOwn` | You have not asked for prayer yet | మీరు ఇంకా ప్రార్థన కోరలేదు |  |
+| `prayers.noOwnMessage` | When you do, your requests are listed here so you can find them. | కోరినప్పుడు, మీ విన్నపాలు ఇక్కడ కనిపిస్తాయి, సులభంగా కనుగొనవచ్చు. |  |
+| `prayers.shared` | Your request was shared | మీ విన్నపం పంచుకోబడింది | ⚠️ |
+| `prayers.private` | Only you can see this | ఇది మీకు మాత్రమే కనిపిస్తుంది |  |
+| `prayers.newEntry` | New entry | కొత్త నమోదు |  |
+| `prayers.addedToJournal` | Added to your journal | మీ పుస్తకంలో చేర్చబడింది |  |
+| `prayers.title` | Prayers | ప్రార్థనలు |  |
+| `prayers.newRequest` | New Prayer Request | కొత్త ప్రార్థన అభ్యర్థన |  |
+| `prayers.placeholder` | What’s on your heart? | మీ హృదయంలో ఏముంది? |  |
+| `prayers.add` | Add Prayer | ప్రార్థన చేర్చండి |  |
+| `prayers.empty` | Nothing in your journal yet | మీ పుస్తకంలో ఇంకా ఏమీ లేదు |  |
+| `prayers.emptyMessage` | Add a prayer with the button below. Only you can see it. | కింది బటన్‌తో ప్రార్థన చేర్చండి. ఇది మీకు మాత్రమే కనిపిస్తుంది. |  |
+| `prayers.loadError` | Couldn’t load prayers | ప్రార్థనలు లోడ్ కాలేదు |  |
+| `prayers.loadErrorMessage` | Check your connection and try again. | కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
+| `prayers.markAnswered` | Mark answered | జవాబు వచ్చినట్లు గుర్తించండి | ⚠️ |
+| `prayers.markUnanswered` | Mark unanswered | జవాబు రాలేదని గుర్తించండి |  |
+| `prayers.answered` | Answered | జవాబు వచ్చింది |  |
+| `prayers.deleteLabel` | Delete this prayer | ఈ ప్రార్థనను తొలగించండి |  |
+| `prayers.deleteConfirmTitle` | Delete this prayer? | ఈ ప్రార్థనను తొలగించాలా? |  |
+| `prayers.deleteConfirmMessage` | This cannot be undone. | ఇది తిరిగి పొందలేరు. |  |
+
+### Community
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `community.tabUpdates` | Updates | సమాచారం | ⚠️ |
+| `community.tabChat` | Chat | చాట్ |  |
+| `community.title` | Community | సమాజం |  |
+| `community.empty` | No posts yet | ఇంకా పోస్ట్‌లు లేవు |  |
+| `community.emptyMessage` | Community posts from the church will appear here. | చర్చి సమాజ పోస్ట్‌లు ఇక్కడ కనిపిస్తాయి. |  |
+| `community.loadError` | Couldn’t load community posts. | సమాజ పోస్ట్‌లు లోడ్ కాలేదు. |  |
+| `community.loadErrorShort` | Could not load posts. | పోస్ట్‌లు లోడ్ చేయలేకపోయాము. |  |
+| `community.emptyShort` | No community posts yet. | ఇంకా సమాజ పోస్ట్‌లు లేవు. |  |
+| `community.introMessage` | Everything the church family shares, in one place. | సంఘ కుటుంబం పంచుకునేదంతా ఒకే చోట. |  |
+| `community.postsSection` | From the church | సంఘం నుండి |  |
+| `community.goToChat` | Church chat | సంఘ సంభాషణ |  |
+| `community.goToChatHint` | Talk with the whole church | సంఘం మొత్తంతో మాట్లాడండి |  |
+| `community.goToMedia` | Photos and videos | ఫోటోలు, వీడియోలు |  |
+| `community.goToMediaHint` | Pictures and clips from church life | సంఘ జీవితంలోని చిత్రాలు, క్లిప్‌లు |  |
+
+### updates
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `updates.announcement` | Announcement | ప్రకటన |  |
+
+### you
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `you.tabSaved` | Saved | భద్రపరచినవి | ⚠️ |
+| `you.notes` | Notes | నోట్‌లు |  |
+| `you.highlights` | Highlights | హైలైట్‌లు |  |
+| `you.bookmarks` | Bookmarks | బుక్‌మార్క్‌లు |  |
+| `you.readingPlans` | Reading plans | పఠన ప్రణాళికలు |  |
+| `you.prayerJournal` | Prayer journal | ప్రార్థన పుస్తకం |  |
+| `you.noNotes` | No notes yet | ఇంకా నోట్‌లు లేవు |  |
+| `you.noNotesMessage` | Tap a verse while you read and choose Add note. | చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి “నోట్ జోడించండి” ఎంచుకోండి. |  |
+| `you.noHighlights` | No highlights yet | ఇంకా హైలైట్‌లు లేవు |  |
+| `you.noHighlightsMessage` | Tap a verse while you read and choose a colour. | చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి రంగు ఎంచుకోండి. |  |
+| `you.noBookmarks` | No bookmarks yet | ఇంకా బుక్‌మార్క్‌లు లేవు |  |
+| `you.noBookmarksMessage` | Bookmarked verses will appear here. | బుక్‌మార్క్ చేసిన వచనాలు ఇక్కడ కనిపిస్తాయి. |  |
+| `you.loadError` | Your saved verses could not be loaded. | మీరు భద్రపరచిన వచనాలను లోడ్ చేయలేకపోయాం. |  |
 
 ### Opening animation
 
@@ -268,42 +352,6 @@ a key cannot be accidentally dropped while editing.
 | `plans.dayLoadError` | This reading couldn’t be loaded. Check your connection and try again. | ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
 | `plans.loadErrorShort` | Could not load reading plans. | పఠన ప్రణాళికలు లోడ్ చేయలేకపోయాము. |  |
 | `plans.emptyShort` | No reading plans yet. | ఇంకా పఠన ప్రణాళికలు లేవు. |  |
-
-### Prayers
-
-| Key | English | Telugu | |
-| --- | --- | --- | --- |
-| `prayers.title` | Prayers | ప్రార్థనలు |  |
-| `prayers.newRequest` | New Prayer Request | కొత్త ప్రార్థన అభ్యర్థన |  |
-| `prayers.placeholder` | What’s on your heart? | మీ హృదయంలో ఏముంది? |  |
-| `prayers.add` | Add Prayer | ప్రార్థన చేర్చండి |  |
-| `prayers.empty` | No prayers yet | ఇంకా ప్రార్థనలు లేవు |  |
-| `prayers.emptyMessage` | Add a prayer request above — only you can see it. | పైన ప్రార్థన అభ్యర్థన చేర్చండి — మీకు మాత్రమే కనిపిస్తుంది. |  |
-| `prayers.loadError` | Couldn’t load prayers | ప్రార్థనలు లోడ్ కాలేదు |  |
-| `prayers.loadErrorMessage` | Check your connection and try again. | కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
-| `prayers.markAnswered` | Mark answered | జవాబు వచ్చినట్లు గుర్తించండి | ⚠️ |
-| `prayers.markUnanswered` | Mark unanswered | జవాబు రాలేదని గుర్తించండి |  |
-| `prayers.answered` | Answered | జవాబు వచ్చింది |  |
-| `prayers.deleteLabel` | Delete this prayer | ఈ ప్రార్థనను తొలగించండి |  |
-| `prayers.deleteConfirmTitle` | Delete this prayer? | ఈ ప్రార్థనను తొలగించాలా? |  |
-| `prayers.deleteConfirmMessage` | This cannot be undone. | ఇది తిరిగి పొందలేరు. |  |
-
-### Community
-
-| Key | English | Telugu | |
-| --- | --- | --- | --- |
-| `community.title` | Community | సమాజం |  |
-| `community.empty` | No posts yet | ఇంకా పోస్ట్‌లు లేవు |  |
-| `community.emptyMessage` | Community posts from the church will appear here. | చర్చి సమాజ పోస్ట్‌లు ఇక్కడ కనిపిస్తాయి. |  |
-| `community.loadError` | Couldn’t load community posts. | సమాజ పోస్ట్‌లు లోడ్ కాలేదు. |  |
-| `community.loadErrorShort` | Could not load posts. | పోస్ట్‌లు లోడ్ చేయలేకపోయాము. |  |
-| `community.emptyShort` | No community posts yet. | ఇంకా సమాజ పోస్ట్‌లు లేవు. |  |
-| `community.introMessage` | Everything the church family shares, in one place. | సంఘ కుటుంబం పంచుకునేదంతా ఒకే చోట. |  |
-| `community.postsSection` | From the church | సంఘం నుండి |  |
-| `community.goToChat` | Church chat | సంఘ సంభాషణ |  |
-| `community.goToChatHint` | Talk with the whole church | సంఘం మొత్తంతో మాట్లాడండి |  |
-| `community.goToMedia` | Photos and videos | ఫోటోలు, వీడియోలు |  |
-| `community.goToMediaHint` | Pictures and clips from church life | సంఘ జీవితంలోని చిత్రాలు, క్లిప్‌లు |  |
 
 ### Announcements
 
@@ -572,7 +620,7 @@ a key cannot be accidentally dropped while editing.
 | `prayerWall.category.other` | Other | ఇతరం |  |
 | `prayerWall.anonymousLabel` | Anonymous | పేరు లేకుండా |  |
 | `prayerWall.anonymousToggle` | Post anonymously | పేరు లేకుండా పంచుకోండి |  |
-| `prayerWall.anonymousHelp` | Your name is not saved with this request and nobody in the church can see who wrote it. | ఈ విన్నపంతో మీ పేరు భద్రపరచబడదు, ఎవరు రాశారో సంఘంలో ఎవరికీ తెలియదు. |  |
+| `prayerWall.anonymousHelp` | Other members and the church team will not see your name. The church’s main administrator can look it up, only to deal with a report. | ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు. | ⚠️ |
 | `prayerWall.anonymousLocked` | Whether this request shows your name cannot be changed. | ఈ విన్నపంలో మీ పేరు కనిపించడాన్ని ఇక మార్చలేరు. |  |
 | `prayerWall.submit` | Share request | విన్నపాన్ని పంచుకోండి |  |
 | `prayerWall.submitFailed` | Your request could not be shared. | మీ విన్నపాన్ని పంచుకోలేకపోయాం. |  |
@@ -602,7 +650,7 @@ a key cannot be accidentally dropped while editing.
 | --- | --- | --- | --- |
 | `report.action` | Report | ఫిర్యాదు చేయండి |  |
 | `report.title` | Report this | దీనిపై ఫిర్యాదు |  |
-| `report.intro` | A church administrator will look at this. Your name is not shown to anyone else. | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. మీ పేరు ఇతరులకు కనిపించదు. |  |
+| `report.intro` | A church administrator will look at this. Other members will not see your name. | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు. | ⚠️ |
 | `report.reasonLabel` | Why are you reporting it? | దేనికి ఫిర్యాదు చేస్తున్నారు? |  |
 | `report.reason.spam` | Spam or advertising | స్పామ్ లేదా ప్రకటన |  |
 | `report.reason.harassment` | Harassment or bullying | వేధింపు |  |

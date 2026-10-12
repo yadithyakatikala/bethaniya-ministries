@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Tappable } from './Tappable';
 import { useTheme } from '../useTheme';
+import { fontFamilies } from '../tokens';
 
 export interface TabOption<T extends string> {
   value: T;
@@ -17,8 +18,12 @@ export interface TabOption<T extends string> {
  * underline say it too, and each tab is announced as a tab with its
  * selected state ("Requests, tab 1 of 2, selected").
  *
- * The tabs share the width equally and each is at least 44 high. A long
- * Telugu label wraps within its tab; it does not shrink.
+ * THE LOOK is the approved one: the tabs sit left to right at their own
+ * width, 24 apart, over one full-width hairline -- not stretched across the
+ * screen. Each is at least 44 across and 44 high (a short word like "Chat"
+ * is narrower than a finger, so the tab is padded out and its touch area
+ * reaches a little past it into the gap). A long Telugu label wraps within
+ * its tab; it does not shrink.
  */
 export function UnderlineTabs<T extends string>({
   tabs,
@@ -48,19 +53,29 @@ export function UnderlineTabs<T extends string>({
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
             onPress={() => onSelect(tab.value)}
+            // The gap between tabs is 24: each reaches 8 into it.
+            hitSlop={{ left: 8, right: 8 }}
             style={[
               styles.tab,
               {
                 minHeight: minTouchTarget,
+                minWidth: minTouchTarget,
                 borderBottomColor: active ? colors.ink : 'transparent',
               },
             ]}
           >
             <Text
               style={[
-                active ? type.button : type.body,
-                styles.label,
-                { color: active ? colors.ink : colors.inkMuted },
+                // Same size either way, so the words do not shift when you
+                // choose one; the chosen one is heavier.
+                type.button,
+                active
+                  ? { color: colors.ink }
+                  : {
+                      color: colors.inkMuted,
+                      fontFamily: fontFamilies.interfaceMedium,
+                      fontWeight: '500',
+                    },
               ]}
             >
               {tab.label}
@@ -73,15 +88,15 @@ export function UnderlineTabs<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', borderBottomWidth: 1 },
+  row: { flexDirection: 'row', gap: 24, borderBottomWidth: 1 },
   // The 2 pt underline overlaps the row's hairline, so a chosen tab "sits" on it.
+  // A label that is too long for the row wraps inside its tab (flexShrink).
   tab: {
-    flex: 1,
-    paddingHorizontal: 8,
-    alignItems: 'center',
+    flexShrink: 1,
+    paddingTop: 10,
+    paddingBottom: 12,
     justifyContent: 'center',
     borderBottomWidth: 2,
     marginBottom: -1,
   },
-  label: { textAlign: 'center' },
 });

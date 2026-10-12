@@ -1,6 +1,6 @@
 export { useTheme, useTypographyFor } from './useTheme';
 export { useAppFonts, BUNDLED_FONT_FAMILIES } from './fonts';
-export { contentFontFamily, scriptOf } from './scriptFace';
+export { contentFontFamily, contentTextStyle, scriptOf } from './scriptFace';
 export type { TextScript } from './scriptFace';
 export {
   lightTokens,
@@ -36,7 +36,7 @@ export type {
   BrandGold,
 } from './tokens';
 export { Card } from './ui/Card';
-export { GoldRule, GoldBar, GoldFill } from './ui/GoldLine';
+export { GoldRule, GoldBar, GoldFill, GoldRibbon } from './ui/GoldLine';
 export { AppButton } from './ui/AppButton';
 export { IconButton } from './ui/IconButton';
 export { Icon } from './ui/Icon';
@@ -58,6 +58,9 @@ export { ErrorState } from './ui/ErrorState';
 export { NoticeBanner } from './ui/NoticeBanner';
 export type { NoticeTone } from './ui/NoticeBanner';
 export { ConfirmDialog } from './ui/ConfirmDialog';
+export { Toast, useToast, TOAST_MS } from './ui/Toast';
+export { FloatingAction } from './ui/FloatingAction';
+export { ScreenTitle } from './ui/ScreenTitle';
 export { SectionHeader } from './ui/SectionHeader';
 export { Sheet } from './ui/Sheet';
 export { Tappable, PRESSED_OPACITY } from './ui/Tappable';

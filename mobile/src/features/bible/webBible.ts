@@ -36,6 +36,16 @@
  *   word, no punctuation and no verse count changed. The World English
  *   Bible contains no backslashes; this was never scripture.
  *   ./__tests__/webBible.test.ts is what keeps the corpus clean.
+ * - Cleaning applied, step 3: 117 verses of the Psalms arrived with a
+ *   literal `&gt; ` in front of their first word -- the source's own
+ *   HTML-escaped poetry marker (USFM's start-of-poetic-line), which
+ *   rendered as `&gt; Yahweh is my shepherd: I shall lack nothing.` for
+ *   Psalm 23:1 and travelled into Verse of the Day and anything a member
+ *   shared or copied. The marker and the space after it are removed and
+ *   nothing else: a character-frequency comparison of the file before and
+ *   after differs in those five characters (& g t ; and the space), 117
+ *   times each. No entity of any kind is left in the corpus
+ *   (./__tests__/webBible.test.ts).
  * - SEVEN verses are legitimately empty -- Luke 17:36, Acts 8:37, 15:34,
  *   24:7 and Romans 16:25-27 -- whose entire content in the source is a
  *   note that the manuscripts this translation follows do not contain

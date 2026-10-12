@@ -4,7 +4,7 @@ import { cleanup, render, waitFor } from '@testing-library/react-native';
 import { AuthProvider } from '../../context/AuthContext';
 import { PreferencesProvider } from '../../context/PreferencesContext';
 import { brandGold } from '../tokens';
-import { GoldBar, GoldFill, GoldRule } from '../ui/GoldLine';
+import { GoldBar, GoldFill, GoldRibbon, GoldRule } from '../ui/GoldLine';
 
 jest.mock('../../services/firebase/app');
 
@@ -171,5 +171,65 @@ describe('GoldFill', () => {
       flex: 1,
       overflow: 'hidden',
     });
+  });
+});
+
+describe('GoldRibbon', () => {
+  it('is a 24 by 4 tab: square where it meets the bar, rounded at its foot', async () => {
+    const view = await draw(<GoldRibbon testID="ribbon" />);
+    const style = view.getByTestId('ribbon', { includeHiddenElements: true }).props.style;
+    expect(style).toMatchObject({
+      width: 24,
+      height: 4,
+      borderBottomLeftRadius: 4,
+      borderBottomRightRadius: 4,
+      overflow: 'hidden',
+    });
+    // Nothing rounds the top: it comes out of the bar's edge.
+    expect(style.borderTopLeftRadius).toBeUndefined();
+    expect(style.borderTopRightRadius).toBeUndefined();
+  });
+
+  it('runs base, high, base across, in the daytime metal, and never fades out', async () => {
+    const view = await draw(<GoldRibbon />);
+    const stops = stopsOf(view.toJSON());
+    expect(stops.map((stop) => stop.hex)).toEqual([
+      brandGold.light.base,
+      brandGold.light.high,
+      brandGold.light.base,
+    ]);
+    expect(stops.map((stop) => stop.offset)).toEqual([0, 0.5, 1]);
+    // A ribbon is a solid mark; only the rule is allowed to fade.
+    expect(stops.every((stop) => stop.alpha === 1)).toBe(true);
+  });
+
+  it('takes the night metal at night', async () => {
+    const view = await draw(<GoldRibbon />, 'dark');
+    await waitFor(() =>
+      expect(stopsOf(view.toJSON())[1].hex).toBe(brandGold.dark.high.toUpperCase())
+    );
+  });
+
+  it('is decorative: the tab says its name and that it is selected', async () => {
+    const view = await draw(<GoldRibbon testID="ribbon" />);
+    const ribbon = view.getByTestId('ribbon', { includeHiddenElements: true });
+    expect(ribbon.props.accessibilityElementsHidden).toBe(true);
+    expect(ribbon.props.importantForAccessibility).toBe('no-hide-descendants');
+  });
+
+  it('gives two ribbons on one screen two different gradients, so neither draws the other', async () => {
+    // react-native-svg resolves url(#id) in one namespace; a shared id would
+    // paint every ribbon with whichever gradient was registered last.
+    const view = await draw(
+      <>
+        <GoldRibbon />
+        <GoldRibbon />
+      </>
+    );
+    const ids = hosts(view.toJSON())
+      .filter((host) => host.type === 'RNSVGLinearGradient')
+      .map((host) => host.props?.name);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
   });
 });

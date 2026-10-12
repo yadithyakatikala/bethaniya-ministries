@@ -51,6 +51,35 @@ export interface Strings {
   'nav.songs': string;
   'nav.events': string;
   'nav.more': string;
+  'nav.prayers': string;
+  'nav.community': string;
+  'nav.you': string;
+  'prayers.tabRequests': string;
+  'prayers.tabJournal': string;
+  'prayers.filterAll': string;
+  'prayers.filterYours': string;
+  'prayers.noOwn': string;
+  'prayers.noOwnMessage': string;
+  'prayers.shared': string;
+  'prayers.private': string;
+  'prayers.newEntry': string;
+  'prayers.addedToJournal': string;
+  'community.tabUpdates': string;
+  'community.tabChat': string;
+  'updates.announcement': string;
+  'you.tabSaved': string;
+  'you.notes': string;
+  'you.highlights': string;
+  'you.bookmarks': string;
+  'you.readingPlans': string;
+  'you.prayerJournal': string;
+  'you.noNotes': string;
+  'you.noNotesMessage': string;
+  'you.noHighlights': string;
+  'you.noHighlightsMessage': string;
+  'you.noBookmarks': string;
+  'you.noBookmarksMessage': string;
+  'you.loadError': string;
 
   // --- The opening animation ---
   'opening.skipHint': string;
@@ -631,6 +660,36 @@ const en: Strings = {
   'nav.songs': 'Songs',
   'nav.events': 'Events',
   'nav.more': 'More',
+  'nav.prayers': 'Prayers',
+  'nav.community': 'Community',
+  'nav.you': 'You',
+  'prayers.tabRequests': 'Requests',
+  'prayers.tabJournal': 'My journal',
+  'prayers.filterAll': 'All',
+  'prayers.filterYours': 'Yours',
+  'prayers.noOwn': 'You have not asked for prayer yet',
+  'prayers.noOwnMessage':
+    'When you do, your requests are listed here so you can find them.',
+  'prayers.shared': 'Your request was shared',
+  'prayers.private': 'Only you can see this',
+  'prayers.newEntry': 'New entry',
+  'prayers.addedToJournal': 'Added to your journal',
+  'community.tabUpdates': 'Updates',
+  'community.tabChat': 'Chat',
+  'updates.announcement': 'Announcement',
+  'you.tabSaved': 'Saved',
+  'you.notes': 'Notes',
+  'you.highlights': 'Highlights',
+  'you.bookmarks': 'Bookmarks',
+  'you.readingPlans': 'Reading plans',
+  'you.prayerJournal': 'Prayer journal',
+  'you.noNotes': 'No notes yet',
+  'you.noNotesMessage': 'Tap a verse while you read and choose Add note.',
+  'you.noHighlights': 'No highlights yet',
+  'you.noHighlightsMessage': 'Tap a verse while you read and choose a colour.',
+  'you.noBookmarks': 'No bookmarks yet',
+  'you.noBookmarksMessage': 'Bookmarked verses will appear here.',
+  'you.loadError': 'Your saved verses could not be loaded.',
 
   'opening.skipHint': 'Double-tap to skip',
 
@@ -719,8 +778,8 @@ const en: Strings = {
   'prayers.newRequest': 'New Prayer Request',
   'prayers.placeholder': 'What’s on your heart?',
   'prayers.add': 'Add Prayer',
-  'prayers.empty': 'No prayers yet',
-  'prayers.emptyMessage': 'Add a prayer request above — only you can see it.',
+  'prayers.empty': 'Nothing in your journal yet',
+  'prayers.emptyMessage': 'Add a prayer with the button below. Only you can see it.',
   'prayers.loadError': 'Couldn’t load prayers',
   'prayers.loadErrorMessage': 'Check your connection and try again.',
   'prayers.markAnswered': 'Mark answered',
@@ -1069,7 +1128,7 @@ const en: Strings = {
   'prayerWall.anonymousLabel': 'Anonymous',
   'prayerWall.anonymousToggle': 'Post anonymously',
   'prayerWall.anonymousHelp':
-    'Your name is not saved with this request and nobody in the church can see who wrote it.',
+    'Other members and the church team will not see your name. The church’s main administrator can look it up, only to deal with a report.',
   'prayerWall.anonymousLocked': 'Whether this request shows your name cannot be changed.',
   'prayerWall.submit': 'Share request',
   'prayerWall.submitFailed': 'Your request could not be shared.',
@@ -1095,7 +1154,8 @@ const en: Strings = {
 
   'report.action': 'Report',
   'report.title': 'Report this',
-  'report.intro': 'A church administrator will look at this. Your name is not shown to anyone else.',
+  'report.intro':
+    'A church administrator will look at this. Other members will not see your name.',
   'report.reasonLabel': 'Why are you reporting it?',
   'report.reason.spam': 'Spam or advertising',
   'report.reason.harassment': 'Harassment or bullying',
@@ -1136,6 +1196,36 @@ const te: Strings = {
   'nav.songs': 'పాటలు',
   'nav.events': 'కార్యక్రమాలు',
   'nav.more': 'మరిన్ని',
+  'nav.prayers': 'ప్రార్థనలు',
+  'nav.community': 'సమాజం',
+  'nav.you': 'మీరు',
+  'prayers.tabRequests': 'విన్నపాలు',
+  'prayers.tabJournal': 'నా పుస్తకం',
+  'prayers.filterAll': 'అన్నీ',
+  'prayers.filterYours': 'మీవి',
+  'prayers.noOwn': 'మీరు ఇంకా ప్రార్థన కోరలేదు',
+  'prayers.noOwnMessage':
+    'కోరినప్పుడు, మీ విన్నపాలు ఇక్కడ కనిపిస్తాయి, సులభంగా కనుగొనవచ్చు.',
+  'prayers.shared': 'మీ విన్నపం పంచుకోబడింది',
+  'prayers.private': 'ఇది మీకు మాత్రమే కనిపిస్తుంది',
+  'prayers.newEntry': 'కొత్త నమోదు',
+  'prayers.addedToJournal': 'మీ పుస్తకంలో చేర్చబడింది',
+  'community.tabUpdates': 'సమాచారం',
+  'community.tabChat': 'చాట్',
+  'updates.announcement': 'ప్రకటన',
+  'you.tabSaved': 'భద్రపరచినవి',
+  'you.notes': 'నోట్‌లు',
+  'you.highlights': 'హైలైట్‌లు',
+  'you.bookmarks': 'బుక్‌మార్క్‌లు',
+  'you.readingPlans': 'పఠన ప్రణాళికలు',
+  'you.prayerJournal': 'ప్రార్థన పుస్తకం',
+  'you.noNotes': 'ఇంకా నోట్‌లు లేవు',
+  'you.noNotesMessage': 'చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి “నోట్ జోడించండి” ఎంచుకోండి.',
+  'you.noHighlights': 'ఇంకా హైలైట్‌లు లేవు',
+  'you.noHighlightsMessage': 'చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి రంగు ఎంచుకోండి.',
+  'you.noBookmarks': 'ఇంకా బుక్‌మార్క్‌లు లేవు',
+  'you.noBookmarksMessage': 'బుక్‌మార్క్ చేసిన వచనాలు ఇక్కడ కనిపిస్తాయి.',
+  'you.loadError': 'మీరు భద్రపరచిన వచనాలను లోడ్ చేయలేకపోయాం.',
 
   'opening.skipHint': 'దాటవేయడానికి రెండుసార్లు తట్టండి',
 
@@ -1223,8 +1313,9 @@ const te: Strings = {
   'prayers.newRequest': 'కొత్త ప్రార్థన అభ్యర్థన',
   'prayers.placeholder': 'మీ హృదయంలో ఏముంది?',
   'prayers.add': 'ప్రార్థన చేర్చండి',
-  'prayers.empty': 'ఇంకా ప్రార్థనలు లేవు',
-  'prayers.emptyMessage': 'పైన ప్రార్థన అభ్యర్థన చేర్చండి — మీకు మాత్రమే కనిపిస్తుంది.',
+  'prayers.empty': 'మీ పుస్తకంలో ఇంకా ఏమీ లేదు',
+  'prayers.emptyMessage':
+    'కింది బటన్‌తో ప్రార్థన చేర్చండి. ఇది మీకు మాత్రమే కనిపిస్తుంది.',
   'prayers.loadError': 'ప్రార్థనలు లోడ్ కాలేదు',
   'prayers.loadErrorMessage': 'కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
   'prayers.markAnswered': 'జవాబు వచ్చినట్లు గుర్తించండి',
@@ -1566,7 +1657,7 @@ const te: Strings = {
   'prayerWall.anonymousLabel': 'పేరు లేకుండా',
   'prayerWall.anonymousToggle': 'పేరు లేకుండా పంచుకోండి',
   'prayerWall.anonymousHelp':
-    'ఈ విన్నపంతో మీ పేరు భద్రపరచబడదు, ఎవరు రాశారో సంఘంలో ఎవరికీ తెలియదు.',
+    'ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు.',
   'prayerWall.anonymousLocked': 'ఈ విన్నపంలో మీ పేరు కనిపించడాన్ని ఇక మార్చలేరు.',
   'prayerWall.submit': 'విన్నపాన్ని పంచుకోండి',
   'prayerWall.submitFailed': 'మీ విన్నపాన్ని పంచుకోలేకపోయాం.',
@@ -1593,8 +1684,7 @@ const te: Strings = {
 
   'report.action': 'ఫిర్యాదు చేయండి',
   'report.title': 'దీనిపై ఫిర్యాదు',
-  'report.intro':
-    'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. మీ పేరు ఇతరులకు కనిపించదు.',
+  'report.intro': 'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు.',
   'report.reasonLabel': 'దేనికి ఫిర్యాదు చేస్తున్నారు?',
   'report.reason.spam': 'స్పామ్ లేదా ప్రకటన',
   'report.reason.harassment': 'వేధింపు',

@@ -1,4 +1,4 @@
-import { contentFontFamily, scriptOf } from '../scriptFace';
+import { contentFontFamily, contentTextStyle, scriptOf } from '../scriptFace';
 import { fontFamilies } from '../tokens';
 
 /**
@@ -77,5 +77,64 @@ describe('contentFontFamily', () => {
     expect(contentFontFamily('34', { fallback: 'te', weight: 'semiBold' })).toBe(
       fontFamilies.interfaceSemiBold
     );
+  });
+});
+
+describe('contentTextStyle', () => {
+  const ROW_TITLE = {
+    size: 17,
+    line: 24,
+    teSize: 16.5,
+    teLine: 30,
+    weight: 'semiBold',
+  } as const;
+
+  it("sets Latin text in the English serif at the role's size and leading", () => {
+    expect(contentTextStyle('Youth fellowship', ROW_TITLE)).toEqual({
+      fontFamily: fontFamilies.serifEnSemiBold,
+      fontSize: 17,
+      fontWeight: '600',
+      lineHeight: 24,
+    });
+  });
+
+  it('sets Telugu text in the Telugu serif at its own size and leading', () => {
+    expect(contentTextStyle('యువజన సహవాసం', ROW_TITLE)).toEqual({
+      fontFamily: fontFamilies.serifTeSemiBold,
+      fontSize: 16.5,
+      fontWeight: '600',
+      lineHeight: 30,
+    });
+  });
+
+  it("sets mixed text in the face that has both, at the English size with Telugu's leading", () => {
+    // A Latin-sized line would clip the marks that stack above and below a
+    // Telugu letter; the size stays the English one, the leading does not.
+    const style = contentTextStyle('యువజన Youth', ROW_TITLE);
+    expect(style.fontFamily).toBe(fontFamilies.interfaceSemiBold);
+    expect(style.fontSize).toBe(17);
+    expect(style.lineHeight).toBe(30);
+  });
+
+  it('gives Telugu 12% more leading when the role does not say what it should be', () => {
+    const style = contentTextStyle('రూతు', { size: 17, line: 28 });
+    expect(style.lineHeight).toBe(Math.round(28 * 1.12));
+    expect(style.fontSize).toBe(17);
+  });
+
+  it('uses the regular weight by default', () => {
+    expect(contentTextStyle('Hello', { size: 17, line: 28 })).toMatchObject({
+      fontFamily: fontFamilies.serifEnRegular,
+      fontWeight: '400',
+    });
+  });
+
+  it('falls back to the interface language for text with no letters yet', () => {
+    expect(contentTextStyle('', { size: 17, line: 28 }).fontFamily).toBe(
+      fontFamilies.serifEnRegular
+    );
+    const te = contentTextStyle('', { size: 17, line: 28, fallback: 'te' });
+    expect(te.fontFamily).toBe(fontFamilies.interfaceRegular);
+    expect(te.lineHeight).toBe(Math.round(28 * 1.12));
   });
 });

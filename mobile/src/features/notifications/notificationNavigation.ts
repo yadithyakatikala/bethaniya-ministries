@@ -17,15 +17,32 @@ const NO_PARAM_ROUTES = new Set<keyof RootStackParamList>([
   'SongsList',
   'EventsList',
   'BibleBooks',
-  'Profile',
+  'PrayersHub',
+  'CommunityHub',
+  'You',
   'Settings',
   'BibleSearch',
   'NotificationCenter',
 ]);
 
+/**
+ * Places that MOVED when the tabs became Home | Bible | Prayers | Community |
+ * You. A notification already delivered, or sent by a church tool that has not
+ * changed, may still say `screen: 'Profile'`; it lands on the Profile tab of
+ * You rather than nowhere. (`Profile` was the only retired name this ever
+ * accepted, so it is the only one carried over.)
+ */
+const MOVED_ROUTES: Record<string, NotificationNavigationTarget> = {
+  Profile: { screen: 'You', params: { tab: 'profile' } },
+};
+
 export type NotificationNavigationTarget =
-  | { screen: Exclude<keyof RootStackParamList, 'BibleChapter'>; params?: undefined }
-  | { screen: 'BibleChapter'; params: { bookId: string; chapterNumber: number } };
+  | {
+      screen: Exclude<keyof RootStackParamList, 'BibleChapter' | 'You'>;
+      params?: undefined;
+    }
+  | { screen: 'BibleChapter'; params: { bookId: string; chapterNumber: number } }
+  | { screen: 'You'; params?: { tab: 'saved' | 'profile' } };
 
 export function getNavigationTargetFromData(
   data: Record<string, unknown> | null | undefined
@@ -40,8 +57,14 @@ export function getNavigationTargetFromData(
     return null;
   }
 
+  if (Object.prototype.hasOwnProperty.call(MOVED_ROUTES, data.screen)) {
+    return MOVED_ROUTES[data.screen];
+  }
+
   if (NO_PARAM_ROUTES.has(data.screen as keyof RootStackParamList)) {
-    return { screen: data.screen as Exclude<keyof RootStackParamList, 'BibleChapter'> };
+    return {
+      screen: data.screen as Exclude<keyof RootStackParamList, 'BibleChapter' | 'You'>,
+    };
   }
 
   return null;

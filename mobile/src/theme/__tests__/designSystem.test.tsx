@@ -731,6 +731,62 @@ describe('UnderlineTabs', () => {
     await fireEvent.press(getByTestId('tabs-journal'));
     expect(onSelect).toHaveBeenCalledWith('journal');
   });
+
+  it('sits at its own width, left to right, 24 apart: not stretched across the screen', async () => {
+    const { getByTestId } = await renderThemed(
+      <UnderlineTabs testID="tabs" tabs={tabs} selected="requests" onSelect={jest.fn()} />
+    );
+    expect(flat(getByTestId('tabs'))).toMatchObject({
+      flexDirection: 'row',
+      gap: 24,
+      borderBottomWidth: 1,
+    });
+    for (const tab of tabs) {
+      const style = flat(getByTestId(`tabs-${tab.value}`));
+      // No flex: 1, no centring -- a tab is as wide as its word (and at least 44).
+      expect(style.flex).toBeUndefined();
+      expect(style.flexGrow).toBeUndefined();
+      expect(style.alignItems).toBeUndefined();
+      expect(style.minWidth).toBe(44);
+      expect(style).toMatchObject({ paddingTop: 10, paddingBottom: 12 });
+    }
+  });
+
+  it('lets a finger reach 8 points into the gap beside each tab', async () => {
+    const { getByTestId } = await renderThemed(
+      <UnderlineTabs testID="tabs" tabs={tabs} selected="requests" onSelect={jest.fn()} />
+    );
+    expect(getByTestId('tabs-journal').props.hitSlop).toEqual({ left: 8, right: 8 });
+  });
+
+  it('sets every label at the same size, heavier when chosen, so choosing one moves nothing', async () => {
+    const { getByText } = await renderThemed(
+      <UnderlineTabs testID="tabs" tabs={tabs} selected="journal" onSelect={jest.fn()} />
+    );
+    const on = flat(getByText('My journal'));
+    const off = flat(getByText('Requests'));
+    expect(on.fontSize).toBe(off.fontSize);
+    expect(on.lineHeight).toBe(off.lineHeight);
+    expect(on.fontWeight).toBe('600');
+    expect(off.fontWeight).toBe('500');
+    expect(on.color).toBe(lightTokens.ink);
+    expect(off.color).toBe(lightTokens.inkMuted);
+  });
+
+  it('lets a long label wrap inside its tab rather than push the other off the screen', async () => {
+    const { getByTestId } = await renderThemed(
+      <UnderlineTabs
+        testID="tabs"
+        tabs={[
+          { value: 'a', label: 'ఆదివారం ఆరాధన మరియు సమాజ సమావేశం గురించి ప్రకటనలు' },
+          { value: 'b', label: 'Chat' },
+        ]}
+        selected="a"
+        onSelect={jest.fn()}
+      />
+    );
+    expect(flat(getByTestId('tabs-a')).flexShrink).toBe(1);
+  });
 });
 
 describe('Avatar and the first letter of a name', () => {

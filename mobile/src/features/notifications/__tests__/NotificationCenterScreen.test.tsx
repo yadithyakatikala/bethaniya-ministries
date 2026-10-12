@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +23,12 @@ function SongsListStub() {
   return <Text testID="songs-list-stub">Songs list stub</Text>;
 }
 
+/** Prints the params it was opened with, so a test can see WHICH view it was sent to. */
+function YouStub() {
+  const { params } = useRoute();
+  return <Text testID="you-stub">{JSON.stringify(params ?? null)}</Text>;
+}
+
 async function renderScreen() {
   return render(
     <NavigationContainer>
@@ -35,6 +41,7 @@ async function renderScreen() {
             />
             <Stack.Screen name="BibleChapter" component={BibleChapterStub} />
             <Stack.Screen name="SongsList" component={SongsListStub} />
+            <Stack.Screen name="You" component={YouStub} />
           </Stack.Navigator>
         </PreferencesProvider>
       </AuthProvider>
@@ -93,6 +100,27 @@ describe('NotificationCenterScreen', () => {
     await fireEvent.press(getByTestId(`notification-item-${entry.id}`));
 
     await waitFor(() => expect(getByTestId('bible-chapter-stub')).toBeTruthy());
+  });
+
+  it("opens the Profile tab of You for an older notification that says 'Profile'", async () => {
+    // History is kept on the phone, so entries from before the tabs changed
+    // can still carry the retired name.
+    await addNotificationToHistory({
+      title: 'Complete your profile',
+      message: 'Add your name',
+      data: { screen: 'Profile' },
+    });
+    const { getByText, getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByText('Complete your profile')).toBeTruthy());
+
+    const entries = await AsyncStorage.getItem('notification_history');
+    const [entry] = JSON.parse(entries ?? '[]');
+    await fireEvent.press(getByTestId(`notification-item-${entry.id}`));
+
+    await waitFor(() => expect(getByTestId('you-stub')).toBeTruthy());
+    expect(getByTestId('you-stub').props.children).toBe(
+      JSON.stringify({ tab: 'profile' })
+    );
   });
 
   it('does not navigate for an entry with no payload', async () => {

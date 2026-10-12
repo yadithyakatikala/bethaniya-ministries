@@ -64,16 +64,15 @@ function paramsStub(testID: string) {
 const SongsListStub = stub('songs-list-stub', 'Songs list stub');
 const EventsListStub = stub('events-list-stub', 'Events list stub');
 const BibleBooksStub = stub('bible-books-stub', 'Bible books stub');
-const ProfileStub = stub('profile-stub', 'Profile stub');
 const NotificationCenterStub = stub(
   'notification-center-stub',
   'Notification center stub'
 );
-const AnnouncementsStub = stub('announcements-stub', 'Announcements stub');
 const PlansListStub = stub('plans-list-stub', 'Plans list stub');
 const PlanDayStub = stub('plan-day-stub', 'Plan day stub');
-const PrayerWallStub = stub('prayer-wall-stub', 'Prayer wall stub');
-const ChatStub = stub('chat-stub', 'Chat stub');
+// Prayers and Community are tabs with views inside them; Home asks for the view.
+const PrayersHubStub = paramsStub('prayers-hub-stub');
+const CommunityHubStub = paramsStub('community-hub-stub');
 const MediaFeedStub = stub('media-feed-stub', 'Media feed stub');
 const DailyVerseStub = stub('daily-verse-stub', 'Daily verse stub');
 const EventDetailStub = paramsStub('event-detail-stub');
@@ -91,14 +90,12 @@ function renderHomeScreen() {
             <Stack.Screen name="EventDetail" component={EventDetailStub} />
             <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
             <Stack.Screen name="BibleChapter" component={BibleChapterStub} />
-            <Stack.Screen name="Profile" component={ProfileStub} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
-            <Stack.Screen name="Announcements" component={AnnouncementsStub} />
             <Stack.Screen name="DailyVerse" component={DailyVerseStub} />
             <Stack.Screen name="PlansList" component={PlansListStub} />
             <Stack.Screen name="PlanDay" component={PlanDayStub} />
-            <Stack.Screen name="PrayerWall" component={PrayerWallStub} />
-            <Stack.Screen name="CommunityChat" component={ChatStub} />
+            <Stack.Screen name="PrayersHub" component={PrayersHubStub} />
+            <Stack.Screen name="CommunityHub" component={CommunityHubStub} />
             <Stack.Screen name="MediaFeed" component={MediaFeedStub} />
           </Stack.Navigator>
         </PreferencesProvider>
@@ -334,7 +331,11 @@ describe('HomeScreen', () => {
     expect(button.props.accessibilityHint).toBe(translate('en', 'home.updatesHint'));
 
     await fireEvent.press(button);
-    await waitFor(() => expect(getByTestId('announcements-stub')).toBeTruthy());
+    // The Updates view of Community -- not Chat, which is the other view.
+    await waitFor(() => expect(getByTestId('community-hub-stub')).toBeTruthy());
+    expect(getByTestId('community-hub-stub').props.children).toBe(
+      JSON.stringify({ tab: 'updates' })
+    );
   });
 
   it('gives Updates a 44dp round target', async () => {
@@ -821,39 +822,45 @@ describe('HomeScreen', () => {
   // as far as a member could tell. Each row below lands somewhere no other
   // does, and the table is the guarantee.
 
-  it.each([
-    ['prayers-nav-button', 'prayer-wall-stub'],
-    ['chat-nav-button', 'chat-stub'],
-    ['media-nav-button', 'media-feed-stub'],
-  ])('%s is a row that navigates', async (testID, stubID) => {
-    signedIn();
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-together')).toBeTruthy());
+  // [row, the screen it opens, and the view it asks that screen for]
+  const TOGETHER_DESTINATIONS = [
+    ['prayers-nav-button', 'prayers-hub-stub', JSON.stringify({ tab: 'requests' })],
+    ['chat-nav-button', 'community-hub-stub', JSON.stringify({ tab: 'chat' })],
+    ['media-nav-button', 'media-feed-stub', 'null'],
+  ] as const;
 
-    const row = getByTestId(testID);
-    expect(row.props.accessibilityRole).toBe('button');
-    expect(typeof row.props.accessibilityLabel).toBe('string');
+  it.each(TOGETHER_DESTINATIONS)(
+    '%s is a row that navigates',
+    async (testID, stubID, params) => {
+      signedIn();
+      const { getByTestId } = await renderHomeScreen();
+      await waitFor(() => expect(getByTestId('home-together')).toBeTruthy());
 
-    await fireEvent.press(row);
-    await waitFor(() => expect(getByTestId(stubID)).toBeTruthy());
-  });
+      const row = getByTestId(testID);
+      expect(row.props.accessibilityRole).toBe('button');
+      expect(typeof row.props.accessibilityLabel).toBe('string');
+
+      await fireEvent.press(row);
+      await waitFor(() => expect(getByTestId(stubID)).toBeTruthy());
+      // The hubs hold two views each; the row has to ask for the right one.
+      if (params !== 'null') expect(getByTestId(stubID).props.children).toBe(params);
+    }
+  );
 
   it('sends every row somewhere DIFFERENT', async () => {
     // The duplicate-destination bug in one assertion: two rows that
     // navigate to the same route are two buttons for one feature.
     signedIn();
     const reached: string[] = [];
-    for (const [testID, stubID] of [
-      ['prayers-nav-button', 'prayer-wall-stub'],
-      ['chat-nav-button', 'chat-stub'],
-      ['media-nav-button', 'media-feed-stub'],
-    ] as const) {
+    for (const [testID, stubID, params] of TOGETHER_DESTINATIONS) {
       // A fresh render each time: the first press pushes a screen over Home.
       const fresh = await renderHomeScreen();
       await waitFor(() => expect(fresh.getByTestId('home-together')).toBeTruthy());
       await fireEvent.press(fresh.getByTestId(testID));
       await waitFor(() => expect(fresh.getByTestId(stubID)).toBeTruthy());
-      reached.push(stubID);
+      // Destination = the screen AND the view of it: Prayers and Community
+      // are one screen each, so the params are what tell Chat from Updates.
+      reached.push(`${stubID} ${params}`);
       await fresh.unmount();
     }
     expect(new Set(reached).size).toBe(reached.length);

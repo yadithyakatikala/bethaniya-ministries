@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import { useMemberIdentity } from '../../context/useMemberIdentity';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { SectionHeader } from '../../theme/ui/SectionHeader';
@@ -97,10 +98,12 @@ export function HomeScreen() {
   const liveEvent = events?.find((event) => event.isLive) ?? null;
   const nextEvent = events?.find((event) => !event.isLive) ?? null;
 
-  // The final fallback is a WORD rather than a name, so it is translated:
-  // a Telugu interface should not greet the member in English.
-  const displayLabel =
-    user?.displayName || user?.email || user?.phoneNumber || t('common.member');
+  // The PROFILE's name first -- what onboarding wrote and the member can edit
+  // (an email sign-up has no name in the Auth record) -- then the sign-in's,
+  // then a phone number. The final fallback is a WORD rather than a name, so
+  // it is translated: a Telugu interface should not greet the member in English.
+  const { displayName } = useMemberIdentity();
+  const displayLabel = displayName || user?.phoneNumber || t('common.member');
 
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -143,7 +146,7 @@ export function HomeScreen() {
     >
       <HomeHeader
         displayLabel={displayLabel}
-        onPressUpdates={() => navigation.navigate('Announcements')}
+        onPressUpdates={() => navigation.navigate('CommunityHub', { tab: 'updates' })}
       />
 
       {liveEvent ? (
@@ -192,8 +195,8 @@ export function HomeScreen() {
 
       <TogetherSection
         style={styles.section}
-        onOpenPrayers={() => navigation.navigate('PrayerWall')}
-        onOpenChat={() => navigation.navigate('CommunityChat')}
+        onOpenPrayers={() => navigation.navigate('PrayersHub', { tab: 'requests' })}
+        onOpenChat={() => navigation.navigate('CommunityHub', { tab: 'chat' })}
         onOpenMedia={() => navigation.navigate('MediaFeed')}
       />
     </ScrollView>

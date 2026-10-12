@@ -1,4 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
+import { Icon } from './Icon';
+import type { IconName } from './iconShapes';
 import { Tappable } from './Tappable';
 import { useTheme } from '../useTheme';
 
@@ -13,6 +15,10 @@ import { useTheme } from '../useTheme';
  *
  * A label is words, never an icon alone; a long Telugu label wraps the
  * chip's text, it does not shrink.
+ *
+ * `icon` puts an 18-point glyph before the words, for a chip that is a door
+ * rather than a filter (the Community shelf: Events, Songs, Photos and
+ * videos); `tall` makes it a full 44 high, as such a row of doors is.
  */
 export function Chip({
   label,
@@ -20,12 +26,16 @@ export function Chip({
   onPress,
   testID,
   accessibilityHint,
+  icon,
+  tall = false,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   testID?: string;
   accessibilityHint?: string;
+  icon?: IconName;
+  tall?: boolean;
 }) {
   const { colors, radii, type } = useTheme();
   return (
@@ -38,9 +48,11 @@ export function Chip({
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       // 36 high, but a finger gets 44.
-      hitSlop={{ top: 4, bottom: 4 }}
+      hitSlop={tall ? undefined : { top: 4, bottom: 4 }}
       style={[
         styles.chip,
+        tall && styles.tall,
+        icon ? styles.withIcon : null,
         {
           borderRadius: radii.pill,
           backgroundColor: selected ? colors.primary : colors.surface,
@@ -48,6 +60,9 @@ export function Chip({
         },
       ]}
     >
+      {icon ? (
+        <Icon name={icon} size={18} color={selected ? colors.onPrimary : colors.ink} />
+      ) : null}
       <Text
         style={[type.label, { color: selected ? colors.onPrimary : colors.ink }]}
         numberOfLines={2}
@@ -64,8 +79,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
     alignSelf: 'flex-start',
   },
+  tall: { minHeight: 44 },
+  withIcon: { paddingHorizontal: 12 },
 });

@@ -1,77 +1,26 @@
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import { useTheme } from '../../theme';
-// This screen previously formatted its date with the DEVICE locale and
-// never called useTranslation() at all -- see ../../i18n/locale.ts.
-import { useTranslation } from '../../i18n';
-import { formatLongDate } from '../../i18n/locale';
+import { UpdateDetail } from '../updates/UpdateDetail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CommunityPostDetail'>;
 
-
-
 /**
- * Community post detail -- new V1 feature, mirrors
- * ../announcements/AnnouncementDetailScreen.tsx exactly (same "pass the
- * full object as a route param" reasoning: CommunityListScreen already
- * holds the complete, real-time list).
+ * Community post detail -- the same "pass the full object as a route param"
+ * reasoning as an announcement's, and the same SCREEN:
+ * ../updates/UpdateDetail.tsx. The church's two kinds of update differ only
+ * in their label.
  */
-export function CommunityPostDetailScreen({ route }: Props) {
+export function CommunityPostDetailScreen({ navigation, route }: Props) {
   const { post } = route.params;
-  const { colors, radii, type } = useTheme();
-  const { appLanguage } = useTranslation();
-
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
-      testID="community-post-detail-screen"
-    >
-      {post.imageUrl ? (
-        <Image
-          source={{ uri: post.imageUrl }}
-          style={[styles.image, { borderRadius: radii.card }]}
-          testID="community-post-detail-image"
-          accessibilityIgnoresInvertColors
-        />
-      ) : (
-        <View
-          style={[
-            styles.imagePlaceholder,
-            { backgroundColor: colors.primaryTint, borderRadius: radii.card },
-          ]}
-        />
-      )}
-
-      <View style={styles.body}>
-        {post.createdAt ? (
-          <Text
-            style={[type.overline, { color: colors.secondaryText }]}
-            testID="community-post-detail-date"
-          >
-            {formatLongDate(post.createdAt, appLanguage)}
-          </Text>
-        ) : null}
-        <Text
-          style={[type.headline, { color: colors.text }]}
-          testID="community-post-detail-title"
-        >
-          {post.title}
-        </Text>
-        <Text
-          style={[type.bodyLarge, { color: colors.text }]}
-          testID="community-post-detail-content"
-        >
-          {post.content}
-        </Text>
-      </View>
-    </ScrollView>
+    <UpdateDetail
+      kind="post"
+      title={post.title}
+      content={post.content}
+      imageUrl={post.imageUrl}
+      createdAt={post.createdAt}
+      onBack={() => navigation.goBack()}
+      testPrefix="community-post-detail"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, paddingBottom: 32 },
-  image: { width: '100%', aspectRatio: 16 / 9 },
-  imagePlaceholder: { width: '100%', aspectRatio: 16 / 9 },
-  body: { padding: 20, gap: 10 },
-});

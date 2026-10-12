@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { AnnouncementDetailScreen } from '../AnnouncementDetailScreen';
@@ -12,7 +12,9 @@ const ANNOUNCEMENT: PublishedAnnouncement = {
   title: 'Fellowship Potluck',
   content: 'Join us after the Sunday service for a potluck lunch. Bring a dish to share.',
   imageUrl: null,
-  createdAt: new Date('2026-09-14T00:00:00.000Z'),
+  // Local noon of a day in an earlier year: the same date in every timezone, and
+  // old enough that the screen spells the year out whatever today is.
+  createdAt: new Date(2020, 8, 14, 12, 0),
 };
 
 /**
@@ -21,12 +23,15 @@ const ANNOUNCEMENT: PublishedAnnouncement = {
  * NativeStackScreenProps' shape. Wrapped in AuthProvider/
  * PreferencesProvider since it reads useTheme().
  */
-async function renderScreen(announcement: PublishedAnnouncement = ANNOUNCEMENT) {
+async function renderScreen(
+  announcement: PublishedAnnouncement = ANNOUNCEMENT,
+  goBack = jest.fn()
+) {
   return await render(
     <AuthProvider>
       <PreferencesProvider>
         <AnnouncementDetailScreen
-          navigation={{} as never}
+          navigation={{ goBack } as never}
           route={
             {
               key: 'AnnouncementDetail',
@@ -52,16 +57,24 @@ describe('AnnouncementDetailScreen', () => {
     );
   });
 
-  it('shows a formatted date when createdAt is set', async () => {
+  it('shows a formatted date, after what it is, when createdAt is set', async () => {
     const { getByTestId } = await renderScreen();
     expect(getByTestId('announcement-detail-date')).toHaveTextContent(
-      'September 14, 2026'
+      'Announcement  ·  September 14, 2020'
     );
   });
 
-  it('omits the date when createdAt is null', async () => {
-    const { queryByTestId } = await renderScreen({ ...ANNOUNCEMENT, createdAt: null });
-    expect(queryByTestId('announcement-detail-date')).toBeNull();
+  it('goes back when Back is pressed', async () => {
+    const goBack = jest.fn();
+    const { getByTestId } = await renderScreen(ANNOUNCEMENT, goBack);
+    await fireEvent.press(getByTestId('top-bar-back'));
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the date, but not the label, when createdAt is null', async () => {
+    const { getByTestId } = await renderScreen({ ...ANNOUNCEMENT, createdAt: null });
+    // The kicker still says what this is; there is no date or separator after it.
+    expect(getByTestId('announcement-detail-date')).toHaveTextContent(/^Announcement$/);
   });
 
   it('shows the announcement image when imageUrl is set', async () => {

@@ -21,7 +21,13 @@
  * falls back for those glyphs either way, and the interface face is the
  * one that does it least jarringly.
  */
-import { fontFamilies, serifFor, type ScriptLanguage } from './tokens';
+import type { TextStyle } from 'react-native';
+import {
+  TELUGU_LINE_HEIGHT_BOOST,
+  fontFamilies,
+  serifFor,
+  type ScriptLanguage,
+} from './tokens';
 
 export type TextScript = 'latin' | 'telugu' | 'mixed' | 'none';
 
@@ -73,4 +79,43 @@ export function contentFontFamily(
         ? fontFamilies.interfaceSemiBold
         : fontFamilies.interfaceRegular;
   }
+}
+
+/**
+ * The whole text style for church-written or member-typed text of a given
+ * role: the face the rule above picks, at the role's size, with the leading
+ * its script needs.
+ *
+ *   one script, Latin    the English serif at `size`/`line`
+ *   one script, Telugu   the Telugu serif at `teSize` (default `size`) and
+ *                        `teLine` (default `line` plus Telugu's 12%)
+ *   mixed, or no letters Hind Guntur at `size`, with Telugu's leading
+ *                        whenever any Telugu is present -- the marks that
+ *                        stack above and below a letter need it, and a
+ *                        Latin-sized line would clip them
+ *
+ * A row title (17/24), an article's heading (26/33) and its paragraphs
+ * (17/28) are three calls with three specs; no screen picks a face itself.
+ */
+export function contentTextStyle(
+  text: string,
+  spec: {
+    size: number;
+    line: number;
+    teSize?: number;
+    teLine?: number;
+    weight?: 'regular' | 'semiBold';
+    fallback?: ScriptLanguage;
+  }
+): TextStyle {
+  const { size, line, teSize = size, weight = 'regular', fallback = 'en' } = spec;
+  const script = scriptOf(text);
+  const teluguLine = spec.teLine ?? Math.round(line * (1 + TELUGU_LINE_HEIGHT_BOOST));
+  const hasTelugu = script === 'telugu' || script === 'mixed';
+  return {
+    fontFamily: contentFontFamily(text, { weight, fallback }),
+    fontSize: script === 'telugu' ? teSize : size,
+    fontWeight: weight === 'semiBold' ? '600' : '400',
+    lineHeight: hasTelugu || (script === 'none' && fallback === 'te') ? teluguLine : line,
+  };
 }

@@ -102,6 +102,9 @@ export function NotificationCenterScreen() {
     if (!target) return;
     if (target.screen === 'BibleChapter') {
       navigation.navigate('BibleChapter', target.params);
+    } else if (target.screen === 'You') {
+      if (target.params) navigation.navigate('You', target.params);
+      else navigation.navigate('You');
     } else {
       navigation.navigate(target.screen as never);
     }

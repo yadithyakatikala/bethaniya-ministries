@@ -180,7 +180,51 @@ export function GoldFill({ testID }: { testID?: string }) {
   );
 }
 
+/**
+ * The ribbon that hangs from the top edge of the tab bar over the selected
+ * tab: 24 across, 4 down, square at the top (it comes out of the edge) and
+ * rounded at the foot, in the metal's base-high-base run.
+ */
+export function GoldRibbon({ testID }: { testID?: string }) {
+  const { gold } = useTheme();
+  const id = gradientId('gl', useId());
+  return (
+    <View
+      testID={testID}
+      style={styles.ribbon}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 1"
+        preserveAspectRatio="none"
+        style={StyleSheet.absoluteFill}
+      >
+        <Gradient
+          id={id}
+          direction="horizontal"
+          stops={[
+            { offset: 0, color: gold.base },
+            { offset: 0.5, color: gold.high },
+            { offset: 1, color: gold.base },
+          ]}
+        />
+        <Rect x="0" y="0" width="100" height="1" fill={`url(#${id})`} />
+      </Svg>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  ribbon: {
+    width: 24,
+    height: 4,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    overflow: 'hidden',
+  },
   rule: { height: 1 },
   bar: { alignSelf: 'stretch', overflow: 'hidden' },
   fill: { flex: 1, overflow: 'hidden' },

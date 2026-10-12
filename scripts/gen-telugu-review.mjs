@@ -38,6 +38,15 @@ const UNCERTAIN = {
   'home.askPray': 'A full sentence under "Prayer requests" on Home. Check the polite plural register is how the church speaks to its members.',
   'home.updatesLabel': 'Read aloud by a screen reader on Home\'s header button, which opens announcements and posts. "సమాచారం" is a broad word for "information"; confirm it is the church\'s word for updates.',
   'prophetVerse.readMore': 'The control under a long Prophet Verse; it pairs with `prophetVerse.showLess`. Check the two read naturally as a pair.',
+  'nav.prayers': 'The tab for prayer requests and the private journal. Confirm the plural "ప్రార్థనలు" reads as the place for both.',
+  'nav.you': '"మీరు" ("you", polite) names the member\'s own corner: their saved things, profile and settings. Confirm it reads as that and not as a form of address.',
+  'prayers.tabRequests': '"విన్నపాలు" ("petitions"). Confirm it is the word members use for a prayer request.',
+  'prayers.tabJournal': 'Literally "my book". Confirm it reads as a prayer journal; "నా ప్రార్థన పుస్తకం" may be clearer, at more width.',
+  'prayers.shared': 'The passive "పంచుకోబడింది" ("was shared") is formal; a simpler spoken form may be preferred.',
+  'community.tabUpdates': 'The same word as Home\'s Updates button (`home.updatesLabel`); keep the two the same.',
+  'you.tabSaved': '"భద్రపరచినవి" ("things kept safe"). Confirm it reads as "saved".',
+  'prayerWall.anonymousHelp': 'A PRIVACY statement members rely on. Check it says plainly who can and cannot see a name: other members and the church team cannot; the church\'s main administrator can, only to deal with a report.',
+  'report.intro': 'A promise that the reporter\'s name is not shown to other members. Check the wording is plain and exact.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 

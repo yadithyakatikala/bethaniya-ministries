@@ -88,6 +88,17 @@ how the upstream SQL dump was escaped into JSON.
 corpus contains no escape characters, no leftover footnote braces, and
 stays pure ASCII, so this cannot come back unnoticed.
 
+**Cleaning applied, step 3 — a leading `&gt; `:** the redesign's QA put
+Psalm 23 on screen in a list and its first verse read `&gt; Yahweh is my
+shepherd...`. **117 verses of the Psalms** carried the source's
+HTML-escaped poetry marker (a USFM start-of-poetic-line) in front of
+their first word. The fix removes that marker and the space after it, and
+nothing else: a character-frequency comparison of the file before and
+after differs in those five characters (`&`, `g`, `t`, `;` and the space),
+117 times each, and the verse count is unchanged. No HTML entity of any
+kind remains; `webBible.test.ts` asserts it, so it cannot come back
+unnoticed.
+
 **Seven verses are legitimately empty** and are NOT a data defect:
 Luke 17:36, Acts 8:37, Acts 15:34, Acts 24:7 and Romans 16:25-27. In the
 source, each consists *entirely* of a translator's note saying the
