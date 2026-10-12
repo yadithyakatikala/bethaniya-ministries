@@ -36,6 +36,7 @@ export function ListRow({
   testID,
   accessibilityHint,
   titleLines = 2,
+  subtitleLines = 2,
 }: {
   title: string;
   subtitle?: string;
@@ -56,6 +57,8 @@ export function ListRow({
   testID?: string;
   accessibilityHint?: string;
   titleLines?: number;
+  /** Raise it for a sentence that must not be cut ("Does not change the Bible."). */
+  subtitleLines?: number;
 }) {
   const { colors, radii, type, layout } = useTheme();
   const showChevron = trailing ? false : (chevron ?? (Boolean(onPress) && !destructive));
@@ -90,7 +93,10 @@ export function ListRow({
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[type.bodySmall, { color: colors.inkMuted }]} numberOfLines={2}>
+          <Text
+            style={[type.bodySmall, { color: colors.inkMuted }]}
+            numberOfLines={subtitleLines}
+          >
             {subtitle}
           </Text>
         ) : null}

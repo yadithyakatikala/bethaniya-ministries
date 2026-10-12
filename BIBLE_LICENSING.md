@@ -157,9 +157,10 @@ It explicitly permits redistribution **and** adaptation/modification
 them in an app's UI requires), conditioned on two things this project
 now satisfies:
 1. **Attribution** to the copyright holder + a link to the license —
-   this document, plus an in-app credit on the Settings screen
-   (`mobile/src/features/settings/SettingsScreen.tsx`, testID
-   `settings-bible-attribution`).
+   this document, plus an in-app credit on its own screen, one tap from
+   Settings (`mobile/src/features/settings/BibleTranslationsScreen.tsx`,
+   testID `bible-translations-screen`, opened by Settings' "Bible
+   translations" row).
 2. **ShareAlike** — a derivative distribution must carry the same
    license. This app's own use of the Telugu text (rendering it inside
    the Bible reader) is disclosed under CC BY-SA 4.0 terms here and in
@@ -364,11 +365,14 @@ Telugu remains the **default** Bible language on first launch (this
 was not reverted); English remains fully available as a one-tap toggle,
 and any user's explicit choice always persists.
 
-**Required attribution (CC BY-SA 4.0):** the Settings screen shows a
-permanent "Bible translations" card crediting the World English Bible
-(public domain) and the IRV 2019 (© Bridge Connectivity Solutions,
-CC BY-SA 4.0, with the license URL) — see
-`SettingsScreen.tsx`'s `settings-bible-attribution` card.
+**Required attribution (CC BY-SA 4.0):** a permanent "Bible translations"
+screen, opened from Settings, credits the World English Bible (public
+domain) and the IRV 2019 (© Bridge Connectivity Solutions, CC BY-SA 4.0,
+with the license URL and a button that opens it) — see
+`BibleTranslationsScreen.tsx`. (It used to be a card on the Settings screen
+itself; the approved redesign moved it one tap deeper. Whether that is still
+findable enough under the Telugu licence is a question for the church's
+counsel, listed as unresolved in the design log.)
 
 ## Remaining, unresolved gap — Telugu Bible is NOT complete
 
@@ -460,7 +464,7 @@ required, credited anyway.
 run** and aborts the import if the type, version, or copyright holder has
 changed upstream, rather than silently redistributing text under terms
 nobody reviewed. The CC BY-SA attribution both translations need is shown
-in the app's Settings screen.
+on the app's Bible translations screen (one tap from Settings).
 
 ## The defect: two source markers were discarded
 

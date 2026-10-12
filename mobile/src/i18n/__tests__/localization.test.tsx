@@ -205,6 +205,8 @@ describe('switching the language', () => {
     await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
     expect(getByTestId('probe-text').props.children).toBe(CATALOGUES.en['nav.home']);
 
+    // The language is chosen in a sheet the row opens.
+    await fireEvent.press(getByTestId('settings-app-language'));
     await fireEvent.press(getByTestId('settings-app-language-te'));
 
     // The sibling component re-rendered in Telugu without remounting.
@@ -232,12 +234,14 @@ describe('switching the language', () => {
 
     await waitFor(() => expect(getByTestId('probe-language').props.children).toBe('en'));
 
+    await fireEvent.press(getByTestId('settings-bible-language'));
     await fireEvent.press(getByTestId('settings-bible-language-en'));
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('en')
     );
     expect(getByTestId('probe-language').props.children).toBe('en');
 
+    await fireEvent.press(getByTestId('settings-bible-language'));
     await fireEvent.press(getByTestId('settings-bible-language-bilingual'));
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(BIBLE_MODE_KEY)).toBe('bilingual')

@@ -214,6 +214,10 @@ export interface Strings {
   'notifications.title': string;
   'notifications.empty': string;
   'notifications.readError': string;
+  'notifications.today': string;
+  'notifications.yesterday': string;
+  'notifications.new': string;
+  'notifications.emptyMessage': string;
 
   // --- Authentication ---
   'auth.signInTitle': string;
@@ -264,6 +268,12 @@ export interface Strings {
   'settings.notSetYet': string;
   'settings.bibleTranslations': string;
   'settings.view': string;
+  'settings.logOutConfirmTitle': string;
+  'settings.logOutConfirmMessage': string;
+  'credits.intro': string;
+  'credits.publicDomain': string;
+  'credits.licensed': string;
+  'credits.readLicence': string;
 
   // --- Added while wiring the remaining V1 screens ---
   'songs.loadError': string;
@@ -282,6 +292,7 @@ export interface Strings {
   'community.emptyShort': string;
   'profile.loadError': string;
   'profile.phoneNumber': string;
+  'profile.age': string;
   'events.openInMaps': string;
   'events.emptyShort': string;
   'bible.chapterLoadError': string;
@@ -815,6 +826,11 @@ const en: Strings = {
   'notifications.title': 'Notifications',
   'notifications.empty': 'You have no notifications yet.',
   'notifications.readError': 'Your notification history couldn’t be read on this device.',
+  'notifications.today': 'Today',
+  'notifications.yesterday': 'Yesterday',
+  'notifications.new': 'New',
+  'notifications.emptyMessage':
+    'Notifications this phone receives from the church are kept here.',
 
   'auth.signInTitle': 'Sign in to {app}',
   'auth.signUpTitle': 'Create your {app} account',
@@ -863,6 +879,14 @@ const en: Strings = {
   'settings.notSetYet': 'Not set yet',
   'settings.bibleTranslations': 'Bible translations',
   'settings.view': 'View',
+  'settings.logOutConfirmTitle': 'Log out of Maranatha?',
+  'settings.logOutConfirmMessage':
+    'You will need to sign in again to use the app. Nothing is deleted.',
+  'credits.intro':
+    'The Bibles in this app are stored on your phone, so you can read without a connection.',
+  'credits.publicDomain': 'Public domain',
+  'credits.licensed': 'Licensed under {licence}',
+  'credits.readLicence': 'Read the licence',
 
   'songs.loadError': 'Could not load songs.',
   'songs.emptyShort': 'No songs yet.',
@@ -881,6 +905,7 @@ const en: Strings = {
   'community.emptyShort': 'No community posts yet.',
   'profile.loadError': 'Could not load your profile.',
   'profile.phoneNumber': 'Phone Number',
+  'profile.age': 'Age',
   'events.openInMaps': 'Open in Maps',
   'events.emptyShort': 'No upcoming events.',
   'bible.chapterLoadError': 'Could not load this chapter.',
@@ -1359,6 +1384,10 @@ const te: Strings = {
   'notifications.title': 'నోటిఫికేషన్‌లు',
   'notifications.empty': 'మీకు ఇంకా నోటిఫికేషన్‌లు లేవు.',
   'notifications.readError': 'ఈ ఫోన్‌లో మీ నోటిఫికేషన్ చరిత్రను చదవలేకపోయాము.',
+  'notifications.today': 'ఈరోజు',
+  'notifications.yesterday': 'నిన్న',
+  'notifications.new': 'కొత్తది',
+  'notifications.emptyMessage': 'ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి.',
 
   'auth.signInTitle': '{app}లోకి సైన్ ఇన్ అవ్వండి',
   'auth.signUpTitle': 'మీ {app} ఖాతాను సృష్టించండి',
@@ -1406,6 +1435,14 @@ const te: Strings = {
   'settings.notSetYet': 'ఇంకా ఇవ్వలేదు',
   'settings.bibleTranslations': 'బైబిల్ అనువాదాలు',
   'settings.view': 'చూడండి',
+  'settings.logOutConfirmTitle': 'మరనాథ నుండి లాగ్ అవుట్ అవుతారా?',
+  'settings.logOutConfirmMessage':
+    'యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు.',
+  'credits.intro':
+    'ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు.',
+  'credits.publicDomain': 'ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)',
+  'credits.licensed': '{licence} లైసెన్స్ కింద',
+  'credits.readLicence': 'లైసెన్స్ చదవండి',
 
   'songs.loadError': 'పాటలు లోడ్ చేయలేకపోయాము.',
   'songs.emptyShort': 'ఇంకా పాటలు లేవు.',
@@ -1424,6 +1461,7 @@ const te: Strings = {
   'community.emptyShort': 'ఇంకా సమాజ పోస్ట్‌లు లేవు.',
   'profile.loadError': 'మీ ప్రొఫైల్ లోడ్ చేయలేకపోయాము.',
   'profile.phoneNumber': 'ఫోన్ నంబర్',
+  'profile.age': 'వయస్సు',
   'events.openInMaps': 'మ్యాప్స్‌లో తెరవండి',
   'events.emptyShort': 'రాబోయే కార్యక్రమాలు లేవు.',
   'bible.chapterLoadError': 'ఈ అధ్యాయం లోడ్ చేయలేకపోయాము.',

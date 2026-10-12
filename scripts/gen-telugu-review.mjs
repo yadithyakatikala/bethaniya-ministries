@@ -50,6 +50,14 @@ const UNCERTAIN = {
   'songs.noFavouritesMessage': 'Tells a member how to add a favourite: choose the "Favourite" button on a song. It quotes the button\'s own label (`songs.favoriteAction`, "ఇష్టమైనది"); keep the two the same word.',
   'songs.progress': 'Spoken by a screen reader for the song\'s progress line ("Song progress", then the time played and the length). A natural spoken phrase is wanted.',
   'events.today': 'Replaces the date on an event that starts today ("ఈరోజు, 10:30 AM"). Check it reads naturally before a time.',
+  'profile.age': '"వయస్సు" ("age"). The label of the row that shows the number of years a member gave.',
+  'settings.logOutConfirmTitle': 'Asks before signing out and names the app ("మరనాథ"). Check the app\'s name is written the way the church writes it in Telugu.',
+  'settings.logOutConfirmMessage': 'Reassures the member that nothing is deleted when they log out. Check it reads as reassurance, not as a warning.',
+  'credits.intro': 'Says the Bibles are stored on the phone and work without a connection.',
+  'credits.publicDomain': 'The English Bible\'s status. "ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)" is long; a shorter accepted term may be preferred.',
+  'credits.licensed': 'The licence line the Telugu Bible\'s terms require (CC BY-SA 4.0). Keep the licence name exactly as it is.',
+  'notifications.new': 'Spoken before an unread notification by a screen reader ("కొత్తది", "a new one"). Check it reads naturally before a title.',
+  'notifications.emptyMessage': 'The empty Notifications page: says where a church notification is kept.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 

@@ -5,6 +5,7 @@ import {
   formatIsoDateString,
   formatLongDate,
   formatMonthShort,
+  formatNotificationWhen,
   formatShortDate,
   formatIsoWeekdayDate,
   formatWeekdayDate,
@@ -234,5 +235,47 @@ describe('formatMonthShort', () => {
   it('is the abbreviated month alone, in either language, and never empty', () => {
     expect(formatMonthShort(new Date(2026, 9, 14, 12), 'en')).toBe('Oct');
     expect(formatMonthShort(new Date(2026, 9, 14, 12), 'te').length).toBeGreaterThan(0);
+  });
+});
+
+describe('formatNotificationWhen', () => {
+  const NOW = new Date(2026, 9, 12, 0, 10);
+  const labels = { today: 'Today', yesterday: 'Yesterday' };
+
+  it('says Today and Yesterday by CALENDAR day, so 11:50 pm last night is Yesterday at ten past midnight', () => {
+    expect(
+      formatNotificationWhen(new Date(2026, 9, 12, 0, 5), 'en', labels, NOW)
+    ).toMatch(/^Today, /);
+    expect(
+      formatNotificationWhen(new Date(2026, 9, 11, 23, 50), 'en', labels, NOW)
+    ).toMatch(/^Yesterday, /);
+  });
+
+  it('is the day and month, then the time, for anything older in this year', () => {
+    expect(formatNotificationWhen(new Date(2026, 9, 6, 9, 0), 'en', labels, NOW)).toMatch(
+      /^6 Oct, 9:00\s?AM$/i
+    );
+  });
+
+  it('adds the year for another year', () => {
+    expect(
+      formatNotificationWhen(new Date(2025, 11, 31, 9, 0), 'en', labels, NOW)
+    ).toMatch(/^31 Dec 2025, /);
+  });
+
+  it('uses the day words it is given, so a Telugu screen says them in Telugu', () => {
+    expect(
+      formatNotificationWhen(
+        new Date(2026, 9, 12, 0, 5),
+        'te',
+        { today: 'ఈరోజు', yesterday: 'నిన్న' },
+        NOW
+      )
+    ).toMatch(/^ఈరోజు, /);
+  });
+
+  it('does not call a time in the future yesterday', () => {
+    const text = formatNotificationWhen(new Date(2026, 9, 13, 9, 0), 'en', labels, NOW);
+    expect(text).not.toMatch(/^(Today|Yesterday)/);
   });
 });

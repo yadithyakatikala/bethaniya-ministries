@@ -9,8 +9,8 @@
  * SCRIPTURE PRESENTATION anywhere -- not under a verse, not in the Verse
  * of the Day, not in a Prophet Verse, not on a share or a copy, not in a
  * prayer or a community message -- while remaining permanently visible in
- * the one place the licence actually requires: Settings' "Bible
- * translations" card.
+ * the one place the licence actually requires: the "Bible
+ * translations" screen, opened from Settings.
  *
  * M6 already removed the block from the share payload, and the existing
  * ReaderScreen / verseSharing / DailyVerseCard tests assert its absence
@@ -46,13 +46,17 @@ import { CC_BY_SA_URL, TRANSLATION_ATTRIBUTION, TRANSLATION_NAMES } from '../tra
 const SRC_ROOT = join(__dirname, '..', '..', '..');
 
 /**
- * The two modules that are allowed to carry the licence text in code.
+ * The modules that are allowed to carry the licence text in code.
  *
- * translationCredits.ts DEFINES it. SettingsScreen.tsx RENDERS it, and
- * is the legal location -- see /BIBLE_LICENSING.md. Nothing else.
+ * translationCredits.ts DEFINES it. BibleTranslationsScreen.tsx RENDERS it
+ * in full, and is the legal location -- see /BIBLE_LICENSING.md. Settings'
+ * own "Bible translations" row is the way in, and names the two Bibles under
+ * its title, so it reads the names (and only the names) from the same constants.
+ * Nothing else.
  */
 const ALLOWED_CODE = [
   join('features', 'bible', 'translationCredits.ts'),
+  join('features', 'settings', 'BibleTranslationsScreen.tsx'),
   join('features', 'settings', 'SettingsScreen.tsx'),
 ];
 
@@ -108,12 +112,25 @@ describe('the Bible licence notice lives in exactly one place', () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
-  it('is present in the Settings screen, which is the legal location', () => {
-    const settings = readFileSync(
-      join(SRC_ROOT, 'features', 'settings', 'SettingsScreen.tsx'),
-      'utf8'
+  it('is present in the Bible translations screen, which is the legal location', () => {
+    const credits = stripComments(
+      readFileSync(join(SRC_ROOT, 'features', 'settings', 'BibleTranslationsScreen.tsx'), 'utf8')
     );
-    expect(stripComments(settings)).toContain('translationCreditLine');
+    // The holder's line, the licence's address and both names, all from the constants.
+    expect(credits).toContain('TRANSLATION_ATTRIBUTION');
+    expect(credits).toContain('CC_BY_SA_URL');
+    expect(credits).toContain('TRANSLATION_NAMES');
+  });
+
+  it('reaches Settings only as the names on the row that opens it, never the licence itself', () => {
+    const settings = stripComments(
+      readFileSync(join(SRC_ROOT, 'features', 'settings', 'SettingsScreen.tsx'), 'utf8')
+    );
+    expect(settings).toContain('TRANSLATION_NAMES');
+    expect(settings).not.toContain('TRANSLATION_ATTRIBUTION');
+    expect(settings).not.toContain('CC_BY_SA_URL');
+    expect(settings).not.toContain('translationCreditLine');
+    expect(settings).not.toContain('Bridge Connectivity');
   });
 
   it('appears in no other module’s code', () => {
@@ -131,7 +148,7 @@ describe('the Bible licence notice lives in exactly one place', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('is not reachable from any module other than Settings', () => {
+  it('is not reachable from any module other than the Settings feature’s two screens', () => {
     // The import is the real chokepoint: a screen cannot render the
     // credit line without reaching for this module first.
     const importers: string[] = [];

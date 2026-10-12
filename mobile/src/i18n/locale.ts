@@ -177,6 +177,29 @@ export function formatEventWhen(
   return `${day}, ${time}`;
 }
 
+/**
+ * When a notification arrived, as the Notifications list says it -- "Today,
+ * 10:31 AM", "Yesterday, 4:15 PM", "6 Oct, 9:00 AM" -- with the year added only
+ * when it is not this one. The two day words are passed in (this module owns no
+ * strings). A day is a calendar day in the phone's own zone, so a notification
+ * from 11:50 pm last night is "Yesterday" at 12:10 am, not "Today". `now` is a
+ * parameter so a test can pin the day.
+ */
+export function formatNotificationWhen(
+  date: Date,
+  appLanguage: BibleLanguage,
+  labels: { today: string; yesterday: string },
+  now: Date = new Date()
+): string {
+  const time = formatTimeOfDay(date, appLanguage);
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return `${labels.today}, ${time}`;
+  if (days === 1) return `${labels.yesterday}, ${time}`;
+  return `${formatDayMonthShort(date, appLanguage, now)}, ${time}`;
+}
+
 /** Just the clock -- "9:14 am". For a chat, where the day is context. */
 export function formatTimeOfDay(date: Date, appLanguage: BibleLanguage): string {
   const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };

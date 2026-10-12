@@ -1,26 +1,13 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, uploadBytes } from 'firebase/storage';
-import * as ImagePicker from 'expo-image-picker';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { ProfileScreen } from '../ProfileScreen';
 
 jest.mock('../../../services/firebase/app');
-
-// ProfileScreen calls useNavigation() to reach "Settings" (Day 9), so it
-// needs a real Stack.Navigator around it, the same pattern
-// HomeScreen.test.tsx uses for its own nav-button tests.
-const Stack = createNativeStackNavigator();
-
-function SettingsStub() {
-  return <Text testID="settings-stub">Settings stub</Text>;
-}
 
 const TEST_USER = {
   uid: 'user-1',
@@ -57,470 +44,487 @@ function mockProfileSnapshot(data: Record<string, unknown> | null) {
   });
 }
 
+/** The Profile view is a tab of You, so it needs no navigator of its own. */
 async function renderScreen() {
   return render(
-    <NavigationContainer>
-      <AuthProvider>
-        <PreferencesProvider>
-          <Stack.Navigator>
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="Settings" component={SettingsStub} />
-          </Stack.Navigator>
-        </PreferencesProvider>
-      </AuthProvider>
-    </NavigationContainer>
+    <AuthProvider>
+      <PreferencesProvider>
+        <ProfileScreen />
+      </PreferencesProvider>
+    </AuthProvider>
   );
 }
 
-describe('ProfileScreen', () => {
-  beforeEach(() => {
-    (global as unknown as { fetch?: jest.Mock }).fetch = jest.fn(() =>
-      Promise.resolve({ blob: () => Promise.resolve({ size: 1024 }) })
-    );
-  });
+const MEMBER = { role: 'member', displayName: 'Jane Doe' };
 
+describe('ProfileScreen', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('shows a loading state before the profile subscription resolves', async () => {
-    mockSignedIn();
-    (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
-    const { getByTestId } = await renderScreen();
-    expect(getByTestId('profile-loading')).toBeTruthy();
-  });
-
-  it('shows an error state when the profile subscription fails', async () => {
-    mockSignedIn();
-    (onSnapshot as jest.Mock).mockImplementation((_ref, _next, err) => {
-      err({ code: 'unavailable' });
-      return jest.fn();
+  describe('states', () => {
+    it('shows a loading state before the profile subscription resolves', async () => {
+      mockSignedIn();
+      (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
+      const { getByTestId } = await renderScreen();
+      expect(getByTestId('profile-loading')).toBeTruthy();
     });
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-load-error')).toBeTruthy());
-  });
 
-  it('displays display name, email, phone number, and a photo placeholder', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({
-      role: 'member',
-      displayName: 'Jane Doe',
-      email: 'jane@example.com',
-      phoneNumber: '+15551234567',
-    });
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-screen')).toBeTruthy());
-    expect(getByTestId('display-name-input').props.value).toBe('Jane Doe');
-    expect(getByTestId('profile-email').props.children).toBe('jane@example.com');
-    expect(getByTestId('profile-phone-input').props.value).toBe('+15551234567');
-    expect(getByTestId('profile-photo-placeholder')).toBeTruthy();
-  });
+    it('shows an error state when the profile subscription fails, and listens again on Try again', async () => {
+      mockSignedIn();
+      (onSnapshot as jest.Mock)
+        .mockImplementationOnce((_ref, _next, err) => {
+          err({ code: 'unavailable' });
+          return jest.fn();
+        })
+        .mockImplementation((_ref, next) => {
+          next({ exists: () => true, id: 'user-1', data: () => MEMBER });
+          return jest.fn();
+        });
+      const { getByTestId, getByText, queryByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-load-error')).toBeTruthy());
 
-  it('displays the profile photo when photoURL is set', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({
-      role: 'member',
-      displayName: 'Jane Doe',
-      photoURL: 'https://example.com/p.png',
-    });
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-photo')).toBeTruthy());
-  });
+      await fireEvent.press(getByText('Try again'));
 
-  it('saves an edited display name', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('display-name-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('display-name-input'), 'Jane Smith');
-    await fireEvent.press(getByTestId('save-display-name-button'));
-
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-      displayName: 'Jane Smith',
-    });
-    await waitFor(() => expect(getByTestId('profile-name-saved')).toBeTruthy());
-  });
-
-  it('rejects saving an empty display name without calling Firestore', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('display-name-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('display-name-input'), '   ');
-    await fireEvent.press(getByTestId('save-display-name-button'));
-
-    expect(getByTestId('profile-name-error')).toBeTruthy();
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('shows an error when saving the display name fails', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('display-name-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('display-name-input'), 'New Name');
-    await fireEvent.press(getByTestId('save-display-name-button'));
-
-    await waitFor(() => expect(getByTestId('profile-name-error')).toBeTruthy());
-  });
-
-  it('uploads a new photo and saves its download URL', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-      canceled: false,
-      assets: [
-        {
-          uri: 'file:///photo.jpg',
-          type: 'image',
-          mimeType: 'image/jpeg',
-          fileSize: 1024,
-        },
-      ],
-    });
-    (uploadBytes as jest.Mock).mockResolvedValue(undefined);
-    (getDownloadURL as jest.Mock).mockResolvedValue('https://example.com/uploaded.jpg');
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('change-photo-button')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('change-photo-button'));
-
-    expect(uploadBytes).toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-      photoURL: 'https://example.com/uploaded.jpg',
+      await waitFor(() =>
+        expect(getByTestId('profile-name')).toHaveTextContent('Jane Doe')
+      );
+      expect(queryByTestId('profile-load-error')).toBeNull();
     });
   });
 
-  it('shows an error and does not upload when photo library permission is denied', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
-      granted: false,
-      status: 'denied',
-      canAskAgain: true,
-      expires: 'never',
+  describe('the rows', () => {
+    it('shows name, email, phone, gender and age, each with an Edit (the email has none)', async () => {
+      mockSignedIn();
+      mockProfileSnapshot({
+        ...MEMBER,
+        email: 'jane@example.com',
+        phoneNumber: '+15551234567',
+        gender: 'female',
+        age: 34,
+      });
+      const { getByTestId, queryByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-name')).toBeTruthy());
+
+      expect(getByTestId('profile-name')).toHaveTextContent('Jane Doe');
+      expect(getByTestId('profile-email')).toHaveTextContent('jane@example.com');
+      expect(getByTestId('profile-phone')).toHaveTextContent('+15551234567');
+      expect(getByTestId('profile-gender')).toHaveTextContent('Female');
+      expect(getByTestId('profile-age')).toHaveTextContent('34');
+      for (const field of ['name', 'phone', 'gender', 'age']) {
+        expect(getByTestId(`profile-edit-${field}`)).toBeTruthy();
+      }
+      // Firebase Auth owns the address: there is no control to change it.
+      expect(queryByTestId('profile-edit-email')).toBeNull();
     });
 
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('change-photo-button')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('change-photo-button'));
-
-    await waitFor(() => expect(getByTestId('profile-photo-error')).toBeTruthy());
-    expect(uploadBytes).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when the image picker is canceled', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-      canceled: true,
-      assets: null,
+    it('names each Edit for its row, for a screen reader', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByRole } = await renderScreen();
+      await waitFor(() =>
+        expect(getByRole('button', { name: 'Edit: Name' })).toBeTruthy()
+      );
+      expect(getByRole('button', { name: 'Edit: Age' })).toBeTruthy();
+      expect(getByRole('button', { name: 'Edit: Phone Number' })).toBeTruthy();
+      expect(getByRole('button', { name: 'Edit: Gender' })).toBeTruthy();
     });
 
-    const { getByTestId, queryByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('change-photo-button')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('change-photo-button'));
-
-    expect(uploadBytes).not.toHaveBeenCalled();
-    expect(queryByTestId('profile-photo-error')).toBeNull();
-  });
-
-  it('rejects an oversized image before uploading', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-      canceled: false,
-      assets: [
-        {
-          uri: 'file:///big.jpg',
-          type: 'image',
-          mimeType: 'image/jpeg',
-          fileSize: 10 * 1024 * 1024,
-        },
-      ],
+    it('says "Not set" for a row with no value, and still offers Edit', async () => {
+      // Phone, gender and age are all optional answers a member may not have
+      // given; the approved design shows the gap in words, with the way to fill it.
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-phone')).toBeTruthy());
+      for (const field of ['phone', 'gender', 'age']) {
+        expect(getByTestId(`profile-${field}`)).toHaveTextContent('Not set');
+        expect(getByTestId(`profile-edit-${field}`)).toBeTruthy();
+      }
     });
 
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('change-photo-button')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('change-photo-button'));
-
-    await waitFor(() => expect(getByTestId('profile-photo-error')).toBeTruthy());
-    expect(uploadBytes).not.toHaveBeenCalled();
-  });
-
-  it('navigates to Settings when "Settings" is pressed', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-settings-nav-button')).toBeTruthy());
-    await fireEvent.press(getByTestId('profile-settings-nav-button'));
-    await waitFor(() => expect(getByTestId('settings-stub')).toBeTruthy());
-  });
-
-  it('rejects a non-image file before uploading', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: 'file:///doc.pdf', type: 'video', mimeType: 'application/pdf' }],
+    it('has no photo to change: the member is their initial (decision H6)', async () => {
+      mockSignedIn();
+      mockProfileSnapshot({ ...MEMBER, photoURL: 'https://example.com/p.png' });
+      const { queryByTestId, queryByText } = await renderScreen();
+      await waitFor(() => expect(queryByTestId('profile-name')).toBeTruthy());
+      expect(queryByTestId('profile-photo')).toBeNull();
+      expect(queryByTestId('change-photo-button')).toBeNull();
+      expect(queryByText('Change photo')).toBeNull();
     });
 
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('change-photo-button')).toBeTruthy());
+    it('keeps taps alive so the first tap on Save applies the edit', async () => {
+      // A ScrollView defaults to keyboardShouldPersistTaps="never": while a
+      // TextInput inside it has focus the FIRST touch is consumed dismissing
+      // the keyboard and never reaches the control under the finger. The native
+      // scroll view implements that, so this pins only that the screen never
+      // silently reverts to the broken default.
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-scroll')).toBeTruthy());
+      expect(getByTestId('profile-scroll').props.keyboardShouldPersistTaps).toBe(
+        'handled'
+      );
+    });
+  });
 
-    await fireEvent.press(getByTestId('change-photo-button'));
+  describe('editing the name', () => {
+    it('swaps the row for its field, seeded with the name, and saves it', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId, queryByTestId, getByText } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-name')).toBeTruthy());
 
-    await waitFor(() => expect(getByTestId('profile-photo-error')).toBeTruthy());
-    expect(uploadBytes).not.toHaveBeenCalled();
+      await fireEvent.press(getByTestId('profile-edit-name'));
+      expect(queryByTestId('profile-row-name')).toBeNull();
+      expect(getByTestId('profile-name-input').props.value).toBe('Jane Doe');
+
+      await fireEvent.changeText(getByTestId('profile-name-input'), 'Jane Smith');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+        displayName: 'Jane Smith',
+      });
+      // The field closes and the row is back; a toast says it was saved.
+      await waitFor(() => expect(queryByTestId('profile-name-input')).toBeNull());
+      expect(getByTestId('profile-row-name')).toBeTruthy();
+      expect(getByText('Saved.')).toBeTruthy();
+    });
+
+    it('rejects an empty name without calling Firestore, and says so under the field', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-name')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-name'));
+      await fireEvent.changeText(getByTestId('profile-name-input'), '   ');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      expect(getByTestId('profile-name-input-error')).toHaveTextContent(
+        'Your name cannot be empty.'
+      );
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('keeps the field open with what was typed, and says so, when saving fails', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+      const { getByTestId, queryByText } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-name')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-name'));
+      await fireEvent.changeText(getByTestId('profile-name-input'), 'New Name');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() => expect(getByTestId('profile-name-input-error')).toBeTruthy());
+      expect(getByTestId('profile-name-input').props.value).toBe('New Name');
+      expect(queryByText('Saved.')).toBeNull();
+    });
+
+    it('puts the row back as it was on Cancel, writing nothing', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId, queryByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-name')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-name'));
+      await fireEvent.changeText(getByTestId('profile-name-input'), 'Someone Else');
+      await fireEvent.press(getByTestId('profile-cancel'));
+
+      expect(queryByTestId('profile-name-input')).toBeNull();
+      expect(getByTestId('profile-name')).toHaveTextContent('Jane Doe');
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('edits one row at a time: starting another puts the first back, unsaved', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId, queryByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-name')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-name'));
+      await fireEvent.changeText(getByTestId('profile-name-input'), 'Half typed');
+      await fireEvent.press(getByTestId('profile-edit-age'));
+
+      expect(queryByTestId('profile-name-input')).toBeNull();
+      expect(getByTestId('profile-name')).toHaveTextContent('Jane Doe');
+      expect(getByTestId('profile-age-input')).toBeTruthy();
+      // And a stale error from the first does not follow the member to the second.
+      expect(queryByTestId('profile-age-input-error')).toBeNull();
+    });
+  });
+
+  describe('editing the phone number', () => {
+    it('saves a changed number, normalized', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-phone')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-phone'));
+      expect(getByTestId('profile-phone-input').props.value).toBe('');
+      await fireEvent.changeText(getByTestId('profile-phone-input'), '98765 43210');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() =>
+        expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+          phoneNumber: '9876543210',
+        })
+      );
+    });
+
+    it('refuses a number that is not one, and says so', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-phone')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-phone'));
+      await fireEvent.changeText(getByTestId('profile-phone-input'), '123');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() => expect(getByTestId('profile-phone-input-error')).toBeTruthy());
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('lets a member withdraw a number they gave', async () => {
+      mockSignedIn();
+      mockProfileSnapshot({ ...MEMBER, phoneNumber: '9876543210' });
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-phone')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-phone'));
+      expect(getByTestId('profile-phone-input').props.value).toBe('9876543210');
+      await fireEvent.changeText(getByTestId('profile-phone-input'), '');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() =>
+        expect(updateDoc).toHaveBeenCalledWith(expect.anything(), { phoneNumber: null })
+      );
+    });
+
+    it('shows a failed save rather than pretending it worked', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+      const { getByTestId, queryByText } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-phone')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-phone'));
+      await fireEvent.changeText(getByTestId('profile-phone-input'), '9876543210');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() => expect(getByTestId('profile-phone-input-error')).toBeTruthy());
+      expect(getByTestId('profile-phone-input-error')).toHaveTextContent(
+        'Couldn’t save your changes. Please try again.'
+      );
+      expect(queryByText('Saved.')).toBeNull();
+    });
+  });
+
+  describe('editing the gender', () => {
+    it('opens on the member’s answer and saves the other one', async () => {
+      mockSignedIn();
+      mockProfileSnapshot({ ...MEMBER, gender: 'female' });
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-gender')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-gender'));
+      expect(
+        getByTestId('profile-gender-choice-female').props.accessibilityState.selected
+      ).toBe(true);
+      await fireEvent.press(getByTestId('profile-gender-choice-male'));
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() =>
+        expect(updateDoc).toHaveBeenCalledWith(expect.anything(), { gender: 'male' })
+      );
+    });
+
+    it('opens with neither chosen for a member who has not answered, and writes nothing until one is', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-gender')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-gender'));
+      expect(
+        getByTestId('profile-gender-choice-male').props.accessibilityState.selected
+      ).toBe(false);
+      expect(
+        getByTestId('profile-gender-choice-female').props.accessibilityState.selected
+      ).toBe(false);
+      await fireEvent.press(getByTestId('profile-save'));
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('editing the age', () => {
+    it('saves a whole number of years', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-age')).toBeTruthy());
+
+      await fireEvent.press(getByTestId('profile-edit-age'));
+      await fireEvent.changeText(getByTestId('profile-age-input'), '34');
+      await fireEvent.press(getByTestId('profile-save'));
+
+      await waitFor(() =>
+        expect(updateDoc).toHaveBeenCalledWith(expect.anything(), { age: 34 })
+      );
+    });
+
+    it('seeds the field with the age on file', async () => {
+      mockSignedIn();
+      mockProfileSnapshot({ ...MEMBER, age: 61 });
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-age')).toBeTruthy());
+      await fireEvent.press(getByTestId('profile-edit-age'));
+      expect(getByTestId('profile-age-input').props.value).toBe('61');
+    });
+
+    it('refuses anything that is not 1 to 120 years, by the rule the server enforces', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-age')).toBeTruthy());
+      await fireEvent.press(getByTestId('profile-edit-age'));
+
+      for (const bad of ['', '0', '121', '3.5', 'abc', '-4']) {
+        await fireEvent.changeText(getByTestId('profile-age-input'), bad);
+        await fireEvent.press(getByTestId('profile-save'));
+        expect(getByTestId('profile-age-input-error')).toHaveTextContent(
+          'Please enter your age as a number.'
+        );
+      }
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('is a number pad of three digits at most', async () => {
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-edit-age')).toBeTruthy());
+      await fireEvent.press(getByTestId('profile-edit-age'));
+      expect(getByTestId('profile-age-input').props.keyboardType).toBe('number-pad');
+      expect(getByTestId('profile-age-input').props.maxLength).toBe(3);
+    });
   });
 
   // --- Email verification status (V1 email/password sign-in) -----------
 
-  it('reports an unverified email address and offers to resend', async () => {
-    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
-    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+  describe('the email address', () => {
+    it('reports an unverified address in words and offers to resend', async () => {
+      mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+      mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+      const { getByTestId } = await renderScreen();
 
-    const { getByTestId } = await renderScreen();
-
-    await waitFor(() =>
-      expect(getByTestId('profile-email-verified-status').props.children).toBe(
-        'Not verified'
-      )
-    );
-    expect(getByTestId('profile-resend-verification-button')).toBeTruthy();
-  });
-
-  it('reports a verified email address and offers no resend action', async () => {
-    mockSignedInAs({ email: 'member@example.com', emailVerified: true });
-    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
-
-    const { getByTestId, queryByTestId } = await renderScreen();
-
-    await waitFor(() =>
-      expect(getByTestId('profile-email-verified-status').props.children).toBe('Verified')
-    );
-    expect(queryByTestId('profile-resend-verification-button')).toBeNull();
-  });
-
-  it('confirms when the verification email is re-sent', async () => {
-    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
-    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
-    (sendEmailVerification as jest.Mock).mockResolvedValue(undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() =>
-      expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
-    );
-
-    await fireEvent.press(getByTestId('profile-resend-verification-button'));
-
-    await waitFor(() =>
-      expect(getByTestId('profile-verification-notice').props.children).toBe(
-        'Verification email sent. Check your inbox.'
-      )
-    );
-    expect(sendEmailVerification).toHaveBeenCalled();
-  });
-
-  it('shows a mapped, non-generic error when resending is rate-limited', async () => {
-    mockSignedInAs({ email: 'member@example.com', emailVerified: false });
-    mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
-    (sendEmailVerification as jest.Mock).mockRejectedValue({
-      code: 'auth/too-many-requests',
-    });
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() =>
-      expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
-    );
-
-    await fireEvent.press(getByTestId('profile-resend-verification-button'));
-
-    await waitFor(() =>
-      expect(getByTestId('profile-verification-error').props.children).toBe(
-        'Too many attempts. Please wait a moment and try again.'
-      )
-    );
-    warn.mockRestore();
-  });
-
-  // --- Phone number: optional profile info, never an auth requirement ---
-
-  // M6 CHANGED THESE TWO. The phone row used to be read-only and hidden
-  // unless some other system had filled it in, because V1 collected no
-  // number and a permanent unactionable "Not set" was worse than nothing.
-  // The onboarding questionnaire now asks for one and the field became
-  // owner-writable, so the row is an editable field that is always
-  // present -- an empty box a member can fill in is the opposite of an
-  // unactionable placeholder. Still no phone authentication anywhere.
-  it('offers an empty, editable phone field when the profile has no number', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
-
-    expect(getByTestId('profile-phone-input').props.value).toBe('');
-    // Not a "Not set" placeholder -- a field.
-    expect(getByTestId('save-profile-details-button')).toBeTruthy();
-  });
-
-  it('seeds the phone field and gender from the profile', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({
-      role: 'member',
-      displayName: 'Jane Doe',
-      phoneNumber: '+15555550123',
-      gender: 'female',
+      await waitFor(() =>
+        expect(getByTestId('profile-email-verified-status')).toHaveTextContent(
+          'Not verified'
+        )
+      );
+      expect(getByTestId('profile-resend-verification-button')).toBeTruthy();
     });
 
-    const { getByTestId } = await renderScreen();
-    await waitFor(() =>
-      expect(getByTestId('profile-phone-input').props.value).toBe('+15555550123')
-    );
-    expect(getByTestId('profile-gender-female').props.accessibilityState.selected).toBe(
-      true
-    );
-  });
+    it('reports a verified address and offers no resend action', async () => {
+      mockSignedInAs({ email: 'member@example.com', emailVerified: true });
+      mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+      const { getByTestId, queryByTestId } = await renderScreen();
 
-  it('saves a changed phone number and gender together, normalized', async () => {
-    // The "change these later" half of the onboarding brief.
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('profile-phone-input'), '98765 43210');
-    await fireEvent.press(getByTestId('profile-gender-male'));
-    await fireEvent.press(getByTestId('save-profile-details-button'));
-
-    await waitFor(() =>
-      expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-        phoneNumber: '9876543210',
-        gender: 'male',
-      })
-    );
-    await waitFor(() => expect(getByTestId('profile-details-saved')).toBeTruthy());
-  });
-
-  it('refuses a phone number that is not one, and says so', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('profile-phone-input'), '123');
-    await fireEvent.press(getByTestId('save-profile-details-button'));
-
-    await waitFor(() => expect(getByTestId('profile-details-error')).toBeTruthy());
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('lets a member withdraw a number they gave', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({
-      role: 'member',
-      displayName: 'Jane Doe',
-      phoneNumber: '9876543210',
-    });
-    (updateDoc as jest.Mock).mockResolvedValue(undefined);
-
-    const { getByTestId } = await renderScreen();
-    await waitFor(() =>
-      expect(getByTestId('profile-phone-input').props.value).toBe('9876543210')
-    );
-
-    await fireEvent.changeText(getByTestId('profile-phone-input'), '');
-    await fireEvent.press(getByTestId('save-profile-details-button'));
-
-    await waitFor(() =>
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ phoneNumber: null })
-      )
-    );
-  });
-
-  it('shows a failed save rather than pretending it worked', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
-    (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
-
-    const { getByTestId, queryByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-phone-input')).toBeTruthy());
-
-    await fireEvent.changeText(getByTestId('profile-phone-input'), '9876543210');
-    await fireEvent.press(getByTestId('save-profile-details-button'));
-
-    await waitFor(() => expect(getByTestId('profile-details-error')).toBeTruthy());
-    expect(queryByTestId('profile-details-saved')).toBeNull();
-  });
-
-  it('shows no "Not set" placeholder anywhere for a realistic V1 profile', async () => {
-    // A V1 member always has an email address (Email/Password is the
-    // primary sign-in method, and a Google account carries one too) and
-    // normally no phone number. Phone used to be the one field that
-    // rendered a permanent, unactionable "Not set" in exactly this case.
-    mockSignedInAs({ email: 'member@example.com', emailVerified: true });
-    mockProfileSnapshot({
-      role: 'member',
-      displayName: 'Jane Doe',
-      email: 'member@example.com',
+      await waitFor(() =>
+        expect(getByTestId('profile-email-verified-status')).toHaveTextContent('Verified')
+      );
+      expect(queryByTestId('profile-resend-verification-button')).toBeNull();
     });
 
-    const { getByTestId, queryByText } = await renderScreen();
-    await waitFor(() =>
-      expect(getByTestId('profile-email').props.children).toBe('member@example.com')
-    );
-    expect(queryByText('Not set')).toBeNull();
-  });
+    it('confirms when the verification email is re-sent', async () => {
+      mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+      mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+      (sendEmailVerification as jest.Mock).mockResolvedValue(undefined);
+      const { getByTestId } = await renderScreen();
+      await waitFor(() =>
+        expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
+      );
 
-  it('shows no verification status at all for an account with no email address', async () => {
-    // TEST_USER has email: null. There is no sensible "verified" state to
-    // report without an address.
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+      await fireEvent.press(getByTestId('profile-resend-verification-button'));
 
-    const { queryByTestId, getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
-    expect(queryByTestId('profile-email-verified-status')).toBeNull();
-  });
+      await waitFor(() =>
+        expect(getByTestId('profile-verification-notice')).toHaveTextContent(
+          'Verification email sent. Check your inbox.'
+        )
+      );
+      expect(sendEmailVerification).toHaveBeenCalled();
+    });
 
-  /**
-   * A ScrollView/FlatList defaults to keyboardShouldPersistTaps="never":
-   * while a TextInput inside it has focus, the FIRST touch anywhere in the
-   * scroll view is consumed dismissing the keyboard and never reaches the
-   * control under the finger. Editing the display name and tapping
-   * Save therefore did nothing the first time.
-   *
-   * The native scroll view is what implements that, so there is nothing in
-   * the JS test environment to simulate; what this pins is that the screen
-   * never silently reverts to the broken default.
-   */
-  it('keeps taps alive so the first tap on Save applies the edit', async () => {
-    mockSignedIn();
-    mockProfileSnapshot({ role: 'member', displayName: 'Jane Doe' });
+    it('shows a mapped, non-generic error when resending is rate-limited', async () => {
+      mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+      mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+      (sendEmailVerification as jest.Mock).mockRejectedValue({
+        code: 'auth/too-many-requests',
+      });
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      try {
+        const { getByTestId } = await renderScreen();
+        await waitFor(() =>
+          expect(getByTestId('profile-resend-verification-button')).toBeTruthy()
+        );
 
-    const { getByTestId } = await renderScreen();
-    await waitFor(() => expect(getByTestId('profile-screen')).toBeTruthy());
-    expect(getByTestId('profile-screen').props.keyboardShouldPersistTaps).toBe('handled');
+        await fireEvent.press(getByTestId('profile-resend-verification-button'));
+
+        await waitFor(() =>
+          expect(getByTestId('profile-verification-error')).toHaveTextContent(
+            'Too many attempts. Please wait a moment and try again.'
+          )
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('shows no verification status at all for an account with no email address', async () => {
+      // TEST_USER has email: null. There is no sensible "verified" state to
+      // report without an address.
+      mockSignedIn();
+      mockProfileSnapshot(MEMBER);
+      const { queryByTestId, getByTestId } = await renderScreen();
+      await waitFor(() => expect(getByTestId('profile-email')).toBeTruthy());
+      expect(queryByTestId('profile-email-verified-status')).toBeNull();
+    });
+
+    it('colours the verified badge as success and the unverified one as a warning, never alone', async () => {
+      // Both say it in words; the colour is a second signal.
+      mockSignedInAs({ email: 'member@example.com', emailVerified: true });
+      mockProfileSnapshot({ role: 'member', email: 'member@example.com' });
+      const verified = await renderScreen();
+      await waitFor(() =>
+        expect(verified.getByTestId('profile-email-verified-status')).toBeTruthy()
+      );
+      const style = (node: { props: { style?: unknown } }) =>
+        StyleSheet.flatten(node.props.style) as { backgroundColor?: string };
+      const verifiedFill = style(
+        verified.getByTestId('profile-email-verified-status')
+      ).backgroundColor;
+      await verified.unmount();
+
+      mockSignedInAs({ email: 'member@example.com', emailVerified: false });
+      const unverified = await renderScreen();
+      await waitFor(() =>
+        expect(unverified.getByTestId('profile-email-verified-status')).toBeTruthy()
+      );
+      const unverifiedFill = style(
+        unverified.getByTestId('profile-email-verified-status')
+      ).backgroundColor;
+      expect(verifiedFill).not.toBe(unverifiedFill);
+    });
   });
 });

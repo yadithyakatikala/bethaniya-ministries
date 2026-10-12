@@ -72,11 +72,19 @@ a key cannot be accidentally dropped while editing.
 | `songs.noFavouritesMessage` | పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది. | Tells a member how to add a favourite: choose the "Favourite" button on a song. It quotes the button's own label (`songs.favoriteAction`, "ఇష్టమైనది"); keep the two the same word. |
 | `songs.progress` | పాట పురోగతి | Spoken by a screen reader for the song's progress line ("Song progress", then the time played and the length). A natural spoken phrase is wanted. |
 | `events.today` | ఈరోజు | Replaces the date on an event that starts today ("ఈరోజు, 10:30 AM"). Check it reads naturally before a time. |
+| `profile.age` | వయస్సు | "వయస్సు" ("age"). The label of the row that shows the number of years a member gave. |
+| `settings.logOutConfirmTitle` | మరనాథ నుండి లాగ్ అవుట్ అవుతారా? | Asks before signing out and names the app ("మరనాథ"). Check the app's name is written the way the church writes it in Telugu. |
+| `settings.logOutConfirmMessage` | యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు. | Reassures the member that nothing is deleted when they log out. Check it reads as reassurance, not as a warning. |
+| `credits.intro` | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | Says the Bibles are stored on the phone and work without a connection. |
+| `credits.publicDomain` | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | The English Bible's status. "ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)" is long; a shorter accepted term may be preferred. |
+| `credits.licensed` | CC BY-SA 4.0 లైసెన్స్ కింద | The licence line the Telugu Bible's terms require (CC BY-SA 4.0). Keep the licence name exactly as it is. |
+| `notifications.new` | కొత్తది | Spoken before an unread notification by a screen reader ("కొత్తది", "a new one"). Check it reads naturally before a title. |
+| `notifications.emptyMessage` | ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి. | The empty Notifications page: says where a church notification is kept. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-472 keys, grouped by screen area.
+483 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -401,6 +409,10 @@ a key cannot be accidentally dropped while editing.
 | `notifications.title` | Notifications | నోటిఫికేషన్‌లు |  |
 | `notifications.empty` | You have no notifications yet. | మీకు ఇంకా నోటిఫికేషన్‌లు లేవు. |  |
 | `notifications.readError` | Your notification history couldn’t be read on this device. | ఈ ఫోన్‌లో మీ నోటిఫికేషన్ చరిత్రను చదవలేకపోయాము. |  |
+| `notifications.today` | Today | ఈరోజు |  |
+| `notifications.yesterday` | Yesterday | నిన్న |  |
+| `notifications.new` | New | కొత్తది | ⚠️ |
+| `notifications.emptyMessage` | Notifications this phone receives from the church are kept here. | ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి. | ⚠️ |
 
 ### Sign in / sign up
 
@@ -440,6 +452,7 @@ a key cannot be accidentally dropped while editing.
 | `profile.resendVerification` | Resend verification email | ధృవీకరణ ఇమెయిల్ మళ్లీ పంపండి |  |
 | `profile.loadError` | Could not load your profile. | మీ ప్రొఫైల్ లోడ్ చేయలేకపోయాము. |  |
 | `profile.phoneNumber` | Phone Number | ఫోన్ నంబర్ |  |
+| `profile.age` | Age | వయస్సు | ⚠️ |
 | `profile.saved` | Saved. | సేవ్ అయింది. |  |
 | `profile.nameEmpty` | Your name cannot be empty. | మీ పేరు ఖాళీగా ఉండకూడదు. |  |
 | `profile.nameSaveFailed` | Could not save your name. Please try again. | మీ పేరు సేవ్ కాలేదు. మళ్లీ ప్రయత్నించండి. |  |
@@ -470,12 +483,23 @@ a key cannot be accidentally dropped while editing.
 | `settings.notSetYet` | Not set yet | ఇంకా ఇవ్వలేదు |  |
 | `settings.bibleTranslations` | Bible translations | బైబిల్ అనువాదాలు |  |
 | `settings.view` | View | చూడండి |  |
+| `settings.logOutConfirmTitle` | Log out of Maranatha? | మరనాథ నుండి లాగ్ అవుట్ అవుతారా? | ⚠️ |
+| `settings.logOutConfirmMessage` | You will need to sign in again to use the app. Nothing is deleted. | యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు. | ⚠️ |
 | `settings.appLanguage` | App language | యాప్ భాష |  |
 | `settings.appLanguageHelp` | Changes the app’s buttons, menus and messages. Does not change the Bible. | యాప్‌లోని బటన్‌లు, మెనూలు, సందేశాలను మారుస్తుంది. బైబిల్‌ను మార్చదు. |  |
 | `settings.bibleLanguage` | Bible language | బైబిల్ భాష |  |
 | `settings.bibleLanguageHelp` | Changes the Bible text, book names and search. Does not change the app’s language. | బైబిల్ వచనం, పుస్తకాల పేర్లు, వెతుకుడును మారుస్తుంది. యాప్ భాషను మార్చదు. |  |
 | `settings.themeSystem` | System | సిస్టమ్ |  |
 | `settings.syncFailed` | Saved on this device. We could not sync it to your account just now. | ఈ పరికరంలో సేవ్ అయింది. ప్రస్తుతం దాన్ని మీ ఖాతాకు సింక్ చేయలేకపోయాం. |  |
+
+### credits
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `credits.intro` | The Bibles in this app are stored on your phone, so you can read without a connection. | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | ⚠️ |
+| `credits.publicDomain` | Public domain | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | ⚠️ |
+| `credits.licensed` | Licensed under CC BY-SA 4.0 | CC BY-SA 4.0 లైసెన్స్ కింద | ⚠️ |
+| `credits.readLicence` | Read the licence | లైసెన్స్ చదవండి |  |
 
 ### prophetVerse
 

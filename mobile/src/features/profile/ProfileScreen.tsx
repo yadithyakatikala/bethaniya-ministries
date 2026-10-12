@@ -1,24 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { storage } from '../../services/firebase/app';
-import { useTheme } from '../../theme';
+  AppButton,
+  Badge,
+  ErrorState,
+  SegmentedChoice,
+  SkeletonRows,
+  Tappable,
+  TextField,
+  Toast,
+  useTheme,
+  useToast,
+} from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
-import { AppButton } from '../../theme/ui/AppButton';
-import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
 import { useAuth } from '../../context/AuthContext';
-import type { RootStackParamList } from '../../navigation/AppNavigator';
 import {
   subscribeToOwnProfile,
   updateOwnProfile,
@@ -28,576 +24,452 @@ import {
 import {
   isValidPhoneNumber,
   normalizePhoneNumber,
+  parseAge,
 } from '../onboarding/profileCompleteness';
 import { resendEmailVerification } from '../../services/firebase/authService';
-import { toFriendlyUploadMessage } from '../../services/firebase/storageErrors';
 import { logAuthError, toFriendlyAuthMessage } from '../../services/firebase/authErrors';
 
-/**
- * Profile screen -- Day 9 requirement (decision 7: "display name, email,
- * phone number, profile photo, edit display name, change profile photo,
- * save, loading state, error state, success/save behavior").
- *
- * Field editability exactly matches decision 2 / firestore.rules'
- * isValidUserProfileSelfUpdate(): displayName and photoURL are editable;
- * email is shown read-only (there is no UI control for it at all, not just
- * a disabled one -- Firebase Auth, not this screen, is the source of truth,
- * and changing it is out of scope); role/createdAt are never displayed
- * here, since they're server-controlled rather than user-facing profile
- * fields.
- *
- * Phone number is optional profile information and only rendered when the
- * profile actually has one -- see the field itself for why. Email
- * verification status is shown alongside the address, since Email/Password
- * is V1's primary sign-in method.
- *
- * A max-5MB image-size check and an image/* type check both happen
- * client-side before upload, purely for a fast/clear error message --
- * the actual enforcement is storage.rules' existing
- * users/{userId}/profile/{fileName} rule (5MB cap, image/* content type,
- * owner-only write), which this screen reuses unchanged (Day 9 decision
- * 5: "Reuse existing Storage path/rules").
- *
- * Restyled onto the shared Vespers theme: card-grouped fields, the
- * shared AppButton primitive (its own `loading` state replaces the
- * previous "swap to a differently-tagged ActivityIndicator" pattern --
- * no test asserted that separate testID, only the button's own), and
- * themed error/success colors. Every other testID/behavior is
- * unchanged -- see ProfileScreen.test.tsx.
- */
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+type Field = 'name' | 'phone' | 'gender' | 'age';
 
+/**
+ * Profile -- the member's own details, as rows: a label, the value, and
+ * "Edit" at the right. Editing a row swaps THAT row for its field with Save
+ * and Cancel under it (one row at a time; starting another puts the first
+ * back as it was); a save closes the field and says "Saved." in a toast.
+ *
+ * Name, phone number, gender and age are the member's to change. The email
+ * is shown, never edited here: Firebase Auth owns it. Beside it, whether it
+ * is verified -- in words (a Verified badge, or "Not verified" with a button
+ * to send the email again) -- since verification is surfaced rather than
+ * enforced (blocking a church member on an unread email buys nothing; the
+ * rules already scope every write to its owner).
+ *
+ * What is editable matches firestore.rules' isValidUserProfileSelfUpdate().
+ * Phone is optional and never an authentication requirement (this app has no
+ * phone sign-in); an empty field withdraws a number the member gave, and
+ * anything else has to look like a phone number by the same rule onboarding
+ * uses. Age is a whole number of years, 1 to 120, by the same rule; nothing in
+ * the app reads it to make a decision (see onboarding/profileCompleteness.ts).
+ *
+ * NO PHOTOS (decision H6): the church's plan cannot store a picture, so
+ * there is no "Change photo" any more -- the member's picture is their
+ * initial, drawn in the header above (../you/YouScreen.tsx).
+ *
+ * This view sits under the tabs of the You screen, which already shows the
+ * name and the email in its header, so it has no title of its own and
+ * Settings is the sliders button up there.
+ */
 export function ProfileScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, status } = useAuth();
-  // ProfileScreen only ever mounts behind App.tsx's authenticated gate (see
-  // App.tsx's AuthGate -- AppNavigator, and therefore this screen, only
-  // renders once status === 'authenticated'), so uid is normally never
-  // null here in production. The status check still matters for this
-  // screen's own unit tests, which mount it directly: on the very first
-  // render after AuthProvider itself mounts, status is still 'loading'
-  // (onAuthStateChanged's callback fires from an effect, one tick later)
-  // -- treating that transient tick as "signed out" would incorrectly
-  // flash the empty-profile view before the real loading state ever
-  // shows.
+  // Only ever mounted behind App.tsx's authenticated gate, so uid is normally
+  // never null here. The status check matters for this screen's own tests,
+  // which mount it directly: on the first render after AuthProvider mounts,
+  // status is still 'loading', and treating that tick as "signed out" would
+  // flash the empty view before the real loading state.
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
-  const { colors, radii, spacing, type } = useTheme();
+  const { colors, layout, type } = useTheme();
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [profile, setProfile] = useState<UserProfile | null | undefined>(undefined);
   const [loadError, setLoadError] = useState(false);
-  const [displayNameInput, setDisplayNameInput] = useState('');
-  const seededNameRef = useRef(false);
+  const [retryToken, setRetryToken] = useState(0);
 
-  const [isSavingName, setIsSavingName] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [nameSaved, setNameSaved] = useState(false);
+  const [editing, setEditing] = useState<Field | null>(null);
+  const [text, setText] = useState('');
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // M6: the two onboarding answers that have no other home. Seeded from
-  // the profile exactly once, for the same reason the name is -- a
-  // snapshot arriving mid-edit must not overwrite what is being typed.
-  const [phoneInput, setPhoneInput] = useState('');
-  const [genderInput, setGenderInput] = useState<Gender | null>(null);
-  const [isSavingDetails, setIsSavingDetails] = useState(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [detailsSaved, setDetailsSaved] = useState(false);
-
-  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resending, setResending] = useState(false);
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Nothing to subscribe to while auth is still resolving, or once it has
+    // resolved with nobody signed in (a case only this screen's own tests reach).
+    if (status === 'loading' || !uid) return undefined;
+    return subscribeToOwnProfile(
+      uid,
+      (next) => {
+        setProfile(next);
+        setLoadError(false);
+      },
+      () => setLoadError(true)
+    );
+  }, [uid, status, retryToken]);
+
+  // Derived, not stored: nobody signed in renders the same empty rows a null
+  // profile document would, without the effect having to reset anything.
+  const shown = status === 'loading' ? undefined : uid ? profile : null;
+
+  function startEdit(field: Field) {
+    setError(null);
+    setEditing(field);
+    if (field === 'name') setText(shown?.displayName ?? '');
+    if (field === 'phone') setText(shown?.phoneNumber ?? '');
+    if (field === 'age') setText(shown?.age ? String(shown.age) : '');
+    if (field === 'gender') setGender(shown?.gender ?? null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setError(null);
+  }
+
+  /**
+   * Validates and writes the one field being edited. Each field has its own
+   * rule and its own words for what went wrong; a failed write keeps the
+   * field open with what was typed, and says so.
+   */
+  async function save() {
+    if (!uid || !editing) return;
+    let fields: Parameters<typeof updateOwnProfile>[1];
+    let failed = t('profile.saveFailed');
+
+    if (editing === 'name') {
+      const name = text.trim();
+      if (name.length === 0) return setError(t('profile.nameEmpty'));
+      fields = { displayName: name };
+      failed = t('profile.nameSaveFailed');
+    } else if (editing === 'phone') {
+      const phone = text.trim();
+      if (phone.length > 0 && !isValidPhoneNumber(phone)) {
+        return setError(t('onboarding.phoneError'));
+      }
+      // An empty field is a legitimate answer: withdrawing a number you gave.
+      fields = { phoneNumber: phone.length > 0 ? normalizePhoneNumber(phone) : null };
+    } else if (editing === 'age') {
+      const age = parseAge(text);
+      if (age === null) return setError(t('onboarding.ageError'));
+      fields = { age };
+    } else {
+      if (!gender) return;
+      fields = { gender };
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await updateOwnProfile(uid, fields);
+      setEditing(null);
+      toast.show(t('profile.saved'));
+    } catch {
+      setError(failed);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   /**
    * Re-sends the address-verification email Firebase already sent at
    * sign-up. Free on the Spark plan (Firebase sends it directly; no Cloud
    * Function involved). Rate limiting is Firebase's own -- a rapid second
-   * press surfaces as auth/too-many-requests, which
-   * toFriendlyAuthMessage() maps to a "please wait a moment" message
-   * rather than anything alarming.
+   * press surfaces as auth/too-many-requests, which toFriendlyAuthMessage()
+   * maps to a "please wait a moment" message rather than anything alarming.
    */
   async function handleResendVerification() {
     if (!user) return;
     setVerificationNotice(null);
     setVerificationError(null);
-    setResendingVerification(true);
+    setResending(true);
     try {
       await resendEmailVerification(user);
       setVerificationNotice(t('profile.verificationSent'));
-    } catch (error) {
-      logAuthError('resend-verification', error);
-      setVerificationError(toFriendlyAuthMessage(error));
+    } catch (failure) {
+      logAuthError('resend-verification', failure);
+      setVerificationError(toFriendlyAuthMessage(failure));
     } finally {
-      setResendingVerification(false);
+      setResending(false);
     }
   }
 
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const pad = { paddingHorizontal: layout.screenMargin };
 
-  useEffect(() => {
-    // No subscription to set up while auth is still resolving, or once
-    // resolved with no signed-in user -- `displayProfile` below derives
-    // the right thing to render for both cases directly from
-    // `status`/`uid` without this effect needing to reset `profile`
-    // itself (there is nothing to unsubscribe from in either case).
-    if (status === 'loading' || !uid) return undefined;
-    const unsubscribe = subscribeToOwnProfile(
-      uid,
-      (next) => {
-        setProfile(next);
-        setLoadError(false);
-        // Seed the editable input from the loaded profile exactly once --
-        // not on every snapshot -- so a save-triggered re-fetch (or a
-        // preference change synced from another device) never overwrites
-        // text the user is still mid-edit on.
-        if (!seededNameRef.current && next) {
-          setDisplayNameInput(next.displayName ?? '');
-          setPhoneInput(next.phoneNumber ?? '');
-          setGenderInput(next.gender);
-          seededNameRef.current = true;
-        }
-      },
-      () => setLoadError(true)
-    );
-    return unsubscribe;
-  }, [uid, status]);
-
-  // Derived, not stored: when there's no signed-in uid (status resolved to
-  // 'unauthenticated'/'error' -- see the uid comment above for why this is
-  // test-only, never a real production render), this screen renders the
-  // same "empty" main content a null profile document would produce,
-  // without the effect above ever needing to call setProfile(null) itself.
-  const displayProfile = status === 'loading' ? undefined : uid ? profile : null;
-
-  async function handleSaveDisplayName() {
-    if (!uid) return;
-    const trimmed = displayNameInput.trim();
-    if (trimmed.length === 0) {
-      setNameError(t('profile.nameEmpty'));
-      setNameSaved(false);
-      return;
-    }
-    setIsSavingName(true);
-    setNameError(null);
-    setNameSaved(false);
-    try {
-      await updateOwnProfile(uid, { displayName: trimmed });
-      setNameSaved(true);
-    } catch {
-      setNameError(t('profile.nameSaveFailed'));
-    } finally {
-      setIsSavingName(false);
-    }
-  }
-
-  /**
-   * M6. Saves the phone number and gender together, since they sit in one
-   * card with one button.
-   *
-   * An EMPTY phone field is a legitimate answer -- withdrawing a number
-   * you gave -- and is written as null rather than rejected. Anything
-   * else has to look like a phone number, by the same rule the onboarding
-   * form uses (see features/onboarding/profileCompleteness.ts), so the
-   * two can never disagree about what is acceptable.
-   */
-  async function handleSaveDetails() {
-    if (!uid) return;
-    setDetailsError(null);
-    setDetailsSaved(false);
-
-    const trimmed = phoneInput.trim();
-    if (trimmed.length > 0 && !isValidPhoneNumber(trimmed)) {
-      setDetailsError(t('onboarding.phoneError'));
-      return;
-    }
-
-    setIsSavingDetails(true);
-    try {
-      await updateOwnProfile(uid, {
-        phoneNumber: trimmed.length > 0 ? normalizePhoneNumber(trimmed) : null,
-        ...(genderInput ? { gender: genderInput } : {}),
-      });
-      setDetailsSaved(true);
-    } catch {
-      setDetailsError(t('profile.nameSaveFailed'));
-    } finally {
-      setIsSavingDetails(false);
-    }
-  }
-
-  async function handleChangePhoto() {
-    if (!uid) return;
-    setPhotoError(null);
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setPhotoError(t('profile.photoPermissionRequired'));
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    if (!asset) return;
-
-    if (asset.type && asset.type !== 'image') {
-      setPhotoError(t('profile.photoMustBeImage'));
-      return;
-    }
-    if (asset.mimeType && !asset.mimeType.startsWith('image/')) {
-      setPhotoError(t('profile.photoMustBeImage'));
-      return;
-    }
-    if (asset.fileSize && asset.fileSize > MAX_PHOTO_BYTES) {
-      setPhotoError(t('profile.photoTooLarge'));
-      return;
-    }
-
-    setIsUploadingPhoto(true);
-    try {
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      if (blob.size > MAX_PHOTO_BYTES) {
-        setPhotoError(t('profile.photoTooLarge'));
-        return;
-      }
-      const extension = asset.uri.split('.').pop()?.split('?')[0] || 'jpg';
-      const storageRef = ref(storage, `users/${uid}/profile/photo.${extension}`);
-      await uploadBytes(storageRef, blob, {
-        contentType: asset.mimeType || 'image/jpeg',
-      });
-      const downloadURL = await getDownloadURL(storageRef);
-      await updateOwnProfile(uid, { photoURL: downloadURL });
-    } catch (error) {
-      // Cloud Storage has no bucket at all on the Spark plan, so an upload
-      // there fails permanently rather than transiently -- "please try
-      // again" would send a member round a loop that can never succeed.
-      // See ../../services/firebase/storageErrors.ts.
-      setPhotoError(toFriendlyUploadMessage(error));
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  }
-
-  // loadError is checked first: an error and "still loading" (profile
-  // still undefined) are otherwise indistinguishable from profile alone,
-  // since the onError callback above never touches profile -- checking
-  // loading first would permanently mask a real subscription error
-  // behind the loading spinner.
+  // loadError is checked first: an error and "still loading" (profile still
+  // undefined) are otherwise indistinguishable, since the error callback never
+  // touches `profile` -- checking loading first would mask a real failure
+  // behind the skeleton for good.
   if (loadError) {
     return (
-      <View
-        style={[
-          styles.container,
-          styles.centered,
-          { backgroundColor: colors.background },
-        ]}
-        testID="profile-load-error"
-      >
-        <Text style={[styles.message, { color: colors.text }]}>
-          {t('profile.loadError')}
-        </Text>
-      </View>
-    );
-  }
-
-  if (displayProfile === undefined) {
-    return (
-      <View
-        style={[
-          styles.container,
-          styles.centered,
-          { backgroundColor: colors.background },
-        ]}
-        testID="profile-loading"
-      >
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
-      // Otherwise the first tap on Save/Cancel with the name field focused
-      // only dismisses the keyboard -- see SignInScreen.tsx.
-      keyboardShouldPersistTaps="handled"
-      testID="profile-screen"
-    >
-      <View style={styles.photoSection}>
-        {displayProfile?.photoURL ? (
-          <Image
-            source={{ uri: displayProfile.photoURL }}
-            style={styles.photo}
-            testID="profile-photo"
-            accessibilityIgnoresInvertColors
-          />
-        ) : (
-          <View
-            style={[
-              styles.photoPlaceholder,
-              { backgroundColor: colors.primaryTint, borderColor: colors.border },
-            ]}
-            testID="profile-photo-placeholder"
-          >
-            <Text style={[type.headline, { color: colors.primary }]}>
-              {(displayProfile?.displayName ?? displayProfile?.email ?? '?')
-                .charAt(0)
-                .toUpperCase()}
-            </Text>
-          </View>
-        )}
-        <AppButton
-          title={t('profile.changePhoto')}
-          variant="secondary"
-          loading={isUploadingPhoto}
-          onPress={() => void handleChangePhoto()}
-          testID="change-photo-button"
+      <View style={[pad, styles.state]}>
+        <ErrorState
+          testID="profile-load-error"
+          message={t('profile.loadError')}
+          retryLabel={t('common.tryAgain')}
+          onRetry={() => {
+            setLoadError(false);
+            setProfile(undefined);
+            setRetryToken((token) => token + 1);
+          }}
         />
-        {photoError ? (
-          <Text
-            style={[type.bodySmall, { color: colors.danger }]}
-            testID="profile-photo-error"
-          >
-            {photoError}
-          </Text>
-        ) : null}
       </View>
+    );
+  }
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-            padding: spacing.lg,
-          },
-        ]}
-      >
-        <View style={styles.field}>
-          <Text style={[type.overline, { color: colors.secondaryText }]}>
-            {t('profile.displayName')}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                borderRadius: radii.control,
-              },
-            ]}
-            value={displayNameInput}
-            onChangeText={(text) => {
-              setDisplayNameInput(text);
-              setNameSaved(false);
-            }}
-            testID="display-name-input"
-            placeholder={t('auth.namePlaceholder')}
-            placeholderTextColor={colors.secondaryText}
+  if (shown === undefined) {
+    return (
+      <View style={[pad, styles.state]}>
+        <SkeletonRows
+          count={4}
+          leading="none"
+          label={t('common.loading')}
+          testID="profile-loading"
+        />
+      </View>
+    );
+  }
+
+  const genderLabel = shown?.gender
+    ? t(shown.gender === 'male' ? 'onboarding.genderMale' : 'onboarding.genderFemale')
+    : null;
+
+  /** The row's value, or a quiet "Not set". */
+  const value = (testID: string, text: string | null | undefined) => (
+    <Text
+      testID={testID}
+      style={[
+        styles.value,
+        text
+          ? { color: colors.ink, fontFamily: fontFamilies.interfaceMedium }
+          : { color: colors.inkSubtle },
+      ]}
+    >
+      {text || t('profile.notSet')}
+    </Text>
+  );
+
+  const edit = (field: Field) => (
+    <Tappable
+      testID={`profile-edit-${field}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${t('profile.edit')}: ${t(LABELS[field])}`}
+      onPress={() => startEdit(field)}
+      style={styles.edit}
+    >
+      <Text style={[styles.editText, { color: colors.accent }]}>{t('profile.edit')}</Text>
+    </Tappable>
+  );
+
+  /** A row of the profile, or -- while it is being edited -- its field. */
+  const row = (field: Field, display: string | null | undefined, input: ReactNode) =>
+    editing === field ? (
+      <View key={field} style={styles.editor} testID={`profile-editor-${field}`}>
+        {input}
+        <View style={styles.buttons}>
+          <AppButton
+            testID="profile-save"
+            title={t('common.save')}
+            compact
+            loading={saving}
+            onPress={() => void save()}
           />
           <AppButton
-            title={t('common.save')}
-            loading={isSavingName}
-            onPress={() => void handleSaveDisplayName()}
-            testID="save-display-name-button"
+            testID="profile-cancel"
+            title={t('common.cancel')}
+            variant="text"
+            disabled={saving}
+            onPress={cancelEdit}
           />
-          {nameError ? (
-            <Text
-              style={[type.bodySmall, { color: colors.danger }]}
-              testID="profile-name-error"
-            >
-              {nameError}
-            </Text>
-          ) : null}
-          {nameSaved ? (
-            <Text
-              style={[type.bodySmall, { color: colors.success }]}
-              testID="profile-name-saved"
-            >
-              {t('profile.saved')}
-            </Text>
-          ) : null}
         </View>
+      </View>
+    ) : (
+      <View
+        key={field}
+        testID={`profile-row-${field}`}
+        style={[styles.row, { borderBottomColor: colors.border }]}
+      >
+        <Text style={[styles.label, { color: colors.inkMuted }]}>{t(LABELS[field])}</Text>
+        <View style={styles.valueBox}>{value(`profile-${field}`, display)}</View>
+        {edit(field)}
+      </View>
+    );
 
-        <View style={[styles.field, styles.divider, { borderTopColor: colors.border }]}>
-          <Text style={[type.overline, { color: colors.secondaryText }]}>
+  return (
+    <View style={styles.screen} testID="profile-screen">
+      <ScrollView
+        testID="profile-scroll"
+        // Otherwise the first tap on Save/Cancel with a field focused only
+        // dismisses the keyboard -- see ../auth/SignInScreen.tsx.
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[pad, styles.content]}
+      >
+        <View style={[styles.rule, { borderTopColor: colors.border }]} />
+
+        {row(
+          'name',
+          shown?.displayName,
+          <TextField
+            testID="profile-name-input"
+            label={t('profile.displayName')}
+            value={text}
+            onChangeText={setText}
+            error={error}
+            autoFocus
+            placeholder={t('auth.namePlaceholder')}
+          />
+        )}
+
+        <View
+          testID="profile-row-email"
+          style={[styles.row, { borderBottomColor: colors.border }]}
+        >
+          <Text style={[styles.label, { color: colors.inkMuted }]}>
             {t('profile.emailLabel')}
           </Text>
-          <Text style={[type.body, { color: colors.text }]} testID="profile-email">
-            {displayProfile?.email ?? t('profile.notSet')}
-          </Text>
-          {/* Email/Password is V1's primary sign-in method, and account
-              creation sends a verification email (see
-              services/firebase/authService.ts's createAccountWithEmail).
-              Verification is surfaced here rather than enforced as a gate on
-              signing in -- blocking a church member's access on an unread
-              email buys nothing, since Firestore rules already scope every
-              write to the owning user. Only shown when there is an email
-              address at all (a Google-only account has one; there is no
-              sensible "verified" state to report without one). */}
-          {user?.email ? (
-            <>
-              <Text
-                style={[
-                  type.label,
-                  { color: user.emailVerified ? colors.success : colors.secondaryText },
-                ]}
-                testID="profile-email-verified-status"
-              >
-                {t(
-                  user.emailVerified ? 'profile.emailVerified' : 'profile.emailUnverified'
-                )}
-              </Text>
-              {!user.emailVerified ? (
+          <View style={styles.valueBox}>
+            {value('profile-email', shown?.email)}
+            {/* Only an account with an address has a verified state to report
+                (a phone-only account has none, and says nothing). */}
+            {user?.email ? (
+              user.emailVerified ? (
+                <Badge
+                  testID="profile-email-verified-status"
+                  variant="success"
+                  icon="check"
+                  label={t('profile.emailVerified')}
+                />
+              ) : (
                 <>
+                  <Badge
+                    testID="profile-email-verified-status"
+                    variant="warning"
+                    label={t('profile.emailUnverified')}
+                  />
                   <AppButton
+                    testID="profile-resend-verification-button"
                     title={t('profile.resendVerification')}
                     variant="secondary"
+                    compact
+                    loading={resending}
                     onPress={() => void handleResendVerification()}
-                    loading={resendingVerification}
-                    disabled={resendingVerification}
-                    testID="profile-resend-verification-button"
                   />
                   {verificationNotice ? (
                     <Text
-                      style={[type.bodySmall, { color: colors.success }]}
                       testID="profile-verification-notice"
+                      accessibilityLiveRegion="polite"
+                      style={[type.help, { color: colors.success }]}
                     >
                       {verificationNotice}
                     </Text>
                   ) : null}
                   {verificationError ? (
                     <Text
-                      style={[type.bodySmall, { color: colors.danger }]}
                       testID="profile-verification-error"
+                      accessibilityLiveRegion="polite"
+                      style={[type.help, { color: colors.danger }]}
                     >
                       {verificationError}
                     </Text>
                   ) : null}
                 </>
-              ) : null}
-            </>
-          ) : null}
+              )
+            ) : null}
+          </View>
         </View>
 
-        {/* Phone number is optional profile information and NEVER an
-            authentication requirement -- this app has no phone sign-in and
-            no OTP. V1 had no flow that collected it, so this used to be a
-            read-only row that appeared only if some other system had
-            filled it in, and a member could do nothing about it either
-            way. M6's onboarding questionnaire collects it and made the
-            field owner-writable (see firestore.rules and
-            services/firebase/userProfile.ts), so it is editable here --
-            which is also the "change these answers later" the onboarding
-            brief asks for. Gender sits with it for the same reason: they
-            are the two questionnaire answers that are not already
-            editable somewhere else (the name is above, the language is in
-            Settings). */}
-        <View
-          style={[styles.field, styles.divider, { borderTopColor: colors.border }]}
-          testID="profile-details"
-        >
-          <Text style={[type.overline, { color: colors.secondaryText }]}>
-            {t('profile.phoneNumber')}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                borderRadius: radii.control,
-              },
-            ]}
-            value={phoneInput}
-            onChangeText={(text) => {
-              setPhoneInput(text);
-              setDetailsSaved(false);
-            }}
+        {row(
+          'phone',
+          shown?.phoneNumber,
+          <TextField
             testID="profile-phone-input"
-            accessibilityLabel={t('profile.phoneNumber')}
+            label={t('profile.phoneNumber')}
+            value={text}
+            onChangeText={setText}
+            error={error}
+            autoFocus
             keyboardType="phone-pad"
             placeholder={t('onboarding.phonePlaceholder')}
-            placeholderTextColor={colors.secondaryText}
           />
+        )}
 
-          <Text style={[type.overline, { color: colors.secondaryText }]}>
-            {t('onboarding.gender')}
-          </Text>
-          <SegmentedChoice
-            testID="profile-gender"
-            accessibilityLabel={t('onboarding.gender')}
-            options={[
-              { value: 'male' as Gender, label: t('onboarding.genderMale') },
-              { value: 'female' as Gender, label: t('onboarding.genderFemale') },
-            ]}
-            selected={genderInput ?? ('' as Gender)}
-            onSelect={(value) => {
-              setGenderInput(value);
-              setDetailsSaved(false);
-            }}
-          />
-
-          <AppButton
-            title={t('common.save')}
-            loading={isSavingDetails}
-            onPress={() => void handleSaveDetails()}
-            testID="save-profile-details-button"
-          />
-          {detailsError ? (
-            <Text
-              style={[type.bodySmall, { color: colors.danger }]}
-              testID="profile-details-error"
-            >
-              {detailsError}
+        {row(
+          'gender',
+          genderLabel,
+          <View style={styles.choice}>
+            <Text style={[type.label, { color: colors.ink }]}>
+              {t('onboarding.gender')}
             </Text>
-          ) : null}
-          {detailsSaved ? (
-            <Text
-              style={[type.bodySmall, { color: colors.success }]}
-              testID="profile-details-saved"
-            >
-              {t('profile.saved')}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+            <SegmentedChoice
+              testID="profile-gender-choice"
+              accessibilityLabel={t('onboarding.gender')}
+              options={[
+                { value: 'male' as Gender, label: t('onboarding.genderMale') },
+                { value: 'female' as Gender, label: t('onboarding.genderFemale') },
+              ]}
+              selected={gender}
+              onSelect={setGender}
+            />
+            {error ? (
+              <Text
+                testID="profile-gender-error"
+                style={[type.help, { color: colors.danger }]}
+              >
+                {error}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
-      <AppButton
-        title={t('settings.title')}
-        variant="secondary"
-        onPress={() => navigation.navigate('Settings')}
-        testID="profile-settings-nav-button"
-      />
-    </ScrollView>
+        {row(
+          'age',
+          shown?.age ? String(shown.age) : null,
+          <TextField
+            testID="profile-age-input"
+            label={t('profile.age')}
+            value={text}
+            onChangeText={setText}
+            error={error}
+            autoFocus
+            keyboardType="number-pad"
+            maxLength={3}
+            placeholder={t('onboarding.agePlaceholder')}
+          />
+        )}
+      </ScrollView>
+
+      <Toast message={toast.message} />
+    </View>
   );
 }
 
+const LABELS = {
+  name: 'profile.displayName',
+  phone: 'profile.phoneNumber',
+  gender: 'onboarding.gender',
+  age: 'profile.age',
+} as const;
+
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, gap: 20 },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  message: { textAlign: 'center' },
-  photoSection: { alignItems: 'center', gap: 10 },
-  photo: { width: 96, height: 96, borderRadius: 48 },
-  photoPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: StyleSheet.hairlineWidth,
+  screen: { flex: 1 },
+  state: { marginTop: 4 },
+  content: { paddingBottom: 40 },
+  rule: { borderTopWidth: 1 },
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    minHeight: 60,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
   },
-  card: { borderWidth: StyleSheet.hairlineWidth, gap: 16 },
-  field: { gap: 8 },
-  divider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16 },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  label: {
+    width: 96,
+    fontFamily: fontFamilies.interfaceMedium,
+    fontWeight: '500',
+    fontSize: 13.5,
+    lineHeight: 19,
   },
+  valueBox: { flex: 1, minWidth: 0, gap: 6, alignItems: 'flex-start' },
+  value: { fontSize: 16, lineHeight: 22, fontFamily: fontFamilies.interfaceRegular },
+  edit: { minHeight: 44, justifyContent: 'center' },
+  editText: {
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  editor: { gap: 12, paddingTop: 16, paddingBottom: 12 },
+  choice: { gap: 8 },
+  buttons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

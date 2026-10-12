@@ -17,6 +17,7 @@ import { bookNameLanguageFor } from '../features/bible/types';
 import type { ThemeColors } from '../theme';
 import { useTranslation } from '../i18n';
 import { HomeScreen } from '../features/auth/HomeScreen';
+import { BibleTranslationsScreen } from '../features/settings/BibleTranslationsScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
 import { SongDetailScreen } from '../features/songs/SongDetailScreen';
 import type { PublishedSong } from '../services/firebase/songs';
@@ -122,6 +123,8 @@ export type RootStackParamList = {
   You: { tab?: 'saved' | 'profile' } | undefined;
   /** The member's notes, highlights or bookmarks, as lists. See ../features/you/SavedVersesScreen.tsx. */
   SavedVerses: { kind?: 'notes' | 'highlights' | 'bookmarks' } | undefined;
+  /** Who wrote the bundled Bibles and under what licence. See ../features/settings/BibleTranslationsScreen.tsx. */
+  BibleTranslations: undefined;
   SongsList: undefined;
   SongDetail: { song: PublishedSong };
   EventsList: undefined;
@@ -414,12 +417,17 @@ export function AppNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ title: t('settings.title') }}
+              options={{ title: t('settings.title'), headerShown: false }}
+            />
+            <Stack.Screen
+              name="BibleTranslations"
+              component={BibleTranslationsScreen}
+              options={{ title: t('settings.bibleTranslations'), headerShown: false }}
             />
             <Stack.Screen
               name="NotificationCenter"
               component={NotificationCenterScreen}
-              options={{ title: t('notifications.title') }}
+              options={{ title: t('notifications.title'), headerShown: false }}
             />
             <Stack.Screen
               name="PrayersHub"

@@ -40,12 +40,15 @@ import { SongDetailScreen } from ${T('features/songs/SongDetailScreen')};
 import { EventsListScreen } from ${T('features/events/EventsListScreen')};
 import { EventDetailScreen } from ${T('features/events/EventDetailScreen')};
 import { YouTubePlayerScreen } from ${T('features/events/YouTubePlayerScreen')};
+import { SettingsScreen } from ${T('features/settings/SettingsScreen')};
+import { BibleTranslationsScreen } from ${T('features/settings/BibleTranslationsScreen')};
+import { NotificationCenterScreen } from ${T('features/notifications/NotificationCenterScreen')};
 import { TabBar } from ${T('navigation/TabBar')};
 
 const Stack = createNativeStackNavigator();
 const ref = createNavigationContainerRef();
 const TABS = new Set(['Home', 'BibleBooks', 'PrayersHub', 'CommunityHub', 'You']);
-const OTHER = ['BibleBooks', 'MediaFeed', 'Settings', 'NotificationCenter', 'PlansList',
+const OTHER = ['BibleBooks', 'MediaFeed', 'PlansList',
   'SavedMedia', 'DailyVerse', 'BibleChapter', 'PlanDay'];
 
 function Stub({ route }: any) {
@@ -82,6 +85,9 @@ function Root() {
             <Stack.Screen name="SavedVerses" component={SavedVersesScreen} initialParams={initial.name === 'SavedVerses' ? initial.params : undefined} />
             <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} initialParams={initial.name === 'AnnouncementDetail' ? initial.params : undefined} />
             <Stack.Screen name="CommunityPostDetail" component={CommunityPostDetailScreen} initialParams={initial.name === 'CommunityPostDetail' ? initial.params : undefined} />
+            <Stack.Screen name="Settings" component={SettingsScreen} initialParams={initial.name === 'Settings' ? initial.params : undefined} />
+            <Stack.Screen name="BibleTranslations" component={BibleTranslationsScreen} />
+            <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
             <Stack.Screen name="SongsList" component={SongsListScreen} />
             <Stack.Screen name="SongDetail" component={SongDetailScreen} initialParams={initial.name === 'SongDetail' ? initial.params : undefined} />
             <Stack.Screen name="EventsList" component={EventsListScreen} />
@@ -122,7 +128,8 @@ const seed = (d) => {
   const hour = 3_600_000;
   const day = 24 * hour;
   const docs = {};
-  docs['settings/church'] = { churchName: d.churchName };
+  docs['settings/church'] = { churchName: d.churchName, ...(d.supportEmail ? { supportEmail: d.supportEmail } : {}) };
+  docs['users/qa-member'] = { role: 'member', displayName: d.name, email: 'joshua@example.com', ...(d.profile ?? {}) };
   (d.announcements ?? []).forEach((a, i) => {
     docs['announcements/a' + i] = { published: true, imageUrl: null, ...a, createdAt: ts(now - (a.ageH ?? (i + 1) * 20) * hour) };
     delete docs['announcements/a' + i].ageH;
@@ -185,7 +192,7 @@ const seed = (d) => {
     uid: 'qa-member',
     displayName: d.name,
     email: 'joshua@example.com',
-    emailVerified: true,
+    emailVerified: !d.unverified,
     providerData: [],
   });
 };
@@ -234,6 +241,8 @@ const TE_PRAYERS = {
 const EN_DATA = {
   name: 'Joshua',
   churchName: 'Maranatha',
+  supportEmail: 'support@example.org',
+  profile: { gender: 'male', age: 34 },
   announcements: [
     {
       title: 'Youth meeting moved to Friday',
@@ -357,6 +366,23 @@ const EN = { app_language_preference: 'en', bible_mode_preference: 'en' };
 const TE = { app_language_preference: 'te', bible_mode_preference: 'te' };
 
 const route = (name, params) => ({ name, params });
+
+/** The phone's own notification history: AsyncStorage's `notification_history`, newest first by arrival. */
+const history = (rows) =>
+  JSON.stringify(
+    rows.map(([title, message, receivedAt, extra], i) => ({ id: 'n' + (i + 1), title, message, receivedAt, ...extra }))
+  );
+const EN_HISTORY = history([
+  ['Live now: Sunday Worship', 'Join the service from the app.', new Date(NOW - 29 * 60_000).toISOString(), { data: { screen: 'EventsList' } }],
+  ['Today’s reading: Psalm 23', 'Day 2 of Seven Days in the Psalms.', new Date(NOW - 3.5 * 3_600_000).toISOString(), { data: { screen: 'PlansList' } }],
+  ['Wednesday prayer meeting moved', 'Tonight’s meeting starts at 7:00 PM.', new Date(NOW - 17.25 * 3_600_000).toISOString(), { readAt: '2026-10-10T12:00:00Z' }],
+  ['Harvest Thanksgiving', 'Bring a gift for the families on 25 October.', '2026-10-06T03:30:00Z', { readAt: '2026-10-06T05:00:00Z', data: { screen: 'EventsList' } }],
+]);
+const TE_HISTORY = history([
+  ['ప్రత్యక్ష ప్రసారం: ఆదివారం ఆరాధన', 'యాప్ నుండి ఆరాధనలో చేరండి.', new Date(NOW - 29 * 60_000).toISOString(), { data: { screen: 'EventsList' } }],
+  ['నేటి పఠనం: కీర్తనలు 23', '‘కీర్తనలలో ఏడు రోజులు’లో 2వ రోజు.', new Date(NOW - 3.5 * 3_600_000).toISOString(), { data: { screen: 'PlansList' } }],
+  ['బుధవారం ప్రార్థన కూడిక మార్పు', 'ఈ రాత్రి కూడిక సాయంత్రం 7:00కు మొదలవుతుంది.', new Date(NOW - 17.25 * 3_600_000).toISOString(), { readAt: '2026-10-10T12:00:00Z' }],
+]);
 
 const SCENARIOS = [
   // --- the bar, on Home
@@ -617,6 +643,113 @@ const SCENARIOS = [
       await qa.advance(400);
     },
   },
+  // --- You > Profile
+  { name: 'profile-light', storage: EN, data: EN_DATA, route: route('You', { tab: 'profile' }) },
+  { name: 'profile-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('You', { tab: 'profile' }) },
+  { name: 'profile-te', storage: TE, data: { ...TE_DATA, profile: { gender: 'male', age: 34 } }, route: route('You', { tab: 'profile' }) },
+  { name: 'profile-sparse', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('You', { tab: 'profile' }) },
+  { name: 'profile-unverified', storage: EN, data: { ...EN_DATA, unverified: true }, route: route('You', { tab: 'profile' }) },
+  {
+    name: 'profile-edit-name',
+    storage: EN,
+    data: EN_DATA,
+    route: route('You', { tab: 'profile' }),
+    steps: async (qa) => {
+      await qa.tap('profile-edit-name');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'profile-edit-name-error',
+    storage: EN,
+    data: EN_DATA,
+    route: route('You', { tab: 'profile' }),
+    steps: async (qa) => {
+      await qa.tap('profile-edit-name');
+      await qa.type('profile-name-input', ' ');
+      await qa.tap('profile-save');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'profile-edit-gender',
+    storage: EN,
+    data: EN_DATA,
+    route: route('You', { tab: 'profile' }),
+    steps: async (qa) => {
+      await qa.tap('profile-edit-gender');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'profile-edit-age-error',
+    storage: EN,
+    data: EN_DATA,
+    route: route('You', { tab: 'profile' }),
+    steps: async (qa) => {
+      await qa.tap('profile-edit-age');
+      await qa.type('profile-age-input', '0');
+      await qa.tap('profile-save');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'profile-saved',
+    storage: EN,
+    data: EN_DATA,
+    route: route('You', { tab: 'profile' }),
+    steps: async (qa) => {
+      await qa.tap('profile-edit-age');
+      await qa.type('profile-age-input', '35');
+      await qa.tap('profile-save');
+      await qa.advance(500);
+    },
+  },
+  // --- Settings
+  { name: 'settings-light', storage: EN, data: EN_DATA, route: route('Settings') },
+  { name: 'settings-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('Settings') },
+  { name: 'settings-te', storage: TE, data: TE_DATA, route: route('Settings') },
+  { name: 'settings-noemail', storage: EN, data: { ...EN_DATA, supportEmail: '' }, route: route('Settings') },
+  {
+    name: 'settings-sheet-app',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('Settings'),
+    steps: async (qa) => {
+      await qa.tap('settings-app-language');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'settings-sheet-bible',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('Settings'),
+    steps: async (qa) => {
+      await qa.tap('settings-bible-language');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'settings-logout',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('Settings'),
+    steps: async (qa) => {
+      await qa.tap('settings-logout-button');
+      await qa.advance(500);
+    },
+  },
+  { name: 'credits-light', storage: EN, data: EN_DATA, route: route('BibleTranslations') },
+  { name: 'credits-te', storage: TE, data: TE_DATA, route: route('BibleTranslations') },
+  // --- Notifications
+  { name: 'notifications-light', storage: { ...EN, notification_history: EN_HISTORY }, data: EN_DATA, route: route('NotificationCenter') },
+  { name: 'notifications-dark', storage: { ...EN, notification_history: EN_HISTORY, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('NotificationCenter') },
+  { name: 'notifications-te', storage: { ...TE, notification_history: TE_HISTORY }, data: TE_DATA, route: route('NotificationCenter') },
+  { name: 'notifications-empty', storage: EN, data: EN_DATA, route: route('NotificationCenter') },
   // --- The shared update detail
   {
     name: 'detail-light',

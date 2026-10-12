@@ -1,48 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
-import { useTheme } from '../../theme';
+import {
+  ConfirmDialog,
+  Icon,
+  ListGroup,
+  ListRow,
+  NoticeBanner,
+  SegmentedChoice,
+  Sheet,
+  Tappable,
+  useTheme,
+} from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
-import { CC_BY_SA_URL, translationCreditLine } from '../bible/translationCredits';
-import { Tappable } from '../../theme/ui/Tappable';
-import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
-import { Divider } from '../../theme/ui/Divider';
+import { TRANSLATION_NAMES } from '../bible/translationCredits';
 import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { ThemePreference } from '../../services/firebase/userProfile';
 import type { BibleLanguage, BibleMode } from '../bible/types';
+import { TopBar } from '../common/TopBar';
+
+type Chooser = 'app' | 'bible';
 
 /**
- * Settings screen -- Day 9 requirement (decision 8: "English/Telugu
- * toggle, Light/Dark toggle, Notifications on/off toggle, Logout.
- * Preferences persist across app restart. Authenticated changes sync to
- * Firestore. Offline/local fallback continues to work.").
+ * Settings -- Day 9 requirement (decision 8: "English/Telugu toggle,
+ * Light/Dark toggle, Notifications on/off toggle, Logout. Preferences persist
+ * across app restart. Authenticated changes sync to Firestore.
+ * Offline/local fallback continues to work.").
  *
- * Every toggle here is a thin view over usePreferences() (see
- * ../../context/PreferencesContext.tsx) -- this screen holds no
- * preference state of its own, so persistence/sync/offline-fallback are
- * all already handled by that shared context, not re-implemented here.
- * Logout reuses useAuth().signOut(), the same sign-out call
- * ../auth/HomeScreen.tsx's "Sign out" button already uses.
+ * Every control here is a thin view over usePreferences() (see
+ * ../../context/PreferencesContext.tsx) -- this screen holds no preference
+ * state of its own, so persistence, sync and the offline fallback are all
+ * already handled by that shared context, not re-implemented here. Log out
+ * reuses useAuth().signOut(), the same call ../auth/HomeScreen.tsx used.
  *
- * Restyled onto the shared Vespers theme as grouped rows in a card, plus
- * a real "Contact the church" row reading the church's actual
- * `settings.supportEmail` (subscribeToChurchSettings -- the same
- * subscription HomeScreen.tsx's ChurchBranding already uses), matching
- * the UI audit's flagged "free win" (previously stored but never shown
- * anywhere). Shows a clearly-labelled "Not set yet" placeholder rather
- * than inventing an address when the church hasn't configured one. Every
- * existing testID and the exact "Language: .../Theme: ..." label text
- * are unchanged -- see SettingsScreen.test.tsx.
+ * THE LOOK. A top bar with Back, then grouped rows between hairlines:
  *
- * The "Bible translations" card is required, non-decorative attribution:
- * the Telugu text is licensed CC BY-SA 4.0, which conditions
- * redistribution on attribution to the copyright holder -- see
- * /BIBLE_LICENSING.md and teluguBible.ts's doc comment for the full
- * source/license writeup this card summarizes.
+ *   LANGUAGE   two value rows -- "App language" and "Bible language" -- each
+ *              with its value and chevron, and under its name the sentence that
+ *              says what it does NOT change. They are TWO settings (V1 had one
+ *              "Language" row, because one preference drove both, and a shared
+ *              label is how someone changes the wrong one), and the sentence is
+ *              the reason they are not mistaken. A row opens a sheet of its
+ *              choices (the Bible's has the third, English + Telugu; the
+ *              interface has no bilingual mode -- the app renders one language),
+ *              the current one ticked; choosing one closes the sheet.
+ *   THEME      a three-part pill: Light, Dark, System.
+ *              (The reader offers the same three and drives this one preference.)
+ *   Notifications   one row with the switch.
+ *   ABOUT      Contact the church (its real support address from the church's
+ *              settings, or "Not set yet" -- never an invented one), Bible
+ *              translations (the names, opening their credits), Privacy policy
+ *              and Terms of service.
+ *   Log Out    a red word with its icon, which ASKS before it does anything.
+ *
+ * A preference that saved on this phone but could not reach the member's
+ * account says so at the top (M6: such a write used to be refused by
+ * firestore.rules and swallowed, so it looked like the app forgetting the
+ * setting). Not colour alone, and announced politely rather than as an alert:
+ * the local value is in effect, so there is nothing for the member to do.
+ *
+ * The full Bible licence notice is on its own screen, one tap from here
+ * (./BibleTranslationsScreen.tsx).
  */
 export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -58,22 +82,12 @@ export function SettingsScreen() {
     setThemePreference,
     setNotificationsEnabled,
   } = usePreferences();
-  const { colors, radii, spacing, type } = useTheme();
+  const { colors, layout, type } = useTheme();
   const { t } = useTranslation();
-
-  /**
-   * React Native's Switch ships with the platform's own accent (iOS green,
-   * Android's Material teal) regardless of the app's palette -- the two
-   * switches on this screen were the only controls in the app not painted
-   * from the theme. `thumbColor` and the Android track are set explicitly;
-   * `ios_backgroundColor` covers the off track on iOS.
-   */
-  const switchColors = {
-    trackColor: { false: colors.border, true: colors.primary },
-    thumbColor: colors.surface,
-    ios_backgroundColor: colors.border,
-  };
+  const insets = useSafeAreaInsets();
   const [supportEmail, setSupportEmail] = useState<string | null>(null);
+  const [chooser, setChooser] = useState<Chooser | null>(null);
+  const [confirmingLogOut, setConfirmingLogOut] = useState(false);
 
   useEffect(
     () =>
@@ -84,107 +98,100 @@ export function SettingsScreen() {
     []
   );
 
-  return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
-      testID="settings-screen"
-    >
-      {/* M6: a preference that saved locally but could not reach the
-          member's account says so. Before this, such a write was denied by
-          firestore.rules and the rejection was swallowed (see
-          ../../context/PreferencesContext.tsx's "WHEN A SYNC FAILS"), so
-          BUG 1 and BUG 2 presented as the app forgetting the setting. Not
-          colour-only, and announced politely rather than as an alert: the
-          local value is in effect, so there is nothing for the member to
-          do. */}
-      {syncFailed ? (
-        <View
-          testID="settings-sync-failed"
-          accessibilityLiveRegion="polite"
-          style={[
-            styles.notice,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.danger,
-              borderRadius: radii.card,
-              padding: spacing.md,
-            },
-          ]}
+  /**
+   * React Native's Switch ships with the platform's own accent (iOS green,
+   * Android's Material teal) regardless of the app's palette. The thumb and
+   * the Android track are set explicitly; `ios_backgroundColor` covers the off
+   * track on iOS.
+   */
+  const switchColors = {
+    trackColor: { false: colors.border, true: colors.primary },
+    thumbColor: colors.surface,
+    ios_backgroundColor: colors.border,
+  };
+
+  const languageName = (language: BibleLanguage) =>
+    t(language === 'te' ? 'settings.languageTelugu' : 'settings.languageEnglish');
+  const bibleModeName = (mode: BibleMode) =>
+    t(
+      mode === 'te'
+        ? 'bible.modeTelugu'
+        : mode === 'en'
+          ? 'bible.modeEnglish'
+          : 'bible.modeBilingual'
+    );
+
+  const pad = { paddingHorizontal: layout.screenMargin };
+
+  /** A group: its small capital label, then its rows between hairlines. */
+  const group = (label: string | null, children: ReactNode, testID?: string) => (
+    <View style={styles.group} testID={testID}>
+      {label ? (
+        <Text
+          accessibilityRole="header"
+          style={[type.overline, styles.groupLabel, { color: colors.inkMuted }]}
         >
-          <Text style={[type.bodySmall, { color: colors.ink }]}>
-            {t('settings.syncFailed')}
-          </Text>
-        </View>
+          {label}
+        </Text>
       ) : null}
+      <View style={[styles.rule, { borderTopColor: colors.border }]} />
+      {children}
+      <View style={[styles.rule, { borderTopColor: colors.border }]} />
+    </View>
+  );
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-          },
-        ]}
+  return (
+    <View
+      testID="settings-screen"
+      style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top }]}
+    >
+      <View style={pad}>
+        <TopBar title={t('settings.title')} onBack={() => navigation.goBack()} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[pad, { paddingBottom: insets.bottom + 32 }]}
+        showsVerticalScrollIndicator={false}
       >
-        {/* TWO settings, not one toggle.
-            V1 had a single "Language: Telugu / Switch" row, because a
-            single preference drove both the interface and the Bible. They
-            are independent now, and a shared label is exactly how someone
-            ends up changing the wrong one -- so each gets its own row,
-            its own name, and a sentence saying what it does NOT affect.
-            Segmented choices rather than a toggle: with three Bible modes
-            a two-state switch cannot express the options, and naming every
-            option is clearer than asking the user to cycle to find it. */}
-        <View style={[styles.pickerRow, { padding: spacing.md }]}>
-          <Text style={[type.label, { color: colors.ink }]}>
-            {t('settings.appLanguage')}
-          </Text>
-          <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-            {t('settings.appLanguageHelp')}
-          </Text>
-          <SegmentedChoice
-            testID="settings-app-language"
-            accessibilityLabel={t('settings.appLanguage')}
-            options={[
-              { value: 'en' as BibleLanguage, label: t('settings.languageEnglish') },
-              { value: 'te' as BibleLanguage, label: t('settings.languageTelugu') },
-            ]}
-            selected={appLanguage}
-            onSelect={(value) => void setAppLanguage(value)}
-          />
-        </View>
+        {syncFailed ? (
+          <View style={styles.notice}>
+            <NoticeBanner
+              testID="settings-sync-failed"
+              tone="warning"
+              message={t('settings.syncFailed')}
+            />
+          </View>
+        ) : null}
 
-        <Divider />
-        <View style={[styles.pickerRow, { padding: spacing.md }]}>
-          <Text style={[type.label, { color: colors.ink }]}>
-            {t('settings.bibleLanguage')}
-          </Text>
-          <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-            {t('settings.bibleLanguageHelp')}
-          </Text>
-          <SegmentedChoice
-            testID="settings-bible-language"
-            accessibilityLabel={t('settings.bibleLanguage')}
-            options={[
-              { value: 'te' as BibleMode, label: t('bible.modeTelugu') },
-              { value: 'en' as BibleMode, label: t('bible.modeEnglish') },
-              { value: 'bilingual' as BibleMode, label: t('bible.modeBilingual') },
-            ]}
-            selected={bibleMode}
-            onSelect={(value) => void setBibleMode(value)}
-          />
-        </View>
+        {group(
+          t('settings.language'),
+          <ListGroup>
+            <ListRow
+              testID="settings-app-language"
+              title={t('settings.appLanguage')}
+              subtitle={t('settings.appLanguageHelp')}
+              subtitleLines={4}
+              value={languageName(appLanguage)}
+              onPress={() => setChooser('app')}
+            />
+            <ListRow
+              testID="settings-bible-language"
+              title={t('settings.bibleLanguage')}
+              subtitle={t('settings.bibleLanguageHelp')}
+              subtitleLines={4}
+              value={bibleModeName(bibleMode)}
+              onPress={() => setChooser('bible')}
+            />
+          </ListGroup>
+        )}
 
-        <Divider />
-        {/* Three values, so no longer a Switch.
-            M4's reader offers Light / Dark / System and drives THIS one
-            preference rather than keeping a reader-only theme, so the
-            third option has to be selectable here too -- a two-state
-            switch cannot express it. Same SegmentedChoice the two
-            language rows above use, so the screen reads consistently. */}
-        <View style={[styles.pickerRow, { padding: spacing.md }]}>
-          <Text style={[type.label, { color: colors.ink }]}>{t('settings.theme')}</Text>
+        <View style={styles.group}>
+          <Text
+            accessibilityRole="header"
+            style={[type.overline, styles.groupLabel, { color: colors.inkMuted }]}
+          >
+            {t('settings.theme')}
+          </Text>
           <SegmentedChoice
             testID="settings-theme"
             accessibilityLabel={t('settings.theme')}
@@ -198,154 +205,230 @@ export function SettingsScreen() {
           />
         </View>
 
-        <Divider />
-        <View style={[styles.row, { padding: spacing.md }]}>
-          <Text style={[type.label, { color: colors.ink }]}>
-            {t('settings.notifications')}
-          </Text>
-          <Switch
-            testID="settings-notifications-switch"
-            accessibilityLabel={t('settings.notifications')}
-            value={notificationsEnabled}
-            onValueChange={(value) => void setNotificationsEnabled(value)}
-            {...switchColors}
-          />
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-          },
-        ]}
-      >
-        <View style={[styles.row, { padding: spacing.md }]} testID="settings-support-row">
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[type.label, { color: colors.ink }]}>
-              {t('settings.contactChurch')}
-            </Text>
-            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-              {supportEmail === null ? '' : supportEmail || t('settings.notSetYet')}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-          },
-        ]}
-        testID="settings-bible-attribution"
-      >
-        <View style={[styles.row, { padding: spacing.md }]}>
-          <View style={{ flex: 1, gap: 6 }}>
-            <Text style={[type.label, { color: colors.ink }]}>
-              {t('settings.bibleTranslations')}
-            </Text>
-            {/* Read from ../bible/translationCredits.ts rather than typed
-                here. THIS CARD IS NOW THE APP'S ONLY LICENCE NOTICE: M6
-                removed the copyright block from the share payload (see
-                ../bible/reader/verseSharing.ts), so the CC BY-SA
-                attribution appears here and nowhere else, and it must not
-                be able to drift from the values the app uses elsewhere. */}
+        {group(
+          null,
+          <View style={styles.switchRow}>
             <Text
-              testID="settings-credit-en"
-              style={[type.bodySmall, { color: colors.inkMuted }]}
+              style={[type.button, styles.switchLabel, { color: colors.ink }]}
+              accessible={false}
             >
-              English: {translationCreditLine('en')}.
+              {t('settings.notifications')}
             </Text>
-            <Text
-              testID="settings-credit-te"
-              style={[type.bodySmall, { color: colors.inkMuted }]}
-            >
-              Telugu: {translationCreditLine('te')}, licensed under CC BY-SA 4.0 (
-              {CC_BY_SA_URL}).
-            </Text>
+            <Switch
+              testID="settings-notifications-switch"
+              accessibilityLabel={t('settings.notifications')}
+              value={notificationsEnabled}
+              onValueChange={(value) => void setNotificationsEnabled(value)}
+              {...switchColors}
+            />
           </View>
-        </View>
-      </View>
+        )}
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-          },
-        ]}
-      >
+        {group(
+          t('settings.about'),
+          <ListGroup>
+            <ListRow
+              testID="settings-support-row"
+              title={t('settings.contactChurch')}
+              subtitle={
+                supportEmail === null ? ' ' : supportEmail || t('settings.notSetYet')
+              }
+            />
+            <ListRow
+              testID="settings-bible-translations-row"
+              title={t('settings.bibleTranslations')}
+              subtitle={`${TRANSLATION_NAMES.en} · ${TRANSLATION_NAMES.te}`}
+              onPress={() => navigation.navigate('BibleTranslations')}
+            />
+            <ListRow
+              testID="settings-privacy-policy-row"
+              title={t('settings.privacyPolicy')}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            />
+            <ListRow
+              testID="settings-terms-row"
+              title={t('settings.terms')}
+              onPress={() => navigation.navigate('Terms')}
+            />
+          </ListGroup>
+        )}
+
         <Tappable
-          testID="settings-privacy-policy-row"
+          testID="settings-logout-button"
           accessibilityRole="button"
-          onPress={() => navigation.navigate('PrivacyPolicy')}
-          style={[styles.row, { padding: spacing.md }]}
+          accessibilityLabel={t('settings.logOut')}
+          onPress={() => setConfirmingLogOut(true)}
+          style={styles.logOut}
         >
-          <Text style={[type.label, { color: colors.ink }]}>
-            {t('settings.privacyPolicy')}
-          </Text>
-          <Text style={[type.label, { color: colors.primary }]}>
-            {t('settings.view')}
+          <Icon name="logout" size={20} color={colors.danger} />
+          <Text style={[type.button, { color: colors.danger }]}>
+            {t('settings.logOut')}
           </Text>
         </Tappable>
+      </ScrollView>
 
-        <Divider />
-        <Tappable
-          testID="settings-terms-row"
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('Terms')}
-          style={[styles.row, { padding: spacing.md }]}
-        >
-          <Text style={[type.label, { color: colors.ink }]}>{t('settings.terms')}</Text>
-          <Text style={[type.label, { color: colors.primary }]}>
-            {t('settings.view')}
-          </Text>
-        </Tappable>
-      </View>
-
-      <Tappable
-        testID="settings-logout-button"
-        accessibilityRole="button"
-        onPress={() => void signOut()}
-        style={[
-          styles.logoutButton,
-          { borderColor: colors.liveTint, borderRadius: radii.control },
+      <ChoiceSheet
+        visible={chooser === 'app'}
+        testID="settings-app-language-sheet"
+        title={t('settings.appLanguage')}
+        help={t('settings.appLanguageHelp')}
+        closeLabel={t('common.close')}
+        options={[
+          { value: 'en', label: t('settings.languageEnglish') },
+          { value: 'te', label: t('settings.languageTelugu') },
         ]}
-      >
-        <Text style={[type.label, { color: colors.danger }]}>{t('settings.logOut')}</Text>
-      </Tappable>
-    </ScrollView>
+        current={appLanguage}
+        optionTestID={(value) => `settings-app-language-${value}`}
+        onClose={() => setChooser(null)}
+        onChoose={(value) => {
+          setChooser(null);
+          void setAppLanguage(value as BibleLanguage);
+        }}
+      />
+      <ChoiceSheet
+        visible={chooser === 'bible'}
+        testID="settings-bible-language-sheet"
+        title={t('settings.bibleLanguage')}
+        help={t('settings.bibleLanguageHelp')}
+        closeLabel={t('common.close')}
+        options={[
+          { value: 'te', label: t('bible.modeTelugu') },
+          { value: 'en', label: t('bible.modeEnglish') },
+          { value: 'bilingual', label: t('bible.modeBilingual') },
+        ]}
+        current={bibleMode}
+        optionTestID={(value) => `settings-bible-language-${value}`}
+        onClose={() => setChooser(null)}
+        onChoose={(value) => {
+          setChooser(null);
+          void setBibleMode(value as BibleMode);
+        }}
+      />
+
+      <ConfirmDialog
+        visible={confirmingLogOut}
+        testID="settings-logout-dialog"
+        title={t('settings.logOutConfirmTitle')}
+        message={t('settings.logOutConfirmMessage')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('settings.logOut')}
+        onCancel={() => setConfirmingLogOut(false)}
+        onConfirm={() => {
+          setConfirmingLogOut(false);
+          void signOut();
+        }}
+      />
+    </View>
+  );
+}
+
+/**
+ * A sheet of choices for one setting: what it is and what it does not change,
+ * then one row per choice with the current one ticked. The choice closes the
+ * sheet; the tick says which is in force without relying on colour.
+ */
+function ChoiceSheet({
+  visible,
+  testID,
+  title,
+  help,
+  closeLabel,
+  options,
+  current,
+  optionTestID,
+  onClose,
+  onChoose,
+}: {
+  visible: boolean;
+  testID: string;
+  title: string;
+  help: string;
+  closeLabel: string;
+  options: { value: string; label: string }[];
+  current: string;
+  optionTestID: (value: string) => string;
+  onClose: () => void;
+  onChoose: (value: string) => void;
+}) {
+  const { colors, type } = useTheme();
+  return (
+    <Sheet
+      visible={visible}
+      testID={testID}
+      title={title}
+      closeLabel={closeLabel}
+      onClose={onClose}
+    >
+      <Text style={[type.bodySmall, { color: colors.inkMuted }]}>{help}</Text>
+      <View accessibilityRole="radiogroup">
+        <View style={[styles.rule, { borderTopColor: colors.border }]} />
+        {options.map((option) => {
+          const chosen = option.value === current;
+          return (
+            <Tappable
+              key={option.value}
+              testID={optionTestID(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: chosen }}
+              accessibilityLabel={option.label}
+              onPress={() => onChoose(option.value)}
+              style={[styles.choice, { borderBottomColor: colors.border }]}
+            >
+              <Text
+                style={[
+                  styles.choiceLabel,
+                  { color: colors.ink },
+                  chosen && styles.choiceChosen,
+                ]}
+              >
+                {option.label}
+              </Text>
+              {chosen ? <Icon name="check" size={22} color={colors.ink} /> : null}
+            </Tappable>
+          );
+        })}
+      </View>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, gap: 16 },
-  card: { borderWidth: StyleSheet.hairlineWidth },
-  // A full-weight border, not the hairline the cards use: this one is
-  // carrying meaning, so it has to read as a distinct band rather than as
-  // another settings card.
-  notice: { borderWidth: 1.5 },
-  row: {
+  screen: { flex: 1 },
+  notice: { marginTop: 8 },
+  group: { marginTop: 24, gap: 0 },
+  groupLabel: { marginBottom: 8 },
+  rule: { borderTopWidth: 1 },
+  switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 16,
+    minHeight: 56,
+    paddingVertical: 8,
   },
-  // A picker row stacks label / explanation / choices, so unlike the
-  // switch rows it is a column rather than a space-between row.
-  pickerRow: { gap: 8 },
-  logoutButton: {
-    minHeight: 48,
-    borderWidth: 1.5,
+  switchLabel: { flex: 1, minWidth: 0 },
+  logOut: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
+    minHeight: 48,
+    marginTop: 20,
+    alignSelf: 'flex-start',
   },
+  choice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    minHeight: 56,
+    borderBottomWidth: 1,
+  },
+  choiceLabel: {
+    flex: 1,
+    fontFamily: fontFamilies.interfaceRegular,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  // The chosen one is also bolder, so the tick is not the only sign.
+  choiceChosen: { fontFamily: fontFamilies.interfaceSemiBold, fontWeight: '600' },
 });
