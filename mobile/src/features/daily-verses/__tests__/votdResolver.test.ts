@@ -347,7 +347,46 @@ describe('the whole decision, end to end', () => {
       // book/chapter/label, and must not be guessed at. See
       // ../votdSharing.ts.
       citation: null,
+      // Nor a location: "Read chapter" has nowhere certain to open.
+      location: null,
     });
+  });
+
+  it('says where an automated verse is, so "Read chapter" can open the Bible there', () => {
+    const content = resolveVerseOfTheDay('2026-04-03', null, CONFIG, POOL, 'en', 'en');
+    expect(content?.source).toBe('pool');
+    // The id of the book (not its printed name), the chapter, the first verse.
+    expect(content?.location).toEqual(
+      expect.objectContaining({
+        bookId: expect.any(String),
+        chapter: expect.any(Number),
+        verse: expect.any(Number),
+      })
+    );
+    expect(POOL.map((entry) => entry.bookId)).toContain(content?.location?.bookId);
+    // The same place in every language -- the Bible mode changes the text, not the spot.
+    const telugu = resolveVerseOfTheDay('2026-04-03', null, CONFIG, POOL, 'te', 'te');
+    expect(telugu?.location).toEqual(content?.location);
+  });
+
+  it('points a bundled fallback verse at its own place too', () => {
+    const content = resolveVerseOfTheDay('2026-04-03', null, null, null, 'en', 'en');
+    expect(content?.source).toBe('fallback');
+    expect(FALLBACK_REFERENCES).toContainEqual(content?.location);
+  });
+
+  it('points a merged Telugu unit at its first verse (Luke 1:39-40)', () => {
+    const merged = [poolEntry('m', 0, { bookId: 'luke', chapter: 1, verse: 39 })];
+    const content = resolveVerseOfTheDay('2026-04-03', null, CONFIG, merged, 'te', 'en');
+    expect(content?.location).toEqual({ bookId: 'luke', chapter: 1, verse: 39 });
+  });
+
+  it('does not let a caller change the pool by editing the location it was given', () => {
+    const content = resolveVerseOfTheDay('2026-04-03', null, CONFIG, POOL, 'en', 'en');
+    const again = resolveVerseOfTheDay('2026-04-03', null, CONFIG, POOL, 'en', 'en');
+    content!.location!.chapter = 999;
+    expect(again?.location?.chapter).not.toBe(999);
+    expect(POOL.every((entry) => entry.chapter !== 999)).toBe(true);
   });
 
   it('keeps an override image, and sets Telugu override text in Telugu', () => {

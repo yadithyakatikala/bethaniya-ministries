@@ -38,7 +38,9 @@ a test in `mobile/src/theme/__tests__/` unless it says otherwise.
 `display` 32/38 · `headline` 26/32 · `title` 20/26 (serif for English, Hind Guntur
 for Telugu) · `bodyLarge` 17/26 · `body` 15.5/23 · `bodySmall` 13.5/20 · `label`
 14/18 (tabs, field labels, compact buttons) · **`button` 15/20** · `help` 13/18
-(under a field) · `caption` **12.5/17 (Telugu 13.5/20)** · `overline` 11.5/15 ·
+(under a field) · `caption` **12.5/17 (Telugu 13.5/20)** · `overline` **11.5/15
+(Telugu 12.5, no capitals, almost no tracking: it has none to shout in, and wide
+tracking pulls a conjunct apart)** ·
 `scripture` 19/31 · `scriptureReference` 13/18 · **`wordmark` 19/24** (the Latin
 word "Maranatha", Noto Serif in both languages).
 
@@ -46,7 +48,8 @@ The Home verse is `scriptureDisplayStyle(language, text)`: 28/40 up to 80
 characters, 24/36 up to 160, 21/32 beyond; Telugu two points smaller with 12%
 more leading. Church-written or member-typed text takes `contentFontFamily()`
 (the approved script rule: one script takes its serif, mixed text takes Hind
-Guntur).
+Guntur). A verse shown in both languages is `scriptureBilingualStyle`: English
+22/33, the Telugu beneath at 19/34 in quieter ink, two nodes.
 
 ## Components (`mobile/src/theme/ui/`, exported from `theme`)
 
@@ -63,8 +66,19 @@ Guntur).
 | `TextField` | Label above (14/18), 48 high, 12 radius, help/error 13/18; an optional Show / Hide action in words. |
 | `Sheet`, `ConfirmDialog` | Sheet: 22 top radius, a 36×4 handle, 44 close. Dialog: Cancel then the action; the buttons stack, action on top, when a label is long. |
 | `EmptyState`, `ErrorState`, `LoadingState`, `Skeleton`, `SkeletonRows`, `NoticeBanner` | Say what is missing, once; never invent content. Skeletons pulse only when motion is allowed. |
+| `SectionHeader` | A tracked overline over a group, muted or `tone="gold"` (the one brand label on a screen), with an optional "See all": a text link flush to the right margin in gold ink, a **real 44-high row** whose spoken name carries the section ("See all, Upcoming events"). `tone="photo"` is white, for a label over a photograph. |
+| `GoldRule`, `GoldBar`, `GoldFill` | The three places gold is drawn as a **line**: a hairline that fades out to the right, a vertical bar (3 across; a Prophet Verse's is 2) beside a quoted block or a reading position, and the filled part of a 3-point progress line. The real five-stop metal as an SVG gradient; decorative. `GoldRule tone="photo"` takes the night metal whatever the theme. |
 | `Avatar` | A monogram (26 to 96): the first letter **with its vowel signs** (`initialOf`). No photos anywhere. |
 | `BrandFish` (`features/opening`) | The fish: gold gradient from 24 points up, flat gold ink below; or ink. |
+
+## Words over a photograph (`onPhoto`)
+
+A church can attach a picture to a Verse of the Day. The picture is anyone's --
+it can be white -- so the words on it sit under a dark veil (`onPhoto.veil`) that
+holds **white** text above 4.5:1 even over a pure white photograph, and gold stays
+out of it except as the hairline: gold small text cannot be guaranteed over a
+picture. `onPhoto.base` is what shows if the picture never loads, so white words
+are never left on a white page. Asserted in `contrast.test.ts`.
 
 ## Where this differs from the design sheets, and why
 
@@ -75,9 +89,19 @@ Guntur).
   crisp at every size.
 * **A compact button's visual height is 40**, as drawn, with a 44-point touch
   target (`hitSlop`).
+* **Row icons are ink, not gold.** The Home still draws the Together icons in
+  gold; the written rule (S2: gold is never an icon colour) wins, so they are ink
+  in a hairline circle, like every other row icon.
+* **"See all" is 14/18 (`label`), and a 44-high row**, where the still shows 13.5
+  at the label's own height: a 15-point-high link is not a target. The section
+  above it takes the 14 points out of its margin so the gap still reads as 32.
+* **A verse on a photograph is a 22-radius card with a 60% veil**, where the
+  prototype used 28 and 42%: 22 is the system's largest radius, and 60% is what
+  keeps white text readable on any picture (see above).
 
 ## Looking at it
 
 `scripts/opening-fidelity/qa-design-system.mjs` renders the real components in
 Chromium (through react-native-web) in light, dark and Telugu, for comparison with
-the approved sheets. It is a look, not React Native; see that folder's README.
+the approved sheets; `qa-home.mjs` does the same for the real Home screen (see
+`HOME.md`). They are a look, not React Native; see that folder's README.

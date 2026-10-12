@@ -82,6 +82,35 @@ export function formatShortDate(date: Date, appLanguage: BibleLanguage): string 
   );
 }
 
+/**
+ * The day, as Home's date line says it -- "Sunday, 11 October".
+ *
+ * Built from the weekday, the day number and the month name rather than one
+ * Intl pattern, so the day comes BEFORE the month in both languages (the
+ * en-US pattern would give "Sunday, October 11"), and so a Telugu engine
+ * that lacks one part still produces the others.
+ */
+export function formatWeekdayDate(date: Date, appLanguage: BibleLanguage): string {
+  const locale = localeFor(appLanguage);
+  const part = (options: Intl.DateTimeFormatOptions): string =>
+    safely(
+      () => date.toLocaleDateString(locale, options),
+      () => date.toLocaleDateString(undefined, options)
+    );
+  const weekday = part({ weekday: 'long' });
+  const month = part({ month: 'long' });
+  return `${weekday}, ${date.getDate()} ${month}`;
+}
+
+/** The weekday abbreviated -- "Wed". For the date block on an event row. */
+export function formatWeekdayShort(date: Date, appLanguage: BibleLanguage): string {
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short' };
+  return safely(
+    () => date.toLocaleDateString(localeFor(appLanguage), options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+}
+
 /** Just the clock -- "9:14 am". For a chat, where the day is context. */
 export function formatTimeOfDay(date: Date, appLanguage: BibleLanguage): string {
   const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
@@ -133,6 +162,25 @@ export function formatIsoDateString(
   const [year, month, day] = dateString.split('-').map(Number);
   if (!year || !month || !day) return dateString;
   return formatLongDate(new Date(year, month - 1, day), appLanguage);
+}
+
+/**
+ * "Sunday, 11 October" for a `YYYY-MM-DD` key -- Home's date line over the
+ * Verse of the Day, which is keyed by the canonical Indian date.
+ *
+ * The key names a CALENDAR day, so it is read as that day in the phone's own
+ * zone (at noon, which no daylight-saving step can move to another day)
+ * rather than as an instant: parsing "2026-10-11" as UTC midnight would
+ * print Saturday on a phone west of Greenwich. A malformed key comes back
+ * unchanged, like formatIsoDateString.
+ */
+export function formatIsoWeekdayDate(
+  dateString: string,
+  appLanguage: BibleLanguage
+): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (!year || !month || !day) return dateString;
+  return formatWeekdayDate(new Date(year, month - 1, day, 12), appLanguage);
 }
 
 /**

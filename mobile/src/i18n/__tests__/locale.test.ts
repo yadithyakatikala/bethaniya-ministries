@@ -3,6 +3,9 @@ import {
   formatIsoDateString,
   formatLongDate,
   formatShortDate,
+  formatIsoWeekdayDate,
+  formatWeekdayDate,
+  formatWeekdayShort,
   formatsDatesInTelugu,
   localeFor,
 } from '../locale';
@@ -71,6 +74,27 @@ describe('date formatting', () => {
   });
 });
 
+describe('the weekday formats on Home and on an event row', () => {
+  // 11 October 2026 is a Sunday.
+  const SUNDAY = new Date(2026, 9, 11, 9, 30);
+
+  it('puts the day before the month, the way Home reads "Sunday, 11 October"', () => {
+    const text = formatWeekdayDate(SUNDAY, 'en');
+    expect(text).toMatch(/^[A-Za-z]+, 11 [A-Za-z]+$/);
+  });
+
+  it('returns a non-empty weekday date and abbreviation in both languages, whatever the engine', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatWeekdayDate(SUNDAY, language)).toContain('11');
+      expect(formatWeekdayShort(SUNDAY, language).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('abbreviates the weekday', () => {
+    expect(formatWeekdayShort(SUNDAY, 'en').length).toBeLessThanOrEqual(4);
+  });
+});
+
 describe('formatIsoDateString', () => {
   it('formats the YYYY-MM-DD strings the daily-verse collection stores', () => {
     const formatted = formatIsoDateString('2026-09-18', 'en');
@@ -84,6 +108,32 @@ describe('formatIsoDateString', () => {
     // fix it, not a word that looks like a bug in the app.
     expect(formatIsoDateString('not-a-date', 'en')).toBe('not-a-date');
     expect(formatIsoDateString('', 'te')).toBe('');
+  });
+});
+
+describe('formatIsoWeekdayDate', () => {
+  it("names the calendar day a key stands for, in the phone's own zone", () => {
+    // 2026-10-11 was a Sunday. A key is a CALENDAR day: it must not slide to
+    // Saturday on a phone west of Greenwich, which is what reading it as UTC
+    // midnight would do.
+    expect(formatIsoWeekdayDate('2026-10-11', 'en')).toMatch(/^Sunday, 11 October$/);
+  });
+
+  it('works for the first and last day of a month and of a year', () => {
+    expect(formatIsoWeekdayDate('2026-01-01', 'en')).toMatch(/^Thursday, 1 January$/);
+    expect(formatIsoWeekdayDate('2026-12-31', 'en')).toMatch(/^Thursday, 31 December$/);
+    expect(formatIsoWeekdayDate('2028-02-29', 'en')).toMatch(/^Tuesday, 29 February$/);
+  });
+
+  it('gives a Telugu reader a non-empty line that still carries the day number', () => {
+    const text = formatIsoWeekdayDate('2026-10-11', 'te');
+    expect(text.length).toBeGreaterThan(0);
+    expect(text).toContain('11');
+  });
+
+  it('returns a malformed key unchanged rather than "Invalid Date"', () => {
+    expect(formatIsoWeekdayDate('not-a-date', 'en')).toBe('not-a-date');
+    expect(formatIsoWeekdayDate('', 'te')).toBe('');
   });
 });
 

@@ -267,6 +267,13 @@ export interface Strings {
   'home.readingPlan': string;
   'home.startAPlan': string;
   'home.percentComplete': string;
+  'home.readChapter': string;
+  'home.together': string;
+  'home.askPray': string;
+  'home.updatesLabel': string;
+  'home.updatesHint': string;
+  'prophetVerse.readMore': string;
+  'prophetVerse.showLess': string;
   'announcements.title': string;
 
   // --- M2: independent app / Bible language ---------------------------
@@ -821,6 +828,13 @@ const en: Strings = {
   'home.readingPlan': 'Reading Plan',
   'home.startAPlan': 'Start a Reading Plan',
   'home.percentComplete': '{percent}%',
+  'home.readChapter': 'Read chapter',
+  'home.together': 'Together',
+  'home.askPray': 'Ask the church to pray with you',
+  'home.updatesLabel': 'Open updates',
+  'home.updatesHint': 'Shows announcements and posts from the church',
+  'prophetVerse.readMore': 'Read more',
+  'prophetVerse.showLess': 'Show less',
   'announcements.title': 'Announcements',
 
   'settings.appLanguage': 'App language',
@@ -1317,6 +1331,13 @@ const te: Strings = {
   'home.readingPlan': 'పఠన ప్రణాళిక',
   'home.startAPlan': 'పఠన ప్రణాళిక ప్రారంభించండి',
   'home.percentComplete': '{percent}%',
+  'home.readChapter': 'అధ్యాయం చదవండి',
+  'home.together': 'కలిసి',
+  'home.askPray': 'సంఘం మీతో కలిసి ప్రార్థించమని కోరండి',
+  'home.updatesLabel': 'సమాచారాన్ని తెరవండి',
+  'home.updatesHint': 'సంఘం నుండి ప్రకటనలు, పోస్ట్‌లను చూపుతుంది',
+  'prophetVerse.readMore': 'ఇంకా చదవండి',
+  'prophetVerse.showLess': 'తక్కువ చూపండి',
   'announcements.title': 'ప్రకటనలు',
 
   'settings.appLanguage': 'యాప్ భాష',

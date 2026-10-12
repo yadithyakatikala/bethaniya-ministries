@@ -2,6 +2,7 @@ import {
   darkTokens,
   highlightTints,
   lightTokens,
+  onPhoto,
   type ThemeColors,
 } from '../tokens';
 
@@ -243,5 +244,42 @@ describe('verse highlights M4 will paint', () => {
         }
       }
     }
+  });
+});
+describe('words on a photograph the church attached', () => {
+  /** An "rgba(r, g, b, a)" veil laid over an opaque hex colour, as a hex colour. */
+  function overlay(veil: string, base: string): string {
+    const match = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(veil);
+    if (!match) throw new Error(`not an rgba colour: ${veil}`);
+    const [r, g, b] = [match[1], match[2], match[3]].map(Number);
+    const alpha = Number(match[4]);
+    const under = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16));
+    const mixed = [r, g, b].map((channel, i) =>
+      Math.round(channel * alpha + under[i] * (1 - alpha))
+    );
+    return `#${mixed.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  it('keeps white words above AA even over a pure white photograph', () => {
+    // The picture is anyone's, and the worst picture is a white one. This is
+    // why the veil is as dark as it is, and why gold text stays off it.
+    const worst = overlay(onPhoto.veil, '#FFFFFF');
+    expect(contrastRatio(onPhoto.ink, worst)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it('keeps white words readable on the base that shows if the picture never loads', () => {
+    expect(contrastRatio(onPhoto.ink, onPhoto.base)).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT
+    );
+    // ...and over that base with the veil on top, as it will actually be drawn.
+    expect(
+      contrastRatio(onPhoto.ink, overlay(onPhoto.veil, onPhoto.base))
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it("reads the white pill's label", () => {
+    expect(contrastRatio(onPhoto.onButton, onPhoto.button)).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT
+    );
   });
 });

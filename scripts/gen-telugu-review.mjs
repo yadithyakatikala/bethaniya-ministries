@@ -33,6 +33,11 @@ const UNCERTAIN = {
   'onboarding.ageUnit': 'Added by the development pass: the approved design showed no unit after the age in Telugu. "సంవత్సరాలు" ("years") is a guess; "ఏళ్లు" is the usual spoken form.',
   'onboarding.q4': 'Asks how the member identifies and offers the two values the church asked for. Check the wording is respectful and natural, and that "పురుషుడు" / "స్త్రీ" are the words the congregation would choose.',
   'onboarding.skipQuestion': 'Deliberately NOT the same words as `onboarding.skip` ("Not now"): that one leaves the questions altogether; this one skips only the phone number. Check the two read as different things.',
+  'home.readChapter': 'The primary button under the Verse of the Day. "అధ్యాయం" is "chapter"; check "చదవండి" ("read") is the verb the congregation uses on a button.',
+  'home.together': 'A one-word title over Prayer requests, Church chat and Photos and videos. Confirm "కలిసి" ("together") reads as "together as a church", not only as the adverb.',
+  'home.askPray': 'A full sentence under "Prayer requests" on Home. Check the polite plural register is how the church speaks to its members.',
+  'home.updatesLabel': 'Read aloud by a screen reader on Home\'s header button, which opens announcements and posts. "సమాచారం" is a broad word for "information"; confirm it is the church\'s word for updates.',
+  'prophetVerse.readMore': 'The control under a long Prophet Verse; it pairs with `prophetVerse.showLess`. Check the two read naturally as a pair.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 

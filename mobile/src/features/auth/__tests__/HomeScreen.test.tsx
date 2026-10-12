@@ -2,85 +2,82 @@ import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { DEFAULT_CHURCH_NAME } from '../../../theme/brand';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
-import { lightTokens } from '../../../theme';
+import { darkTokens, lightTokens } from '../../../theme';
 import { translate } from '../../../i18n';
 import { HomeScreen } from '../HomeScreen';
 import {
   subscribeToMostRecentPlanProgress,
   type ActivePlanSummary,
 } from '../../../services/firebase/plans';
+import {
+  subscribeToPublishedEvents,
+  type PublishedEvent,
+} from '../../../services/firebase/events';
+import { subscribeToReadingPosition } from '../../../services/firebase/readingPosition';
+import { subscribeToTodaysDailyVerse } from '../../../services/firebase/dailyVerses';
+import { loadVotdAutomation } from '../../daily-verses/votdAutomation';
+import { fetchMediaPage, type MediaPost } from '../../../services/firebase/media';
+import {
+  useVerseOfTheDay,
+  type VerseOfTheDayState,
+} from '../../daily-verses/useVerseOfTheDay';
+import {
+  useProphetVerse,
+  type ProphetVerseState,
+} from '../../prophet-verses/useProphetVerse';
 
 /**
- * HomeScreen is registered as the "Home" screen inside AppNavigator's
- * real stack (Day 6) and calls useNavigation() to reach "SongsList" --
- * useNavigation() only works when the component renders as an actual
- * screen inside a Navigator (a bare NavigationContainer isn't enough),
- * so this test helper builds a small real Stack.Navigator, mirroring
- * AppNavigator.tsx's shape, with a stub "SongsList" screen to assert
- * against. Day 9 adds PreferencesProvider -- HomeScreen renders
- * DailyVerseCard, which now reads usePreferences() (see
- * ../../daily-verses/DailyVerseCard.tsx), so it needs the real provider.
+ * HomeScreen is registered as the "Home" screen inside AppNavigator's real
+ * stack and calls useNavigation() to reach everything else -- which only
+ * works when the component renders as an actual screen inside a Navigator
+ * (a bare NavigationContainer isn't enough), so this test helper builds a
+ * small real Stack.Navigator, mirroring AppNavigator.tsx's shape, with a stub
+ * for every destination Home can open to assert against.
+ *
+ * Home renders DailyVerseCard, ContinueReading, TogetherSection and the rest,
+ * which read usePreferences() and the auth context, so it needs the real
+ * providers.
  */
 const Stack = createNativeStackNavigator();
 
-function SongsListStub() {
-  return <Text testID="songs-list-stub">Songs list stub</Text>;
+function stub(testID: string, label: string) {
+  return function Stub() {
+    return <Text testID={testID}>{label}</Text>;
+  };
 }
 
-function EventsListStub() {
-  return <Text testID="events-list-stub">Events list stub</Text>;
+/** Prints the params it was opened with, so a test can see WHERE it was sent. */
+function paramsStub(testID: string) {
+  return function ParamsStub() {
+    const { params } = useRoute();
+    return <Text testID={testID}>{JSON.stringify(params ?? null)}</Text>;
+  };
 }
 
-function BibleBooksStub() {
-  return <Text testID="bible-books-stub">Bible books stub</Text>;
-}
-
-function ProfileStub() {
-  return <Text testID="profile-stub">Profile stub</Text>;
-}
-
-function NotificationCenterStub() {
-  return <Text testID="notification-center-stub">Notification center stub</Text>;
-}
-
-function AnnouncementsStub() {
-  return <Text testID="announcements-stub">Announcements stub</Text>;
-}
-
-function PlansListStub() {
-  return <Text testID="plans-list-stub">Plans list stub</Text>;
-}
-
-function PlanDayStub() {
-  return <Text testID="plan-day-stub">Plan day stub</Text>;
-}
-
-function PrayersStub() {
-  return <Text testID="prayers-stub">Prayers stub</Text>;
-}
-
-function CommunityStub() {
-  return <Text testID="community-stub">Community stub</Text>;
-}
-
-function PrayerWallStub() {
-  return <Text testID="prayer-wall-stub">Prayer wall stub</Text>;
-}
-
-function ChatStub() {
-  return <Text testID="chat-stub">Chat stub</Text>;
-}
-
-function MediaFeedStub() {
-  return <Text testID="media-feed-stub">Media feed stub</Text>;
-}
+const SongsListStub = stub('songs-list-stub', 'Songs list stub');
+const EventsListStub = stub('events-list-stub', 'Events list stub');
+const BibleBooksStub = stub('bible-books-stub', 'Bible books stub');
+const ProfileStub = stub('profile-stub', 'Profile stub');
+const NotificationCenterStub = stub(
+  'notification-center-stub',
+  'Notification center stub'
+);
+const AnnouncementsStub = stub('announcements-stub', 'Announcements stub');
+const PlansListStub = stub('plans-list-stub', 'Plans list stub');
+const PlanDayStub = stub('plan-day-stub', 'Plan day stub');
+const PrayerWallStub = stub('prayer-wall-stub', 'Prayer wall stub');
+const ChatStub = stub('chat-stub', 'Chat stub');
+const MediaFeedStub = stub('media-feed-stub', 'Media feed stub');
+const DailyVerseStub = stub('daily-verse-stub', 'Daily verse stub');
+const EventDetailStub = paramsStub('event-detail-stub');
+const BibleChapterStub = paramsStub('bible-chapter-stub');
 
 function renderHomeScreen() {
   return render(
@@ -91,14 +88,15 @@ function renderHomeScreen() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="SongsList" component={SongsListStub} />
             <Stack.Screen name="EventsList" component={EventsListStub} />
+            <Stack.Screen name="EventDetail" component={EventDetailStub} />
             <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
+            <Stack.Screen name="BibleChapter" component={BibleChapterStub} />
             <Stack.Screen name="Profile" component={ProfileStub} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
             <Stack.Screen name="Announcements" component={AnnouncementsStub} />
+            <Stack.Screen name="DailyVerse" component={DailyVerseStub} />
             <Stack.Screen name="PlansList" component={PlansListStub} />
             <Stack.Screen name="PlanDay" component={PlanDayStub} />
-            <Stack.Screen name="Prayers" component={PrayersStub} />
-            <Stack.Screen name="CommunityList" component={CommunityStub} />
             <Stack.Screen name="PrayerWall" component={PrayerWallStub} />
             <Stack.Screen name="CommunityChat" component={ChatStub} />
             <Stack.Screen name="MediaFeed" component={MediaFeedStub} />
@@ -111,6 +109,13 @@ function renderHomeScreen() {
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
+jest.mock('../../../services/firebase/events');
+jest.mock('../../../services/firebase/readingPosition');
+jest.mock('../../../services/firebase/media');
+jest.mock('../../../services/firebase/dailyVerses');
+jest.mock('../../daily-verses/votdAutomation');
+jest.mock('../../daily-verses/useVerseOfTheDay');
+jest.mock('../../prophet-verses/useProphetVerse');
 
 /**
  * Home reads the member's active plan through the EXISTING
@@ -144,6 +149,75 @@ function planSummary(dayCount: number, completedDays: number[], currentDay: numb
   } as ActivePlanSummary;
 }
 
+function mockEvents(events: PublishedEvent[]) {
+  (subscribeToPublishedEvents as jest.Mock).mockImplementation((onNext) => {
+    onNext(events);
+    return jest.fn();
+  });
+}
+
+function event(partial: Partial<PublishedEvent> = {}): PublishedEvent {
+  return {
+    id: 'e1',
+    title: 'Wednesday Prayer Meeting',
+    location: 'Main hall',
+    description: '',
+    // 14 October 2026, 18:30 -- a Wednesday.
+    startsAt: new Date(2026, 9, 14, 18, 30),
+    isLive: false,
+    youtubeUrl: '',
+    ...partial,
+  };
+}
+
+function mockReadingPosition(bookId: string | null) {
+  (subscribeToReadingPosition as jest.Mock).mockImplementation((_uid, _tr, onNext) => {
+    onNext(
+      bookId
+        ? { translationId: 'te', bookId, chapter: 3, verse: 16, updatedAt: null }
+        : null
+    );
+    return jest.fn();
+  });
+}
+
+function mediaPost(id: string, type: 'image' | 'video' = 'image'): MediaPost {
+  return {
+    id,
+    type,
+    mediaUrl: `https://example.org/${id}`,
+    caption: `Caption ${id}`,
+    verseReference: null,
+    verseText: null,
+    published: true,
+    publishAt: new Date('2026-04-01T00:00:00Z'),
+    authorName: 'Pastor',
+    authorUid: 'a1',
+  } as unknown as MediaPost;
+}
+
+const VERSE = {
+  status: 'ready' as const,
+  dateKey: '2026-10-11',
+  content: {
+    source: 'pool' as const,
+    reference: 'John 14:27',
+    body: {
+      kind: 'text' as const,
+      language: 'en' as const,
+      text: 'Peace I leave with you; my peace I give you.',
+    },
+    imageUrl: null,
+    label: '27',
+    citation: { bookName: 'John', chapter: 14, label: '27' },
+    location: { bookId: 'john', chapter: 14, verse: 27 },
+  },
+};
+
+function mockProphet(state: ProphetVerseState) {
+  (useProphetVerse as jest.Mock).mockReturnValue(state);
+}
+
 function signedIn(uid = 'u1', displayName: string | null = 'Jane Doe') {
   (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
     onNext({ uid, displayName, email: 'jane@example.com', phoneNumber: null });
@@ -166,11 +240,15 @@ describe('HomeScreen', () => {
     // PreferencesContext.tsx's own Firestore subscription) call that
     // return value as a cleanup function on unmount.
     (onSnapshot as jest.Mock).mockReset().mockImplementation(() => jest.fn());
-    mockActivePlan(null);
   });
 
   beforeEach(() => {
     mockActivePlan(null);
+    mockEvents([]);
+    mockReadingPosition(null);
+    mockProphet({ status: 'empty' });
+    (useVerseOfTheDay as jest.Mock).mockReturnValue(VERSE);
+    (fetchMediaPage as jest.Mock).mockResolvedValue({ posts: [], cursor: null });
   });
 
   it('greets the signed-in user by display name', async () => {
@@ -201,18 +279,11 @@ describe('HomeScreen', () => {
   });
 
   // --- Home is not a second navigation menu (V1 tester feedback) -------
-  // Home used to carry an "Explore" grid of seven large cards -- Songs,
-  // Events, Bible, Reading Plans, Prayers, Community, Profile -- plus a
-  // "Sign out" row. Songs/Events/Bible duplicated the bottom tab bar and
-  // Profile duplicated the More tab, so Home was a second way to navigate
-  // the same places. Signing out is an account action and belongs with
-  // the account settings.
-  //
-  // These assert the ABSENCE of those affordances, which is the actual
-  // fix; the destinations themselves are still reachable (the tab bar for
-  // Songs/Events/Bible, More for Profile, Settings for logout) and are
-  // covered by TabBar.test.tsx, MoreScreen.test.tsx and
-  // SettingsScreen.test.tsx respectively.
+  // Home used to carry an "Explore" grid of large cards. Songs/Events/Bible
+  // duplicated the bottom tab bar, so Home was a second way to navigate the
+  // same places. This asserts the ABSENCE of those affordances, which is the
+  // actual fix; the destinations themselves are reachable from the tab bar
+  // (see TabBar.test.tsx).
 
   it('does not duplicate the bottom tab bar with Songs/Events/Bible cards', async () => {
     mockedOnAuthStateChanged.mockImplementation((_auth, onNext) => {
@@ -227,84 +298,91 @@ describe('HomeScreen', () => {
     expect(queryByTestId('bible-nav-button')).toBeNull();
   });
 
-  // --- Home's top-right utility area (V1 tester feedback) -------------
-  // The tester's screenshot showed an "almost invisible dot" in the top
-  // right: an 8px View in `colors.primary` on the paper background. It is
-  // now two real buttons -- Profile and Announcements -- each a themed
-  // 44dp surface with a bordered outline and an ink glyph.
-  //
-  // Profile is a HEADER ICON here, not the giant Home card it used to be.
-
-  it('offers Profile as a header icon, and navigates to Profile', async () => {
+  it('has no grid of feature tiles any more -- Together says it in words', async () => {
     signedIn();
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('profile-nav-button')).toBeTruthy());
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
 
-    const button = getByTestId('profile-nav-button');
-    expect(button.props.accessibilityRole).toBe('button');
-    expect(button.props.accessibilityLabel).toBe(translate('en', 'home.profileLabel'));
-    expect(button.props.accessibilityHint).toBe(translate('en', 'home.profileHint'));
-
-    await fireEvent.press(button);
-    await waitFor(() => expect(getByTestId('profile-stub')).toBeTruthy());
+    expect(queryByTestId('home-feature-tiles')).toBeNull();
+    // Plans is the plan row; Community is a place you reach from the tab bar.
+    expect(queryByTestId('plans-nav-button')).toBeNull();
+    expect(queryByTestId('community-nav-button')).toBeNull();
   });
 
-  it('offers Announcements as a header icon, and navigates to Announcements', async () => {
+  // --- Home's header: the mark, the greeting, ONE button ---------------
+  // It used to carry Profile and Announcements side by side. Profile
+  // belongs to "You" now; what stays is the way into what the church is
+  // saying -- the Updates feed.
+
+  it('has one button in its header -- Updates -- and no Profile button', async () => {
+    signedIn();
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('updates-nav-button')).toBeTruthy());
+
+    expect(queryByTestId('profile-nav-button')).toBeNull();
+    expect(queryByTestId('announcements-nav-button')).toBeNull();
+  });
+
+  it('offers Updates as a header icon, and navigates to it', async () => {
     signedIn();
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('announcements-nav-button')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('updates-nav-button')).toBeTruthy());
 
-    const button = getByTestId('announcements-nav-button');
-    expect(button.props.accessibilityLabel).toBe(
-      translate('en', 'home.announcementsLabel')
-    );
-    expect(button.props.accessibilityHint).toBe(
-      translate('en', 'home.announcementsHint')
-    );
+    const button = getByTestId('updates-nav-button');
+    expect(button.props.accessibilityRole).toBe('button');
+    expect(button.props.accessibilityLabel).toBe(translate('en', 'home.updatesLabel'));
+    expect(button.props.accessibilityHint).toBe(translate('en', 'home.updatesHint'));
 
     await fireEvent.press(button);
     await waitFor(() => expect(getByTestId('announcements-stub')).toBeTruthy());
   });
 
-  it.each([['profile-nav-button'], ['announcements-nav-button']])(
-    '%s meets the 44dp minimum touch target',
-    async (testID) => {
-      signedIn();
-      const { getByTestId } = await renderHomeScreen();
-      await waitFor(() => expect(getByTestId(testID)).toBeTruthy());
-      const style = StyleSheet.flatten(getByTestId(testID).props.style);
-      expect(style.width).toBeGreaterThanOrEqual(44);
-      expect(style.height).toBeGreaterThanOrEqual(44);
-    }
-  );
+  it('gives Updates a 44dp round target', async () => {
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('updates-nav-button')).toBeTruthy());
+    const style = StyleSheet.flatten(getByTestId('updates-nav-button').props.style);
+    expect(style.width).toBeGreaterThanOrEqual(44);
+    expect(style.height).toBeGreaterThanOrEqual(44);
+    expect(style.borderRadius).toBe(999);
+  });
 
-  it.each([['profile-nav-button'], ['announcements-nav-button']])(
-    '%s is visible in BOTH themes, painted only from tokens',
-    async (testID) => {
-      // The old dot failed precisely because it was one colour on a
-      // background it did not contrast with. A utility button needs a
-      // surface fill, a border, AND an ink glyph -- all tokens, so the
-      // contrast survives the palette flip without painting anything white.
-      signedIn();
-      const { getByTestId } = await renderHomeScreen();
-      await waitFor(() => expect(getByTestId(testID)).toBeTruthy());
+  it.each([
+    ['light', lightTokens],
+    ['dark', darkTokens],
+  ] as const)(
+    "paints the Updates glyph from the %s palette's ink, with nothing painted white",
+    async (theme, tokens) => {
+      // The old Profile and Announcements buttons failed in one theme or the
+      // other by painting a fixed colour. The glyph takes the ink token, so
+      // its contrast survives the palette flip.
+      await AsyncStorage.setItem('theme_preference', theme);
+      try {
+        signedIn();
+        const { getByTestId } = await renderHomeScreen();
+        await waitFor(() => expect(getByTestId('updates-nav-button')).toBeTruthy());
 
-      const colours = new Set<string>();
-      const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
-        const style = StyleSheet.flatten(node.props?.style as never) as
-          Record<string, string> | undefined;
-        if (style?.borderColor) colours.add(style.borderColor);
-        if (style?.backgroundColor) colours.add(style.backgroundColor);
-        for (const child of node.children ?? []) {
-          if (child && typeof child === 'object') walk(child as never);
-        }
-      };
-      walk(getByTestId(testID) as never);
-
-      // Exactly the three tokens, nothing invented.
-      expect([...colours].sort()).toEqual(
-        [lightTokens.surface, lightTokens.border, lightTokens.ink].sort()
-      );
+        const colours = new Set<string>();
+        const walk = (node: {
+          props?: Record<string, unknown>;
+          children?: unknown[];
+        }) => {
+          for (const key of ['stroke', 'fill']) {
+            const value = node.props?.[key];
+            if (typeof value === 'string' && value !== 'none') colours.add(value);
+          }
+          for (const child of node.children ?? []) {
+            if (child && typeof child === 'object') walk(child as never);
+          }
+        };
+        await waitFor(() => {
+          colours.clear();
+          walk(getByTestId('updates-nav-button') as never);
+          expect([...colours]).toEqual([tokens.ink]);
+        });
+      } finally {
+        await AsyncStorage.clear();
+      }
     }
   );
 
@@ -338,6 +416,32 @@ describe('HomeScreen', () => {
     expect(DEFAULT_CHURCH_NAME).toBe('Maranatha');
   });
 
+  it('marks the church with the gold fish, and with its own logo once it has one', async () => {
+    signedIn();
+    const withoutLogo = await renderHomeScreen();
+    await waitFor(() => expect(withoutLogo.getByTestId('church-branding')).toBeTruthy());
+    expect(
+      withoutLogo.getByTestId('church-fish', { includeHiddenElements: true })
+    ).toBeTruthy();
+    expect(withoutLogo.queryByTestId('church-logo')).toBeNull();
+    await withoutLogo.unmount();
+
+    (onSnapshot as jest.Mock).mockImplementation((ref, onNext) => {
+      if (String((ref as { path?: string })?.path ?? '').includes('settings')) {
+        onNext({
+          exists: () => true,
+          data: () => ({ churchName: 'Grace', logoUrl: 'https://example.org/logo.png' }),
+        });
+      }
+      return jest.fn();
+    });
+    const withLogo = await renderHomeScreen();
+    await waitFor(() => expect(withLogo.getByTestId('church-logo')).toBeTruthy());
+    expect(
+      withLogo.queryByTestId('church-fish', { includeHiddenElements: true })
+    ).toBeNull();
+  });
+
   // --- The tagline is gone (V1 tester feedback) -----------------------
 
   it('renders no tagline under the church name, in either language', async () => {
@@ -369,6 +473,108 @@ describe('HomeScreen', () => {
     }
   });
 
+  // --- The Verse of the Day is the hero ---------------------------------
+
+  it('opens on the Verse of the Day, with its date, label, text and reference', async () => {
+    signedIn();
+    const { getByTestId, getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('daily-verse-card')).toBeTruthy());
+
+    expect(getByTestId('daily-verse-date').props.children).toBe('Sunday, 11 October');
+    expect(getByText(translate('en', 'home.verseOfTheDay'))).toBeTruthy();
+    expect(getByText('Peace I leave with you; my peace I give you.')).toBeTruthy();
+    expect(getByTestId('daily-verse-reference').props.children).toBe('John 14:27');
+  });
+
+  it('resolves a REAL verse with no network at all, never an empty hero', async () => {
+    // The mocked hook above keeps the other tests deterministic; this one
+    // runs the real one, with Firestore giving nothing, and expects the
+    // bundled fallback -- a Bible app whose first screen says "could not
+    // load" where the verse belongs has failed at its one job.
+    (useVerseOfTheDay as jest.Mock).mockImplementation(
+      jest.requireActual('../../daily-verses/useVerseOfTheDay').useVerseOfTheDay
+    );
+    // No override for today, and the church's pool cannot be fetched.
+    (subscribeToTodaysDailyVerse as jest.Mock).mockImplementation((onNext) => {
+      onNext(null);
+      return jest.fn();
+    });
+    (loadVotdAutomation as jest.Mock).mockRejectedValue(new Error('offline'));
+    signedIn();
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('daily-verse-card')).toBeTruthy());
+
+    expect(queryByTestId('daily-verse-empty')).toBeNull();
+    expect(
+      String(getByTestId('daily-verse-reference').props.children).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('opens the Verse screen from "See all"', async () => {
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('daily-verse-see-all')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('daily-verse-see-all'));
+    await waitFor(() => expect(getByTestId('daily-verse-stub')).toBeTruthy());
+  });
+
+  it('opens the Bible at the verse\'s own chapter from "Read chapter"', async () => {
+    signedIn();
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('daily-verse-read')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('daily-verse-read'));
+    await waitFor(() => expect(getByTestId('bible-chapter-stub')).toBeTruthy());
+    expect(JSON.parse(getByTestId('bible-chapter-stub').props.children)).toEqual({
+      bookId: 'john',
+      chapterNumber: 14,
+      verse: 27,
+    });
+  });
+
+  it('offers no "Read chapter" for an override, which has no known place', async () => {
+    const override: VerseOfTheDayState = {
+      ...VERSE,
+      content: { ...VERSE.content, source: 'override', citation: null, location: null },
+    };
+    (useVerseOfTheDay as jest.Mock).mockReturnValue(override);
+    signedIn();
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('daily-verse-card')).toBeTruthy());
+
+    expect(queryByTestId('daily-verse-read')).toBeNull();
+    expect(getByTestId('daily-verse-share')).toBeTruthy();
+  });
+
+  // --- Continue reading: offered only when there is something to continue
+
+  it('offers no Continue reading before the member has read anything', async () => {
+    signedIn();
+    mockReadingPosition(null);
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+    expect(queryByTestId('continue-reading-button')).toBeNull();
+  });
+
+  it('offers Continue reading once there is a position, and opens the Bible there', async () => {
+    signedIn();
+    mockReadingPosition('john');
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('continue-reading-button')).toBeTruthy());
+
+    expect(getByTestId('continue-reading-button').props.accessibilityLabel).toContain(
+      translate('en', 'bible.continueReading')
+    );
+    await fireEvent.press(getByTestId('continue-reading-button'));
+    await waitFor(() => expect(getByTestId('bible-chapter-stub')).toBeTruthy());
+    expect(JSON.parse(getByTestId('bible-chapter-stub').props.children)).toEqual({
+      bookId: 'john',
+      chapterNumber: 3,
+      verse: 16,
+    });
+  });
+
   // --- Reading-plan progress -------------------------------------------
   // The ONLY progress UI on Home. Percentage is completedDays / dayCount,
   // not currentDay: days can be completed out of order.
@@ -388,6 +594,19 @@ describe('HomeScreen', () => {
     expect(
       StyleSheet.flatten(getByTestId('home-plan-progress-fill').props.style).width
     ).toBe('40%');
+  });
+
+  it('draws progress as a 3-point line, not a bar', async () => {
+    signedIn();
+    mockActivePlan(planSummary(30, [1, 2, 3], 4));
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-plan-progress-track')).toBeTruthy());
+    expect(
+      StyleSheet.flatten(getByTestId('home-plan-progress-track').props.style).height
+    ).toBe(3);
+    expect(
+      StyleSheet.flatten(getByTestId('home-plan-progress-fill').props.style).height
+    ).toBe(3);
   });
 
   it('computes 0% for a started-but-uncompleted plan, with no fake fill', async () => {
@@ -419,7 +638,7 @@ describe('HomeScreen', () => {
     expect(getByTestId('home-plan-percent').props.children).toBe('100%');
   });
 
-  it('opens the current day when the plan card is pressed', async () => {
+  it('opens the current day when the plan row is pressed', async () => {
     signedIn();
     mockActivePlan(planSummary(30, [1, 2], 3));
     const { getByTestId } = await renderHomeScreen();
@@ -452,16 +671,15 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(getByTestId('plans-list-stub')).toBeTruthy());
   });
 
-  it('shows a progress bar ONLY in the reading-plan card', async () => {
-    // The owner's constraint: percentage and bar belong to the plan card
-    // alone. The three feature tiles carry no data.
+  it('shows a progress readout ONLY in the reading-plan row', async () => {
+    // The owner's constraint: percentage and line belong to the plan row
+    // alone. Nothing else on Home carries data a member could read as progress.
     signedIn();
     mockActivePlan(planSummary(30, [1, 2, 3], 4));
+    mockEvents([event()]);
     const { getByTestId } = await renderHomeScreen();
     await waitFor(() => expect(getByTestId('home-active-plan')).toBeTruthy());
 
-    // Look for percent TEXT specifically -- '100%' also appears as a
-    // layout width on the tiles, which is not a progress readout.
     const percentTexts: string[] = [];
     const walk = (node: {
       type?: string;
@@ -476,117 +694,289 @@ describe('HomeScreen', () => {
         if (child && typeof child === 'object') walk(child as never);
       }
     };
-    walk(getByTestId('home-feature-tiles') as never);
+    walk(getByTestId('home-together') as never);
+    walk(getByTestId('home-next-event') as never);
     expect(percentTexts).toEqual([]);
 
-    // ...while the plan card does render one.
+    // ...while the plan row does render one.
     expect(getByTestId('home-plan-percent').props.children).toMatch(/\d+%/);
   });
 
-  // --- The feature tiles are icon tiles, not content cards -------------
+  // --- The Prophet Verse is always there -------------------------------
+
+  it('always shows the Prophet Verse section, even with none published', async () => {
+    signedIn();
+    mockProphet({ status: 'empty' });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('prophet-verse-empty')).toBeTruthy());
+    expect(getByTestId('prophet-verse-section-title').props.children).toBe(
+      translate('en', 'prophetVerse.title')
+    );
+  });
+
+  it('shows a published Prophet Verse as a quote block', async () => {
+    signedIn();
+    mockProphet({
+      status: 'ready',
+      verse: {
+        id: 'p1',
+        title: 'Be still',
+        reference: 'Psalm 46:10',
+        text: 'Be still, and know that I am God.',
+        attribution: null,
+        imageUrl: null,
+        publishAt: new Date('2026-04-01T06:00:00.000Z'),
+      },
+    });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('prophet-verse-card')).toBeTruthy());
+    expect(getByTestId('prophet-verse-title').props.children).toBe('Be still');
+    expect(getByTestId('prophet-verse-reference').props.children).toBe('Psalm 46:10');
+  });
+
+  // --- A live service: the one red -------------------------------------
+
+  it('shows no live bar when nothing is live', async () => {
+    signedIn();
+    mockEvents([event()]);
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+    expect(queryByTestId('home-live-banner')).toBeNull();
+  });
+
+  it('shows a slim live bar for a live event, and opens that event', async () => {
+    signedIn();
+    const live = event({ id: 'live1', title: 'Sunday Worship', isLive: true });
+    mockEvents([live, event()]);
+    const { getByTestId, getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-live-banner')).toBeTruthy());
+
+    expect(getByText('Sunday Worship')).toBeTruthy();
+    expect(getByText(translate('en', 'home.watchLive'))).toBeTruthy();
+    const bar = getByTestId('home-live-banner');
+    expect(bar.props.accessibilityLabel).toContain('Sunday Worship');
+    expect(StyleSheet.flatten(bar.props.style)).toMatchObject({
+      backgroundColor: lightTokens.live,
+      minHeight: 54,
+    });
+
+    await fireEvent.press(bar);
+    await waitFor(() => expect(getByTestId('event-detail-stub')).toBeTruthy());
+    expect(JSON.parse(getByTestId('event-detail-stub').props.children).event.id).toBe(
+      'live1'
+    );
+  });
+
+  // --- The next event ---------------------------------------------------
+
+  it('shows the next event as a row with a date block, and opens it', async () => {
+    signedIn();
+    mockEvents([event()]);
+    const { getByTestId, getByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-next-event')).toBeTruthy());
+
+    expect(getByText('Wednesday Prayer Meeting')).toBeTruthy();
+    expect(getByText(/Main hall/)).toBeTruthy();
+    // The block: the weekday over the day number.
+    expect(getByText('14')).toBeTruthy();
+    expect(getByText('Wed')).toBeTruthy();
+
+    await fireEvent.press(getByTestId('home-next-event'));
+    await waitFor(() => expect(getByTestId('event-detail-stub')).toBeTruthy());
+    expect(JSON.parse(getByTestId('event-detail-stub').props.children).event.id).toBe(
+      'e1'
+    );
+  });
+
+  it('shows no event row, and no label for it, when there is no upcoming event', async () => {
+    signedIn();
+    mockEvents([]);
+    const { getByTestId, queryByTestId, queryByText } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-screen')).toBeTruthy());
+    expect(queryByTestId('home-next-event')).toBeNull();
+    expect(queryByText(translate('en', 'home.upcomingEvents'))).toBeNull();
+  });
+
+  it('opens the events list from the event section\'s "See all"', async () => {
+    signedIn();
+    mockEvents([event()]);
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-events-see-all')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('home-events-see-all'));
+    await waitFor(() => expect(getByTestId('events-list-stub')).toBeTruthy());
+  });
+
+  it('does not show the live event a second time as the next one', async () => {
+    signedIn();
+    mockEvents([event({ id: 'live1', title: 'Sunday Worship', isLive: true })]);
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-live-banner')).toBeTruthy());
+    expect(queryByTestId('home-next-event')).toBeNull();
+  });
+
+  // --- Together: three rows, three different places ---------------------
   //
-  // FIVE TILES, FIVE DIFFERENT DESTINATIONS. A tester found the M7 grid
-  // presented "Prayers" and "Prayer requests" as separate features that
-  // opened the same kind of thing, so Prayers now opens the SHARED WALL
-  // and the private journal lives in More under its own name. Media is
-  // here because it previously had no Home entry at all. The table below
-  // is the guarantee that no two tiles land in the same place.
+  // The five-tile grid this replaces put two pairs of tiles in the same place
+  // as far as a member could tell. Each row below lands somewhere no other
+  // does, and the table is the guarantee.
 
   it.each([
     ['prayers-nav-button', 'prayer-wall-stub'],
-    ['plans-nav-button', 'plans-list-stub'],
-    ['community-nav-button', 'community-stub'],
     ['chat-nav-button', 'chat-stub'],
     ['media-nav-button', 'media-feed-stub'],
-  ])('%s is an icon tile that navigates', async (testID, stub) => {
+  ])('%s is a row that navigates', async (testID, stubID) => {
     signedIn();
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('home-together')).toBeTruthy());
 
-    const tile = getByTestId(testID);
-    const style = StyleSheet.flatten(tile.props.style);
-    // Square, not a long horizontal card.
-    expect(style.aspectRatio).toBe(1);
-    expect(tile.props.accessibilityRole).toBe('button');
-    expect(typeof tile.props.accessibilityLabel).toBe('string');
+    const row = getByTestId(testID);
+    expect(row.props.accessibilityRole).toBe('button');
+    expect(typeof row.props.accessibilityLabel).toBe('string');
 
-    await fireEvent.press(tile);
-    await waitFor(() => expect(getByTestId(stub)).toBeTruthy());
+    await fireEvent.press(row);
+    await waitFor(() => expect(getByTestId(stubID)).toBeTruthy());
   });
 
-  it('sends every tile somewhere DIFFERENT', async () => {
-    // The duplicate-destination bug in one assertion: two tiles that
-    // navigate to the same route are two buttons for one feature, which
-    // is what a tester reported about Prayers / Prayer requests.
+  it('sends every row somewhere DIFFERENT', async () => {
+    // The duplicate-destination bug in one assertion: two rows that
+    // navigate to the same route are two buttons for one feature.
     signedIn();
-    const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
-
-    const every = [
-      'prayers-nav-button',
-      'plans-nav-button',
-      'community-nav-button',
-      'chat-nav-button',
-      'media-nav-button',
-    ] as const;
-    // Every tile is present on the one screen...
-    for (const testID of every) expect(getByTestId(testID)).toBeTruthy();
-
-    // ...and each lands somewhere no other tile does. Pressed on its own
-    // fresh render, because the first press pushes a screen over Home and
-    // the next tile would no longer be on it.
     const reached: string[] = [];
-    for (const [testID, stub] of [
+    for (const [testID, stubID] of [
       ['prayers-nav-button', 'prayer-wall-stub'],
-      ['plans-nav-button', 'plans-list-stub'],
-      ['community-nav-button', 'community-stub'],
       ['chat-nav-button', 'chat-stub'],
       ['media-nav-button', 'media-feed-stub'],
     ] as const) {
+      // A fresh render each time: the first press pushes a screen over Home.
       const fresh = await renderHomeScreen();
-      await waitFor(() => expect(fresh.getByTestId('home-feature-tiles')).toBeTruthy());
+      await waitFor(() => expect(fresh.getByTestId('home-together')).toBeTruthy());
       await fireEvent.press(fresh.getByTestId(testID));
-      await waitFor(() => expect(fresh.getByTestId(stub)).toBeTruthy());
-      reached.push(stub);
+      await waitFor(() => expect(fresh.getByTestId(stubID)).toBeTruthy());
+      reached.push(stubID);
+      await fresh.unmount();
     }
     expect(new Set(reached).size).toBe(reached.length);
   });
 
-  it('labels the tiles in the active language', async () => {
+  it('says what each row is for, in the active language', async () => {
     signedIn();
     const { getByTestId } = await renderHomeScreen();
-    await waitFor(() => expect(getByTestId('home-feature-tiles')).toBeTruthy());
-    for (const [testID, key] of [
-      ['prayers-nav-button', 'more.prayers'],
-      ['plans-nav-button', 'more.readingPlans'],
-      ['community-nav-button', 'more.community'],
-      ['chat-nav-button', 'chat.title'],
-      ['media-nav-button', 'media.title'],
+    await waitFor(() => expect(getByTestId('home-together')).toBeTruthy());
+    for (const [testID, title, hint] of [
+      ['prayers-nav-button', 'prayerWall.title', 'home.askPray'],
+      ['chat-nav-button', 'chat.title', 'community.goToChatHint'],
+      ['media-nav-button', 'community.goToMedia', 'community.goToMediaHint'],
     ] as const) {
-      expect(getByTestId(testID).props.accessibilityLabel).toBe(translate('en', key));
+      const label = getByTestId(testID).props.accessibilityLabel as string;
+      expect(label).toContain(translate('en', title));
+      expect(label).toContain(translate('en', hint));
     }
   });
 
-  it('labels the three tiles in Telugu when the interface is Telugu', async () => {
-    // The interface defaults to English in V2, so the assertion above no
-    // longer exercises the Telugu catalogue on this screen. This one does,
-    // with the Bible left on its own (Telugu) default -- the two settings
-    // are independent.
+  it('says them in Telugu when the interface is Telugu', async () => {
+    // The interface defaults to English, so the assertion above does not
+    // exercise the Telugu catalogue on this screen. This one does, with the
+    // Bible left on its own (Telugu) default -- the two settings are independent.
     await AsyncStorage.setItem('app_language_preference', 'te');
     try {
       signedIn();
       const { getByTestId } = await renderHomeScreen();
       await waitFor(() =>
-        expect(getByTestId('prayers-nav-button').props.accessibilityLabel).toBe(
-          translate('te', 'more.prayers')
+        expect(getByTestId('prayers-nav-button').props.accessibilityLabel).toContain(
+          translate('te', 'prayerWall.title')
         )
       );
-      expect(getByTestId('plans-nav-button').props.accessibilityLabel).toBe(
-        translate('te', 'more.readingPlans')
+      expect(getByTestId('chat-nav-button').props.accessibilityLabel).toContain(
+        translate('te', 'chat.title')
       );
     } finally {
       await AsyncStorage.clear();
     }
+  });
+
+  it('shows what is new in "Photos and videos" as thumbnails, and still opens the feed', async () => {
+    signedIn();
+    (fetchMediaPage as jest.Mock).mockResolvedValue({
+      posts: [mediaPost('a'), mediaPost('b', 'video'), mediaPost('c')],
+      cursor: null,
+    });
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() =>
+      expect(
+        getByTestId('home-media-thumbnails', { includeHiddenElements: true })
+      ).toBeTruthy()
+    );
+    for (const id of ['a', 'b', 'c']) {
+      expect(
+        getByTestId(`home-media-${id}`, { includeHiddenElements: true })
+      ).toBeTruthy();
+    }
+    // A picture is shown; a video has no still the app can fetch (its address is
+    // a clip, not an image), so it is a quiet tile with a play mark instead.
+    for (const id of ['a', 'c']) {
+      expect(
+        getByTestId(`home-media-image-${id}`, { includeHiddenElements: true }).props
+          .source
+      ).toEqual({ uri: `https://example.org/${id}` });
+      expect(
+        queryByTestId(`home-media-play-${id}`, { includeHiddenElements: true })
+      ).toBeNull();
+    }
+    expect(
+      queryByTestId('home-media-image-b', { includeHiddenElements: true })
+    ).toBeNull();
+    expect(
+      getByTestId('home-media-play-b', { includeHiddenElements: true })
+    ).toBeTruthy();
+
+    await fireEvent.press(getByTestId('media-nav-button'));
+    await waitFor(() => expect(getByTestId('media-feed-stub')).toBeTruthy());
+  });
+
+  it('shows the Photos row with no thumbnails when the church has posted nothing', async () => {
+    signedIn();
+    (fetchMediaPage as jest.Mock).mockResolvedValue({ posts: [], cursor: null });
+    const { getByTestId, queryByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(fetchMediaPage).toHaveBeenCalled());
+    expect(getByTestId('media-nav-button')).toBeTruthy();
+    expect(
+      queryByTestId('home-media-thumbnails', { includeHiddenElements: true })
+    ).toBeNull();
+  });
+
+  // --- Reading order ----------------------------------------------------
+
+  it('keeps Home in the order of the design: scripture first, together last', async () => {
+    signedIn();
+    mockActivePlan(planSummary(7, [1], 2));
+    mockReadingPosition('john');
+    mockEvents([event()]);
+    mockProphet({ status: 'empty' });
+    const { getByTestId } = await renderHomeScreen();
+    await waitFor(() => expect(getByTestId('home-next-event')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('continue-reading-button')).toBeTruthy());
+
+    const order = [
+      'church-branding',
+      'daily-verse-card',
+      'continue-reading-button',
+      'home-active-plan',
+      'prophet-verse-empty',
+      'home-next-event',
+      'home-together',
+    ];
+    const seen: string[] = [];
+    const walk = (node: { props?: Record<string, unknown>; children?: unknown[] }) => {
+      const id = node.props?.testID;
+      if (typeof id === 'string' && order.includes(id) && !seen.includes(id))
+        seen.push(id);
+      for (const child of node.children ?? []) {
+        if (child && typeof child === 'object') walk(child as never);
+      }
+    };
+    walk(getByTestId('home-screen') as never);
+    expect(seen).toEqual(order);
   });
 
   it('shows a brief refreshing indicator on pull-to-refresh, then clears it', async () => {

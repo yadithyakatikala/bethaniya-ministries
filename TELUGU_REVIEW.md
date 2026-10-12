@@ -55,11 +55,16 @@ a key cannot be accidentally dropped while editing.
 | `onboarding.ageUnit` | సంవత్సరాలు | Added by the development pass: the approved design showed no unit after the age in Telugu. "సంవత్సరాలు" ("years") is a guess; "ఏళ్లు" is the usual spoken form. |
 | `onboarding.q4` | మీ లింగం ఏమిటి? | Asks how the member identifies and offers the two values the church asked for. Check the wording is respectful and natural, and that "పురుషుడు" / "స్త్రీ" are the words the congregation would choose. |
 | `onboarding.skipQuestion` | ఈ ప్రశ్నను దాటవేయండి | Deliberately NOT the same words as `onboarding.skip` ("Not now"): that one leaves the questions altogether; this one skips only the phone number. Check the two read as different things. |
+| `home.readChapter` | అధ్యాయం చదవండి | The primary button under the Verse of the Day. "అధ్యాయం" is "chapter"; check "చదవండి" ("read") is the verb the congregation uses on a button. |
+| `home.together` | కలిసి | A one-word title over Prayer requests, Church chat and Photos and videos. Confirm "కలిసి" ("together") reads as "together as a church", not only as the adverb. |
+| `home.askPray` | సంఘం మీతో కలిసి ప్రార్థించమని కోరండి | A full sentence under "Prayer requests" on Home. Check the polite plural register is how the church speaks to its members. |
+| `home.updatesLabel` | సమాచారాన్ని తెరవండి | Read aloud by a screen reader on Home's header button, which opens announcements and posts. "సమాచారం" is a broad word for "information"; confirm it is the church's word for updates. |
+| `prophetVerse.readMore` | ఇంకా చదవండి | The control under a long Prophet Verse; it pairs with `prophetVerse.showLess`. Check the two read naturally as a pair. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-428 keys, grouped by screen area.
+435 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -115,6 +120,11 @@ a key cannot be accidentally dropped while editing.
 | `home.readingPlan` | Reading Plan | పఠన ప్రణాళిక |  |
 | `home.startAPlan` | Start a Reading Plan | పఠన ప్రణాళిక ప్రారంభించండి |  |
 | `home.percentComplete` | {percent}% | {percent}% |  |
+| `home.readChapter` | Read chapter | అధ్యాయం చదవండి | ⚠️ |
+| `home.together` | Together | కలిసి | ⚠️ |
+| `home.askPray` | Ask the church to pray with you | సంఘం మీతో కలిసి ప్రార్థించమని కోరండి | ⚠️ |
+| `home.updatesLabel` | Open updates | సమాచారాన్ని తెరవండి | ⚠️ |
+| `home.updatesHint` | Shows announcements and posts from the church | సంఘం నుండి ప్రకటనలు, పోస్ట్‌లను చూపుతుంది |  |
 
 ### Bible
 
@@ -412,6 +422,8 @@ a key cannot be accidentally dropped while editing.
 
 | Key | English | Telugu | |
 | --- | --- | --- | --- |
+| `prophetVerse.readMore` | Read more | ఇంకా చదవండి | ⚠️ |
+| `prophetVerse.showLess` | Show less | తక్కువ చూపండి |  |
 | `prophetVerse.title` | Prophet Verse of the Day | ఈ రోజు ప్రవక్త వచనం |  |
 | `prophetVerse.imageLabel` | Illustration for this prophet verse | ఈ ప్రవక్త వచనానికి చిత్రం |  |
 | `prophetVerse.empty` | No prophet verse today | ఈ రోజు ప్రవక్త వచనం లేదు |  |

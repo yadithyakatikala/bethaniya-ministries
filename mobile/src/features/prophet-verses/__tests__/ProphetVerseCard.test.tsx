@@ -1,10 +1,10 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { cleanup, render } from '@testing-library/react-native';
-import { ProphetVerseCard } from '../ProphetVerseCard';
+import { cleanup, fireEvent, render } from '@testing-library/react-native';
+import { PROPHET_CLAMP_LINES, ProphetVerseCard } from '../ProphetVerseCard';
 import { useProphetVerse, type ProphetVerseState } from '../useProphetVerse';
 import { usePreferences } from '../../../context/PreferencesContext';
-import { fontFamilies, serifFor } from '../../../theme/tokens';
+import { fontFamilies, lightTokens, serifFor } from '../../../theme/tokens';
 import type { ProphetVerse } from '../../../services/firebase/prophetVerses';
 
 jest.mock('../../../services/firebase/app');
@@ -14,8 +14,8 @@ jest.mock('../useProphetVerse');
 /**
  * The Prophet Verse block.
  *
- * The restraint is still the design -- no badge, no accent fill, no
- * reserved image frame. What CHANGED is the empty state. M5 rendered
+ * The restraint is still the design -- no badge, no fill, no box, no
+ * reserved image frame: a thin gold bar, a title, a reference, the passage. What CHANGED is the empty state. M5 rendered
  * nothing at all when no verse was published, and the test below used to
  * assert exactly that. A tester then looked for "Prophet Verse of the
  * Day" in the release build and reported the feature missing: complete,
@@ -85,11 +85,23 @@ describe('when there is nothing to show', () => {
     expect(screen.queryByTestId('prophet-verse-reference')).toBeNull();
   });
 
-  it('shows only a quiet spinner while loading', async () => {
+  it("shows only grey lines in the block's shape while loading, and says it is busy", async () => {
     mockState({ status: 'loading' });
     const screen = await render(<ProphetVerseCard />);
-    expect(screen.getByTestId('prophet-verse-loading')).toBeTruthy();
+    const loading = screen.getByTestId('prophet-verse-loading');
+    expect(loading.props.accessibilityRole).toBe('progressbar');
+    expect(loading.props.accessibilityState).toMatchObject({ busy: true });
     expect(screen.queryByTestId('prophet-verse-card')).toBeNull();
+  });
+
+  it('wears the same labelled block, in quiet ink, so it reads as a section', async () => {
+    mockState({ status: 'empty' });
+    const screen = await render(<ProphetVerseCard />);
+    const label = screen.getByTestId('prophet-verse-section-title');
+    expect(label.props.accessibilityRole).toBe('header');
+    expect(flat(screen.getByText('No prophet verse today')).color).toBe(
+      lightTokens.inkMuted
+    );
   });
 });
 
@@ -155,7 +167,7 @@ describe('a published verse', () => {
 });
 
 describe('typography', () => {
-  it('sets administrator-written text in the interface family, never a serif', async () => {
+  it('sets text that MIXES scripts in the interface family, never a serif', async () => {
     // The text is of unknown script and may mix Telugu and Latin; Noto
     // Serif Telugu has no Latin letters. See
     // ../../daily-verses/DailyVerseCard.tsx's header.
@@ -167,6 +179,50 @@ describe('typography', () => {
     const font = fontOf(screen.getByTestId('prophet-verse-text'));
     expect(font).toBe(fontFamilies.interfaceRegular);
     expect(font).not.toBe(serifFor('te', 'regular'));
+  });
+
+  it("sets text in ONE script in that script's serif, title and passage alike", async () => {
+    mockState({ status: 'ready', verse: verse() });
+    const english = await render(<ProphetVerseCard />);
+    expect(fontOf(english.getByTestId('prophet-verse-text'))).toBe(
+      serifFor('en', 'regular')
+    );
+    expect(fontOf(english.getByTestId('prophet-verse-title'))).toBe(
+      serifFor('en', 'semiBold')
+    );
+    await cleanup();
+
+    mockState({
+      status: 'ready',
+      verse: verse({ title: 'సంఘానికి వాక్యం', text: 'దేవుడు' }),
+    });
+    const telugu = await render(<ProphetVerseCard />);
+    expect(fontOf(telugu.getByTestId('prophet-verse-text'))).toBe(
+      serifFor('te', 'regular')
+    );
+    expect(fontOf(telugu.getByTestId('prophet-verse-title'))).toBe(
+      serifFor('te', 'semiBold')
+    );
+  });
+
+  it('sets the passage at 17/28 (Telugu 16/30) and the reference in gold ink', async () => {
+    mockState({ status: 'ready', verse: verse() });
+    const screen = await render(<ProphetVerseCard />);
+    expect(flat(screen.getByTestId('prophet-verse-text'))).toMatchObject({
+      fontSize: 17,
+      lineHeight: 28,
+    });
+    expect(flat(screen.getByTestId('prophet-verse-reference')).color).toBe(
+      lightTokens.accent
+    );
+    await cleanup();
+
+    mockState({ status: 'ready', verse: verse({ text: 'దేవుడు' }) });
+    const telugu = await render(<ProphetVerseCard />);
+    expect(flat(telugu.getByTestId('prophet-verse-text'))).toMatchObject({
+      fontSize: 16,
+      lineHeight: 30,
+    });
   });
 
   it('follows the script of the text, not the interface language', async () => {
@@ -181,5 +237,103 @@ describe('typography', () => {
     const englishScreen = await render(<ProphetVerseCard />);
     const english = flat(englishScreen.getByTestId('prophet-verse-text'));
     expect(telugu.lineHeight).toBeGreaterThan(english.lineHeight as number);
+  });
+});
+
+describe('four lines, then "Read more" (P1)', () => {
+  const LONG = 'Behold, I will do a new thing; now it shall spring forth. '
+    .repeat(6)
+    .trim();
+
+  /** What the invisible twin reports: this many lines for the unclamped text. */
+  function layout(screen: Awaited<ReturnType<typeof render>>, lines: number) {
+    return fireEvent(
+      screen.getByTestId('prophet-verse-measure', { includeHiddenElements: true }),
+      'textLayout',
+      {
+        nativeEvent: { lines: Array.from({ length: lines }, () => ({ text: 'x' })) },
+      }
+    );
+  }
+
+  it('holds the passage to four lines', async () => {
+    mockState({ status: 'ready', verse: verse({ text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    expect(PROPHET_CLAMP_LINES).toBe(4);
+    expect(screen.getByTestId('prophet-verse-text').props.numberOfLines).toBe(4);
+  });
+
+  it('offers no control until it knows the passage is longer than that', async () => {
+    mockState({ status: 'ready', verse: verse({ text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    expect(screen.queryByTestId('prophet-verse-toggle')).toBeNull();
+  });
+
+  it('shows no control for a passage that fits in four lines', async () => {
+    mockState({ status: 'ready', verse: verse() });
+    const screen = await render(<ProphetVerseCard />);
+    await layout(screen, 3);
+    expect(screen.queryByTestId('prophet-verse-toggle')).toBeNull();
+    await layout(screen, 4);
+    expect(screen.queryByTestId('prophet-verse-toggle')).toBeNull();
+  });
+
+  it('offers "Read more" for a longer one, and "Show less" once it is open', async () => {
+    mockState({ status: 'ready', verse: verse({ text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    await layout(screen, 7);
+
+    const toggle = screen.getByTestId('prophet-verse-toggle');
+    expect(screen.getByText('Read more')).toBeTruthy();
+    expect(toggle.props.accessibilityRole).toBe('button');
+    expect(toggle.props.accessibilityState).toMatchObject({ expanded: false });
+
+    await fireEvent.press(toggle);
+    // Nothing was ever cut off for good: the whole passage is now showing.
+    expect(screen.getByTestId('prophet-verse-text').props.numberOfLines).toBeUndefined();
+    expect(screen.getByText('Show less')).toBeTruthy();
+    expect(
+      screen.getByTestId('prophet-verse-toggle').props.accessibilityState
+    ).toMatchObject({
+      expanded: true,
+    });
+
+    await fireEvent.press(screen.getByTestId('prophet-verse-toggle'));
+    expect(screen.getByTestId('prophet-verse-text').props.numberOfLines).toBe(4);
+  });
+
+  it('makes the control a real 44-point target', async () => {
+    mockState({ status: 'ready', verse: verse({ text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    await layout(screen, 7);
+    expect(
+      flat(screen.getByTestId('prophet-verse-toggle')).minHeight
+    ).toBeGreaterThanOrEqual(44);
+  });
+
+  it('measures with an invisible twin of the same words, which a screen reader never meets', async () => {
+    mockState({ status: 'ready', verse: verse({ text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    const twin = screen.getByTestId('prophet-verse-measure', {
+      includeHiddenElements: true,
+    });
+    expect(twin.props.children).toBe(LONG);
+    expect(flat(twin)).toMatchObject({ position: 'absolute', opacity: 0 });
+    expect(twin.props.accessibilityElementsHidden).toBe(true);
+    expect(twin.props.importantForAccessibility).toBe('no-hide-descendants');
+    // The words are on the page exactly once, as far as the accessibility tree goes.
+    expect(screen.getAllByText(LONG)).toHaveLength(1);
+  });
+
+  it('closes again for the next verse', async () => {
+    mockState({ status: 'ready', verse: verse({ id: 'one', text: LONG }) });
+    const screen = await render(<ProphetVerseCard />);
+    await layout(screen, 7);
+    await fireEvent.press(screen.getByTestId('prophet-verse-toggle'));
+    expect(screen.getByTestId('prophet-verse-text').props.numberOfLines).toBeUndefined();
+
+    mockState({ status: 'ready', verse: verse({ id: 'two', text: LONG + ' More.' }) });
+    await screen.rerender(<ProphetVerseCard />);
+    expect(screen.getByTestId('prophet-verse-text').props.numberOfLines).toBe(4);
   });
 });

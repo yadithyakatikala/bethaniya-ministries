@@ -617,6 +617,15 @@ export function typographyFor(language: ScriptLanguage): TypeScale {
   if (language === 'te') {
     // S4: Telugu's caption is 13.5/20 (its leading is already set, not boosted).
     scale.caption = { ...scale.caption, fontSize: 13.5, lineHeight: 20 };
+    // Telugu has no capitals to shout in, and wide tracking pulls a conjunct
+    // apart: the overline keeps its weight but drops the uppercase and the
+    // tracking, and steps up to 12.5 -- the same step the caption takes.
+    scale.overline = {
+      ...scale.overline,
+      fontSize: 12.5,
+      letterSpacing: 0.25,
+      textTransform: 'none',
+    };
   }
 
   return Object.fromEntries(
@@ -659,6 +668,51 @@ export function scriptureDisplayStyle(language: ScriptLanguage, text: string): T
         : step.line,
   };
 }
+
+/**
+ * A verse shown in BOTH languages on Home: English 22/33, then Telugu 19/34
+ * beneath it (the Telugu is 12% more generously leaded already, so it is
+ * set by hand rather than boosted). Two nodes, each in its own script's
+ * serif -- never one node carrying both.
+ */
+export function scriptureBilingualStyle(language: ScriptLanguage): TextStyle {
+  return language === 'te'
+    ? {
+        fontFamily: serifFor('te', 'regular'),
+        fontSize: 19,
+        fontWeight: '400',
+        lineHeight: 34,
+      }
+    : {
+        fontFamily: serifFor('en', 'regular'),
+        fontSize: 22,
+        fontWeight: '400',
+        lineHeight: 33,
+      };
+}
+
+/**
+ * Colours for words laid over a photograph the church attached (a Verse of
+ * the Day override with a picture).
+ *
+ * The picture is anyone's: it can be white. So the words on it take a
+ * dark veil (`veil`) that holds white text above 4.5:1 even over a pure
+ * white photograph, and gold stays out of it -- gold small text cannot be
+ * guaranteed over an arbitrary picture, so on a photograph the only gold
+ * is the hairline. `base` is what shows if the picture never loads, so the
+ * white words are never left on a white page. Asserted in
+ * ./__tests__/contrast.test.ts.
+ */
+export const onPhoto = {
+  base: '#1B130C',
+  veil: 'rgba(14, 10, 6, 0.6)',
+  ink: '#FFFFFF',
+  /** The hairline ring around an outlined control on a photograph. */
+  ring: 'rgba(255, 255, 255, 0.55)',
+  /** The primary action: a white pill with dark ink. */
+  button: '#FFFFFF',
+  onButton: '#16181C',
+} as const;
 
 /**
  * =====================================================================

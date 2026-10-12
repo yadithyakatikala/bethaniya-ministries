@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../../theme/ui/AppButton';
-import { Card } from '../../theme/ui/Card';
 import { EmptyState } from '../../theme/ui/EmptyState';
-import { LoadingState } from '../../theme/ui/LoadingState';
-import { useTheme, useTypographyFor } from '../../theme';
-import { scriptureStyle } from '../../theme/tokens';
+import { GoldRule } from '../../theme/ui/GoldLine';
+import { Icon } from '../../theme/ui/Icon';
+import { IconButton } from '../../theme/ui/IconButton';
+import { SectionHeader } from '../../theme/ui/SectionHeader';
+import { Skeleton } from '../../theme/ui/Skeleton';
+import { Tappable } from '../../theme/ui/Tappable';
+import { contentFontFamily, useTheme } from '../../theme';
+import {
+  onPhoto,
+  scriptureBilingualStyle,
+  scriptureDisplayStyle,
+} from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
+import { formatIsoWeekdayDate } from '../../i18n/locale';
 import { useVerseOfTheDay } from './useVerseOfTheDay';
 import {
   buildVotdCopyText,
@@ -14,55 +23,73 @@ import {
   copyText,
   shareText,
 } from './votdSharing';
-import type { VotdBody, VotdContent } from './votdResolver';
+import type { VotdBody, VotdContent, VotdReference } from './votdResolver';
 
 /**
- * Today's verse, on the Home screen.
+ * Today's verse -- the hero of Home, and of the Verse screen.
  *
- * WHAT CHANGED IN M5. The card used to read one Firestore document and
- * render whatever it found, so a day no administrator had filled in was
- * an empty card. It now renders whatever ./useVerseOfTheDay.ts resolves
- * -- an administrator's override first, then the automated pool, then a
- * bundled verse when there is no network at all -- so the card is
- * effectively never empty. Same testIDs, same place on the Home screen:
- * this is the existing experience upgraded, not a second one beside it.
+ * It is the "open page" of the app: the date, a gold label with a hairline
+ * under it, the verse set large in its own script's serif, the reference
+ * in gold, and one primary action ("Read chapter") with Share and Copy
+ * beside it. No box, no fill: the page itself is the card.
  *
- * The card also drops the deprecated `colors.background/text/
- * secondaryText` aliases and its own hardcoded padding and radius, which
- * pre-dated M3's design system, and gains the M4 share/copy actions
- * rather than a second sharing implementation (see ./votdSharing.ts).
+ * WHAT IT RENDERS comes from ./useVerseOfTheDay.ts -- an administrator's
+ * override first, then the church's pool, then a bundled verse when there
+ * is no network at all -- so it is effectively never empty. All of the
+ * deciding is in ./votdResolver.ts; the sharing is ./votdSharing.ts's.
+ *
+ * TWO PROPS DECIDE WHAT IT OFFERS, so one component serves both screens:
+ *   onSeeAll       Home passes it ("See all" opens the Verse screen); the
+ *                  Verse screen does not, because it IS that screen.
+ *   onReadChapter  opens the Bible at the verse's chapter. Offered only for
+ *                  a verse whose place is known (`content.location`) -- an
+ *                  administrator's override is typed text, and is shared
+ *                  and copied but never "read in context".
  *
  * ---------------------------------------------------------------------
  * WHICH TYPEFACE, AND WHY IT DEPENDS ON WHERE THE TEXT CAME FROM
  * ---------------------------------------------------------------------
- * ../../theme/tokens.ts states the rule: Firestore content is of UNKNOWN
- * script and must use an interface role, never a serif one, because Noto
- * Serif Telugu contains no Latin letters and Noto Serif no Telugu ones --
- * so a mixed-script string set in either drops half its characters to a
- * substituted face mid-sentence.
+ *   POOL / FALLBACK   bundled corpus text: its language is known and it is
+ *                     single-script, so it takes the matching scripture
+ *                     serif -- the face the Bible reader uses.
+ *   OVERRIDE          an administrator typed it. It takes the serif of the
+ *                     script it is written in (English, or Telugu), and
+ *                     the interface family -- which covers both -- only
+ *                     when it MIXES scripts, because Noto Serif Telugu has
+ *                     no Latin letters and Noto Serif no Telugu ones, so a
+ *                     mixed line set in either would drop half its
+ *                     characters to a substituted face mid-sentence. This
+ *                     is the design's rule S5, in ../../theme/scriptFace.ts.
  *
- * M5 splits that rule, because the two paths genuinely differ:
- *
- *   POOL / FALLBACK   the text came from the BUNDLED corpus, so its
- *                     language is known and it is single-script. It gets
- *                     the matching scripture serif -- the same face the
- *                     Bible reader sets it in.
- *   OVERRIDE          an administrator typed it. It may be Telugu, or
- *                     English, or Telugu with an English name in it, so
- *                     it gets the interface family (which covers both
- *                     scripts) at the detected script's leading.
- *
- * That is the honest form of the rule, not a relaxation of it.
+ * ---------------------------------------------------------------------
+ * A PICTURE FROM THE CHURCH
+ * ---------------------------------------------------------------------
+ * An override can carry a photograph. The verse is then set on it, white,
+ * under a dark veil -- the one place the page becomes a card. The veil is
+ * dark enough to hold white words over a white photograph (asserted in
+ * ../../theme/__tests__/contrast.test.ts), and gold stays out of it except
+ * as the hairline: gold small text cannot be guaranteed over a picture.
  */
-export function DailyVerseCard() {
+export function DailyVerseCard({
+  onSeeAll,
+  onReadChapter,
+}: {
+  onSeeAll?: () => void;
+  onReadChapter?: (location: VotdReference) => void;
+} = {}) {
   const state = useVerseOfTheDay();
   const { t } = useTranslation();
 
   if (state.status === 'loading') {
     return (
-      <Card testID="daily-verse-loading">
-        <LoadingState label={t('dailyVerse.loading')} compact />
-      </Card>
+      <View
+        testID="daily-verse-loading"
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('dailyVerse.loading')}
+        accessibilityState={{ busy: true }}
+      >
+        <VerseSkeleton />
+      </View>
     );
   }
 
@@ -78,13 +105,67 @@ export function DailyVerseCard() {
     );
   }
 
-  return <VerseBody content={state.content} />;
+  return (
+    <VerseBody
+      content={state.content}
+      dateKey={state.dateKey}
+      onSeeAll={onSeeAll}
+      onReadChapter={onReadChapter}
+    />
+  );
 }
 
-function VerseBody({ content }: { content: VotdContent }) {
-  const { colors, spacing, radii, type } = useTheme();
-  const { t } = useTranslation();
+/** The verse's own shape, in grey: a date, a label, four lines, a reference, three controls. */
+function VerseSkeleton() {
+  const { layout } = useTheme();
+  return (
+    <View style={styles.card}>
+      <Skeleton width={150} height={13} />
+      <View style={[styles.labelRow, { height: layout.hit }]}>
+        <Skeleton width={120} height={11} />
+      </View>
+      <Skeleton height={1} />
+      <View style={styles.skeletonLines}>
+        <Skeleton height={22} />
+        <Skeleton width="96%" height={22} />
+        <Skeleton width="90%" height={22} />
+        <Skeleton width="54%" height={22} />
+      </View>
+      <View style={styles.skeletonRef}>
+        <Skeleton width={90} height={14} />
+      </View>
+      <View style={styles.actions}>
+        <View style={styles.primary}>
+          <Skeleton height={layout.button} radius={layout.button / 2} />
+        </View>
+        <Skeleton width={layout.iconButton} height={layout.iconButton} radius={22} />
+        <Skeleton width={layout.iconButton} height={layout.iconButton} radius={22} />
+      </View>
+    </View>
+  );
+}
+
+function VerseBody({
+  content,
+  dateKey,
+  onSeeAll,
+  onReadChapter,
+}: {
+  content: VotdContent;
+  dateKey: string;
+  onSeeAll?: () => void;
+  onReadChapter?: (location: VotdReference) => void;
+}) {
+  const { colors, radii, type } = useTheme();
+  const { t, appLanguage } = useTranslation();
   const [notice, setNotice] = useState<string | null>(null);
+
+  const photo = content.imageUrl !== null;
+  // On a photograph every word is white (see the header); otherwise page ink.
+  const ink = photo ? onPhoto.ink : colors.ink;
+  const quietInk = photo ? onPhoto.ink : colors.inkMuted;
+  const location = content.location;
+  const canRead = Boolean(onReadChapter && location);
 
   async function onShare() {
     // A dismissed share and a failed one are both "nothing happened";
@@ -99,20 +180,65 @@ function VerseBody({ content }: { content: VotdContent }) {
   }
 
   return (
-    <Card testID="daily-verse-card" style={{ gap: spacing.md }}>
+    <View
+      testID="daily-verse-card"
+      style={[
+        styles.card,
+        photo && {
+          // Wider than the page's margins by 4 on each side, so the picture
+          // reads as laid on the page rather than set inside it -- and 10
+          // below the header, which the plain page does not need.
+          marginTop: 10,
+          marginHorizontal: -4,
+          paddingHorizontal: 22,
+          paddingTop: 20,
+          paddingBottom: 22,
+          borderRadius: radii.sheet,
+          backgroundColor: onPhoto.base,
+          overflow: 'hidden',
+        },
+      ]}
+    >
       {content.imageUrl ? (
-        <Image
-          source={{ uri: content.imageUrl }}
-          style={[styles.image, { borderRadius: radii.chip }]}
-          testID="daily-verse-image"
-          accessibilityIgnoresInvertColors
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={t('dailyVerse.imageLabel')}
-        />
+        <>
+          <Image
+            source={{ uri: content.imageUrl }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            testID="daily-verse-image"
+            accessibilityIgnoresInvertColors
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={t('dailyVerse.imageLabel')}
+          />
+          <View
+            testID="daily-verse-veil"
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: onPhoto.veil }]}
+          />
+        </>
       ) : null}
 
-      <VerseText body={content.body} isOverride={content.citation === null} />
+      <Text testID="daily-verse-date" style={[type.bodySmall, { color: quietInk }]}>
+        {formatIsoWeekdayDate(dateKey, appLanguage)}
+      </Text>
+      <SectionHeader
+        title={t('home.verseOfTheDay')}
+        tone={photo ? 'photo' : 'gold'}
+        actionLabel={onSeeAll ? t('common.seeAll') : undefined}
+        onAction={onSeeAll}
+        actionTestID="daily-verse-see-all"
+      />
+      <GoldRule tone={photo ? 'photo' : 'page'} />
+
+      <View style={styles.verse}>
+        <VerseText
+          body={content.body}
+          isOverride={content.source === 'override'}
+          ink={ink}
+          quietInk={quietInk}
+        />
+      </View>
 
       {content.body.kind === 'englishOnly' ? (
         // Bilingual mode was asked for, but this verse cannot be paired.
@@ -123,7 +249,7 @@ function VerseBody({ content }: { content: VotdContent }) {
         // ../bible/alignment.ts.
         <Text
           testID="daily-verse-not-in-translation"
-          style={[type.caption, styles.notice, { color: colors.inkMuted }]}
+          style={[type.caption, styles.notice, { color: quietInk }]}
         >
           {content.body.notice === 'numberingDiffers'
             ? t('bible.numberingDiffers')
@@ -133,24 +259,52 @@ function VerseBody({ content }: { content: VotdContent }) {
 
       <Text
         testID="daily-verse-reference"
-        style={[type.scriptureReference, { color: colors.accent }]}
+        style={[
+          type.button,
+          styles.reference,
+          { color: photo ? onPhoto.ink : colors.accent },
+        ]}
       >
         {content.reference}
       </Text>
 
-      <View style={[styles.actions, { gap: spacing.sm }]}>
-        <AppButton
-          title={t('bible.share')}
-          variant="text"
+      <View style={styles.actions}>
+        {canRead ? (
+          photo ? (
+            <ReadChapterOnPhoto
+              label={t('home.readChapter')}
+              onPress={() => onReadChapter?.(location as VotdReference)}
+            />
+          ) : (
+            <View style={styles.primary}>
+              <AppButton
+                title={t('home.readChapter')}
+                trailingIcon="arrow"
+                fullWidth
+                onPress={() => onReadChapter?.(location as VotdReference)}
+                testID="daily-verse-read"
+              />
+            </View>
+          )
+        ) : null}
+        <IconButton
+          variant="outlined"
+          accessibilityLabel={t('bible.share')}
           onPress={() => void onShare()}
           testID="daily-verse-share"
-        />
-        <AppButton
-          title={t('bible.copy')}
-          variant="text"
+          style={photo ? { borderColor: onPhoto.ring } : undefined}
+        >
+          <Icon name="share" size={20} color={photo ? onPhoto.ink : undefined} />
+        </IconButton>
+        <IconButton
+          variant="outlined"
+          accessibilityLabel={t('bible.copy')}
           onPress={() => void onCopy()}
           testID="daily-verse-copy"
-        />
+          style={photo ? { borderColor: onPhoto.ring } : undefined}
+        >
+          <Icon name="copy" size={20} color={photo ? onPhoto.ink : undefined} />
+        </IconButton>
       </View>
 
       {notice ? (
@@ -159,38 +313,72 @@ function VerseBody({ content }: { content: VotdContent }) {
         <Text
           testID="daily-verse-notice"
           accessibilityLiveRegion="polite"
-          style={[type.caption, { color: colors.inkMuted }]}
+          style={[type.caption, styles.noticeLine, { color: quietInk }]}
         >
           {notice}
         </Text>
       ) : null}
-    </Card>
+    </View>
+  );
+}
+
+/** "Read chapter" as a white pill, for the card laid over a photograph. */
+function ReadChapterOnPhoto({ label, onPress }: { label: string; onPress: () => void }) {
+  const { layout, radii, type } = useTheme();
+  return (
+    <Tappable
+      testID="daily-verse-read"
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[
+        styles.primary,
+        styles.photoPill,
+        {
+          minHeight: layout.button,
+          borderRadius: radii.pill,
+          backgroundColor: onPhoto.button,
+        },
+      ]}
+    >
+      <Text style={[type.button, styles.photoPillLabel, { color: onPhoto.onButton }]}>
+        {label}
+      </Text>
+      <Icon name="arrow" size={18} color={onPhoto.onButton} />
+    </Tappable>
   );
 }
 
 /**
- * The verse itself. A paired bilingual verse is TWO Text nodes, each in
- * its own language's face -- never one node carrying both scripts, for
- * the reason in this file's header.
+ * The verse itself. A paired bilingual verse is TWO Text nodes, each in its
+ * own language's face -- never one node carrying both scripts, for the
+ * reason in this file's header -- with the English at 22/33 and the Telugu
+ * beneath it at 19/34 in quieter ink.
  */
-function VerseText({ body, isOverride }: { body: VotdBody; isOverride: boolean }) {
-  const { colors, spacing } = useTheme();
-  // Hooks cannot be called conditionally, so this resolves for every body
-  // kind and is used only for an override.
-  const overrideType = useTypographyFor(body.kind === 'text' ? body.language : 'en');
+function VerseText({
+  body,
+  isOverride,
+  ink,
+  quietInk,
+}: {
+  body: VotdBody;
+  isOverride: boolean;
+  ink: string;
+  quietInk: string;
+}) {
+  const { appLanguage } = useTranslation();
 
   if (body.kind === 'paired') {
     return (
-      <View style={{ gap: spacing.md }}>
+      <View style={styles.pair}>
         <Text
           testID="daily-verse-english"
-          style={[scriptureStyle('en'), { color: colors.ink }]}
+          style={[scriptureBilingualStyle('en'), { color: ink }]}
         >
           {body.english}
         </Text>
         <Text
           testID="daily-verse-telugu"
-          style={[scriptureStyle('te'), { color: colors.ink }]}
+          style={[scriptureBilingualStyle('te'), { color: quietInk }]}
         >
           {body.telugu}
         </Text>
@@ -202,19 +390,24 @@ function VerseText({ body, isOverride }: { body: VotdBody; isOverride: boolean }
     return (
       <Text
         testID="daily-verse-english"
-        style={[scriptureStyle('en'), { color: colors.ink }]}
+        style={[scriptureDisplayStyle('en', body.english), { color: ink }]}
       >
         {body.english}
       </Text>
     );
   }
 
+  const display = scriptureDisplayStyle(body.language, body.text);
   return (
     <Text
       testID="daily-verse-text"
       style={[
-        isOverride ? overrideType.bodyLarge : scriptureStyle(body.language),
-        { color: colors.ink },
+        display,
+        // An administrator's own text: the serif of the script it is written in.
+        isOverride
+          ? { fontFamily: contentFontFamily(body.text, { fallback: appLanguage }) }
+          : null,
+        { color: ink },
       ]}
     >
       {body.text}
@@ -223,7 +416,23 @@ function VerseText({ body, isOverride }: { body: VotdBody; isOverride: boolean }
 }
 
 const styles = StyleSheet.create({
-  image: { width: '100%', aspectRatio: 16 / 9 },
-  notice: { fontStyle: 'italic' },
-  actions: { flexDirection: 'row', alignItems: 'center' },
+  card: { paddingTop: 16 },
+  labelRow: { justifyContent: 'center' },
+  verse: { marginTop: 24 },
+  pair: { gap: 10 },
+  notice: { fontStyle: 'italic', marginTop: 12 },
+  reference: { marginTop: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24 },
+  primary: { flex: 1, minWidth: 0 },
+  photoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  photoPillLabel: { flexShrink: 1, textAlign: 'center' },
+  noticeLine: { marginTop: 12 },
+  skeletonLines: { gap: 14, marginTop: 24 },
+  skeletonRef: { marginTop: 16 },
 });

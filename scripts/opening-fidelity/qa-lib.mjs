@@ -112,7 +112,7 @@ export default api;
   const rnShim = stub(
     'react-native-shim.tsx',
     `import * as React from 'react';
-import { View } from ${JSON.stringify(path.join(nm, 'react-native-web'))};
+import { View, Text as WebText } from ${JSON.stringify(path.join(nm, 'react-native-web'))};
 import { useQa } from './store';
 export * from ${JSON.stringify(path.join(nm, 'react-native-web'))};
 // react-native-web has no native node handles; a screen asks for one only to move a screen reader's focus.
@@ -123,6 +123,29 @@ export function KeyboardAvoidingView({ style, behavior: _b, children, ...rest }:
   const s = useQa();
   return <View {...rest} style={[style, { paddingBottom: s.keyboard }]}>{children}</View>;
 }
+// react-native-web has no onTextLayout, which tells a screen how many lines its text took. A phone does;
+// this reports the same thing from the browser's own layout (height over line height), so a screen that
+// asks -- the Prophet Verse deciding whether to offer "Read more" -- can be looked at here.
+export const Text = React.forwardRef(function Text({ onTextLayout, ...props }: any, forwarded: any) {
+  const local = React.useRef<any>(null);
+  React.useLayoutEffect(() => {
+    const el = local.current;
+    if (!onTextLayout || !el || !el.getBoundingClientRect) return;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 1;
+    const lines = Math.max(1, Math.round(el.getBoundingClientRect().height / lineHeight));
+    onTextLayout({ nativeEvent: { lines: Array.from({ length: lines }, () => ({})) } });
+  });
+  return (
+    <WebText
+      {...props}
+      ref={(node: any) => {
+        local.current = node;
+        if (typeof forwarded === 'function') forwarded(node);
+        else if (forwarded) forwarded.current = node;
+      }}
+    />
+  );
+});
 `
   );
   const files = {
@@ -242,6 +265,8 @@ export async function openQa(browser, html, label, cfg, opts = {}, hooks = {}) {
     deviceScaleFactor: opts.scale ?? 2,
     reducedMotion: opts.reduced ? 'reduce' : 'no-preference',
     colorScheme: opts.dark ? 'dark' : 'light',
+    // The app's canonical zone, so "6:30 PM" is 6:30 PM whatever machine this runs on.
+    timezoneId: opts.timezoneId ?? 'Asia/Kolkata',
   });
   const page = await context.newPage();
   page.on('pageerror', (e) => problems.push(`${label}: pageerror ${e.message}`));
@@ -251,6 +276,8 @@ export async function openQa(browser, html, label, cfg, opts = {}, hooks = {}) {
     if (m.type() === 'error' || m.type() === 'warning')
       problems.push(`${label}: ${m.type()} ${text.slice(0, 300)}`);
   });
+  // Anything a scenario needs before the page loads: a network route for a picture, say.
+  if (opts.setup) await opts.setup(page, context);
   // A fake clock that STOPS: until the test advances it nothing moves, so a shot "at 2.8 s" is exact.
   await page.clock.install({ time: opts.startTime ?? 1_700_000_000_000 });
   const query = new URLSearchParams();
@@ -258,7 +285,10 @@ export async function openQa(browser, html, label, cfg, opts = {}, hooks = {}) {
   if (opts.storage) query.set('storage', JSON.stringify(opts.storage));
   await page.goto(`file://${html}?${query}`);
   await page.waitForFunction(() => window.__ready === true);
-  await page.clock.pauseAt((opts.startTime ?? 1_700_000_000_000) + 1000);
+  // The installed clock RUNS until it is paused, so a slow load (a big bundle, a busy machine) can pass
+  // the moment we meant to stop at -- and pausing in the past is an error. Stop a moment after "now".
+  const loaded = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(Math.max((opts.startTime ?? 1_700_000_000_000) + 1000, loaded + 20));
   await page.evaluate(
     (c) =>
       window.__qa.set({
@@ -276,6 +306,7 @@ export async function openQa(browser, html, label, cfg, opts = {}, hooks = {}) {
       extra: opts.extra ?? {},
     }
   );
+  // A function (run in the page, no arguments) or a string expression.
   if (opts.beforeMount) await page.evaluate(opts.beforeMount);
   await page.evaluate(() => window.__mount());
 

@@ -12,6 +12,8 @@ export {
   serifFor,
   typographyFor,
   scriptureDisplayStyle,
+  scriptureBilingualStyle,
+  onPhoto,
   SCRIPTURE_DISPLAY_STEPS,
   readingScale,
   readingLineHeight,
@@ -34,6 +36,7 @@ export type {
   BrandGold,
 } from './tokens';
 export { Card } from './ui/Card';
+export { GoldRule, GoldBar, GoldFill } from './ui/GoldLine';
 export { AppButton } from './ui/AppButton';
 export { IconButton } from './ui/IconButton';
 export { Icon } from './ui/Icon';
