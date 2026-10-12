@@ -48,6 +48,9 @@ import { BibleHomeScreen } from ${T('features/bible/BibleHomeScreen')};
 import { ChaptersListScreen } from ${T('features/bible/ChaptersListScreen')};
 import { BibleSearchScreen } from ${T('features/bible/BibleSearchScreen')};
 import { ReaderScreen } from ${T('features/bible/reader/ReaderScreen')};
+import { MediaFeedScreen } from ${T('features/media/MediaFeedScreen')};
+import { MediaDetailScreen } from ${T('features/media/MediaDetailScreen')};
+import { SavedMediaScreen } from ${T('features/media/SavedMediaScreen')};
 import { PlanDetailScreen } from ${T('features/plans/PlanDetailScreen')};
 import { PlanDayScreen } from ${T('features/plans/PlanDayScreen')};
 import { PlanDoneScreen } from ${T('features/plans/PlanDoneScreen')};
@@ -57,8 +60,7 @@ import { TabBar } from ${T('navigation/TabBar')};
 const Stack = createNativeStackNavigator();
 const ref = createNavigationContainerRef();
 const TABS = new Set(['Home', 'BibleBooks', 'PrayersHub', 'CommunityHub', 'You']);
-const OTHER = ['MediaFeed',
-  'SavedMedia', 'DailyVerse'];
+const OTHER = ['DailyVerse'];
 
 function Stub({ route }: any) {
   return (
@@ -98,6 +100,9 @@ function Root() {
             <Stack.Screen name="BibleChapters" component={ChaptersListScreen} initialParams={initial.name === 'BibleChapters' ? initial.params : undefined} />
             <Stack.Screen name="BibleChapter" component={ReaderScreen} initialParams={initial.name === 'BibleChapter' ? initial.params : undefined} />
             <Stack.Screen name="BibleSearch" component={BibleSearchScreen} />
+            <Stack.Screen name="MediaFeed" component={MediaFeedScreen} />
+            <Stack.Screen name="MediaDetail" component={MediaDetailScreen} initialParams={initial.name === 'MediaDetail' ? initial.params : undefined} />
+            <Stack.Screen name="SavedMedia" component={SavedMediaScreen} />
             <Stack.Screen name="PlanDetail" component={PlanDetailScreen} initialParams={initial.name === 'PlanDetail' ? initial.params : undefined} />
             <Stack.Screen name="PlanDay" component={PlanDayScreen} initialParams={initial.name === 'PlanDay' ? initial.params : undefined} />
             <Stack.Screen name="PlanDone" component={PlanDoneScreen} initialParams={initial.name === 'PlanDone' ? initial.params : undefined} />
@@ -213,6 +218,22 @@ const seed = (d) => {
   for (let i = 0; i < (d.savedMedia ?? 0); i++) {
     docs['users/qa-member/mediaSaves/s' + i] = { createdAt: ts(now - i * day) };
   }
+  // The church's photographs and videos, a member's likes, the small copies a save carries, and the comments.
+  (d.media ?? []).forEach((m, i) => {
+    const { ageH, ...rest } = m;
+    docs['media/' + m.id] = { published: true, authorName: '', ...rest, publishAt: ts(now - (ageH ?? (i + 1) * 30) * hour) };
+  });
+  (d.likedMedia ?? []).forEach((id) => {
+    docs['users/qa-member/mediaLikes/' + id] = { createdAt: ts(now - hour) };
+  });
+  (d.savedPosts ?? []).forEach((m, i) => {
+    docs['users/qa-member/mediaSaves/' + m.id] = { type: m.type, mediaUrl: m.mediaUrl, caption: m.caption, createdAt: ts(now - (i + 1) * day) };
+  });
+  Object.entries(d.mediaComments ?? {}).forEach(([mediaId, list]) => {
+    list.forEach((c, i) => {
+      docs['media/' + mediaId + '/comments/c' + String(i).padStart(2, '0')] = { text: c.text, authorUid: c.own ? 'qa-member' : 'other-' + i, authorName: c.authorName, createdAt: ts(now - (c.minAgo ?? (list.length - i) * 40) * 60_000) };
+    });
+  });
   window.__fs.seed(docs);
   window.__auth.signIn({
     uid: 'qa-member',
@@ -234,6 +255,10 @@ async function setup(page) {
     const [a, b] = PICTURES[key] ?? PICTURES.a;
     return route.fulfill({ contentType: 'image/svg+xml', body: svg(a, b) });
   });
+  // The still YouTube keeps for a video (a video post's poster) -- answered with a picture, no network.
+  await page.route('https://i.ytimg.com/**', (route) =>
+    route.fulfill({ contentType: 'image/svg+xml', body: svg(...PICTURES.b) })
+  );
 }
 
 const EN_PRAYERS = {
@@ -403,6 +428,31 @@ const PSALMS = {
   dayCount: 7,
 };
 const PSALMS_PROGRESS = { 'seven-days-in-the-psalms': { currentDay: 2, completedDays: [1] } };
+
+// The church's photographs and videos: a picture with the verse it quotes, a YouTube video, and a plain picture.
+const EN_MEDIA = [
+  { id: 'm0', type: 'image', mediaUrl: 'https://example.org/qa-a.svg', caption: 'Sunday worship, 4 October', verseReference: 'Psalm 23:1', verseText: 'Yahweh is my shepherd: I shall lack nothing.', authorName: 'Church office', ageH: 150 },
+  { id: 'm1', type: 'video', mediaUrl: 'https://www.youtube.com/watch?v=abcdefghijk', caption: 'Sermon: peace that stays', authorName: 'Church office', ageH: 190 },
+  { id: 'm2', type: 'image', mediaUrl: 'https://example.org/qa-b.svg', caption: 'Children’s harvest craft', authorName: 'Sunday school', ageH: 260 },
+];
+const TE_MEDIA = [
+  { id: 'm0', type: 'image', mediaUrl: 'https://example.org/qa-a.svg', caption: 'ఆదివారం ఆరాధన, 4 అక్టోబర్', verseReference: 'కీర్తనలు 23:1', verseText: 'యెహోవా నా కాపరి; నాకు లేమి కలుగదు.', authorName: 'సంఘ కార్యాలయం', ageH: 150 },
+  { id: 'm1', type: 'video', mediaUrl: 'https://www.youtube.com/watch?v=abcdefghijk', caption: 'ప్రసంగం: నిలిచే సమాధానం', authorName: 'సంఘ కార్యాలయం', ageH: 190 },
+  { id: 'm2', type: 'image', mediaUrl: 'https://example.org/qa-b.svg', caption: 'పిల్లల పంట కళాకృతులు', authorName: 'సండే స్కూల్', ageH: 260 },
+];
+const EN_COMMENTS = { m0: [
+  { authorName: 'Asha', text: 'A lovely service. Thank you for sharing.' },
+  { authorName: 'Joshua', text: 'Praise God for this.', own: true },
+] };
+const TE_COMMENTS = { m0: [
+  { authorName: 'ఆశ', text: 'చక్కని ఆరాధన. పంచుకున్నందుకు ధన్యవాదాలు.' },
+  { authorName: 'జాషువా', text: 'దీనికి దేవునికి స్తోత్రం.', own: true },
+] };
+const media = (list, comments) => ({ name: 'Joshua', churchName: 'Maranatha', media: list, likedMedia: ['m0'], savedPosts: [list[2]], mediaComments: comments });
+const EN_MEDIA_DATA = media(EN_MEDIA, EN_COMMENTS);
+const TE_MEDIA_DATA = { ...media(TE_MEDIA, TE_COMMENTS), name: 'జాషువా' };
+const VIDEO_LINK_POST = { id: 'm9', type: 'video', mediaUrl: 'https://example.org/clip.mp4', caption: 'Sermon: peace that stays', authorName: 'Church office', publishAt: { __date: Date.UTC(2026, 9, 7) } };
+const PHOTO_POST = (list) => ({ ...list[0], publishAt: { __date: Date.UTC(2026, 9, 5) } });
 
 // The reader: John 3 in English, with the three marks a page can carry -- a highlight, a bookmark, a note.
 const READER_EN = { ...EN, bible_mode_preference: 'en' };
@@ -861,6 +911,30 @@ const SCENARIOS = [
     },
   },
   { name: 'search-prompt', storage: { ...EN, bible_mode_preference: 'en' }, data: EN_DATA, route: route('BibleSearch') },
+  // --- Photos and videos: the feed, one post, and the saved list
+  { name: 'media-feed-light', storage: EN, data: EN_MEDIA_DATA, route: route('MediaFeed') },
+  { name: 'media-feed-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_MEDIA_DATA, route: route('MediaFeed') },
+  { name: 'media-feed-te', storage: TE, data: TE_MEDIA_DATA, route: route('MediaFeed') },
+  { name: 'media-feed-empty', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('MediaFeed') },
+  { name: 'media-detail-light', storage: EN, data: EN_MEDIA_DATA, route: route('MediaDetail', { post: PHOTO_POST(EN_MEDIA) }) },
+  { name: 'media-detail-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_MEDIA_DATA, route: route('MediaDetail', { post: PHOTO_POST(EN_MEDIA) }) },
+  { name: 'media-detail-te', storage: TE, data: TE_MEDIA_DATA, route: route('MediaDetail', { post: PHOTO_POST(TE_MEDIA) }) },
+  { name: 'media-detail-link', storage: EN, data: { ...EN_MEDIA_DATA, mediaComments: {} }, route: route('MediaDetail', { post: VIDEO_LINK_POST }) },
+  { name: 'media-detail-link-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: { ...EN_MEDIA_DATA, mediaComments: {} }, route: route('MediaDetail', { post: VIDEO_LINK_POST }) },
+  { name: 'media-saved-light', storage: EN, data: { ...EN_MEDIA_DATA, savedPosts: EN_MEDIA }, route: route('SavedMedia') },
+  { name: 'media-saved-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: { ...EN_MEDIA_DATA, savedPosts: EN_MEDIA }, route: route('SavedMedia') },
+  { name: 'media-saved-te', storage: TE, data: { ...TE_MEDIA_DATA, savedPosts: TE_MEDIA }, route: route('SavedMedia') },
+  { name: 'media-saved-empty', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('SavedMedia') },
+  {
+    name: 'media-saved-gone',
+    storage: EN,
+    data: { name: 'Joshua', churchName: 'Maranatha', media: [], savedPosts: EN_MEDIA },
+    route: route('SavedMedia'),
+    steps: async (qa) => {
+      await qa.tap('saved-media-m0');
+      await qa.advance(500);
+    },
+  },
   // --- The reader: its page, its chrome and its sheets
   { name: 'reader-light', storage: READER_EN, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
   { name: 'reader-dark', storage: { ...READER_EN, theme_preference: 'dark' }, dark: true, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },

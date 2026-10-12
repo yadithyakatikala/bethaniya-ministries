@@ -59,7 +59,7 @@ for a frame.
 | Prayer wall | Prayers → **Requests** |
 | Prayers (journal) | Prayers → **My journal** |
 | Songs, Events (they were tabs) | pushed from Community's **shelf**; Home opens Events directly |
-| Photos and videos | Community's shelf, Home's Together row; saved ones under You → Saved |
+| Photos and videos | Community's shelf, Home's Together row; saved ones under You → Saved. See `MEDIA.md`. |
 | Reading plans (a screen of their own) | Bible → **Plans**; Home's plan row and You → Saved open it there |
 
 ## Pushed screens and the app's own top bar
@@ -71,7 +71,8 @@ screen has the same bar in both themes and both languages. Not-yet-redesigned
 screens keep the themed native header until they are rebuilt.
 
 Songs, Events (a list, an event, and the live player) are pushed from Community's
-shelf and are redesigned the same way; see `COMMUNITY.md`. The tab bar steps out of
+shelf and are redesigned the same way; see `COMMUNITY.md`. So are the media feed, a
+post and the saved list; see `MEDIA.md`. The tab bar steps out of
 the way while the keyboard is up (`navigation/useKeyboardVisible.ts`), as the design
 shows for the chat's message box.
 

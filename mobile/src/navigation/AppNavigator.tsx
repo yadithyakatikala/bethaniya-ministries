@@ -489,17 +489,17 @@ export function AppNavigator() {
             <Stack.Screen
               name="MediaFeed"
               component={MediaFeedScreen}
-              options={{ title: t('media.title') }}
+              options={{ title: t('media.title'), headerShown: false }}
             />
             <Stack.Screen
               name="MediaDetail"
               component={MediaDetailScreen}
-              options={{ title: t('media.title') }}
+              options={{ title: t('media.title'), headerShown: false }}
             />
             <Stack.Screen
               name="SavedMedia"
               component={SavedMediaScreen}
-              options={{ title: t('media.savedTitle') }}
+              options={{ title: t('media.savedTitle'), headerShown: false }}
             />
             <Stack.Screen
               name="CommunityPostDetail"

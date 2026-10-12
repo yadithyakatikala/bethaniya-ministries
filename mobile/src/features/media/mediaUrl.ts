@@ -1,3 +1,5 @@
+import { toYouTubeThumbnailUrl } from '../events/youtube';
+
 /**
  * What counts as a media URL this app will load.
  *
@@ -46,6 +48,24 @@
  * The same rules are enforced again in firestore.rules, because a client
  * check is a convenience and a server check is the boundary.
  */
+
+/**
+ * The picture to draw for a post, in a feed or a list: the post's own address
+ * for a photograph; for a video, the poster YouTube keeps (see
+ * ../events/youtube.ts) when the link is a YouTube one, and NOTHING otherwise.
+ *
+ * Nothing, because a video's address is not a picture: handing it to an image
+ * draws nothing and costs a request. A card with no poster shows its neutral
+ * block and the play marker -- which is the honest picture of "a video the app
+ * cannot show a still of".
+ */
+export function posterFor(post: {
+  type: 'image' | 'video';
+  mediaUrl: string;
+}): string | null {
+  if (post.type === 'image') return post.mediaUrl;
+  return toYouTubeThumbnailUrl(post.mediaUrl);
+}
 
 /** The only scheme this app will load media over. */
 const ALLOWED_PROTOCOL = 'https:';

@@ -583,6 +583,10 @@ export interface Strings {
   /** M7: "Posted 3 March 2026", under a card. */
   'media.publishedOn': string;
   'media.refresh': string;
+  'media.openVideo': string;
+  'media.videoLink': string;
+  'media.unavailable': string;
+  'media.commentsError': string;
 
   // --- M7: the group chat ----------------------------------------------
   // NOT `community.*`: that prefix belongs to the admin-authored posts
@@ -1172,6 +1176,10 @@ const en: Strings = {
   'media.actionFailed': 'That did not work. Please try again.',
   'media.publishedOn': 'Posted {date}',
   'media.refresh': 'Refresh',
+  'media.openVideo': 'Open video',
+  'media.videoLink': 'This video plays outside the app.',
+  'media.unavailable': 'This post is no longer available.',
+  'media.commentsError': 'Comments could not be loaded.',
 
   'chat.title': 'Church chat',
   'chat.sectionTitle': 'Church chat',
@@ -1742,6 +1750,10 @@ const te: Strings = {
   'media.actionFailed': 'అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
   'media.publishedOn': '{date}న పోస్ట్ చేయబడింది',
   'media.refresh': 'రిఫ్రెష్ చేయండి',
+  'media.openVideo': 'వీడియో తెరవండి',
+  'media.videoLink': 'ఈ వీడియో యాప్ బయట ప్లే అవుతుంది.',
+  'media.unavailable': 'ఈ పోస్ట్ ఇప్పుడు అందుబాటులో లేదు.',
+  'media.commentsError': 'వ్యాఖ్యలను లోడ్ చేయలేకపోయాం.',
 
   'chat.title': 'సంఘ సంభాషణ',
   'chat.sectionTitle': 'సంఘ సంభాషణ',

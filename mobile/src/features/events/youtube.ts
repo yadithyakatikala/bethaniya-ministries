@@ -90,6 +90,25 @@ export function toYouTubeEmbedUrl(url: string): string | null {
 }
 
 /**
+ * The still picture YouTube keeps for a video -- what a feed card shows behind
+ * its play marker, so a video post has a poster rather than an empty block.
+ *
+ * A small image from YouTube's own picture host (ytimg.com, which the player
+ * above already loads from), requested when the card is on screen -- the same
+ * cost as a photograph in the feed, and nothing like the video. The video
+ * itself is still loaded only on the detail screen.
+ */
+export function buildYouTubeThumbnailUrl(videoId: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+/** A recognised YouTube link's poster picture, or null for anything else. */
+export function toYouTubeThumbnailUrl(url: string): string | null {
+  const videoId = parseYouTubeVideoId(url);
+  return videoId ? buildYouTubeThumbnailUrl(videoId) : null;
+}
+
+/**
  * Hosts the embedded player itself legitimately loads while playing a
  * video: YouTube's own player plus its static/CDN and playback
  * infrastructure.
