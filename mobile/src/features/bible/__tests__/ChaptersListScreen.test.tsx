@@ -19,11 +19,12 @@ jest.mock('../../../services/firebase/app');
 
 async function renderScreen(bookId: string) {
   const navigate = jest.fn();
+  const goBack = jest.fn();
   const utils = await render(
     <AuthProvider>
       <PreferencesProvider>
         <ChaptersListScreen
-          navigation={{ navigate } as never}
+          navigation={{ navigate, goBack } as never}
           route={
             { key: 'BibleChapters', name: 'BibleChapters', params: { bookId } } as never
           }
@@ -31,7 +32,7 @@ async function renderScreen(bookId: string) {
       </PreferencesProvider>
     </AuthProvider>
   );
-  return { ...utils, navigate };
+  return { ...utils, navigate, goBack };
 }
 
 describe('ChaptersListScreen', () => {
@@ -76,5 +77,38 @@ describe('ChaptersListScreen', () => {
     const list = getByTestId('bible-chapters-list');
     const flatStyle = Object.assign({}, ...[list.props.style].flat());
     expect(flatStyle.backgroundColor).toBe(darkTokens.paper);
+  });
+
+  it('has a top bar named for the book, in the Bible’s language, whose Back leaves the screen', async () => {
+    const { getByText, getByRole, goBack } = await renderScreen('genesis');
+    // The default Bible is Telugu, so the book is named in Telugu.
+    expect(getByText('ఆదికాండము')).toBeTruthy();
+    await fireEvent.press(getByRole('button', { name: 'Back' }));
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('says how many chapters the book has', async () => {
+    const { getByText } = await renderScreen('genesis');
+    expect(getByText('50 chapters')).toBeTruthy();
+  });
+
+  it('announces each tile as its chapter', async () => {
+    const { getByRole } = await renderScreen('psalms');
+    expect(getByRole('button', { name: 'Chapter 119' })).toBeTruthy();
+  });
+
+  it('lays the tiles out five to a row, the last row filled out with empty slots', async () => {
+    const { getByTestId } = await renderScreen('genesis');
+    // 50 chapters is ten full rows; Jude's single chapter is one tile and four empty slots.
+    const rowOf = (id: string) =>
+      (getByTestId(id).parent as unknown as { children: unknown[] }).children;
+    expect(rowOf('chapter-1')).toHaveLength(5);
+  });
+
+  it('puts the single tile of a one-chapter book in the same column a longer book’s first would be', async () => {
+    const { getByTestId } = await renderScreen('jude');
+    const row = (getByTestId('chapter-1').parent as unknown as { children: unknown[] })
+      .children;
+    expect(row).toHaveLength(5);
   });
 });

@@ -1,10 +1,13 @@
 export { useTheme, useTypographyFor } from './useTheme';
+export { ThemeScope, useThemeScope } from './ThemeScope';
+export type { ScopePalette } from './ThemeScope';
 export { useAppFonts, BUNDLED_FONT_FAMILIES } from './fonts';
 export { contentFontFamily, contentTextStyle, scriptOf } from './scriptFace';
 export type { TextScript } from './scriptFace';
 export {
   lightTokens,
   darkTokens,
+  sepiaTokens,
   spacing,
   radii,
   layout,
@@ -63,4 +66,5 @@ export { FloatingAction } from './ui/FloatingAction';
 export { ScreenTitle } from './ui/ScreenTitle';
 export { SectionHeader } from './ui/SectionHeader';
 export { Sheet } from './ui/Sheet';
+export { ChoiceSheet } from './ui/ChoiceSheet';
 export { Tappable, PRESSED_OPACITY } from './ui/Tappable';

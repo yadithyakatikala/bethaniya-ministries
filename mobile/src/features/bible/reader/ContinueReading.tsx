@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Tappable } from '../../../theme/ui/Tappable';
 import { GoldBar } from '../../../theme/ui/GoldLine';
@@ -6,13 +5,8 @@ import { Icon } from '../../../theme/ui/Icon';
 import { useTheme } from '../../../theme';
 import { serifFor } from '../../../theme/tokens';
 import { useTranslation } from '../../../i18n';
-import { useAuth } from '../../../context/AuthContext';
 import { usePreferences } from '../../../context/PreferencesContext';
-import { primaryBibleLanguage } from '../../../context/languagePreferences';
-import {
-  subscribeToReadingPosition,
-  type ReadingPosition,
-} from '../../../services/firebase/readingPosition';
+import { useSavedReadingPosition } from './useSavedReadingPosition';
 import { getBookNameById } from '../books';
 import { bookNameLanguageFor } from '../types';
 
@@ -50,22 +44,9 @@ export function ContinueReading({
 }) {
   const { colors, layout, type } = useTheme();
   const { t } = useTranslation();
-  const { status, user } = useAuth();
   const { appLanguage, bibleMode } = usePreferences();
-  const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
-  const translationId = primaryBibleLanguage(bibleMode);
   const bookNameLanguage = bookNameLanguageFor(bibleMode, appLanguage);
-
-  const [saved, setSaved] = useState<ReadingPosition | null>(null);
-
-  useEffect(() => {
-    if (!uid) return undefined;
-    return subscribeToReadingPosition(uid, translationId, setSaved, () => setSaved(null));
-  }, [uid, translationId]);
-
-  // DERIVED rather than cleared in an effect, so signing out hides the
-  // card on the very next render instead of one frame later.
-  const position = uid ? saved : null;
+  const position = useSavedReadingPosition();
 
   const bookName = position
     ? getBookNameById(position.bookId, bookNameLanguage)

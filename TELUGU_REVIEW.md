@@ -77,14 +77,23 @@ a key cannot be accidentally dropped while editing.
 | `settings.logOutConfirmMessage` | యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు. | Reassures the member that nothing is deleted when they log out. Check it reads as reassurance, not as a warning. |
 | `credits.intro` | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | Says the Bibles are stored on the phone and work without a connection. |
 | `credits.publicDomain` | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | The English Bible's status. "ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)" is long; a shorter accepted term may be preferred. |
-| `credits.licensed` | CC BY-SA 4.0 లైసెన్స్ కింద | The licence line the Telugu Bible's terms require (CC BY-SA 4.0). Keep the licence name exactly as it is. |
+| `credits.licensed` | {licence} లైసెన్స్ కింద | The licence line the Telugu Bible's terms require (CC BY-SA 4.0). Keep the licence name exactly as it is. |
 | `notifications.new` | కొత్తది | Spoken before an unread notification by a screen reader ("కొత్తది", "a new one"). Check it reads naturally before a title. |
 | `notifications.emptyMessage` | ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి. | The empty Notifications page: says where a church notification is kept. |
+| `plans.myPlans` | నా ప్రణాళికలు | The chip for the plans a member has started. "నా ప్రణాళికలు" ("my plans"); keep it consistent with `plans.title`. |
+| `plans.findPlans` | కనుగొనండి | The chip for plans not yet started. A single verb, "కనుగొనండి" ("find"), to fit a chip; confirm it reads as "find plans" and not just "find". |
+| `plans.beginWithPlan` | ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది. | A short invitation under "Start a plan" when a member has none. Drafted; check the tone is warm, not pushy. |
+| `plans.reflect` | ధ్యానించండి | "ధ్యానించండి" ("meditate"). The second of three steps in a plan day (Read, Reflect, Pray); confirm it is the verb the church uses for reflecting on a passage. |
+| `plans.doneMessage` | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | The sentence on "Plan complete": "{plan} యొక్క {n} రోజులూ మీరు చదివారు." Check the order of the name and the number reads naturally. |
+| `plans.nextDay` | తదుపరి: {n}వ రోజు | "తదుపరి: {n}వ రోజు" ("Next: day {n}"). Check the ordinal ending "వ" after a number reads correctly for every day. |
+| `bible.pageSepia` | సెపియా | A page colour, transliterated ("సెపియా"). Confirm members would recognise it, or choose a native word for a warm cream page. |
+| `bible.page` | పేజీ | "పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings. |
+| `bible.moreSettings` | మరిన్ని అమరికలు | "మరిన్ని అమరికలు": opens the rest of the reading settings. `settings.title` uses "సెట్టింగ్‌లు" for Settings; decide whether this should use the same word. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-483 keys, grouped by screen area.
+504 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -291,6 +300,14 @@ a key cannot be accidentally dropped while editing.
 | `bible.layoutLabel` | Bilingual layout | ద్విభాషా అమరిక |  |
 | `bible.layoutStacked` | Stacked | ఒకదానిపై ఒకటి |  |
 | `bible.layoutSideBySide` | Side by side | ప్రక్కప్రక్కన |  |
+| `bible.tabRead` | Read | చదవండి |  |
+| `bible.tabPlans` | Plans | ప్రణాళికలు |  |
+| `bible.booksLabel` | Books | గ్రంథాలు |  |
+| `bible.chapterCount` | {n} chapters | {n} అధ్యాయాలు |  |
+| `bible.page` | Page | పేజీ | ⚠️ |
+| `bible.pageSepia` | Sepia | సెపియా | ⚠️ |
+| `bible.moreSettings` | More settings | మరిన్ని అమరికలు | ⚠️ |
+| `bible.resultsCount` | {n} results | {n} ఫలితాలు |  |
 
 ### Songs
 
@@ -368,6 +385,19 @@ a key cannot be accidentally dropped while editing.
 | `plans.loadError` | Couldn’t load this plan | ఈ ప్రణాళిక లోడ్ కాలేదు |  |
 | `plans.loadErrorMessage` | Check your connection and open the plan again. | కనెక్షన్ చూసి ప్రణాళికను మళ్లీ తెరవండి. |  |
 | `plans.dayNotFound` | This day could not be found. | ఈ రోజు కనబడలేదు. |  |
+| `plans.myPlans` | My plans | నా ప్రణాళికలు | ⚠️ |
+| `plans.findPlans` | Find plans | కనుగొనండి | ⚠️ |
+| `plans.findAPlan` | Find a plan | ప్రణాళికను కనుగొనండి |  |
+| `plans.beginWithPlan` | Begin with a plan, and today has a path. | ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది. | ⚠️ |
+| `plans.dayWord` | Day | రోజు |  |
+| `plans.read` | Read | చదవండి |  |
+| `plans.reflect` | Reflect | ధ్యానించండి | ⚠️ |
+| `plans.pray` | Pray | ప్రార్థించండి |  |
+| `plans.openInBible` | Open in the Bible | బైబిల్‌లో తెరవండి |  |
+| `plans.nextDay` | Next: day {n} | తదుపరి: {n}వ రోజు | ⚠️ |
+| `plans.doneTitle` | Plan complete | ప్రణాళిక పూర్తయింది |  |
+| `plans.doneMessage` | You read all {n} days of {plan}. | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | ⚠️ |
+| `plans.chooseAnother` | Choose another plan | మరో ప్రణాళికను ఎంచుకోండి |  |
 | `plans.dayLoadError` | This reading couldn’t be loaded. Check your connection and try again. | ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
 | `plans.loadErrorShort` | Could not load reading plans. | పఠన ప్రణాళికలు లోడ్ చేయలేకపోయాము. |  |
 | `plans.emptyShort` | No reading plans yet. | ఇంకా పఠన ప్రణాళికలు లేవు. |  |
@@ -498,7 +528,7 @@ a key cannot be accidentally dropped while editing.
 | --- | --- | --- | --- |
 | `credits.intro` | The Bibles in this app are stored on your phone, so you can read without a connection. | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | ⚠️ |
 | `credits.publicDomain` | Public domain | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | ⚠️ |
-| `credits.licensed` | Licensed under CC BY-SA 4.0 | CC BY-SA 4.0 లైసెన్స్ కింద | ⚠️ |
+| `credits.licensed` | Licensed under {licence} | {licence} లైసెన్స్ కింద | ⚠️ |
 | `credits.readLicence` | Read the licence | లైసెన్స్ చదవండి |  |
 
 ### prophetVerse

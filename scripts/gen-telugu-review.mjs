@@ -58,6 +58,15 @@ const UNCERTAIN = {
   'credits.licensed': 'The licence line the Telugu Bible\'s terms require (CC BY-SA 4.0). Keep the licence name exactly as it is.',
   'notifications.new': 'Spoken before an unread notification by a screen reader ("కొత్తది", "a new one"). Check it reads naturally before a title.',
   'notifications.emptyMessage': 'The empty Notifications page: says where a church notification is kept.',
+  'plans.myPlans': 'The chip for the plans a member has started. "నా ప్రణాళికలు" ("my plans"); keep it consistent with `plans.title`.',
+  'plans.findPlans': 'The chip for plans not yet started. A single verb, "కనుగొనండి" ("find"), to fit a chip; confirm it reads as "find plans" and not just "find".',
+  'plans.beginWithPlan': 'A short invitation under "Start a plan" when a member has none. Drafted; check the tone is warm, not pushy.',
+  'plans.reflect': '"ధ్యానించండి" ("meditate"). The second of three steps in a plan day (Read, Reflect, Pray); confirm it is the verb the church uses for reflecting on a passage.',
+  'plans.doneMessage': 'The sentence on "Plan complete": "{plan} యొక్క {n} రోజులూ మీరు చదివారు." Check the order of the name and the number reads naturally.',
+  'plans.nextDay': '"తదుపరి: {n}వ రోజు" ("Next: day {n}"). Check the ordinal ending "వ" after a number reads correctly for every day.',
+  'bible.pageSepia': 'A page colour, transliterated ("సెపియా"). Confirm members would recognise it, or choose a native word for a warm cream page.',
+  'bible.page': '"పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings.',
+  'bible.moreSettings': '"మరిన్ని అమరికలు": opens the rest of the reading settings. `settings.title` uses "సెట్టింగ్‌లు" for Settings; decide whether this should use the same word.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 

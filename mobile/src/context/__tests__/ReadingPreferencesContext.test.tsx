@@ -14,6 +14,7 @@ import { DEFAULT_READING_PREFS } from '../../services/firebase/readingPrefs';
 jest.mock('../../services/firebase/app');
 
 const READING_PREFS_KEY = 'reading_prefs';
+const READER_PAGE_KEY = 'reader_page_preference';
 
 function Probe() {
   const prefs = useReadingPreferences();
@@ -25,6 +26,7 @@ function Probe() {
       <Text testID="width">{prefs.width}</Text>
       <Text testID="layout">{prefs.layout}</Text>
       <Text testID="isLoaded">{String(prefs.isLoaded)}</Text>
+      <Text testID="page">{String(prefs.page)}</Text>
       <Button
         title="bigger"
         testID="set-size-xl"
@@ -34,6 +36,16 @@ function Probe() {
         title="sans"
         testID="set-font-sans"
         onPress={() => void prefs.setReadingPrefs({ font: 'sans' })}
+      />
+      <Button
+        title="sepia"
+        testID="set-page-sepia"
+        onPress={() => void prefs.setReaderPage('sepia')}
+      />
+      <Button
+        title="no page"
+        testID="clear-page"
+        onPress={() => void prefs.setReaderPage(null)}
       />
     </View>
   );
@@ -179,6 +191,93 @@ describe('reading preferences', () => {
     // The member can still see their change, and it is still stored.
     await waitFor(() => expect(getByTestId('size').props.children).toBe('xl'));
     expect(await AsyncStorage.getItem(READING_PREFS_KEY)).toContain('"size":"xl"');
+    warn.mockRestore();
+  });
+});
+
+describe('the reader page (sepia) is local to the phone', () => {
+  afterEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+    (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
+  });
+
+  it('is none chosen to begin with, so the page follows the app theme', async () => {
+    mockSignedOut();
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+    expect(getByTestId('page').props.children).toBe('null');
+  });
+
+  it('restores a stored page, so a restart keeps it', async () => {
+    mockSignedOut();
+    await AsyncStorage.setItem(READER_PAGE_KEY, 'sepia');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('sepia'));
+  });
+
+  it('reads a page it does not know as none chosen', async () => {
+    mockSignedOut();
+    await AsyncStorage.setItem(READER_PAGE_KEY, 'parchment');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+    expect(getByTestId('page').props.children).toBe('null');
+  });
+
+  it('stores a chosen page under its own key, apart from the five settings', async () => {
+    mockSignedOut();
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    fireEvent.press(getByTestId('set-page-sepia'));
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('sepia'));
+    expect(await AsyncStorage.getItem(READER_PAGE_KEY)).toBe('sepia');
+    // The settings blob is untouched by a page change.
+    expect(await AsyncStorage.getItem(READING_PREFS_KEY)).toBeNull();
+  });
+
+  it('forgets the page when none is chosen again', async () => {
+    mockSignedOut();
+    await AsyncStorage.setItem(READER_PAGE_KEY, 'sepia');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('sepia'));
+
+    fireEvent.press(getByTestId('clear-page'));
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('null'));
+    expect(await AsyncStorage.getItem(READER_PAGE_KEY)).toBeNull();
+  });
+
+  it('never writes the page to Firestore, signed in -- the rules validate a closed set', async () => {
+    mockSignedIn('member-1');
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    fireEvent.press(getByTestId('set-page-sepia'));
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('sepia'));
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it('keeps the page when the synced document arrives, which carries none', async () => {
+    await AsyncStorage.setItem(READER_PAGE_KEY, 'sepia');
+    mockSignedIn('member-1', { size: 'xl' });
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('size').props.children).toBe('xl'));
+    expect(getByTestId('page').props.children).toBe('sepia');
+  });
+
+  it('keeps going when the page cannot be stored: it is in effect for the session', async () => {
+    mockSignedOut();
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const setItem = jest
+      .spyOn(AsyncStorage, 'setItem')
+      .mockRejectedValueOnce(new Error('disk full'));
+    const { getByTestId } = await renderProbe();
+    await waitFor(() => expect(getByTestId('isLoaded').props.children).toBe('true'));
+
+    fireEvent.press(getByTestId('set-page-sepia'));
+    await waitFor(() => expect(getByTestId('page').props.children).toBe('sepia'));
+    expect(warn).toHaveBeenCalled();
+    setItem.mockRestore();
     warn.mockRestore();
   });
 });

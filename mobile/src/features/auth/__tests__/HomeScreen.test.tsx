@@ -63,12 +63,12 @@ function paramsStub(testID: string) {
 
 const SongsListStub = stub('songs-list-stub', 'Songs list stub');
 const EventsListStub = stub('events-list-stub', 'Events list stub');
-const BibleBooksStub = stub('bible-books-stub', 'Bible books stub');
+// The Bible is a tab with views inside it; Home asks for the Plans view.
+const BibleBooksStub = paramsStub('bible-books-stub');
 const NotificationCenterStub = stub(
   'notification-center-stub',
   'Notification center stub'
 );
-const PlansListStub = stub('plans-list-stub', 'Plans list stub');
 const PlanDayStub = stub('plan-day-stub', 'Plan day stub');
 // Prayers and Community are tabs with views inside them; Home asks for the view.
 const PrayersHubStub = paramsStub('prayers-hub-stub');
@@ -92,7 +92,6 @@ function renderHomeScreen() {
             <Stack.Screen name="BibleChapter" component={BibleChapterStub} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterStub} />
             <Stack.Screen name="DailyVerse" component={DailyVerseStub} />
-            <Stack.Screen name="PlansList" component={PlansListStub} />
             <Stack.Screen name="PlanDay" component={PlanDayStub} />
             <Stack.Screen name="PrayersHub" component={PrayersHubStub} />
             <Stack.Screen name="CommunityHub" component={CommunityHubStub} />
@@ -662,14 +661,18 @@ describe('HomeScreen', () => {
     expect(queryByTestId('home-plan-progress-track')).toBeNull();
   });
 
-  it('opens the plans list from the no-active-plan state', async () => {
+  it('opens Bible > Plans from the no-active-plan state', async () => {
     signedIn();
     mockActivePlan(null);
     const { getByTestId } = await renderHomeScreen();
     await waitFor(() => expect(getByTestId('home-plan-empty')).toBeTruthy());
 
     await fireEvent.press(getByTestId('home-plan-empty'));
-    await waitFor(() => expect(getByTestId('plans-list-stub')).toBeTruthy());
+    // ...to Bible › Plans: the Bible tab, asked for its Plans view.
+    await waitFor(() => expect(getByTestId('bible-books-stub')).toBeTruthy());
+    expect(getByTestId('bible-books-stub').props.children).toBe(
+      JSON.stringify({ tab: 'plans' })
+    );
   });
 
   it('shows a progress readout ONLY in the reading-plan row', async () => {

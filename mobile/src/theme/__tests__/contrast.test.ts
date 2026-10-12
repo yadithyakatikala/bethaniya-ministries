@@ -3,6 +3,7 @@ import {
   highlightTints,
   lightTokens,
   onPhoto,
+  sepiaTokens,
   type ThemeColors,
 } from '../tokens';
 
@@ -119,6 +120,7 @@ const DISABLED_PAIRS: { name: string; fg: keyof ThemeColors; bg: keyof ThemeColo
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette meets WCAG AA for normal text', (_paletteName, tokens) => {
   it.each(PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(
@@ -161,6 +163,7 @@ describe('the on- tokens exist precisely because white is not always right', () 
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette meets 3:1 for meaningful non-text UI', (_name, tokens) => {
   it.each(NON_TEXT_PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(AA_NON_TEXT);
@@ -170,6 +173,7 @@ describe.each([
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette keeps disabled states readable', (_name, tokens) => {
   it.each(DISABLED_PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(AA_NON_TEXT);
@@ -188,6 +192,7 @@ describe('the decorative border is deliberately low-contrast', () => {
   it.each([
     ['light', lightTokens],
     ['dark', darkTokens],
+    ['sepia', sepiaTokens],
   ] as const)('%s: border is softer than borderStrong', (_name, tokens) => {
     expect(contrastRatio(tokens.border, tokens.surface)).toBeLessThan(
       contrastRatio(tokens.borderStrong, tokens.surface)
@@ -201,6 +206,7 @@ describe('the five status hues are distinguishable from each other', () => {
   it.each([
     ['light', lightTokens],
     ['dark', darkTokens],
+    ['sepia', sepiaTokens],
   ] as const)('%s: no two status colours are the same value', (_name, tokens) => {
     // Not a contrast requirement -- a correctness one. Before M3 the
     // Badge's `warning` and `featured` variants resolved to identical
@@ -226,6 +232,7 @@ describe('verse highlights M4 will paint', () => {
   it.each([
     ['light', highlightTints.light, lightTokens],
     ['dark', highlightTints.dark, darkTokens],
+    ['sepia', highlightTints.sepia, sepiaTokens],
   ] as const)('%s: body text still reads on every highlight', (_name, tints, tokens) => {
     for (const [hue, background] of Object.entries(tints)) {
       const ratio = contrastRatio(tokens.ink, background);
@@ -236,7 +243,7 @@ describe('verse highlights M4 will paint', () => {
   it('keeps all four highlights at one lightness, so a page keeps its rhythm', () => {
     // The documented consequence: hue alone cannot distinguish them, so
     // M4's picker must name each colour rather than show four swatches.
-    for (const tints of [highlightTints.light, highlightTints.dark]) {
+    for (const tints of [highlightTints.light, highlightTints.dark, highlightTints.sepia]) {
       const values = Object.values(tints);
       for (const a of values) {
         for (const b of values) {

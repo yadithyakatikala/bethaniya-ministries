@@ -28,7 +28,7 @@ function paramsStub(testID: string) {
 }
 
 const SavedVersesStub = paramsStub('saved-verses-stub');
-const PlansListStub = paramsStub('plans-list-stub');
+const BibleBooksStub = paramsStub('bible-books-stub');
 const SavedMediaStub = paramsStub('saved-media-stub');
 const PrayersHubStub = paramsStub('prayers-hub-stub');
 
@@ -40,7 +40,7 @@ function renderSaved() {
           <Stack.Navigator>
             <Stack.Screen name="Host" component={SavedScreen} />
             <Stack.Screen name="SavedVerses" component={SavedVersesStub} />
-            <Stack.Screen name="PlansList" component={PlansListStub} />
+            <Stack.Screen name="BibleBooks" component={BibleBooksStub} />
             <Stack.Screen name="SavedMedia" component={SavedMediaStub} />
             <Stack.Screen name="PrayersHub" component={PrayersHubStub} />
           </Stack.Navigator>
@@ -158,8 +158,10 @@ describe('where each row goes', () => {
     );
   });
 
-  it('opens the reading plans', async () => {
-    expect(await pressAndRead('saved-plans', 'plans-list-stub')).toBe('null');
+  it('opens the reading plans: the Bible tab, on its Plans view', async () => {
+    expect(await pressAndRead('saved-plans', 'bible-books-stub')).toBe(
+      JSON.stringify({ tab: 'plans' })
+    );
   });
 
   it('opens the saved photos and videos', async () => {

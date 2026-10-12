@@ -118,6 +118,12 @@ export function ScriptureBody({
          * rather than as a rendering bug.
          */
         const absent = verse.text.trim().length === 0;
+        const textStyle = scriptureStyle(
+          language,
+          handlers.size,
+          handlers.density,
+          handlers.font
+        );
         return (
           <VerseRow
             key={verse.number}
@@ -133,6 +139,7 @@ export function ScriptureBody({
             selected={handlers.selectedVerse === verse.number}
             stateLabels={verseStateLabels(annotation, t)}
             textForAccessibility={absent ? t('bible.notInTranslation') : verse.text}
+            numberLineHeight={textStyle.lineHeight}
             onPress={() => handlers.onSelectVerse(translationId, verse.number)}
             onLayout={
               reportLayout
@@ -151,19 +158,7 @@ export function ScriptureBody({
             ) : (
               /* scriptureStyle(language), never the app language: the
                  verse must be set in the face that covers ITS script. */
-              <Text
-                style={[
-                  scriptureStyle(
-                    language,
-                    handlers.size,
-                    handlers.density,
-                    handlers.font
-                  ),
-                  { color: colors.ink },
-                ]}
-              >
-                {verse.text}
-              </Text>
+              <Text style={[textStyle, { color: colors.ink }]}>{verse.text}</Text>
             )}
           </VerseRow>
         );
@@ -234,6 +229,11 @@ export function BilingualBody({
               selected={handlers.selectedVerse === row.start}
               stateLabels={verseStateLabels(annotation, t)}
               textForAccessibility={`${row.english} ${row.telugu}`}
+              // The English line comes first, so the number sits on it.
+              numberLineHeight={
+                scriptureStyle('en', handlers.size, handlers.density, handlers.font)
+                  .lineHeight
+              }
               onPress={() => handlers.onSelectVerse(primaryTranslation, row.start)}
               onLayout={(event) =>
                 handlers.onVerseLayout(row.start, event.nativeEvent.layout.y)

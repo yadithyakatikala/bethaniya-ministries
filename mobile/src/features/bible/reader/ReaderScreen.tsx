@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
   ScrollView,
@@ -8,11 +8,13 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '../../../context/AuthContext';
 import { usePreferences } from '../../../context/PreferencesContext';
 import { useReadingPreferences } from '../../../context/ReadingPreferencesContext';
-import { useTheme } from '../../../theme';
+import { ChoiceSheet, NoticeBanner, ThemeScope, Toast, useTheme } from '../../../theme';
 import { Tappable } from '../../../theme/ui/Tappable';
 import { LoadingState } from '../../../theme/ui/LoadingState';
 import { ErrorState } from '../../../theme/ui/ErrorState';
@@ -24,11 +26,23 @@ import type {
   TranslationId,
   VerseRef,
 } from '../../../services/firebase/readerAnnotations';
+import {
+  subscribeToPlanProgress,
+  type PlanProgress,
+} from '../../../services/firebase/plans';
 import type { HighlightColor } from '../../../theme/tokens';
+import { markPlanDay, planFromReading } from '../../plans/planReading';
 import { getBookById, getBookName } from '../books';
 import { getBilingualChapter, loadChapter } from '../dataSource';
-import { bookNameLanguageFor, type BibleChapter } from '../types';
-import { ReaderBottomBar, ReaderTopBar } from './ReaderChrome';
+import { bookNameLanguageFor, type BibleChapter, type BibleMode } from '../types';
+import {
+  ReaderFloatingNav,
+  ReaderPlanChip,
+  ReaderTopBar,
+  TOP_CHROME_SPACE,
+  bottomClearance,
+  noticeBottom,
+} from './ReaderChrome';
 import { BilingualBody, ScriptureBody, type VerseHandlers } from './ScriptureBody';
 import { VerseActionSheet } from './VerseActionSheet';
 import { NoteEditor } from './NoteEditor';
@@ -47,19 +61,20 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BibleChapter'>;
 
-/**
- * Room the overlay bars need at the top and bottom of the scroll
- * content, so the first and last verses are reachable while the chrome
- * is showing. Constants rather than measured heights: the bars are
- * overlays, so this is padding on the PAGE, and a measured value would
- * make the content reflow every time the chrome appeared -- which is
- * exactly what the overlay design exists to avoid.
+/*
+ * Room the overlay controls need at the top and bottom of the scroll content
+ * (`TOP_CHROME_SPACE`, `bottomClearance`, from ./ReaderChrome.tsx), so the first
+ * and last verses are reachable while the chrome is showing. Constants rather
+ * than measured heights: the controls are overlays, so this is padding on the
+ * PAGE, and a measured value would make the content reflow every time the
+ * chrome appeared -- which is exactly what the overlay design exists to avoid.
  */
-const TOP_CHROME_SPACE = 62;
-const BOTTOM_CHROME_SPACE = 84;
 
-/** How long a "copied"/"could not save" notice stays on screen. */
+/** How long a "could not save" notice stays on screen. */
 const NOTICE_MS = 2600;
+
+/** The notice the reader floats over the page: a confirmation, or a failure. */
+type Notice = { text: string; failed: boolean };
 
 /**
  * The immersive Bible reader.
@@ -67,7 +82,8 @@ const NOTICE_MS = 2600;
  * =====================================================================
  * WHAT MAKES IT A READER AND NOT A SCREEN WITH VERSES ON IT
  * =====================================================================
- * The page is full-height and the chrome is two overlays that tap away,
+ * The page is full-height and the chrome -- a top bar, two floating chapter
+ * buttons and, for a plan's reading, its chip -- is overlays that tap away,
  * so nothing but scripture holds the screen while you read. The type,
  * its size, its leading and the width of the column are the member's own
  * saved settings. The place they reached is remembered. Everything else
@@ -82,9 +98,14 @@ const NOTICE_MS = 2600;
  *
  * THE CHROME STAYS VISIBLE FOR A SCREEN READER. Auto-hiding chrome is a
  * visual affordance: a TalkBack user's double-tap lands on the verse
- * under their finger, so hiding the bars would leave them no way to get
- * the controls back. `AccessibilityInfo` is read (and watched) and the
- * bars stay mounted whenever a screen reader is running.
+ * under their finger, so hiding the controls would leave them no way to
+ * get them back. `AccessibilityInfo` is read (and watched) and the chrome
+ * stays mounted whenever a screen reader is running.
+ *
+ * THE PAGE IS SET IN THE READER'S OWN PAPER. A member who chose the sepia
+ * page gets it on the page and the chrome through a `ThemeScope`; the sheets
+ * are drawn outside it, in the app's palette. See ./ReaderSettingsSheet.tsx
+ * for what chooses the page, and docs/design/BIBLE.md.
  *
  * NAVIGATION IS UNCHANGED. This is the same `BibleChapter` route the
  * Bible tab and the search screen already push, registered with
@@ -96,12 +117,14 @@ const NOTICE_MS = 2600;
 type LoadResult = { key: string; chapter: BibleChapter | null };
 
 export function ReaderScreen({ route, navigation }: Props) {
-  const { bookId, chapterNumber, verse: targetVerse } = route.params;
-  const { appLanguage, bibleMode } = usePreferences();
-  const { font, size, lineHeight, width, layout } = useReadingPreferences();
-  const { colors, radii, spacing, type, reading } = useTheme();
+  const { bookId, chapterNumber, verse: targetVerse, fromPlan } = route.params;
+  const { appLanguage, bibleMode, setBibleMode, isDark: appIsDark } = usePreferences();
+  const { font, size, lineHeight, width, layout, page } = useReadingPreferences();
+  const { user } = useAuth();
+  const { colors, spacing, type, reading } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const uid = user?.uid ?? null;
 
   /** Which single translation to read when not pairing. */
   const language = primaryBibleLanguage(bibleMode);
@@ -192,7 +215,32 @@ export function ReaderScreen({ route, navigation }: Props) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+
+  // --- the plan this reading belongs to ------------------------------
+  // The chip is only drawn for a signed-in member (a plan's progress is theirs),
+  // and its state -- Mark Complete, or Completed -- is the live progress
+  // document, the same one the plan's own screens read.
+  const planId = fromPlan?.planId ?? null;
+  const [planProgress, setPlanProgress] = useState<PlanProgress | null>(null);
+  const [markingDay, setMarkingDay] = useState(false);
+  useEffect(() => {
+    if (!uid || !planId) return undefined;
+    return subscribeToPlanProgress(
+      uid,
+      planId,
+      (next) => setPlanProgress(next),
+      () => setPlanProgress(null)
+    );
+  }, [uid, planId]);
+  // The reading's plan, for the chip -- null for a reading not opened from a plan,
+  // and for a signed-out member (a plan's progress is theirs).
+  const planChip = fromPlan && uid ? fromPlan : null;
+  const showPlanChip = planChip !== null;
+  const planDayDone = planChip
+    ? (planProgress?.completedDays.includes(planChip.dayNumber) ?? false)
+    : false;
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -362,7 +410,7 @@ export function ReaderScreen({ route, navigation }: Props) {
           });
     const ok = await shareText(payload);
     setSelected(null);
-    if (!ok) setNotice(t('bible.shareFailed'));
+    if (!ok) setNotice({ text: t('bible.shareFailed'), failed: true });
   }
 
   async function handleCopy() {
@@ -380,12 +428,12 @@ export function ReaderScreen({ route, navigation }: Props) {
         : buildCopyText({ bookName, chapter: chapterNumber, label, text: single });
     const ok = await copyText(payload);
     setSelected(null);
-    setNotice(ok ? t('bible.copied') : t('bible.copyFailed'));
+    setNotice({ text: ok ? t('bible.copied') : t('bible.copyFailed'), failed: !ok });
   }
 
   /** Announces a failed write where the member took the action. */
   async function announceIfFailed(write: Promise<boolean>) {
-    if (!(await write)) setNotice(t('bible.saveFailed'));
+    if (!(await write)) setNotice({ text: t('bible.saveFailed'), failed: true });
   }
 
   function handleSelectHighlight(colour: HighlightColor | null) {
@@ -404,7 +452,29 @@ export function ReaderScreen({ route, navigation }: Props) {
     navigation.navigate('BibleChapter', {
       bookId: nextBookId,
       chapterNumber: nextChapter,
+      // A plan's reading can run past one chapter: its chip goes with the reader.
+      ...(fromPlan ? { fromPlan } : {}),
     });
+  }
+
+  /** Marks the plan's day done; the last one not yet done ends on "Plan complete". */
+  async function handleMarkPlanDay() {
+    if (!fromPlan || !uid) return;
+    setMarkingDay(true);
+    try {
+      const { finished } = await markPlanDay({
+        uid,
+        planId: fromPlan.planId,
+        dayNumber: fromPlan.dayNumber,
+        dayCount: fromPlan.dayCount,
+        progress: planProgress,
+      });
+      if (finished) navigation.replace('PlanDone', { plan: planFromReading(fromPlan) });
+    } catch {
+      setNotice({ text: t('bible.saveFailed'), failed: true });
+    } finally {
+      setMarkingDay(false);
+    }
   }
 
   if (!book) {
@@ -432,189 +502,254 @@ export function ReaderScreen({ route, navigation }: Props) {
     onVerseLayout,
   };
 
+  // The language pill in the top bar: a short code for what is on the page, and
+  // the name behind it for a screen reader.
+  const languageCode = bibleMode === 'te' ? 'తె' : bibleMode === 'en' ? 'EN' : 'EN + తె';
+  const languageName = t(
+    bibleMode === 'te'
+      ? 'bible.modeTelugu'
+      : bibleMode === 'en'
+        ? 'bible.modeEnglish'
+        : 'bible.modeBilingual'
+  );
+  const floatAt = noticeBottom(insets.bottom, showPlanChip);
+
+  return (
+    <>
+      {/* THE PAGE AND ITS CHROME are set in the reader's page -- sepia, if the
+          member chose it -- and the sheets below are NOT: they belong to the
+          app, so they stay in its light or dark. A Modal keeps the context of
+          where it is written, which is why the sheets sit outside this scope
+          rather than inside it. */}
+      <ThemeScope palette={page === 'sepia' ? 'sepia' : null}>
+        <ReaderPage>
+          {/* The sepia page is light. On a dark app the status bar would
+              otherwise keep its white icons, over cream. */}
+          {page === 'sepia' && appIsDark ? <StatusBar style="dark" /> : null}
+
+          <ScrollView
+            ref={scrollRef}
+            testID="reader-scroll"
+            onScroll={handleScroll}
+            scrollEventThrottle={96}
+            contentContainerStyle={[
+              styles.content,
+              {
+                paddingHorizontal: spacing.screen,
+                paddingTop: insets.top + TOP_CHROME_SPACE,
+                paddingBottom: bottomClearance(insets.bottom, showPlanChip),
+              },
+            ]}
+          >
+            {/* The page background. A tap here toggles the chrome; a tap on a
+                verse inside is consumed by that verse's own Pressable.
+                accessible={false} keeps the whole page from collapsing into
+                one screen-reader node -- which is also why the chrome stays
+                mounted while a screen reader is running. */}
+            <Tappable
+              accessible={false}
+              accessibilityLabel={t('bible.toggleControls')}
+              testID="reader-scripture-surface"
+              onPress={() => setHiddenForChapter(chromeVisible ? chapterKey : null)}
+              onLayout={(event) => {
+                bodyOffset.current = event.nativeEvent.layout.y;
+              }}
+              style={[styles.measure, { maxWidth: reading.measure[width] }]}
+            >
+              {chapter === undefined && !bilingual && !hasError ? (
+                <LoadingState testID="chapter-loading" label={t('common.loading')} />
+              ) : null}
+
+              {hasError ? (
+                <ErrorState
+                  testID="chapter-error"
+                  message={t('bible.chapterLoadError')}
+                  retryLabel={t('common.tryAgain')}
+                  onRetry={() => setErrorKey(null)}
+                />
+              ) : null}
+
+              {/* Defensive: prev/next are bounded by the book's chapter count
+                  and the picker only offers chapters that exist, so an
+                  out-of-range reference can now only arrive from a bad deep
+                  link. It still has to say something rather than paint a
+                  blank page. */}
+              {chapter === null && !bilingual && !hasError ? (
+                <ErrorState
+                  testID="chapter-not-found"
+                  message={t('bible.chapterNotFound')}
+                />
+              ) : null}
+
+              {bibleMode === 'bilingual' && bilingual ? (
+                <BilingualBody
+                  presentation={bilingual.presentation}
+                  layout={layout}
+                  primaryTranslation={language}
+                  handlers={handlers}
+                />
+              ) : null}
+
+              {/* An empty chapter would otherwise be a blank page. The
+                  wording says what the reader can DO about it rather than
+                  repeating the fact -- and the button does it: it opens the
+                  Bible-language sheet. See ../../../i18n/strings.ts. */}
+              {bibleMode !== 'bilingual' && chapter?.unavailableInTranslation ? (
+                <EmptyState
+                  testID="chapter-unavailable"
+                  title={t('bible.notInTranslation')}
+                  message={t('bible.notInTranslationHelp')}
+                  actionLabel={t('bible.switchLanguage')}
+                  actionTestID="chapter-unavailable-switch"
+                  onAction={() => setLanguageOpen(true)}
+                />
+              ) : null}
+
+              {bibleMode !== 'bilingual' && chapter && chapter.verses.length > 0 ? (
+                <ScriptureBody
+                  verses={chapter.verses}
+                  language={language}
+                  handlers={handlers}
+                />
+              ) : null}
+            </Tappable>
+          </ScrollView>
+
+          {showChrome ? (
+            <>
+              <ReaderTopBar
+                reference={reference}
+                bookNameLanguage={bookNameLanguage}
+                languageCode={languageCode}
+                languageName={languageName}
+                onBack={() => navigation.goBack()}
+                onOpenChapters={() => setPickerOpen(true)}
+                onOpenLanguage={() => setLanguageOpen(true)}
+                onOpenSearch={() => navigation.navigate('BibleSearch')}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+              <ReaderFloatingNav
+                isFirstChapter={chapterNumber <= 1}
+                isLastChapter={chapterNumber >= book.chapterCount}
+                onPrevious={() => goToChapter(bookId, chapterNumber - 1)}
+                onNext={() => goToChapter(bookId, chapterNumber + 1)}
+              />
+              {planChip ? (
+                <ReaderPlanChip
+                  title={planChip.title}
+                  progress={t('home.dayOf', {
+                    current: planChip.dayNumber,
+                    total: planChip.dayCount,
+                  })}
+                  completed={planDayDone}
+                  busy={markingDay}
+                  onMarkComplete={() => void handleMarkPlanDay()}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {/* A confirmation is the design system's Toast (a tick and a few
+              words). A failure is not a confirmation, and says so in words
+              and in the warning wash -- it floats where the toast would. */}
+          {notice && !notice.failed ? (
+            <Toast testID="reader-notice" message={notice.text} bottom={floatAt} />
+          ) : null}
+          {notice?.failed ? (
+            <View pointerEvents="none" style={[styles.noticeLayer, { bottom: floatAt }]}>
+              <NoticeBanner testID="reader-notice" tone="warning" message={notice.text} />
+            </View>
+          ) : null}
+        </ReaderPage>
+      </ThemeScope>
+
+      <ThemeScope palette={null}>
+        <VerseActionSheet
+          visible={selected !== null && !noteOpen}
+          onClose={() => setSelected(null)}
+          reference={selectedReference}
+          annotation={selectedAnnotation}
+          canAnnotate={canAnnotate}
+          onSelectHighlight={handleSelectHighlight}
+          onToggleBookmark={handleToggleBookmark}
+          onEditNote={() => setNoteOpen(true)}
+          onShare={() => void handleShare()}
+          onCopy={() => void handleCopy()}
+        />
+
+        <NoteEditor
+          visible={noteOpen}
+          onClose={() => setNoteOpen(false)}
+          reference={selectedReference}
+          initialText={selectedAnnotation.note?.text ?? ''}
+          onSave={(text) => {
+            if (selectedRef) void announceIfFailed(setVerseNote(selectedRef, text));
+            setNoteOpen(false);
+            setSelected(null);
+          }}
+          onDelete={() => {
+            if (selectedRef) void announceIfFailed(removeVerseNote(selectedRef));
+            setNoteOpen(false);
+            setSelected(null);
+          }}
+        />
+
+        <ReaderSettingsSheet
+          visible={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          bilingual={bibleMode === 'bilingual'}
+          sampleLanguage={language}
+        />
+
+        <ChapterPickerSheet
+          visible={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          bookId={bookId}
+          chapterNumber={chapterNumber}
+          bookNameLanguage={bookNameLanguage}
+          onSelect={goToChapter}
+        />
+
+        {/* The Bible's language, in one sheet -- the same choice Settings
+            has, and the same preference: this is a second way in, not a
+            second setting. */}
+        <ChoiceSheet
+          visible={languageOpen}
+          testID="reader-language-sheet"
+          title={t('settings.bibleLanguage')}
+          help={t('settings.bibleLanguageHelp')}
+          closeLabel={t('common.close')}
+          options={[
+            { value: 'te', label: t('bible.modeTelugu') },
+            { value: 'en', label: t('bible.modeEnglish') },
+            { value: 'bilingual', label: t('bible.modeBilingual') },
+          ]}
+          current={bibleMode}
+          optionTestID={(value) => `reader-language-${value}`}
+          onClose={() => setLanguageOpen(false)}
+          onChoose={(value) => {
+            setLanguageOpen(false);
+            void setBibleMode(value as BibleMode);
+          }}
+        />
+      </ThemeScope>
+    </>
+  );
+}
+
+/**
+ * The page the scripture is set on. A component of its own so that its
+ * background is read INSIDE the reader's scope: `useTheme()` in the screen above
+ * answers for the app, and the page is the one thing here that is not the app's.
+ */
+function ReaderPage({ children }: { children: ReactNode }) {
+  const { colors } = useTheme();
   return (
     <View
       testID="reader-screen"
       style={[styles.screen, { backgroundColor: colors.paper }]}
     >
-      <ScrollView
-        ref={scrollRef}
-        testID="reader-scroll"
-        onScroll={handleScroll}
-        scrollEventThrottle={96}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingHorizontal: spacing.screen,
-            paddingTop: insets.top + TOP_CHROME_SPACE,
-            paddingBottom: insets.bottom + BOTTOM_CHROME_SPACE,
-          },
-        ]}
-      >
-        {/* The page background. A tap here toggles the chrome; a tap on a
-            verse inside is consumed by that verse's own Pressable.
-            accessible={false} keeps the whole page from collapsing into
-            one screen-reader node -- which is also why the chrome stays
-            mounted while a screen reader is running. */}
-        <Tappable
-          accessible={false}
-          accessibilityLabel={t('bible.toggleControls')}
-          testID="reader-scripture-surface"
-          onPress={() => setHiddenForChapter(chromeVisible ? chapterKey : null)}
-          onLayout={(event) => {
-            bodyOffset.current = event.nativeEvent.layout.y;
-          }}
-          style={[styles.measure, { maxWidth: reading.measure[width] }]}
-        >
-          {chapter === undefined && !bilingual && !hasError ? (
-            <LoadingState testID="chapter-loading" label={t('common.loading')} />
-          ) : null}
-
-          {hasError ? (
-            <ErrorState
-              testID="chapter-error"
-              message={t('bible.chapterLoadError')}
-              retryLabel={t('common.tryAgain')}
-              onRetry={() => setErrorKey(null)}
-            />
-          ) : null}
-
-          {/* Defensive: prev/next are bounded by the book's chapter count
-              and the picker only offers chapters that exist, so an
-              out-of-range reference can now only arrive from a bad deep
-              link. It still has to say something rather than paint a
-              blank page. */}
-          {chapter === null && !bilingual && !hasError ? (
-            <ErrorState testID="chapter-not-found" message={t('bible.chapterNotFound')} />
-          ) : null}
-
-          {bibleMode === 'bilingual' && bilingual ? (
-            <BilingualBody
-              presentation={bilingual.presentation}
-              layout={layout}
-              primaryTranslation={language}
-              handlers={handlers}
-            />
-          ) : null}
-
-          {/* An empty chapter would otherwise be a blank page. The
-              wording says what the reader can DO about it rather than
-              repeating the fact -- see ../../../i18n/strings.ts. */}
-          {bibleMode !== 'bilingual' && chapter?.unavailableInTranslation ? (
-            <EmptyState
-              testID="chapter-unavailable"
-              title={t('bible.notInTranslation')}
-              message={t('bible.notInTranslationHelp')}
-            />
-          ) : null}
-
-          {bibleMode !== 'bilingual' && chapter && chapter.verses.length > 0 ? (
-            <ScriptureBody
-              verses={chapter.verses}
-              language={language}
-              handlers={handlers}
-            />
-          ) : null}
-        </Tappable>
-      </ScrollView>
-
-      {showChrome ? (
-        <>
-          <ReaderTopBar
-            reference={reference}
-            bookNameLanguage={bookNameLanguage}
-            onBack={() => navigation.goBack()}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-          <ReaderBottomBar
-            chapterNumber={chapterNumber}
-            reference={reference}
-            isFirstChapter={chapterNumber <= 1}
-            isLastChapter={chapterNumber >= book.chapterCount}
-            onPrevious={() => goToChapter(bookId, chapterNumber - 1)}
-            onNext={() => goToChapter(bookId, chapterNumber + 1)}
-            onOpenChapterPicker={() => setPickerOpen(true)}
-          />
-        </>
-      ) : null}
-
-      {notice ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.noticeLayer,
-            { bottom: insets.bottom + BOTTOM_CHROME_SPACE + spacing.md },
-          ]}
-        >
-          <View
-            testID="reader-notice"
-            accessibilityLiveRegion="polite"
-            style={[
-              styles.notice,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                borderRadius: radii.control,
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.md,
-              },
-            ]}
-          >
-            <Text style={[type.bodySmall, { color: colors.ink }]}>{notice}</Text>
-          </View>
-        </View>
-      ) : null}
-
-      <VerseActionSheet
-        visible={selected !== null && !noteOpen}
-        onClose={() => setSelected(null)}
-        reference={selectedReference}
-        annotation={selectedAnnotation}
-        canAnnotate={canAnnotate}
-        onSelectHighlight={handleSelectHighlight}
-        onToggleBookmark={handleToggleBookmark}
-        onEditNote={() => setNoteOpen(true)}
-        onShare={() => void handleShare()}
-        onCopy={() => void handleCopy()}
-      />
-
-      <NoteEditor
-        visible={noteOpen}
-        onClose={() => setNoteOpen(false)}
-        reference={selectedReference}
-        initialText={selectedAnnotation.note?.text ?? ''}
-        onSave={(text) => {
-          if (selectedRef) void announceIfFailed(setVerseNote(selectedRef, text));
-          setNoteOpen(false);
-          setSelected(null);
-        }}
-        onDelete={() => {
-          if (selectedRef) void announceIfFailed(removeVerseNote(selectedRef));
-          setNoteOpen(false);
-          setSelected(null);
-        }}
-      />
-
-      <ReaderSettingsSheet
-        visible={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        bilingual={bibleMode === 'bilingual'}
-        sampleLanguage={language}
-        // Real scripture from the open chapter, in the script being
-        // read, so the size and leading being chosen are visible in the
-        // face they will actually be set in. Falls back to the reference
-        // for the one chapter with no Telugu text.
-        sampleText={chapter?.verses[0]?.text.slice(0, 64) ?? reference}
-      />
-
-      <ChapterPickerSheet
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        bookId={bookId}
-        chapterNumber={chapterNumber}
-        bookNameLanguage={bookNameLanguage}
-        onSelect={goToChapter}
-      />
+      {children}
     </View>
   );
 }
@@ -628,10 +763,7 @@ const styles = StyleSheet.create({
   // single biggest difference between a page of text and a reading
   // experience. Adjustable from the settings sheet.
   measure: { width: '100%', alignSelf: 'center' },
-  // A centring layer, so the pill sits in the middle of the screen
-  // rather than wherever `alignSelf` would put an absolute child.
-  // pointerEvents none: a transient notice must never eat a tap meant
-  // for the page.
-  noticeLayer: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  notice: { borderWidth: StyleSheet.hairlineWidth, maxWidth: '86%' },
+  // Where a failure notice floats. pointerEvents none: a transient notice
+  // must never eat a tap meant for the page.
+  noticeLayer: { position: 'absolute', left: 20, right: 20 },
 });

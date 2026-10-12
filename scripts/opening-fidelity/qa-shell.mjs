@@ -27,6 +27,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainer
 import { createNativeStackNavigator } from ${NM('@react-navigation/native-stack')};
 import { AuthProvider } from ${T('context/AuthContext')};
 import { PreferencesProvider } from ${T('context/PreferencesContext')};
+import { ReadingPreferencesProvider } from ${T('context/ReadingPreferencesContext')};
 import { useTheme } from ${T('theme')};
 import { HomeScreen } from ${T('features/auth/HomeScreen')};
 import { PrayersHubScreen } from ${T('features/prayers/PrayersHubScreen')};
@@ -43,13 +44,21 @@ import { YouTubePlayerScreen } from ${T('features/events/YouTubePlayerScreen')};
 import { SettingsScreen } from ${T('features/settings/SettingsScreen')};
 import { BibleTranslationsScreen } from ${T('features/settings/BibleTranslationsScreen')};
 import { NotificationCenterScreen } from ${T('features/notifications/NotificationCenterScreen')};
+import { BibleHomeScreen } from ${T('features/bible/BibleHomeScreen')};
+import { ChaptersListScreen } from ${T('features/bible/ChaptersListScreen')};
+import { BibleSearchScreen } from ${T('features/bible/BibleSearchScreen')};
+import { ReaderScreen } from ${T('features/bible/reader/ReaderScreen')};
+import { PlanDetailScreen } from ${T('features/plans/PlanDetailScreen')};
+import { PlanDayScreen } from ${T('features/plans/PlanDayScreen')};
+import { PlanDoneScreen } from ${T('features/plans/PlanDoneScreen')};
+import { SEED_PLANS } from ${T('features/plans/seedPlans')};
 import { TabBar } from ${T('navigation/TabBar')};
 
 const Stack = createNativeStackNavigator();
 const ref = createNavigationContainerRef();
 const TABS = new Set(['Home', 'BibleBooks', 'PrayersHub', 'CommunityHub', 'You']);
-const OTHER = ['BibleBooks', 'MediaFeed', 'PlansList',
-  'SavedMedia', 'DailyVerse', 'BibleChapter', 'PlanDay'];
+const OTHER = ['MediaFeed',
+  'SavedMedia', 'DailyVerse'];
 
 function Stub({ route }: any) {
   return (
@@ -85,6 +94,13 @@ function Root() {
             <Stack.Screen name="SavedVerses" component={SavedVersesScreen} initialParams={initial.name === 'SavedVerses' ? initial.params : undefined} />
             <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} initialParams={initial.name === 'AnnouncementDetail' ? initial.params : undefined} />
             <Stack.Screen name="CommunityPostDetail" component={CommunityPostDetailScreen} initialParams={initial.name === 'CommunityPostDetail' ? initial.params : undefined} />
+            <Stack.Screen name="BibleBooks" component={BibleHomeScreen} initialParams={initial.name === 'BibleBooks' ? initial.params : undefined} />
+            <Stack.Screen name="BibleChapters" component={ChaptersListScreen} initialParams={initial.name === 'BibleChapters' ? initial.params : undefined} />
+            <Stack.Screen name="BibleChapter" component={ReaderScreen} initialParams={initial.name === 'BibleChapter' ? initial.params : undefined} />
+            <Stack.Screen name="BibleSearch" component={BibleSearchScreen} />
+            <Stack.Screen name="PlanDetail" component={PlanDetailScreen} initialParams={initial.name === 'PlanDetail' ? initial.params : undefined} />
+            <Stack.Screen name="PlanDay" component={PlanDayScreen} initialParams={initial.name === 'PlanDay' ? initial.params : undefined} />
+            <Stack.Screen name="PlanDone" component={PlanDoneScreen} initialParams={initial.name === 'PlanDone' ? initial.params : undefined} />
             <Stack.Screen name="Settings" component={SettingsScreen} initialParams={initial.name === 'Settings' ? initial.params : undefined} />
             <Stack.Screen name="BibleTranslations" component={BibleTranslationsScreen} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
@@ -107,9 +123,10 @@ function Root() {
 const g = globalThis as any;
 g.__mount = () => {
   createRoot(document.getElementById('root')!).render(
-    <AuthProvider><PreferencesProvider><Root /></PreferencesProvider></AuthProvider>
+    <AuthProvider><PreferencesProvider><ReadingPreferencesProvider><Root /></ReadingPreferencesProvider></PreferencesProvider></AuthProvider>
   );
 };
+g.__plan = (id: string) => { const p = SEED_PLANS.find((x) => x.id === id)!; return { id: p.id, title: p.title, description: p.description, category: p.category, coverImageUrl: null, dayCount: p.days.length }; };
 g.__ready = true;
 `;
 
@@ -138,14 +155,17 @@ const seed = (d) => {
     docs['community/p' + i] = { published: true, imageUrl: null, ...p, createdAt: ts(now - (p.ageH ?? (i + 1) * 30) * hour) };
     delete docs['community/p' + i].ageH;
   });
-  (d.notes ?? []).forEach((n, i) => {
-    docs['users/qa-member/verseNotes/n' + i] = { ...n.ref, text: n.text, createdAt: ts(now - n.days * day), updatedAt: ts(now - n.days * day) };
+  // The reader finds a verse's marks by DOCUMENT ID -- `en_john_3_16`, the same one the app writes -- so the
+  // seeds are written under it.
+  const verseKey = (r) => `${r.translationId}_${r.bookId}_${r.chapter}_${r.verse}`;
+  (d.notes ?? []).forEach((n) => {
+    docs['users/qa-member/verseNotes/' + verseKey(n.ref)] = { ...n.ref, text: n.text, createdAt: ts(now - n.days * day), updatedAt: ts(now - n.days * day) };
   });
-  (d.highlights ?? []).forEach((h, i) => {
-    docs['users/qa-member/highlights/h' + i] = { ...h.ref, colour: h.colour, createdAt: ts(now - h.days * day) };
+  (d.highlights ?? []).forEach((h) => {
+    docs['users/qa-member/highlights/' + verseKey(h.ref)] = { ...h.ref, colour: h.colour, createdAt: ts(now - h.days * day) };
   });
-  (d.bookmarks ?? []).forEach((b, i) => {
-    docs['users/qa-member/bookmarks/b' + i] = { ...b.ref, createdAt: ts(now - b.days * day) };
+  (d.bookmarks ?? []).forEach((b) => {
+    docs['users/qa-member/bookmarks/' + verseKey(b.ref)] = { ...b.ref, createdAt: ts(now - b.days * day) };
   });
   if (d.plan) {
     docs['plans/p1'] = { title: d.plan.title, description: '', category: 'Devotional', dayCount: 7, published: true, order: 0 };
@@ -173,6 +193,12 @@ const seed = (d) => {
     };
     if (r.own) docs['users/qa-member/prayerRequests/r' + i] = { createdAt: created, anonymous: !!r.anonymous };
   });
+  Object.entries(d.planProgress ?? {}).forEach(([id, p]) => {
+    docs['users/qa-member/planProgress/' + id] = { startedAt: ts(now - 3 * day), currentDay: p.currentDay, completedDays: p.completedDays, lastReadAt: ts(now - (p.hoursAgo ?? 2) * hour) };
+  });
+  if (d.reading) {
+    docs['users/qa-member/readingPosition/' + d.reading.translationId] = { bookId: d.reading.bookId, chapter: d.reading.chapter, verse: d.reading.verse ?? 1, updatedAt: ts(now - hour) };
+  }
   (d.songs ?? []).forEach((song, i) => {
     docs['songs/s' + i] = { published: true, category: 'Hymn', lyrics: '', audioUrl: 'https://example.org/qa.mp3', coverUrl: null, ...song };
   });
@@ -366,6 +392,27 @@ const EN = { app_language_preference: 'en', bible_mode_preference: 'en' };
 const TE = { app_language_preference: 'te', bible_mode_preference: 'te' };
 
 const route = (name, params) => ({ name, params });
+
+/** The first of the plans that ship with the app, as the route param the screens receive. */
+const PSALMS = {
+  id: 'seven-days-in-the-psalms',
+  title: 'Seven Days in the Psalms',
+  description: 'One psalm a day for a week, chosen to move from trust through lament to praise.',
+  category: 'Devotional',
+  coverImageUrl: null,
+  dayCount: 7,
+};
+const PSALMS_PROGRESS = { 'seven-days-in-the-psalms': { currentDay: 2, completedDays: [1] } };
+
+// The reader: John 3 in English, with the three marks a page can carry -- a highlight, a bookmark, a note.
+const READER_EN = { ...EN, bible_mode_preference: 'en' };
+const READER_DATA = {
+  name: 'Joshua',
+  churchName: 'Maranatha',
+  highlights: [{ ref: { translationId: 'en', bookId: 'john', chapter: 3, verse: 3 }, colour: 'yellow', days: 1 }],
+  bookmarks: [{ ref: { translationId: 'en', bookId: 'john', chapter: 3, verse: 5 }, days: 1 }],
+  notes: [{ ref: { translationId: 'en', bookId: 'john', chapter: 3, verse: 7 }, text: 'Born from above: a new beginning.', days: 1 }],
+};
 
 /** The phone's own notification history: AsyncStorage's `notification_history`, newest first by arrival. */
 const history = (rows) =>
@@ -750,6 +797,246 @@ const SCENARIOS = [
   { name: 'notifications-dark', storage: { ...EN, notification_history: EN_HISTORY, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('NotificationCenter') },
   { name: 'notifications-te', storage: { ...TE, notification_history: TE_HISTORY }, data: TE_DATA, route: route('NotificationCenter') },
   { name: 'notifications-empty', storage: EN, data: EN_DATA, route: route('NotificationCenter') },
+  // --- Bible home, plans, chapters, search
+  { name: 'bible-light', storage: { ...EN, bible_mode_preference: 'en' }, data: { ...EN_DATA, reading: { translationId: 'en', bookId: 'john', chapter: 3, verse: 16 } }, route: route('BibleBooks') },
+  { name: 'bible-dark', storage: { ...EN, bible_mode_preference: 'en', theme_preference: 'dark' }, dark: true, data: { ...EN_DATA, reading: { translationId: 'en', bookId: 'john', chapter: 3, verse: 16 } }, route: route('BibleBooks') },
+  { name: 'bible-te', storage: TE, data: { ...TE_DATA, reading: { translationId: 'te', bookId: 'john', chapter: 3, verse: 16 } }, route: route('BibleBooks') },
+  { name: 'bible-fresh', storage: { ...EN, bible_mode_preference: 'en' }, data: EN_DATA, route: route('BibleBooks') },
+  {
+    name: 'bible-language-sheet',
+    reduced: true,
+    storage: { ...EN, bible_mode_preference: 'en' },
+    data: EN_DATA,
+    route: route('BibleBooks'),
+    steps: async (qa) => {
+      await qa.tap('bible-language-pill');
+      await qa.advance(500);
+    },
+  },
+  { name: 'plans-my-light', storage: EN, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('BibleBooks', { tab: 'plans' }) },
+  { name: 'plans-my-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('BibleBooks', { tab: 'plans' }) },
+  { name: 'plans-my-te', storage: TE, data: { ...TE_DATA, planProgress: PSALMS_PROGRESS }, route: route('BibleBooks', { tab: 'plans' }) },
+  { name: 'plans-fresh', storage: EN, data: EN_DATA, route: route('BibleBooks', { tab: 'plans' }) },
+  {
+    name: 'plans-find',
+    storage: EN,
+    data: { ...EN_DATA, planProgress: PSALMS_PROGRESS },
+    route: route('BibleBooks', { tab: 'plans' }),
+    steps: async (qa) => {
+      await qa.tap('plans-chip-find');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'plans-completed',
+    storage: EN,
+    data: { ...EN_DATA, planProgress: { 'peace-in-anxiety': { currentDay: 8, completedDays: [1, 2, 3, 4, 5, 6, 7] } } },
+    route: route('BibleBooks', { tab: 'plans' }),
+    steps: async (qa) => {
+      await qa.tap('plans-chip-completed');
+      await qa.advance(300);
+    },
+  },
+  { name: 'plan-new-light', storage: EN, data: EN_DATA, route: route('PlanDetail', { plan: PSALMS }) },
+  { name: 'plan-new-te', storage: TE, data: TE_DATA, route: route('PlanDetail', { plan: PSALMS }) },
+  { name: 'plan-active-light', storage: EN, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDetail', { plan: PSALMS }) },
+  { name: 'plan-active-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDetail', { plan: PSALMS }) },
+  { name: 'plan-active-te', storage: TE, data: { ...TE_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDetail', { plan: PSALMS }) },
+  { name: 'plan-day-light', storage: EN, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDay', { plan: PSALMS, dayNumber: 2 }) },
+  { name: 'plan-day-done', storage: EN, data: { ...EN_DATA, planProgress: { 'seven-days-in-the-psalms': { currentDay: 3, completedDays: [1, 2] } } }, route: route('PlanDay', { plan: PSALMS, dayNumber: 2 }) },
+  { name: 'plan-day-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: { ...EN_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDay', { plan: PSALMS, dayNumber: 2 }) },
+  { name: 'plan-day-te', storage: TE, data: { ...TE_DATA, planProgress: PSALMS_PROGRESS }, route: route('PlanDay', { plan: PSALMS, dayNumber: 2 }) },
+  { name: 'plan-done-light', storage: EN, data: EN_DATA, route: route('PlanDone', { plan: PSALMS }) },
+  { name: 'plan-done-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('PlanDone', { plan: PSALMS }) },
+  { name: 'chapters-light', storage: { ...EN, bible_mode_preference: 'en' }, data: EN_DATA, route: route('BibleChapters', { bookId: 'john' }) },
+  { name: 'chapters-te', storage: TE, data: TE_DATA, route: route('BibleChapters', { bookId: 'john' }) },
+  {
+    name: 'search-results',
+    storage: { ...EN, bible_mode_preference: 'en' },
+    data: EN_DATA,
+    route: route('BibleSearch'),
+    steps: async (qa) => {
+      await qa.type('bible-search-input', 'peace');
+      await qa.advance(400);
+    },
+  },
+  { name: 'search-prompt', storage: { ...EN, bible_mode_preference: 'en' }, data: EN_DATA, route: route('BibleSearch') },
+  // --- The reader: its page, its chrome and its sheets
+  { name: 'reader-light', storage: READER_EN, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  { name: 'reader-dark', storage: { ...READER_EN, theme_preference: 'dark' }, dark: true, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  { name: 'reader-sepia', storage: { ...READER_EN, reader_page_preference: 'sepia' }, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  { name: 'reader-sepia-dark-app', storage: { ...READER_EN, reader_page_preference: 'sepia', theme_preference: 'dark' }, dark: true, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  { name: 'reader-te', storage: { ...TE, bible_mode_preference: 'te' }, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  { name: 'reader-bilingual', storage: { ...READER_EN, bible_mode_preference: 'bilingual' }, data: READER_DATA, route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }) },
+  {
+    name: 'reader-hidden',
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-scripture-surface');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'reader-plan',
+    storage: READER_EN,
+    data: { ...READER_DATA, planProgress: PSALMS_PROGRESS },
+    route: route('BibleChapter', { bookId: 'psalms', chapterNumber: 23, fromPlan: { planId: 'seven-days-in-the-psalms', title: 'Seven Days in the Psalms', dayCount: 7, dayNumber: 2 } }),
+  },
+  {
+    name: 'reader-plan-sepia',
+    storage: { ...READER_EN, reader_page_preference: 'sepia' },
+    data: { ...READER_DATA, planProgress: PSALMS_PROGRESS },
+    route: route('BibleChapter', { bookId: 'psalms', chapterNumber: 23, fromPlan: { planId: 'seven-days-in-the-psalms', title: 'Seven Days in the Psalms', dayCount: 7, dayNumber: 2 } }),
+  },
+  {
+    name: 'reader-plan-done',
+    storage: READER_EN,
+    data: { ...READER_DATA, planProgress: { 'seven-days-in-the-psalms': { currentDay: 3, completedDays: [1, 2] } } },
+    route: route('BibleChapter', { bookId: 'psalms', chapterNumber: 23, fromPlan: { planId: 'seven-days-in-the-psalms', title: 'Seven Days in the Psalms', dayCount: 7, dayNumber: 2 } }),
+  },
+  { name: 'reader-unavailable', storage: { ...TE, bible_mode_preference: 'te' }, data: READER_DATA, route: route('BibleChapter', { bookId: 'malachi', chapterNumber: 4 }) },
+  {
+    name: 'reader-settings',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-settings-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-settings-dark',
+    reduced: true,
+    storage: { ...READER_EN, theme_preference: 'dark' },
+    dark: true,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-settings-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-settings-sepia',
+    reduced: true,
+    storage: { ...READER_EN, reader_page_preference: 'sepia' },
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-settings-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-settings-te',
+    reduced: true,
+    storage: { ...TE, bible_mode_preference: 'te' },
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-settings-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-settings-more',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-settings-button');
+      await qa.advance(500);
+      await qa.tap('reader-more-settings');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-picker-chapters',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('chapter-selector-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-picker-books',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('chapter-selector-button');
+      await qa.advance(500);
+      await qa.tap('chapter-picker-back-to-books');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'reader-picker-te',
+    reduced: true,
+    storage: { ...TE, bible_mode_preference: 'te' },
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('chapter-selector-button');
+      await qa.advance(500);
+      await qa.tap('chapter-picker-back-to-books');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'reader-language-sheet',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('reader-language-button');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-verse-sheet',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('verse-3');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-verse-sheet-dark',
+    reduced: true,
+    storage: { ...READER_EN, theme_preference: 'dark' },
+    dark: true,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('verse-3');
+      await qa.advance(500);
+    },
+  },
+  {
+    name: 'reader-verse-sheet-plain',
+    reduced: true,
+    storage: READER_EN,
+    data: READER_DATA,
+    route: route('BibleChapter', { bookId: 'john', chapterNumber: 3 }),
+    steps: async (qa) => {
+      await qa.tap('verse-4');
+      await qa.advance(500);
+    },
+  },
   // --- The shared update detail
   {
     name: 'detail-light',

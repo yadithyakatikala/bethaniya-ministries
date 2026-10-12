@@ -64,7 +64,7 @@ export function SavedScreen() {
             leadingIcon="plans"
             title={t('you.readingPlans')}
             value={show(counts.plans)}
-            onPress={() => navigation.navigate('PlansList')}
+            onPress={() => navigation.navigate('BibleBooks', { tab: 'plans' })}
           />
           <ListRow
             testID="saved-media"

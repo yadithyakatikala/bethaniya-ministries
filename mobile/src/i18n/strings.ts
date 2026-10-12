@@ -174,6 +174,19 @@ export interface Strings {
   'plans.loadError': string;
   'plans.loadErrorMessage': string;
   'plans.dayNotFound': string;
+  'plans.myPlans': string;
+  'plans.findPlans': string;
+  'plans.findAPlan': string;
+  'plans.beginWithPlan': string;
+  'plans.dayWord': string;
+  'plans.read': string;
+  'plans.reflect': string;
+  'plans.pray': string;
+  'plans.openInBible': string;
+  'plans.nextDay': string;
+  'plans.doneTitle': string;
+  'plans.doneMessage': string;
+  'plans.chooseAnother': string;
   'plans.dayLoadError': string;
 
   // --- Prayers ---
@@ -417,6 +430,14 @@ export interface Strings {
   'bible.layoutLabel': string;
   'bible.layoutStacked': string;
   'bible.layoutSideBySide': string;
+  'bible.tabRead': string;
+  'bible.tabPlans': string;
+  'bible.booksLabel': string;
+  'bible.chapterCount': string;
+  'bible.page': string;
+  'bible.pageSepia': string;
+  'bible.moreSettings': string;
+  'bible.resultsCount': string;
 
   // --- M5: automated Verse of the Day + Prophet Verse -----------------
   /** Accessibility label for an override's illustration. The automated
@@ -790,6 +811,19 @@ const en: Strings = {
   'plans.loadError': 'Couldn’t load this plan',
   'plans.loadErrorMessage': 'Check your connection and open the plan again.',
   'plans.dayNotFound': 'This day could not be found.',
+  'plans.myPlans': 'My plans',
+  'plans.findPlans': 'Find plans',
+  'plans.findAPlan': 'Find a plan',
+  'plans.beginWithPlan': 'Begin with a plan, and today has a path.',
+  'plans.dayWord': 'Day',
+  'plans.read': 'Read',
+  'plans.reflect': 'Reflect',
+  'plans.pray': 'Pray',
+  'plans.openInBible': 'Open in the Bible',
+  'plans.nextDay': 'Next: day {n}',
+  'plans.doneTitle': 'Plan complete',
+  'plans.doneMessage': 'You read all {n} days of {plan}.',
+  'plans.chooseAnother': 'Choose another plan',
   'plans.dayLoadError':
     'This reading couldn’t be loaded. Check your connection and try again.',
 
@@ -1014,6 +1048,14 @@ const en: Strings = {
   'bible.layoutLabel': 'Bilingual layout',
   'bible.layoutStacked': 'Stacked',
   'bible.layoutSideBySide': 'Side by side',
+  'bible.tabRead': 'Read',
+  'bible.tabPlans': 'Plans',
+  'bible.booksLabel': 'Books',
+  'bible.chapterCount': '{n} chapters',
+  'bible.page': 'Page',
+  'bible.pageSepia': 'Sepia',
+  'bible.moreSettings': 'More settings',
+  'bible.resultsCount': '{n} results',
 
   // --- M5 ---
   'dailyVerse.imageLabel': "Illustration for today's verse",
@@ -1348,6 +1390,19 @@ const te: Strings = {
   'plans.loadError': 'ఈ ప్రణాళిక లోడ్ కాలేదు',
   'plans.loadErrorMessage': 'కనెక్షన్ చూసి ప్రణాళికను మళ్లీ తెరవండి.',
   'plans.dayNotFound': 'ఈ రోజు కనబడలేదు.',
+  'plans.myPlans': 'నా ప్రణాళికలు',
+  'plans.findPlans': 'కనుగొనండి',
+  'plans.findAPlan': 'ప్రణాళికను కనుగొనండి',
+  'plans.beginWithPlan': 'ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది.',
+  'plans.dayWord': 'రోజు',
+  'plans.read': 'చదవండి',
+  'plans.reflect': 'ధ్యానించండి',
+  'plans.pray': 'ప్రార్థించండి',
+  'plans.openInBible': 'బైబిల్‌లో తెరవండి',
+  'plans.nextDay': 'తదుపరి: {n}వ రోజు',
+  'plans.doneTitle': 'ప్రణాళిక పూర్తయింది',
+  'plans.doneMessage': '{plan} యొక్క {n} రోజులూ మీరు చదివారు.',
+  'plans.chooseAnother': 'మరో ప్రణాళికను ఎంచుకోండి',
   'plans.dayLoadError': 'ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
 
   'prayers.title': 'ప్రార్థనలు',
@@ -1571,6 +1626,14 @@ const te: Strings = {
   'bible.layoutLabel': 'ద్విభాషా అమరిక',
   'bible.layoutStacked': 'ఒకదానిపై ఒకటి',
   'bible.layoutSideBySide': 'ప్రక్కప్రక్కన',
+  'bible.tabRead': 'చదవండి',
+  'bible.tabPlans': 'ప్రణాళికలు',
+  'bible.booksLabel': 'గ్రంథాలు',
+  'bible.chapterCount': '{n} అధ్యాయాలు',
+  'bible.page': 'పేజీ',
+  'bible.pageSepia': 'సెపియా',
+  'bible.moreSettings': 'మరిన్ని అమరికలు',
+  'bible.resultsCount': '{n} ఫలితాలు',
 
   // --- M5 ---
   'dailyVerse.imageLabel': 'నేటి వచనానికి చిత్రం',

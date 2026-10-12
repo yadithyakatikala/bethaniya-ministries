@@ -219,6 +219,49 @@ export const darkTokens: ThemeColors = {
 };
 
 /**
+ * THE SEPIA READING PAGE (approved design B1) -- the app's paper, warmed.
+ *
+ * A third page for the Bible reader only: it is not a theme the app offers in
+ * Settings, and it is not a value of `ThemePreference` (firestore.rules
+ * validates that set, and a reading comfort is not worth a rules change). It is
+ * applied to the reader's page and chrome through `ThemeScope`
+ * (./ThemeScope.tsx); the sheets over the page stay in the app's own palette.
+ *
+ * Everything the design does not name -- the five status hues -- is the light
+ * palette's own, as in the design's CSS, where the sepia scope overrides only
+ * the surfaces, the ink, and the gold. The gold ink is a step darker than on
+ * paper (#7A4A1C against #8F5A26) so verse numbers keep 4.5:1 on the warmer
+ * ground. Every pair is run through ./__tests__/contrast.test.ts like the other
+ * two palettes.
+ */
+const sepiaBase = {
+  ...lightBase,
+  paper: '#F2E8D5',
+  surface: '#F8F0E0',
+  surfaceRaised: '#E9DEC6',
+  border: '#D6C7A8',
+  borderStrong: '#8A7A5C',
+  ink: '#2E2418',
+  inkMuted: '#5C4C36',
+  inkSubtle: '#6B5A42',
+  primary: '#2E2418',
+  primaryPressed: '#1A130A',
+  primaryTint: '#E6D9BD',
+  onPrimary: '#F8F0E0',
+  accent: '#7A4A1C',
+  accentTint: '#EFE2C8',
+  disabledInk: '#7A6A52',
+  disabledSurface: '#EADFC8',
+};
+
+export const sepiaTokens: ThemeColors = {
+  ...sepiaBase,
+  background: sepiaBase.paper,
+  text: sepiaBase.ink,
+  secondaryText: sepiaBase.inkMuted,
+};
+
+/**
  * =====================================================================
  * THE BRAND'S METALLIC GOLD
  * =====================================================================
@@ -256,7 +299,7 @@ export interface BrandGold {
   inkSoft: string;
 }
 
-export const brandGold: { light: BrandGold; dark: BrandGold } = {
+export const brandGold: { light: BrandGold; dark: BrandGold; sepia: BrandGold } = {
   light: {
     deep: '#4A2A06',
     rim: '#6B4012',
@@ -276,6 +319,19 @@ export const brandGold: { light: BrandGold; dark: BrandGold } = {
     textPeak: '#F0D6A4',
     dust: ['#8A6330', '#B8863F', '#DCA766', '#F2D49B'],
     inkSoft: '#C9CDD2',
+  },
+  // The sepia page's gold is the darker ink, `base` equal to its `accent`.
+  // The reader draws no metallic animation, so the other stops are the light
+  // palette's own.
+  sepia: {
+    deep: '#4A2A06',
+    rim: '#5C3612',
+    base: '#7A4A1C',
+    high: '#C9A15F',
+    spec: '#FFF8E4',
+    textPeak: '#A5763A',
+    dust: ['#5C3612', '#7A4A1C', '#A8782F', '#D2A24E'],
+    inkSoft: '#3A2F20',
   },
 };
 
@@ -838,6 +894,13 @@ export const highlightTints = {
     green: '#1B2E22',
     blue: '#1A2833',
     pink: '#33202A',
+  },
+  // Warmed to sit on the sepia page; same lightness among the four.
+  sepia: {
+    yellow: '#F3E3A6',
+    green: '#D8E6C8',
+    blue: '#D3E0E6',
+    pink: '#EDD3CF',
   },
 } as const;
 

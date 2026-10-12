@@ -245,6 +245,31 @@ export function subscribeToStartedPlanCount(
   );
 }
 
+/**
+ * The member's progress on EVERY plan they have started, keyed by plan id --
+ * what sorts the Bible's Plans view into "My plans" (started, not finished),
+ * "Find plans" (not started) and "Completed". One small listener on their own
+ * `planProgress` collection; no plan document is fetched (the library already
+ * holds them).
+ */
+export function subscribeToAllPlanProgress(
+  uid: string,
+  onNext: (progress: Record<string, PlanProgress>) => void,
+  onError: (error: FirestoreError) => void
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'users', uid, 'planProgress'),
+    (snapshot) => {
+      const all: Record<string, PlanProgress> = {};
+      snapshot.docs.forEach((d) => {
+        all[d.id] = toPlanProgress(d.data());
+      });
+      onNext(all);
+    },
+    onError
+  );
+}
+
 export interface ActivePlanSummary {
   planId: string;
   plan: PublishedPlan;

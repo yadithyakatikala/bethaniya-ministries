@@ -177,8 +177,8 @@ describe('the Home verse, in three steps by length', () => {
 });
 
 describe('the icon set', () => {
-  it('has forty-nine glyphs, each made of at least one shape', () => {
-    expect(ICON_NAMES).toHaveLength(49);
+  it('has fifty glyphs, each made of at least one shape', () => {
+    expect(ICON_NAMES).toHaveLength(50);
     for (const name of ICON_NAMES) expect(ICON_SHAPES[name].length).toBeGreaterThan(0);
   });
 
@@ -208,6 +208,16 @@ describe('the icon set', () => {
   it('draws a chosen heart solid and an unchosen one as an outline, from the same shape', () => {
     const [outline] = ICON_SHAPES.heart;
     const [solid] = ICON_SHAPES.heartf;
+    expect(solid.t === 'path' && outline.t === 'path' && solid.d === outline.d).toBe(
+      true
+    );
+    expect('fill' in outline && outline.fill).toBeFalsy();
+    expect('fill' in solid && solid.fill).toBe(true);
+  });
+
+  it('draws the mark on a bookmarked verse solid, from the same ribbon as the outline', () => {
+    const [outline] = ICON_SHAPES.bookmark;
+    const [solid] = ICON_SHAPES.bookmarkf;
     expect(solid.t === 'path' && outline.t === 'path' && solid.d === outline.d).toBe(
       true
     );

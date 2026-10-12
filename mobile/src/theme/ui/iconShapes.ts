@@ -107,6 +107,14 @@ export const ICON_SHAPES = {
   bookmark: [
     { t: 'path', d: 'M7 4.6h10c.5 0 .8.3.8.8V20l-5.8-3.8L6.2 20V5.4c0-.5.3-.8.8-.8z' },
   ],
+  // The same ribbon, solid: the mark on a bookmarked verse, in the gutter beside its number.
+  bookmarkf: [
+    {
+      t: 'path',
+      d: 'M7 4.6h10c.5 0 .8.3.8.8V20l-5.8-3.8L6.2 20V5.4c0-.5.3-.8.8-.8z',
+      fill: true,
+    },
+  ],
   note: [
     {
       t: 'path',

@@ -1,4 +1,5 @@
 import { usePreferences } from '../context/PreferencesContext';
+import { useThemeScope } from './ThemeScope';
 import {
   brandGold,
   darkTokens,
@@ -7,15 +8,19 @@ import {
   lightTokens,
   radii,
   readingScale,
+  sepiaTokens,
   spacing,
   typographyFor,
   MIN_TOUCH_TARGET,
   type TypeScale,
 } from './tokens';
 
+const PALETTES = { light: lightTokens, dark: darkTokens, sepia: sepiaTokens } as const;
+
 /**
  * Single entry point for the shared theme, wired to
- * usePreferences().isDark.
+ * usePreferences().isDark -- or, beneath a `ThemeScope` (the reader's sepia
+ * page), to that scope's palette.
  *
  * `type` replaces M3's predecessor `typography`, which was a frozen
  * constant with font families baked in. It could not be: the serif roles
@@ -33,9 +38,12 @@ import {
  * `useScriptureType()` below for the reader's current settings.
  */
 export function useTheme() {
-  const { isDark, appLanguage } = usePreferences();
+  const { isDark: appIsDark, appLanguage } = usePreferences();
+  const scope = useThemeScope();
+  const palette = scope ?? (appIsDark ? 'dark' : 'light');
+  const isDark = palette === 'dark';
   return {
-    colors: isDark ? darkTokens : lightTokens,
+    colors: PALETTES[palette],
     spacing,
     radii,
     /** What each piece of the interface measures -- rows, buttons, fields. */
@@ -45,9 +53,9 @@ export function useTheme() {
     /** Reading-experience steps M4's controls bind to. */
     reading: readingScale,
     /** Verse-highlight backgrounds for the active palette. */
-    highlights: isDark ? highlightTints.dark : highlightTints.light,
+    highlights: highlightTints[palette],
     /** The brand's metallic gold stops for the active palette. */
-    gold: isDark ? brandGold.dark : brandGold.light,
+    gold: brandGold[palette],
     minTouchTarget: MIN_TOUCH_TARGET,
     isDark,
   };

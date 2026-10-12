@@ -44,3 +44,31 @@ export async function getStoredReadingPrefs(): Promise<ReadingPrefs> {
 export async function setStoredReadingPrefs(prefs: ReadingPrefs): Promise<void> {
   await AsyncStorage.setItem(READING_PREFS_KEY, JSON.stringify(prefs));
 }
+
+/**
+ * The reader's PAGE: the paper it is set on. `'sepia'` is the one reader-only
+ * page; `null` means "the app's own light or dark" -- there is nothing to store
+ * for it.
+ *
+ * Kept apart from the five settings above, and from the app's theme: it is
+ * LOCAL TO THIS PHONE by design. `users/{uid}/readingPrefs/reader` is
+ * validated server-side against closed sets (firestore.rules'
+ * isValidReadingPrefs), so a sixth field there is a rules change; and
+ * `themePreference` has a closed set of its own. A reading comfort that
+ * differs between a member's phone and their tablet is not a defect, and is
+ * not worth a rules deployment.
+ */
+export type ReaderPage = 'sepia' | null;
+
+const READER_PAGE_KEY = 'reader_page_preference';
+
+export async function getStoredReaderPage(): Promise<ReaderPage> {
+  const raw = await AsyncStorage.getItem(READER_PAGE_KEY);
+  // Anything unrecognised -- including a page a later build adds -- is "no page chosen".
+  return raw === 'sepia' ? 'sepia' : null;
+}
+
+export async function setStoredReaderPage(page: ReaderPage): Promise<void> {
+  if (page === null) await AsyncStorage.removeItem(READER_PAGE_KEY);
+  else await AsyncStorage.setItem(READER_PAGE_KEY, page);
+}

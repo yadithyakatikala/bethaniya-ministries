@@ -25,7 +25,7 @@ import { EventsListScreen } from '../features/events/EventsListScreen';
 import { EventDetailScreen } from '../features/events/EventDetailScreen';
 import { YouTubePlayerScreen } from '../features/events/YouTubePlayerScreen';
 import type { PublishedEvent } from '../services/firebase/events';
-import { BooksListScreen } from '../features/bible/BooksListScreen';
+import { BibleHomeScreen } from '../features/bible/BibleHomeScreen';
 import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
 import { ReaderScreen } from '../features/bible/reader/ReaderScreen';
 import { BibleSearchScreen } from '../features/bible/BibleSearchScreen';
@@ -45,10 +45,11 @@ import { CommunityPostDetailScreen } from '../features/community/CommunityPostDe
 import { YouScreen } from '../features/you/YouScreen';
 import { SavedVersesScreen } from '../features/you/SavedVersesScreen';
 import type { PublishedCommunityPost } from '../services/firebase/communityPosts';
-import { PlansListScreen } from '../features/plans/PlansListScreen';
 import { PlanDetailScreen } from '../features/plans/PlanDetailScreen';
 import { PlanDayScreen } from '../features/plans/PlanDayScreen';
+import { PlanDoneScreen } from '../features/plans/PlanDoneScreen';
 import type { PublishedPlan } from '../services/firebase/plans';
+import type { PlanReading } from '../features/plans/planReading';
 import {
   LegalScreen,
   PRIVACY_POLICY_BODY,
@@ -113,8 +114,8 @@ const TAB_ROUTE_NAMES: ReadonlySet<string> = new Set<TabRouteName>([
  */
 export type RootStackParamList = {
   Home: undefined;
-  /** Bible: the books. A hub of its own, with Plans, as it is rebuilt. */
-  BibleBooks: undefined;
+  /** Bible -- Read (the books) | Plans. See ../features/bible/BibleHomeScreen.tsx. */
+  BibleBooks: { tab?: 'read' | 'plans' } | undefined;
   /** Prayers -- Requests | My journal. See ../features/prayers/PrayersHubScreen.tsx. */
   PrayersHub: { tab?: 'requests' | 'journal' } | undefined;
   /** Community -- Updates | Chat. See ../features/community/CommunityHubScreen.tsx. */
@@ -144,8 +145,17 @@ export type RootStackParamList = {
    * result lands on the right line. It is a scroll target, never a
    * redirect: the book and chapter the caller asked for are what the
    * reader shows.
+   *
+   * `fromPlan` is set when the reading was opened from a day of a reading
+   * plan: the reader then shows that plan's chip (and its Mark Complete) and
+   * carries it across chapters. See ../features/plans/planReading.ts.
    */
-  BibleChapter: { bookId: string; chapterNumber: number; verse?: number };
+  BibleChapter: {
+    bookId: string;
+    chapterNumber: number;
+    verse?: number;
+    fromPlan?: PlanReading;
+  };
   BibleSearch: undefined;
   Settings: undefined;
   /** Church content vs local delivery history: not the same as Updates. */
@@ -173,9 +183,10 @@ export type RootStackParamList = {
    * full object, not just an id" reasoning as AnnouncementDetail. */
   CommunityPostDetail: { post: PublishedCommunityPost };
   /** New V1 feature -- see ../features/plans/. */
-  PlansList: undefined;
   PlanDetail: { plan: PublishedPlan };
   PlanDay: { plan: PublishedPlan; dayNumber: number };
+  /** The finish of a plan: opened in place of its last day. */
+  PlanDone: { plan: PublishedPlan };
   /** Reached from Settings' "Privacy policy" / "Terms" rows -- see
    * ../features/legal/LegalScreen.tsx. */
   PrivacyPolicy: undefined;
@@ -387,8 +398,12 @@ export function AppNavigator() {
             />
             <Stack.Screen
               name="BibleBooks"
-              component={BooksListScreen}
-              options={{ ...tabScreenOptions, title: t('bible.title') }}
+              component={BibleHomeScreen}
+              options={{
+                ...tabScreenOptions,
+                title: t('bible.title'),
+                headerShown: false,
+              }}
             />
             <Stack.Screen
               name="BibleChapters"
@@ -397,6 +412,7 @@ export function AppNavigator() {
                 title:
                   getBookNameById(route.params.bookId, bookNameLanguage) ??
                   t('bible.chapters'),
+                headerShown: false,
               })}
             />
             <Stack.Screen
@@ -412,7 +428,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="BibleSearch"
               component={BibleSearchScreen}
-              options={{ title: t('common.search') }}
+              options={{ title: t('common.search'), headerShown: false }}
             />
             <Stack.Screen
               name="Settings"
@@ -494,20 +510,27 @@ export function AppNavigator() {
               })}
             />
             <Stack.Screen
-              name="PlansList"
-              component={PlansListScreen}
-              options={{ title: t('plans.title') }}
-            />
-            <Stack.Screen
               name="PlanDetail"
               component={PlanDetailScreen}
-              options={({ route }) => ({ title: route.params.plan.title })}
+              options={({ route }) => ({
+                title: route.params.plan.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="PlanDay"
               component={PlanDayScreen}
               options={({ route }) => ({
                 title: `${route.params.plan.title} • ${t('plans.day')} ${route.params.dayNumber}`,
+                headerShown: false,
+              })}
+            />
+            <Stack.Screen
+              name="PlanDone"
+              component={PlanDoneScreen}
+              options={({ route }) => ({
+                title: route.params.plan.title,
+                headerShown: false,
               })}
             />
             <Stack.Screen

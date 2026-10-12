@@ -1,4 +1,4 @@
-import { brandGold, darkTokens, lightTokens } from '../tokens';
+import { brandGold, darkTokens, lightTokens, sepiaTokens } from '../tokens';
 
 /**
  * The brand's metallic gold.
@@ -21,6 +21,7 @@ function contrast(a: string, b: string): number {
 const palettes = [
   { name: 'light', gold: brandGold.light, tokens: lightTokens },
   { name: 'dark', gold: brandGold.dark, tokens: darkTokens },
+  { name: 'sepia', gold: brandGold.sepia, tokens: sepiaTokens },
 ] as const;
 
 describe.each(palettes)('the $name gold', ({ gold, tokens }) => {
@@ -50,6 +51,8 @@ describe('gold against the paper it is drawn on', () => {
   it('keeps the base gold readable as text in both themes (the accent rule, AA)', () => {
     expect(contrast(brandGold.light.base, lightTokens.paper)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(brandGold.dark.base, darkTokens.paper)).toBeGreaterThanOrEqual(4.5);
+    // ...and on the sepia page, whose gold ink is a step darker for it.
+    expect(contrast(brandGold.sepia.base, sepiaTokens.paper)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("keeps the wordmark's brightest point visible on the paper", () => {

@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Sheet } from '../../../theme/ui/Sheet';
-import { Tappable } from '../../../theme/ui/Tappable';
-import { SectionHeader } from '../../../theme/ui/SectionHeader';
-import { useTheme, useTypographyFor } from '../../../theme';
+import {
+  Icon,
+  IconButton,
+  SegmentedChoice,
+  Sheet,
+  Tappable,
+  useTheme,
+} from '../../../theme';
+import { fontFamilies } from '../../../theme/tokens';
 import { useTranslation } from '../../../i18n';
 import {
   NEW_TESTAMENT_BOOKS,
@@ -11,22 +16,32 @@ import {
   getBookById,
   getBookName,
 } from '../books';
-import type { BibleBook, BibleLanguage } from '../types';
+import { BookRow } from '../BookRow';
+import type { BibleLanguage } from '../types';
+
+type Testament = 'OT' | 'NT';
 
 /**
  * Jump to any chapter, in two taps.
  *
- * TWO PANES, ONE SHEET. Choosing a book and then a chapter is two
- * decisions, so the sheet shows the book list, then the chosen book's
- * chapter grid with a way back. A single flat list of 1189 chapters
- * would technically be "no navigation confusion" and completely
- * unusable.
+ * TWO PANES, ONE SHEET, AT ONE HEIGHT. Choosing a book and then a chapter is two
+ * decisions, so the sheet shows the book list, then the chosen book's chapter
+ * grid with a way back. A single flat list of 1189 chapters would technically be
+ * "no navigation confusion" and completely unusable. The sheet is a fixed, tall
+ * one (see `Sheet`'s `tall`) so it does not change height as the panes change.
  *
- * NO DUPLICATED CANON DATA. The books and their chapter counts come
- * from ../books.ts, the same module the Bible tab's list screens read --
- * this component holds no table of its own. Book NAMES are resolved
- * through getBookName() for the label language the reader is using;
- * `book.id` stays the identifier, never the display name.
+ *   books      Old | New Testament, then the books of that testament as the
+ *              Bible tab lists them (../BookRow.tsx): name, chapters, chevron.
+ *              It opens on the testament of the book being read.
+ *   chapters   a panel with Back, the book's name and "21 chapters", then the
+ *              chapters as a grid of pills, five across; the one being read
+ *              has a heavy ink ring and a tint, and is bolder.
+ *
+ * NO DUPLICATED CANON DATA. The books and their chapter counts come from
+ * ../books.ts, the same module the Bible tab's list screens read -- this
+ * component holds no table of its own. Book NAMES are resolved through
+ * getBookName() for the label language the reader is using; `book.id` stays the
+ * identifier, never the display name.
  */
 export function ChapterPickerSheet({
   visible,
@@ -51,6 +66,7 @@ export function ChapterPickerSheet({
       title={t('bible.chapterSelector')}
       closeLabel={t('common.close')}
       testID="chapter-picker-sheet"
+      tall
     >
       {/* Mounted when the sheet opens and keyed by the book being read, so
           it always opens on that book without an effect reaching in to
@@ -79,155 +95,151 @@ function ChapterPickerBody({
   bookNameLanguage: BibleLanguage;
   onSelect: (bookId: string, chapterNumber: number) => void;
 }) {
-  const { colors, radii, spacing, type, minTouchTarget } = useTheme();
-  // Book names are set in the face that covers THEIR script, not the
-  // interface's -- the M3 defect this fixed elsewhere was a Telugu book
-  // name rendered in a Latin-only serif. See ../../../theme/tokens.ts.
-  const bookType = useTypographyFor(bookNameLanguage);
+  const { colors, radii } = useTheme();
   const { t } = useTranslation();
 
   // Opens on the book currently being read, so "next chapter of this
   // book" is one tap rather than a scroll through 66 books.
   const [pickedBookId, setPickedBookId] = useState(bookId);
   const pickedBook = getBookById(pickedBookId);
+  const readingBook = getBookById(bookId);
+  const [testament, setTestament] = useState<Testament>(
+    readingBook?.testament === 'NT' ? 'NT' : 'OT'
+  );
 
-  return (
-    <>
-      {pickedBook ? (
-        <View style={{ gap: spacing.md }}>
-          <Tappable
+  if (pickedBook) {
+    return (
+      <View style={styles.pane}>
+        <View
+          style={[
+            styles.bookHeader,
+            { backgroundColor: colors.surfaceRaised, borderRadius: radii.control },
+          ]}
+        >
+          <IconButton
             testID="chapter-picker-back-to-books"
-            accessibilityRole="button"
             accessibilityLabel={t('bible.selectBook')}
             onPress={() => setPickedBookId('')}
-            style={[
-              styles.bookHeader,
-              {
-                minHeight: minTouchTarget,
-                borderRadius: radii.control,
-                backgroundColor: colors.surfaceRaised,
-                paddingHorizontal: spacing.md,
-              },
-            ]}
           >
-            <Text style={[bookType.label, { color: colors.ink }]} numberOfLines={2}>
-              {getBookName(pickedBook, bookNameLanguage)}
-            </Text>
-            <Text style={[type.caption, { color: colors.inkMuted }]}>
-              {t('bible.selectBook')}
-            </Text>
-          </Tappable>
+            <Icon name="back" size={22} />
+          </IconButton>
+          <Text numberOfLines={2} style={[styles.bookTitle, { color: colors.ink }]}>
+            {getBookName(pickedBook, bookNameLanguage)}
+          </Text>
+          <Text style={[styles.bookCount, { color: colors.inkMuted }]}>
+            {t('bible.chapterCount', { n: pickedBook.chapterCount })}
+          </Text>
+        </View>
 
-          <View style={styles.chapterGrid} testID="chapter-picker-chapters">
-            {Array.from({ length: pickedBook.chapterCount }, (_, index) => index + 1).map(
-              (number) => {
-                const current = pickedBook.id === bookId && number === chapterNumber;
-                return (
+        <View style={styles.grid} testID="chapter-picker-chapters">
+          {Array.from({ length: pickedBook.chapterCount }, (_, index) => index + 1).map(
+            (number) => {
+              const current = pickedBook.id === bookId && number === chapterNumber;
+              return (
+                <View key={number} style={styles.cell}>
                   <Tappable
-                    key={number}
                     testID={`chapter-picker-chapter-${number}`}
                     accessibilityRole="button"
                     accessibilityState={{ selected: current }}
                     accessibilityLabel={`${t('bible.selectChapter')} ${number}`}
                     onPress={() => onSelect(pickedBook.id, number)}
                     style={[
-                      styles.chapterCell,
+                      styles.chapter,
+                      current ? styles.chapterCurrent : styles.chapterIdle,
                       {
-                        minWidth: minTouchTarget,
-                        minHeight: minTouchTarget,
-                        borderRadius: radii.control,
+                        borderColor: current ? colors.ink : colors.border,
                         backgroundColor: current ? colors.primaryTint : 'transparent',
-                        borderColor: current ? colors.primary : colors.border,
-                        borderWidth: current ? 1.5 : 1,
                       },
                     ]}
                   >
                     <Text
                       style={[
-                        current ? type.label : type.body,
-                        { color: current ? colors.primary : colors.ink },
+                        styles.chapterNumber,
+                        { color: colors.ink },
+                        current && styles.chapterNumberCurrent,
                       ]}
                     >
                       {number}
                     </Text>
                   </Tappable>
-                );
-              }
-            )}
-          </View>
+                </View>
+              );
+            }
+          )}
         </View>
-      ) : (
-        <View style={{ gap: spacing.md }} testID="chapter-picker-books">
-          <BookGroup
-            title={t('bible.oldTestament')}
-            books={OLD_TESTAMENT_BOOKS}
-            bookNameLanguage={bookNameLanguage}
-            onPick={setPickedBookId}
-          />
-          <BookGroup
-            title={t('bible.newTestament')}
-            books={NEW_TESTAMENT_BOOKS}
-            bookNameLanguage={bookNameLanguage}
-            onPick={setPickedBookId}
-          />
-        </View>
-      )}
-    </>
-  );
-}
+      </View>
+    );
+  }
 
-function BookGroup({
-  title,
-  books,
-  bookNameLanguage,
-  onPick,
-}: {
-  title: string;
-  books: BibleBook[];
-  bookNameLanguage: BibleLanguage;
-  onPick: (bookId: string) => void;
-}) {
-  const { colors, radii, spacing, minTouchTarget } = useTheme();
-  const bookType = useTypographyFor(bookNameLanguage);
+  const books = testament === 'NT' ? NEW_TESTAMENT_BOOKS : OLD_TESTAMENT_BOOKS;
   return (
-    <View style={{ gap: spacing.sm }}>
-      <SectionHeader title={title} />
-      {books.map((book) => (
-        <Tappable
-          key={book.id}
-          testID={`chapter-picker-book-${book.id}`}
-          accessibilityRole="button"
-          onPress={() => onPick(book.id)}
-          style={[
-            styles.bookRow,
-            {
-              minHeight: minTouchTarget,
-              borderRadius: radii.control,
-              borderColor: colors.border,
-              paddingHorizontal: spacing.md,
-            },
-          ]}
-        >
-          <Text style={[bookType.body, { color: colors.ink }]} numberOfLines={2}>
-            {getBookName(book, bookNameLanguage)}
-          </Text>
-        </Tappable>
-      ))}
+    <View style={styles.pane} testID="chapter-picker-books">
+      <SegmentedChoice
+        testID="chapter-picker-testament"
+        accessibilityLabel={t('bible.chapterSelector')}
+        options={[
+          { value: 'OT' as Testament, label: t('bible.oldTestament') },
+          { value: 'NT' as Testament, label: t('bible.newTestament') },
+        ]}
+        selected={testament}
+        onSelect={setTestament}
+      />
+      <View>
+        {books.map((book) => (
+          <BookRow
+            key={book.id}
+            testID={`chapter-picker-book-${book.id}`}
+            book={book}
+            name={getBookName(book, bookNameLanguage)}
+            current={book.id === bookId}
+            onPress={() => setPickedBookId(book.id)}
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pane: { gap: 12 },
   bookHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
+    minHeight: 56,
+    paddingLeft: 4,
+    paddingRight: 14,
   },
-  bookRow: {
+  bookTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontWeight: '600',
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  bookCount: {
+    fontFamily: fontFamilies.interfaceRegular,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  // Five across: each chapter in a fifth of the row, its pill centred in it.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingTop: 8 },
+  cell: { width: '20%', alignItems: 'center', marginBottom: 10 },
+  chapter: {
+    width: 56,
+    height: 48,
+    borderRadius: 999,
+    alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  chapterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chapterCell: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  chapterIdle: { borderWidth: 1 },
+  chapterCurrent: { borderWidth: 2 },
+  chapterNumber: {
+    fontFamily: fontFamilies.interfaceMedium,
+    fontWeight: '500',
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  chapterNumberCurrent: { fontFamily: fontFamilies.interfaceBold, fontWeight: '700' },
 });

@@ -171,7 +171,7 @@ export function HomeScreen() {
         onContinue={(plan, dayNumber) =>
           navigation.navigate('PlanDay', { plan, dayNumber })
         }
-        onBrowse={() => navigation.navigate('PlansList')}
+        onBrowse={() => navigation.navigate('BibleBooks', { tab: 'plans' })}
       />
 
       <View style={styles.section}>

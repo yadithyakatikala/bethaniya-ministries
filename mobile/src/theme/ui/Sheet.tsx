@@ -30,6 +30,13 @@ import { sheetAnimation, useReducedMotion } from '../motion';
  * IT SLIDES UP, AND BACK DOWN -- and does neither when the phone's
  * "reduce motion" setting is on, in which case it simply appears. That
  * is the honest reading of "remove animations"; see ../motion.ts.
+ *
+ * TWO VARIANTS, from the approved design. `tall` gives the sheet a fixed
+ * height (nine tenths of the screen) rather than the height of its content,
+ * for a sheet whose content changes under it -- the chapter picker's two panes,
+ * the reading settings once opened out. `scrim="light"` dims the page behind
+ * far less (16%, not 45%) for a sheet that CHANGES that page while it is open:
+ * the reading settings, where the page is the live sample.
  */
 export function Sheet({
   visible,
@@ -39,6 +46,8 @@ export function Sheet({
   children,
   testID,
   scroll = true,
+  tall = false,
+  scrim = 'normal',
 }: {
   visible: boolean;
   onClose: () => void;
@@ -49,6 +58,10 @@ export function Sheet({
   testID?: string;
   /** Set false when the content manages its own scrolling. */
   scroll?: boolean;
+  /** A fixed, nearly full-height sheet instead of one the height of its content. */
+  tall?: boolean;
+  /** `light` lets the page behind show through: the sheet changes that page. */
+  scrim?: 'normal' | 'light';
 }) {
   const { colors, radii, spacing, type } = useTheme();
   const insets = useSafeAreaInsets();
@@ -68,7 +81,10 @@ export function Sheet({
       // the reader page underneath it.
       accessibilityViewIsModal
     >
-      <View style={styles.backdrop} testID={testID}>
+      <View
+        style={[styles.backdrop, scrim === 'light' && styles.backdropLight]}
+        testID={testID}
+      >
         <Pressable
           style={styles.backdropFill}
           accessibilityRole="button"
@@ -79,6 +95,7 @@ export function Sheet({
         <View
           style={[
             styles.sheet,
+            tall && styles.sheetTall,
             {
               backgroundColor: colors.surface,
               borderTopLeftRadius: radii.sheet,
@@ -134,8 +151,10 @@ const styles = StyleSheet.create({
   // front of the page, and on the reader's near-black dark ground an
   // undimmed backdrop makes the two surfaces indistinguishable.
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  backdropLight: { backgroundColor: 'rgba(0,0,0,0.16)' },
   backdropFill: { flex: 1 },
   sheet: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: '82%' },
+  sheetTall: { height: '90%', maxHeight: '90%' },
   handle: {
     alignSelf: 'center',
     width: 36,

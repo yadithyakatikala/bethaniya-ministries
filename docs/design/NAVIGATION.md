@@ -34,7 +34,7 @@ them.
 | Tab | Route | Views | Notes |
 |---|---|---|---|
 | Home | `Home` | -- | See `HOME.md`. |
-| Bible | `BibleBooks` | Books | The immersive reader (`BibleChapter`) is untouched and still outside the bar. |
+| Bible | `BibleBooks` | **Read** (the books) · **Plans** | See `BIBLE.md`. The immersive reader (`BibleChapter`) keeps its full-screen page and is still outside the bar. |
 | Prayers | `PrayersHub` | **Requests** (the church's wall) · **My journal** (private) | One feature, not two tiles. |
 | Community | `CommunityHub` | **Updates** (announcements and church posts as one feed, with a shelf to Events · Songs · Photos and videos) · **Chat** | |
 | You | `You` | **Saved** · **Profile**, with the bell (Notifications) and the sliders (Settings) beside the member's name | |
@@ -60,7 +60,7 @@ for a frame.
 | Prayers (journal) | Prayers → **My journal** |
 | Songs, Events (they were tabs) | pushed from Community's **shelf**; Home opens Events directly |
 | Photos and videos | Community's shelf, Home's Together row; saved ones under You → Saved |
-| Reading plans | Home's plan row and You → Saved |
+| Reading plans (a screen of their own) | Bible → **Plans**; Home's plan row and You → Saved open it there |
 
 ## Pushed screens and the app's own top bar
 
