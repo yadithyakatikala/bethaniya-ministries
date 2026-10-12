@@ -44,7 +44,8 @@ export function SegmentedChoice<T extends string>({
 }: {
   testID: string;
   options: ChoiceOption<T>[];
-  selected: T;
+  /** `null` when nothing is chosen yet (a report's reason: none is assumed). */
+  selected: T | null;
   onSelect: (value: T) => void;
   accessibilityLabel?: string;
 }) {

@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { cleanup, fireEvent, render } from '@testing-library/react-native';
+import { cleanup, fireEvent, render, within } from '@testing-library/react-native';
 import { AppButton } from '../ui/AppButton';
 import { Avatar, initialOf } from '../ui/Avatar';
+import { Badge } from '../ui/Badge';
 import { Chip } from '../ui/Chip';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { EmptyState } from '../ui/EmptyState';
@@ -31,6 +32,13 @@ import {
 
 jest.mock('../../services/firebase/app');
 
+// "Reduce motion" is the phone's own setting; a test sets it through this.
+let mockReducedMotion = false;
+jest.mock('../motion', () => ({
+  ...jest.requireActual('../motion'),
+  useReducedMotion: () => mockReducedMotion,
+}));
+
 /**
  * The shared pieces of the approved design system: sizes, the icon set,
  * and the components built from them. What a screenshot cannot tell you:
@@ -39,6 +47,7 @@ jest.mock('../../services/firebase/app');
  */
 afterEach(async () => {
   await cleanup();
+  mockReducedMotion = false;
 });
 
 async function renderThemed(ui: React.ReactElement) {
@@ -51,6 +60,18 @@ async function renderThemed(ui: React.ReactElement) {
 
 /** Decorative elements are hidden from the accessibility tree, so a query has to ask for them. */
 const HIDDEN = { includeHiddenElements: true } as const;
+
+/** The first drawn glyph (react-native-svg's host view) inside a node, or null. */
+function findSvg(node: unknown): { props: Record<string, unknown> } | null {
+  const { type, children } = node as { type: unknown; children?: unknown[] };
+  if (type === 'RNSVGSvgView') return node as { props: Record<string, unknown> };
+  for (const child of children ?? []) {
+    if (typeof child === 'string') continue;
+    const found = findSvg(child);
+    if (found) return found;
+  }
+  return null;
+}
 
 function flat(node: { props: { style?: unknown } }) {
   return (StyleSheet.flatten(node.props.style) ?? {}) as Record<string, number | string>;
@@ -529,6 +550,37 @@ describe('ConfirmDialog', () => {
     expect(base.onConfirm).not.toHaveBeenCalled();
   });
 
+  it('fades in, and is simply there when the phone asks for no animations', async () => {
+    const animationOf = (root: { getByTestId: (id: string) => { parent: unknown } }) => {
+      let node = root.getByTestId('dlg').parent as {
+        props: { animationType?: string };
+        parent: unknown;
+      } | null;
+      while (node && node.props.animationType === undefined)
+        node = node.parent as typeof node;
+      return node?.props.animationType;
+    };
+    const dialog = (
+      <ConfirmDialog
+        visible
+        testID="dlg"
+        title="Delete?"
+        message="Gone for good."
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onCancel={jest.fn()}
+        onConfirm={jest.fn()}
+      />
+    );
+    const normal = await renderThemed(dialog);
+    expect(animationOf(normal)).toBe('fade');
+    await normal.unmount();
+
+    mockReducedMotion = true;
+    const reduced = await renderThemed(dialog);
+    expect(animationOf(reduced)).toBe('none');
+  });
+
   it('renders nothing while it is not visible', async () => {
     const { queryByText } = await renderThemed(
       <ConfirmDialog {...base} visible={false} />
@@ -856,6 +908,115 @@ describe('NoticeBanner', () => {
     );
     await fireEvent.press(getByText('Contact the church'));
     expect(onAction).toHaveBeenCalled();
+  });
+});
+
+describe('Badge with a glyph', () => {
+  it('draws a 12-point glyph before the words, in the badge’s own colour', async () => {
+    const { getByTestId } = await renderThemed(
+      <Badge label="Answered" variant="success" icon="check" testID="badge" />
+    );
+    const svg = findSvg(getByTestId('badge'));
+    expect(svg).toBeTruthy();
+    expect(svg!.props.width).toBe(12);
+    expect(svg!.props.stroke).toBe(lightTokens.success);
+  });
+
+  it('keeps the words: a glyph never replaces them', async () => {
+    const { getByTestId } = await renderThemed(
+      <Badge label="Answered" variant="success" icon="check" testID="badge" />
+    );
+    expect(within(getByTestId('badge')).getByText('Answered')).toBeTruthy();
+  });
+
+  it('draws no glyph without one, and none on the live badge, which has its dot', async () => {
+    const plain = await renderThemed(<Badge label="Praying" testID="badge" />);
+    expect(findSvg(plain.getByTestId('badge'))).toBeNull();
+    await plain.unmount();
+    const live = await renderThemed(
+      <Badge label="Live" variant="live" icon="check" testID="badge" />
+    );
+    expect(findSvg(live.getByTestId('badge'))).toBeNull();
+  });
+});
+
+describe('EmptyState action', () => {
+  it('can be given its own test id, so a screen can find "the way to add the first one"', async () => {
+    const onAction = jest.fn();
+    const { getByTestId } = await renderThemed(
+      <EmptyState
+        title="No requests yet"
+        message="Be the first."
+        actionLabel="Ask for prayer"
+        onAction={onAction}
+        actionTestID="empty-action"
+      />
+    );
+    await fireEvent.press(getByTestId('empty-action'));
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws no action without a label and a handler', async () => {
+    const { queryByTestId, queryByText } = await renderThemed(
+      <EmptyState
+        title="Nothing yet"
+        message="Soon."
+        actionLabel="Add"
+        actionTestID="empty-action"
+      />
+    );
+    expect(queryByTestId('empty-action')).toBeNull();
+    expect(queryByText('Add')).toBeNull();
+  });
+});
+
+describe('SegmentedChoice with nothing chosen', () => {
+  const reasons = ['a', 'b', 'c', 'd', 'e'].map((value) => ({
+    value,
+    label: value.toUpperCase(),
+  }));
+
+  it('marks no chip selected when `selected` is null (a report’s reason: none is assumed)', async () => {
+    const { getByTestId } = await renderThemed(
+      <SegmentedChoice
+        testID="pick"
+        options={reasons}
+        selected={null}
+        onSelect={jest.fn()}
+      />
+    );
+    for (const { value } of reasons) {
+      expect(getByTestId(`pick-${value}`).props.accessibilityState.selected).toBe(false);
+    }
+    expect(getByTestId('pick').props.accessibilityRole).toBe('radiogroup');
+  });
+
+  it('marks none selected on the three-part track either', async () => {
+    const { getByTestId } = await renderThemed(
+      <SegmentedChoice
+        testID="pick"
+        options={reasons.slice(0, 3)}
+        selected={null}
+        onSelect={jest.fn()}
+      />
+    );
+    for (const { value } of reasons.slice(0, 3)) {
+      expect(getByTestId(`pick-${value}`).props.accessibilityState.selected).toBe(false);
+    }
+  });
+
+  it('chooses one when it is pressed', async () => {
+    const onSelect = jest.fn();
+    const { getByTestId } = await renderThemed(
+      <SegmentedChoice
+        testID="pick"
+        options={reasons}
+        selected={null}
+        onSelect={onSelect}
+      />
+    );
+    await fireEvent.press(getByTestId('pick-c'));
+    expect(onSelect).toHaveBeenCalledWith('c');
   });
 });
 

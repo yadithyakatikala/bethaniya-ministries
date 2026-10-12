@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { Icon } from './Icon';
+import type { IconName } from './iconShapes';
 import { useTheme } from '../useTheme';
 
 export type BadgeVariant =
@@ -20,14 +22,19 @@ export type BadgeVariant =
  * a category chip is neutral. The variant remains so that nothing that
  * still asks for it breaks, but it paints as `neutral` -- the Info blue
  * is no longer drawn anywhere.
+ *
+ * `icon` puts a 12-point glyph before the words, in the badge's own colour
+ * (an answered prayer carries a tick). It never replaces the words.
  */
 export function Badge({
   label,
   variant = 'neutral',
+  icon,
   testID,
 }: {
   label: string;
   variant?: BadgeVariant;
+  icon?: IconName;
   testID?: string;
 }) {
   const { colors, radii, type } = useTheme();
@@ -51,6 +58,7 @@ export function Badge({
       accessibilityRole="text"
     >
       {variant === 'live' ? <View style={[styles.dot, { backgroundColor: fg }]} /> : null}
+      {icon && variant !== 'live' ? <Icon name={icon} size={12} color={fg} /> : null}
       <Text style={[type.caption, styles.label, { color: fg }]} numberOfLines={1}>
         {label}
       </Text>

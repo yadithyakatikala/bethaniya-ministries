@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AppButton, EmptyState, ErrorState, LoadingState, useTheme } from '../../theme';
+import type { ReactNode } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  Chip,
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  FloatingAction,
+  NoticeBanner,
+  SkeletonRows,
+  Toast,
+  useTheme,
+  useToast,
+} from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
 import { useMemberIdentity } from '../../context/useMemberIdentity';
 import {
@@ -13,16 +26,21 @@ import {
   type PrayerRequest,
   type PrayerRequestCursor,
 } from '../../services/firebase/prayerRequests';
-import {
-  fetchReportedItemKeys,
-  reportedItemKey,
-} from '../../services/firebase/reports';
+import { fetchReportedItemKeys, reportedItemKey } from '../../services/firebase/reports';
 import { ReportSheet } from '../moderation/ReportSheet';
-import { PrayerRequestCard } from './PrayerRequestCard';
+import { PrayerRequestRow } from './PrayerRequestRow';
 import { PrayerRequestForm, type PrayerFormValues } from './PrayerRequestForm';
 
 /**
- * The shared prayer wall -- M7.
+ * The most pages "Yours" will read looking for the member's own requests
+ * (15 a page): a member with an orphaned index entry must not walk the whole wall.
+ */
+const MAX_PAGES_FOR_OWN = 10;
+
+type Filter = 'all' | 'yours';
+
+/**
+ * The shared prayer wall -- M7, as the first view of the Prayers tab.
  *
  * =====================================================================
  * PAGINATED AND PULLED, NOT SUBSCRIBED
@@ -45,31 +63,56 @@ import { PrayerRequestForm, type PrayerFormValues } from './PrayerRequestForm';
  * users/{uid}/prayerRequests, read ONCE for the whole screen. See
  * ../../services/firebase/prayerRequests.ts.
  *
+ * That index is also what the "Yours" chip is built on: it shows the
+ * member's requests among those loaded, and choosing it reads further
+ * pages until every request in the index has turned up (or the wall
+ * ends, or MAX_PAGES_FOR_OWN pages have been read) -- a skeleton, not a
+ * false "you have not asked yet", is what is shown while it looks.
+ *
+ * =====================================================================
+ * THE LAYOUT
+ * =====================================================================
+ * One list. The hub's title and tabs (`header`), the All | Yours chips,
+ * the notices and every state (loading, error, empty) are the list's
+ * HEADER, so they scroll away with it as the design draws them, and the
+ * title and tabs are there in every state. "Ask for prayer" floats over
+ * the list, except where a state carries its own button (empty) or has
+ * nothing yet to add to (loading, error); it is disabled, and the
+ * suspended notice says why, for a member whose posting is paused. A
+ * confirmation ("Your request was shared") is a toast. Deleting asks
+ * first, in the app's own dialog.
+ *
  * Every setState below happens after an `await`, and every retry is
  * driven by a token bumped from an event handler, because an effect that
  * sets state in its body causes the cascading render the hooks lint rule
  * rejects -- the same shape ../media/MediaFeedScreen.tsx uses.
  */
-export function PrayerWallScreen() {
-  const { colors, spacing, type } = useTheme();
+export function PrayerWallScreen({ header }: { header?: ReactNode }) {
+  const { colors, layout, type } = useTheme();
   const { t } = useTranslation();
   const { uid, displayName, canPost, suspended } = useMemberIdentity();
+  const toast = useToast();
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [ownIds, setOwnIds] = useState<ReadonlySet<string>>(new Set());
   const [reportedKeys, setReportedKeys] = useState<ReadonlySet<string>>(new Set());
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchingOwn, setSearchingOwn] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<PrayerRequest | null>(null);
   const [reporting, setReporting] = useState<PrayerRequest | null>(null);
+  const [deleting, setDeleting] = useState<PrayerRequest | null>(null);
   const [actionFailed, setActionFailed] = useState(false);
 
   const cursorRef = useRef<PrayerRequestCursor | null>(null);
   const exhaustedRef = useRef(false);
   const mountedRef = useRef(true);
+  /** One page request at a time, whoever asks: scrolling, or the "Yours" chip. */
+  const pagingRef = useRef(false);
 
   useEffect(
     () => () => {
@@ -140,8 +183,9 @@ export function PrayerWallScreen() {
   const loadMore = useCallback(async () => {
     // Three guards: FlatList fires onEndReached more than once per
     // scroll, there is nothing to ask for once the list is exhausted, and
-    // a second page must not be requested while the first is in flight.
-    if (exhaustedRef.current || loadingMore || status !== 'ready') return;
+    // a second page must not be requested while another is in flight.
+    if (exhaustedRef.current || pagingRef.current || status !== 'ready') return;
+    pagingRef.current = true;
     setLoadingMore(true);
     try {
       const page = await fetchPrayerRequestPage({ cursor: cursorRef.current });
@@ -153,9 +197,42 @@ export function PrayerWallScreen() {
       // A failed NEXT page is not a failed screen.
       console.warn('[prayerWall] could not load more:', error);
     } finally {
+      pagingRef.current = false;
       if (mountedRef.current) setLoadingMore(false);
     }
-  }, [loadingMore, status]);
+  }, [status]);
+
+  /**
+   * Choosing "Yours": reads further pages until every request in the
+   * member's own index has been loaded, the wall ends, or the cap is hit.
+   */
+  async function chooseFilter(next: Filter) {
+    setFilter(next);
+    if (next !== 'yours' || status !== 'ready' || pagingRef.current) return;
+    const loaded = new Set(requests.map((request) => request.id));
+    const missing = () => [...ownIds].some((id) => !loaded.has(id));
+    if (exhaustedRef.current || !missing()) return;
+
+    pagingRef.current = true;
+    setSearchingOwn(true);
+    try {
+      let pages = 0;
+      while (!exhaustedRef.current && missing() && pages < MAX_PAGES_FOR_OWN) {
+        const page = await fetchPrayerRequestPage({ cursor: cursorRef.current });
+        if (!mountedRef.current) return;
+        setRequests((current) => [...current, ...page.requests]);
+        for (const request of page.requests) loaded.add(request.id);
+        cursorRef.current = page.cursor;
+        exhaustedRef.current = page.cursor === null;
+        pages += 1;
+      }
+    } catch (error) {
+      console.warn('[prayerWall] could not look for your requests:', error);
+    } finally {
+      pagingRef.current = false;
+      if (mountedRef.current) setSearchingOwn(false);
+    }
+  }
 
   async function handleSubmit(values: PrayerFormValues) {
     if (!uid) return;
@@ -177,6 +254,7 @@ export function PrayerWallScreen() {
         category: values.category,
         anonymous: values.anonymous,
       });
+      toast.show(t('prayers.shared'));
     }
     // Reloaded rather than spliced in locally: the new request's
     // createdAt comes from the server, so the list's own order is the
@@ -199,21 +277,6 @@ export function PrayerWallScreen() {
     }
   }
 
-  function confirmDelete(request: PrayerRequest) {
-    Alert.alert(
-      t('prayerWall.deleteConfirmTitle'),
-      t('prayerWall.deleteConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => void handleDelete(request),
-        },
-      ]
-    );
-  }
-
   async function handleDelete(request: PrayerRequest) {
     if (!uid) return;
     setActionFailed(false);
@@ -232,31 +295,31 @@ export function PrayerWallScreen() {
     }
   }
 
-  if (status === 'loading') {
-    return <LoadingState label={t('common.loading')} testID="prayer-wall-loading" />;
+  function openComposer() {
+    setEditing(null);
+    setComposing(true);
   }
 
-  if (status === 'error') {
-    return (
-      <ErrorState
-        testID="prayer-wall-error"
-        message={t('prayerWall.loadError')}
-        retryLabel={t('common.tryAgain')}
-        onRetry={retry}
-      />
-    );
-  }
+  const pad = { paddingHorizontal: layout.screenMargin };
+  const ready = status === 'ready';
+  const visible =
+    filter === 'yours' ? requests.filter((r) => ownIds.has(r.id)) : requests;
+  const rows = ready ? visible : [];
+  const emptyAll = ready && filter === 'all' && requests.length === 0;
+  const emptyYours = ready && filter === 'yours' && visible.length === 0 && !searchingOwn;
+  // A state that carries its own "Ask for prayer", or has nothing yet to add to, has no floating one.
+  const showFab = ready && visible.length > 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }} testID="prayer-wall-screen">
+    <View style={styles.screen} testID="prayer-wall-screen">
       <FlatList
         testID="prayer-wall-list"
-        data={requests}
+        data={rows}
         keyExtractor={(request) => request.id}
-        contentContainerStyle={[
-          styles.list,
-          { padding: spacing.md, gap: spacing.md },
-        ]}
+        contentContainerStyle={styles.list}
+        // The tabs and chips are on the list; a tap on a row action while a
+        // field elsewhere holds focus must not only dismiss the keyboard.
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -265,87 +328,132 @@ export function PrayerWallScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-            {suspended ? (
-              <View
-                testID="prayer-wall-suspended"
-                accessibilityLiveRegion="polite"
-                style={[
-                  styles.notice,
-                  { backgroundColor: colors.warningTint, padding: spacing.md },
-                ]}
-              >
-                <Text style={[type.label, { color: colors.warning }]}>
-                  {t('account.suspendedTitle')}
+          <View>
+            {header ? <View style={pad}>{header}</View> : null}
+
+            <View style={[pad, styles.chips]}>
+              <Chip
+                testID="prayer-wall-filter-all"
+                label={t('prayers.filterAll')}
+                selected={filter === 'all'}
+                onPress={() => void chooseFilter('all')}
+              />
+              <Chip
+                testID="prayer-wall-filter-yours"
+                label={t('prayers.filterYours')}
+                selected={filter === 'yours'}
+                onPress={() => void chooseFilter('yours')}
+              />
+            </View>
+
+            <View style={[pad, styles.body]}>
+              {suspended ? (
+                <NoticeBanner
+                  tone="warning"
+                  testID="prayer-wall-suspended"
+                  title={t('account.suspendedTitle')}
+                  message={t('account.suspendedMessage')}
+                />
+              ) : null}
+              {actionFailed ? (
+                <NoticeBanner
+                  tone="danger"
+                  testID="prayer-wall-action-failed"
+                  message={t('media.actionFailed')}
+                />
+              ) : null}
+              {!uid ? (
+                <Text style={[type.help, { color: colors.inkMuted }]}>
+                  {t('prayerWall.signInRequired')}
                 </Text>
-                <Text style={[type.bodySmall, { color: colors.warning }]}>
-                  {t('account.suspendedMessage')}
-                </Text>
-              </View>
-            ) : null}
-            {actionFailed ? (
-              <View
-                testID="prayer-wall-action-failed"
-                accessibilityLiveRegion="polite"
-                style={[
-                  styles.notice,
-                  { backgroundColor: colors.dangerTint, padding: spacing.md },
-                ]}
-              >
-                <Text style={[type.bodySmall, { color: colors.danger }]}>
-                  {t('media.actionFailed')}
-                </Text>
-              </View>
-            ) : null}
-            <AppButton
-              title={t('prayerWall.newRequest')}
-              onPress={() => {
-                setEditing(null);
-                setComposing(true);
-              }}
-              disabled={!canPost}
-              testID="prayer-wall-compose"
-            />
-            {!uid ? (
-              <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
-                {t('prayerWall.signInRequired')}
-              </Text>
-            ) : null}
+              ) : null}
+
+              {status === 'loading' || searchingOwn ? (
+                <SkeletonRows
+                  count={3}
+                  leading="none"
+                  label={t('common.loading')}
+                  testID="prayer-wall-loading"
+                />
+              ) : null}
+              {status === 'error' ? (
+                <ErrorState
+                  testID="prayer-wall-error"
+                  title={t('prayerWall.loadError')}
+                  message={t('prayerWall.loadErrorMessage')}
+                  retryLabel={t('common.tryAgain')}
+                  onRetry={retry}
+                />
+              ) : null}
+              {emptyAll ? (
+                <EmptyState
+                  testID="prayer-wall-empty"
+                  title={t('prayerWall.empty')}
+                  message={t('prayerWall.emptyMessage')}
+                  actionLabel={canPost ? t('prayerWall.newRequest') : undefined}
+                  onAction={openComposer}
+                  actionTestID="prayer-wall-compose"
+                />
+              ) : null}
+              {emptyYours ? (
+                <EmptyState
+                  testID="prayer-wall-no-own"
+                  title={t('prayers.noOwn')}
+                  message={t('prayers.noOwnMessage')}
+                  actionLabel={canPost ? t('prayerWall.newRequest') : undefined}
+                  onAction={openComposer}
+                  actionTestID="prayer-wall-compose"
+                />
+              ) : null}
+              {rows.length > 0 ? (
+                <View style={[styles.rule, { borderTopColor: colors.border }]} />
+              ) : null}
+            </View>
           </View>
         }
-        ListEmptyComponent={
-          <EmptyState
-            testID="prayer-wall-empty"
-            title={t('prayerWall.empty')}
-            message={t('prayerWall.emptyMessage')}
-          />
-        }
         renderItem={({ item }) => (
-          <PrayerRequestCard
-            request={item}
-            isOwn={ownIds.has(item.id)}
-            alreadyReported={reportedKeys.has(reportedItemKey('prayer_request', item.id))}
-            onEdit={() => {
-              setEditing(item);
-              setComposing(true);
-            }}
-            onToggleAnswered={() => void handleToggleAnswered(item)}
-            onDelete={() => confirmDelete(item)}
-            onReport={() => setReporting(item)}
-          />
+          <View style={pad}>
+            <PrayerRequestRow
+              request={item}
+              isOwn={ownIds.has(item.id)}
+              alreadyReported={reportedKeys.has(
+                reportedItemKey('prayer_request', item.id)
+              )}
+              onEdit={() => {
+                setEditing(item);
+                setComposing(true);
+              }}
+              onToggleAnswered={() => void handleToggleAnswered(item)}
+              onDelete={() => setDeleting(item)}
+              onReport={() => setReporting(item)}
+            />
+          </View>
         )}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           loadingMore ? (
-            <LoadingState
-              compact
-              label={t('prayerWall.loadingMore')}
+            <Text
               testID="prayer-wall-loading-more"
-            />
+              accessibilityLiveRegion="polite"
+              style={[styles.more, { color: colors.inkMuted }]}
+            >
+              {t('prayerWall.loadingMore')}
+            </Text>
           ) : null
         }
       />
+
+      {showFab ? (
+        <FloatingAction
+          testID="prayer-wall-compose"
+          label={t('prayerWall.newRequest')}
+          disabled={!canPost}
+          onPress={openComposer}
+        />
+      ) : null}
+
+      <Toast message={toast.message} />
 
       {composing ? (
         <PrayerRequestForm
@@ -375,11 +483,39 @@ export function PrayerWallScreen() {
           testID="prayer-wall-report"
         />
       ) : null}
+
+      <ConfirmDialog
+        visible={deleting !== null}
+        testID="prayer-wall-delete-dialog"
+        title={t('prayerWall.deleteConfirmTitle')}
+        message={t('prayerWall.deleteConfirmMessage')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        destructive
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const request = deleting;
+          setDeleting(null);
+          if (request) void handleDelete(request);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { flexGrow: 1 },
-  notice: { borderRadius: 12, gap: 4 },
+  screen: { flex: 1 },
+  // Room under the last row for the floating button.
+  list: { flexGrow: 1, paddingBottom: 96 },
+  chips: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  body: { marginTop: 8, gap: 12 },
+  rule: { borderTopWidth: 1 },
+  more: {
+    paddingVertical: 18,
+    textAlign: 'center',
+    fontFamily: fontFamilies.interfaceMedium,
+    fontWeight: '500',
+    fontSize: 13,
+    lineHeight: 18,
+  },
 });

@@ -121,6 +121,15 @@ export function sheetAnimation(reducedMotion: boolean): 'slide' | 'none' {
 }
 
 /**
+ * How a confirmation dialog arrives: a quick fade, or -- when the phone asks
+ * for no animations -- just there. (A dialog does not move, but "reduce
+ * motion" means what it says, and a fade is still a transition.)
+ */
+export function dialogAnimation(reducedMotion: boolean): 'fade' | 'none' {
+  return reducedMotion ? 'none' : 'fade';
+}
+
+/**
  * The duration to pass to the native stack.
  *
  * Zero when motion is reduced, which matters as well as the animation

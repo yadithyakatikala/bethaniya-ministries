@@ -37,6 +37,15 @@ import type { StringKey } from '../../i18n/strings';
  * The reporter's own uid IS recorded, on the report, where only an
  * administrator can read it. A report nobody can be held to is a report
  * that can be used to harass somebody by volume.
+ *
+ * =====================================================================
+ * NO REASON IS ASSUMED
+ * =====================================================================
+ * It used to open with "Spam or advertising" already chosen, so a member
+ * who tapped "Send report" without reading it reported a testimony as an
+ * advertisement. Now the seven reasons are a wrap of chips with none
+ * chosen, and "Send report" is disabled until one is: the reason is what
+ * an administrator triages by, so it has to be the reporter's own choice.
  */
 const REASON_LABEL_KEYS: Record<ReportReason, StringKey> = {
   spam: 'report.reason.spam',
@@ -71,14 +80,15 @@ export function ReportSheet({
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const [reason, setReason] = useState<ReportReason>('spam');
+  // No reason is assumed: choosing one is the report, and "Send report" waits for it.
+  const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
   const [sent, setSent] = useState(false);
 
   async function handleSubmit() {
-    if (!user) return;
+    if (!user || !reason) return;
     setSending(true);
     setFailed(false);
     try {
@@ -108,7 +118,7 @@ export function ReportSheet({
     setSent(false);
     setFailed(false);
     setDetails('');
-    setReason('spam');
+    setReason(null);
     onClose();
   }
 
@@ -134,7 +144,10 @@ export function ReportSheet({
         </View>
       ) : (
         <View style={{ gap: spacing.lg }}>
-          <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
+          <Text
+            testID={`${testID}-intro`}
+            style={[type.help, { color: colors.inkMuted }]}
+          >
             {t('report.intro')}
           </Text>
 
@@ -173,7 +186,8 @@ export function ReportSheet({
             title={t('report.submit')}
             onPress={() => void handleSubmit()}
             loading={sending}
-            disabled={sending || !user}
+            // Nothing is sent until a reason is chosen: the button says so by waiting.
+            disabled={sending || !user || !reason}
             testID={`${testID}-submit`}
           />
         </View>

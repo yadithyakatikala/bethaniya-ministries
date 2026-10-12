@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
-import { AppButton, ErrorState, Sheet, TextField, useTheme } from '../../theme';
+import { AppButton, ErrorState, Icon, Sheet, TextField, useTheme } from '../../theme';
 import { SegmentedChoice } from '../../theme/ui/SegmentedChoice';
 import { useTranslation } from '../../i18n';
 import {
@@ -10,7 +10,7 @@ import {
   type PrayerCategory,
   type PrayerRequest,
 } from '../../services/firebase/prayerRequests';
-import { CATEGORY_LABEL_KEYS } from './PrayerRequestCard';
+import { CATEGORY_LABEL_KEYS } from './PrayerRequestRow';
 
 /**
  * Writing or editing a prayer request -- M7.
@@ -29,7 +29,13 @@ import { CATEGORY_LABEL_KEYS } from './PrayerRequestCard';
  *
  * Offering a disabled switch would say "you could change this if
  * something were different", which is not true. A sentence says what is
- * actually the case.
+ * actually the case -- with a small lock in front of it.
+ *
+ * THE LOOK is the approved sheet: Subject, Details, the Category as a wrap of
+ * chips (a radiogroup: "No category" and the six), "Post anonymously" with
+ * its switch in a 48-high row and the sentence about who can see the name
+ * under it, then "Share request". The sentence under the switch is the
+ * privacy promise members rely on, so it is always there, not behind a hint.
  */
 export interface PrayerFormValues {
   title: string;
@@ -149,16 +155,18 @@ export function PrayerRequestForm({
         </View>
 
         {editing ? (
-          <Text
-            style={[type.bodySmall, { color: colors.inkMuted }]}
-            testID={`${testID}-anonymous-locked`}
-          >
-            {t('prayerWall.anonymousLocked')}
-          </Text>
+          <View style={styles.help} testID={`${testID}-anonymous-locked`}>
+            <View style={styles.helpIcon}>
+              <Icon name="lock" size={16} color={colors.inkMuted} />
+            </View>
+            <Text style={[type.help, styles.helpText, { color: colors.inkMuted }]}>
+              {t('prayerWall.anonymousLocked')}
+            </Text>
+          </View>
         ) : (
           <View style={{ gap: spacing.xs }}>
             <View style={[styles.switchRow, { gap: spacing.md }]}>
-              <Text style={[type.label, { color: colors.ink, flex: 1 }]}>
+              <Text style={[type.button, { color: colors.ink, flex: 1 }]}>
                 {t('prayerWall.anonymousToggle')}
               </Text>
               <Switch
@@ -170,7 +178,10 @@ export function PrayerRequestForm({
                 trackColor={{ false: colors.border, true: colors.primary }}
               />
             </View>
-            <Text style={[type.bodySmall, { color: colors.inkMuted }]}>
+            <Text
+              testID={`${testID}-anonymous-help`}
+              style={[type.help, { color: colors.inkMuted }]}
+            >
               {t('prayerWall.anonymousHelp')}
             </Text>
           </View>
@@ -194,5 +205,8 @@ export function PrayerRequestForm({
 
 const styles = StyleSheet.create({
   body: { minHeight: 120, textAlignVertical: 'top' },
-  switchRow: { flexDirection: 'row', alignItems: 'center' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', minHeight: 48 },
+  help: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  helpIcon: { marginTop: 1 },
+  helpText: { flex: 1 },
 });

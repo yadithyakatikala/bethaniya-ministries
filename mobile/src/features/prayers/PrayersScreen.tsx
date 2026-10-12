@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import type { ReactNode } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../theme';
+import {
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  FloatingAction,
+  Icon,
+  SkeletonRows,
+  Tappable,
+  Toast,
+  useTheme,
+  useToast,
+} from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
-import { formatShortDate } from '../../i18n/locale';
-import type { BibleLanguage } from '../bible/types';
-import { AppButton } from '../../theme/ui/AppButton';
-import { EmptyState } from '../../theme/ui/EmptyState';
-import { SectionHeader } from '../../theme/ui/SectionHeader';
+import { formatDayMonthShort } from '../../i18n/locale';
 import {
   createPrayer,
   deletePrayer,
@@ -24,46 +24,51 @@ import {
   subscribeToPrayers,
   type Prayer,
 } from '../../services/firebase/prayers';
-
-const PRAYER_TEXT_MAX_LENGTH = 2000;
-
-function formatDate(date: Date | null, appLanguage: BibleLanguage): string {
-  if (!date) return '';
-  return formatShortDate(date, appLanguage);
-}
+import { NewJournalEntry } from './NewJournalEntry';
 
 /**
- * Prayers -- a new V1 feature (per explicit owner decision; not part of
- * FINAL_ARCHITECTURE_SPECIFICATION.md's original scope -- see
- * PRODUCTION_READINESS.md). Fully private per-member: a simple prayer
- * journal (add a request, mark it answered, delete it) backed by
+ * My journal -- the second view of the Prayers tab, and a member's own,
+ * private page: add a prayer, mark it answered, delete it. Backed by
  * users/{uid}/prayers -- see services/firebase/prayers.ts and
- * firestore.rules for the isOwner(userId)-only authorization boundary.
+ * firestore.rules for the isOwner(userId)-only authorization boundary;
+ * nothing here is ever shown to anyone else, and the screen says so ("Only
+ * you can see this") under the tabs.
  *
- * Reached from the More tab (see ../more/MoreScreen.tsx), not the bottom
- * tab bar -- the existing Home/Bible/Songs/Events/More navigation is kept
- * unchanged per explicit owner decision.
+ * (A new V1 feature, per explicit owner decision; not part of
+ * FINAL_ARCHITECTURE_SPECIFICATION.md's original scope -- see
+ * PRODUCTION_READINESS.md. It used to be its own screen reached from the More
+ * tab; it is now a tab of Prayers beside the church's requests.)
+ *
+ * THE LAYOUT, as designed. One list whose header holds the hub's title and
+ * tabs, the privacy line and the state (a skeleton while it loads, an error
+ * with Try again, or "Nothing in your journal yet"); each entry is a hairline
+ * row -- the words, the date, whether it was answered, and its two actions
+ * as words. "New entry" floats over the list (the empty page has it too: it
+ * is how the first entry is added) and opens a full-screen writing page,
+ * ./NewJournalEntry.tsx. Adding says "Added to your journal" in a toast;
+ * deleting asks first, in the app's own dialog.
  */
-export function PrayersScreen() {
+export function PrayersScreen({ header }: { header?: ReactNode }) {
   const { user } = useAuth();
-  const { colors, radii, spacing, type } = useTheme();
+  const { colors, layout, type } = useTheme();
   const { t, appLanguage } = useTranslation();
+  const toast = useToast();
   const uid = user?.uid ?? null;
 
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
   const [hasError, setHasError] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
+  const [writing, setWriting] = useState(false);
+  const [deleting, setDeleting] = useState<Prayer | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     // No setState for the signed-out case -- this screen is only ever
-    // reached post-authentication (see ../more/MoreScreen.tsx), so `uid`
-    // is absent only transiently while auth state is still loading;
-    // calling setState synchronously here would trip
-    // react-hooks/set-state-in-effect (see ../bible/reader/ReaderScreen.tsx's
-    // doc comment for the same reasoning) for a case that never actually
-    // renders.
+    // reached post-authentication, so `uid` is absent only transiently while
+    // auth state is still loading; calling setState synchronously here would
+    // trip react-hooks/set-state-in-effect (see
+    // ../bible/reader/ReaderScreen.tsx's doc comment for the same reasoning)
+    // for a case that never actually renders.
     if (!uid) return;
     const unsubscribe = subscribeToPrayers(
       uid,
@@ -74,18 +79,18 @@ export function PrayersScreen() {
       () => setHasError(true)
     );
     return unsubscribe;
-  }, [uid]);
+  }, [uid, retryToken]);
 
-  async function handleAdd() {
-    const text = draft.trim();
-    if (!text || !uid) return;
-    setSubmitting(true);
-    try {
-      await createPrayer(uid, text);
-      setDraft('');
-    } finally {
-      setSubmitting(false);
-    }
+  function retry() {
+    setHasError(false);
+    setPrayers(null);
+    setRetryToken((token) => token + 1);
+  }
+
+  async function handleAdd(text: string) {
+    if (!uid) throw new Error('not signed in');
+    await createPrayer(uid, text);
+    toast.show(t('prayers.addedToJournal'));
   }
 
   async function handleToggleAnswered(prayer: Prayer) {
@@ -108,173 +113,204 @@ export function PrayersScreen() {
     }
   }
 
-  /**
-   * Deleting a prayer is irreversible and there is no undo, so it asks
-   * first. This is the app's only destructive action on user-authored
-   * content; it uses the platform dialog rather than a bespoke sheet so it
-   * looks and behaves like every other Android confirmation.
-   */
-  function confirmDelete(prayer: Prayer) {
-    Alert.alert(t('prayers.deleteConfirmTitle'), t('prayers.deleteConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => void handleDelete(prayer),
-      },
-    ]);
-  }
+  const pad = { paddingHorizontal: layout.screenMargin };
+  const loading = !prayers && !hasError;
+  const empty = Boolean(prayers) && prayers!.length === 0 && !hasError;
+  const rows = prayers ?? [];
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: colors.background }]}
-      testID="prayers-screen"
-    >
-      <View
-        style={[
-          styles.composer,
-          { padding: spacing.lg, gap: spacing.sm, borderBottomColor: colors.border },
-        ]}
-      >
-        <SectionHeader title={t('prayers.newRequest')} />
-        <TextInput
-          testID="prayer-input"
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={t('prayers.placeholder')}
-          placeholderTextColor={colors.secondaryText}
-          multiline
-          maxLength={PRAYER_TEXT_MAX_LENGTH}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderRadius: radii.control,
-              color: colors.text,
-              padding: spacing.md,
-            },
-          ]}
-        />
-        <AppButton
-          title={t('prayers.add')}
-          onPress={() => void handleAdd()}
-          disabled={!draft.trim() || submitting}
-          loading={submitting}
-          testID="prayer-submit"
-        />
-      </View>
+    <View style={styles.screen} testID="prayers-screen">
+      <FlatList
+        testID="prayers-list"
+        data={rows}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        // Taps on a row's action must register on the first press even if a
+        // field elsewhere holds focus -- see ../auth/SignInScreen.tsx.
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View>
+            {header ? <View style={pad}>{header}</View> : null}
 
-      {hasError ? (
-        <View style={{ padding: spacing.lg }}>
-          <EmptyState
-            title={t('prayers.loadError')}
-            message={t('prayers.loadErrorMessage')}
-            testID="prayers-error"
-          />
-        </View>
-      ) : null}
-
-      {!prayers && !hasError ? (
-        <ActivityIndicator testID="prayers-loading" style={{ marginTop: spacing.xl }} />
-      ) : null}
-
-      {prayers && prayers.length === 0 && !hasError ? (
-        <View style={{ padding: spacing.lg }}>
-          <EmptyState
-            title={t('prayers.empty')}
-            message={t('prayers.emptyMessage')}
-            testID="prayers-empty"
-          />
-        </View>
-      ) : null}
-
-      {prayers && prayers.length > 0 ? (
-        <FlatList
-          testID="prayers-list"
-          data={prayers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}
-          // The composer sits above the list and keeps focus, so without
-          // this the first tap on a row action only dismisses the
-          // keyboard -- see ../auth/SignInScreen.tsx.
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <View
-              testID={`prayer-row-${item.id}`}
-              style={[
-                styles.row,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  borderRadius: radii.card,
-                  padding: spacing.md,
-                  gap: spacing.xs,
-                },
-              ]}
-            >
-              <Text style={[type.body, { color: colors.text }]}>{item.text}</Text>
-              <Text style={[type.caption, { color: colors.secondaryText }]}>
-                {formatDate(item.createdAt, appLanguage)}
-                {item.answered ? ` • ${t('prayers.answered')}` : ''}
+            <View style={[pad, styles.private]} testID="prayers-private-line">
+              <Icon name="lock" size={16} color={colors.inkMuted} />
+              <Text style={[styles.privateText, { color: colors.inkMuted }]}>
+                {t('prayers.private')}
               </Text>
-              <View style={[styles.actions, { gap: spacing.md }]}>
-                <Pressable
-                  testID={`prayer-toggle-answered-${item.id}`}
-                  accessibilityRole="button"
-                  disabled={busyId === item.id}
-                  onPress={() => void handleToggleAnswered(item)}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
+            </View>
+
+            <View style={[pad, styles.body]}>
+              {loading ? (
+                <SkeletonRows
+                  count={3}
+                  leading="none"
+                  label={t('common.loading')}
+                  testID="prayers-loading"
+                />
+              ) : null}
+              {hasError ? (
+                <ErrorState
+                  testID="prayers-error"
+                  title={t('prayers.loadError')}
+                  message={t('prayers.loadErrorMessage')}
+                  retryLabel={t('common.tryAgain')}
+                  onRetry={retry}
+                />
+              ) : null}
+              {empty ? (
+                <EmptyState
+                  testID="prayers-empty"
+                  title={t('prayers.empty')}
+                  message={t('prayers.emptyMessage')}
+                />
+              ) : null}
+              {rows.length > 0 ? (
+                <View style={[styles.rule, { borderTopColor: colors.border }]} />
+              ) : null}
+            </View>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const busy = busyId === item.id;
+          const date = item.createdAt
+            ? formatDayMonthShort(item.createdAt, appLanguage)
+            : '';
+          return (
+            <View style={pad}>
+              <View
+                testID={`prayer-row-${item.id}`}
+                style={[styles.row, { borderBottomColor: colors.border }]}
+              >
+                <Text
+                  style={[
+                    styles.text,
+                    appLanguage === 'te' && styles.textTe,
+                    { color: colors.ink },
                   ]}
                 >
-                  <Text style={[type.label, { color: colors.primary }]}>
-                    {item.answered
-                      ? t('prayers.markUnanswered')
-                      : t('prayers.markAnswered')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  testID={`prayer-delete-${item.id}`}
-                  accessibilityRole="button"
-                  // "Delete" alone tells a screen-reader user nothing about
-                  // what is being deleted.
-                  accessibilityLabel={t('prayers.deleteLabel')}
-                  disabled={busyId === item.id}
-                  onPress={() => confirmDelete(item)}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    { opacity: busyId === item.id ? 0.4 : pressed ? 0.6 : 1 },
-                  ]}
-                >
-                  <Text style={[type.label, { color: colors.danger }]}>
-                    {t('common.delete')}
-                  </Text>
-                </Pressable>
+                  {item.text}
+                </Text>
+                <View style={styles.meta}>
+                  {date ? (
+                    <Text style={[type.caption, { color: colors.inkSubtle }]}>
+                      {date}
+                    </Text>
+                  ) : null}
+                  {item.answered ? (
+                    <View style={styles.answered}>
+                      <Icon name="check" size={14} color={colors.success} />
+                      <Text style={[styles.answeredText, { color: colors.success }]}>
+                        {t('prayers.answered')}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.actions}>
+                  <Tappable
+                    testID={`prayer-toggle-answered-${item.id}`}
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={() => void handleToggleAnswered(item)}
+                    style={[styles.action, { opacity: busy ? 0.4 : 1 }]}
+                  >
+                    <Text style={[styles.actionText, { color: colors.accent }]}>
+                      {item.answered
+                        ? t('prayers.markUnanswered')
+                        : t('prayers.markAnswered')}
+                    </Text>
+                  </Tappable>
+                  <Tappable
+                    testID={`prayer-delete-${item.id}`}
+                    accessibilityRole="button"
+                    // "Delete" alone tells a screen-reader user nothing about
+                    // what is being deleted.
+                    accessibilityLabel={t('prayers.deleteLabel')}
+                    disabled={busy}
+                    onPress={() => setDeleting(item)}
+                    style={[styles.action, { opacity: busy ? 0.4 : 1 }]}
+                  >
+                    <Text style={[styles.actionText, { color: colors.danger }]}>
+                      {t('common.delete')}
+                    </Text>
+                  </Tappable>
+                </View>
               </View>
             </View>
-          )}
+          );
+        }}
+      />
+
+      {loading || hasError ? null : (
+        <FloatingAction
+          testID="prayers-new-entry"
+          label={t('prayers.newEntry')}
+          onPress={() => setWriting(true)}
         />
-      ) : null}
+      )}
+
+      <Toast message={toast.message} />
+
+      <NewJournalEntry
+        visible={writing}
+        onClose={() => setWriting(false)}
+        onAdd={handleAdd}
+      />
+
+      <ConfirmDialog
+        visible={deleting !== null}
+        testID="prayers-delete-dialog"
+        title={t('prayers.deleteConfirmTitle')}
+        message={t('prayers.deleteConfirmMessage')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        destructive
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const prayer = deleting;
+          setDeleting(null);
+          if (prayer) void handleDelete(prayer);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  // The divider colour comes from the theme at render time; it used to be
-  // hardcoded 'transparent', which made the separator between the composer
-  // and the list invisible on both palettes.
-  composer: { borderBottomWidth: StyleSheet.hairlineWidth },
-  input: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    borderWidth: StyleSheet.hairlineWidth,
+  screen: { flex: 1 },
+  // Room under the last entry for the floating button.
+  list: { flexGrow: 1, paddingBottom: 96 },
+  private: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  privateText: {
+    fontFamily: fontFamilies.interfaceMedium,
+    fontWeight: '500',
+    fontSize: 13,
+    lineHeight: 18,
   },
-  row: { borderWidth: StyleSheet.hairlineWidth },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  // A bare 13px label is an ~18dp tap target. 44 is the smallest target
-  // both Android and iOS accessibility guidance accept.
-  actionButton: { minHeight: 44, justifyContent: 'center' },
+  body: { marginTop: 6, gap: 12 },
+  rule: { borderTopWidth: 1 },
+  row: { paddingTop: 16, paddingBottom: 2, gap: 6, borderBottomWidth: 1 },
+  text: {
+    fontFamily: fontFamilies.interfaceRegular,
+    fontSize: 16.5,
+    lineHeight: 25,
+  },
+  textTe: { lineHeight: 30 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  answered: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  answeredText: {
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontWeight: '600',
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
+  // A bare 14px word is an ~18dp tap target. 44 is the smallest target both
+  // Android and iOS accessibility guidance accept.
+  action: { minHeight: 44, justifyContent: 'center' },
+  actionText: {
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 18,
+  },
 });

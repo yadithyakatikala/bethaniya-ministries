@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { useTheme } from '../useTheme';
+import { dialogAnimation, useReducedMotion } from '../motion';
 
 /** Past this many characters between them, two labels no longer fit side by side. */
 const STACK_LABEL_LENGTH = 22;
@@ -16,7 +17,8 @@ const STACK_LABEL_LENGTH = 22;
  * It is a real modal: the backdrop and the platform's back gesture both
  * cancel it, a screen reader reads only the dialog, and the action is
  * the destructive red only when the step really is destructive (a delete,
- * not a log out).
+ * not a log out). It fades in -- and is simply there when the phone's
+ * "reduce motion" setting is on.
  *
  * `cancelLabel` and `confirmLabel` are verbs from the app's own strings;
  * this theme component does not look them up (the theme layer must not
@@ -48,6 +50,7 @@ export function ConfirmDialog({
   testID?: string;
 }) {
   const { colors, radii, type } = useTheme();
+  const reducedMotion = useReducedMotion();
   const stacked = cancelLabel.length + confirmLabel.length > STACK_LABEL_LENGTH;
 
   const cancel = (
@@ -77,7 +80,7 @@ export function ConfirmDialog({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={dialogAnimation(reducedMotion)}
       onRequestClose={() => {
         if (!loading) onCancel();
       }}

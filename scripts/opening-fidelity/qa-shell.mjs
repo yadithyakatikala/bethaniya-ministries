@@ -1,6 +1,7 @@
 // Visual QA of the navigation SHELL, in Chromium, through react-native-web: the five-tab bar with its gold
 // ribbon and the member's monogram, and the screens it opens that are new -- Community's Updates feed (with
-// the shelf), the You hub (Saved and Profile), the Saved verses lists and the shared update detail -- in
+// the shelf), the You hub (Saved and Profile), the Saved verses lists, the shared update detail and the
+// Prayers tab (the church's requests, the member's journal, and the sheets and pages they open) -- in
 // light, dark and Telugu. The real screens, the real TabBar, the real contexts and services run against the
 // seeded in-memory Firestore in ./qa-fakes.mjs; nothing reaches a network.
 //
@@ -133,9 +134,28 @@ const seed = (d) => {
     docs['plans/p1'] = { title: d.plan.title, description: '', category: 'Devotional', dayCount: 7, published: true, order: 0 };
     docs['users/qa-member/planProgress/p1'] = { startedAt: ts(now - 2 * day), currentDay: 2, completedDays: [1], lastReadAt: ts(now - hour) };
   }
-  for (let i = 0; i < (d.journal ?? 0); i++) {
+  for (let i = 0; i < (d.journalEntries ? 0 : (d.journal ?? 0)); i++) {
     docs['users/qa-member/prayers/j' + i] = { text: 'A prayer ' + i, answered: i % 3 === 0, createdAt: ts(now - (i + 1) * day), answeredAt: null };
   }
+  (d.journalEntries ?? []).forEach((j, i) => {
+    docs['users/qa-member/prayers/e' + i] = { text: j.text, answered: !!j.answered, createdAt: ts(now - j.days * day), answeredAt: null };
+  });
+  // The church's prayer wall: an anonymous request carries NO author at all; an own one is also in the member's index.
+  (d.requests ?? []).forEach((r, i) => {
+    const created = ts(now - r.days * day);
+    docs['prayer_requests/r' + i] = {
+      title: r.title ?? '',
+      body: r.body ?? '',
+      category: r.category ?? null,
+      anonymous: !!r.anonymous,
+      status: r.status ?? 'open',
+      removed: !!r.removed,
+      createdAt: created,
+      updatedAt: null,
+      ...(r.anonymous ? {} : { authorUid: r.own ? 'qa-member' : 'other-' + i, authorName: r.authorName }),
+    };
+    if (r.own) docs['users/qa-member/prayerRequests/r' + i] = { createdAt: created, anonymous: !!r.anonymous };
+  });
   for (let i = 0; i < (d.savedMedia ?? 0); i++) {
     docs['users/qa-member/mediaSaves/s' + i] = { createdAt: ts(now - i * day) };
   }
@@ -161,6 +181,34 @@ async function setup(page) {
     return route.fulfill({ contentType: 'image/svg+xml', body: svg(a, b) });
   });
 }
+
+const EN_PRAYERS = {
+  requests: [
+    { title: 'Healing for my mother', body: 'Please pray for the results of her tests this week.', category: 'healing', anonymous: true, days: 2 },
+    { removed: true, title: 'removed', body: 'removed', days: 3 },
+    { title: 'Wisdom for our move', body: 'We move to a new city next month. Please pray for peace for the children and for steady work.', category: 'family', own: true, authorName: 'Joshua', days: 3 },
+    { title: 'Thanks for a new job', body: 'I start on Monday. Thank you for praying with me through the long wait.', category: 'thanksgiving', status: 'answered', authorName: 'Priya', days: 5 },
+    { title: 'Guidance for exams', body: 'Our youth begin exams next week.', category: 'guidance', authorName: 'Daniel', days: 6 },
+  ],
+  journalEntries: [
+    { text: 'Lord, give me patience with my brother, and help me to listen before I answer.', days: 2 },
+    { text: 'Thank you for a safe journey home.', days: 5, answered: true },
+    { text: 'Guide the conversation with my manager on Monday.', days: 8 },
+  ],
+};
+
+const TE_PRAYERS = {
+  requests: [
+    { title: 'మా అమ్మ స్వస్థత కోసం', body: 'ఈ వారం ఆమె పరీక్షల ఫలితాల కోసం ప్రార్థించండి.', category: 'healing', anonymous: true, days: 2 },
+    { removed: true, title: 'x', body: 'x', days: 3 },
+    { title: 'మా మార్పు కోసం జ్ఞానం', body: 'వచ్చే నెల మేము కొత్త నగరానికి వెళ్తున్నాం. పిల్లల కోసం, స్థిరమైన పని కోసం ప్రార్థించండి.', category: 'family', own: true, authorName: 'జాషువా', days: 3 },
+    { title: 'కొత్త ఉద్యోగానికి కృతజ్ఞతలు', body: 'సోమవారం మొదలవుతోంది. నాతో కలిసి ప్రార్థించినందుకు ధన్యవాదాలు.', category: 'thanksgiving', status: 'answered', authorName: 'ప్రియ', days: 5 },
+  ],
+  journalEntries: [
+    { text: 'ప్రభువా, నా సోదరునితో ఓర్పు చూపేలా, సమాధానం ఇచ్చే ముందు వినేలా నాకు సహాయం చేయి.', days: 2 },
+    { text: 'సురక్షితమైన ప్రయాణానికి కృతజ్ఞతలు.', days: 5, answered: true },
+  ],
+};
 
 const EN_DATA = {
   name: 'Joshua',
@@ -211,6 +259,7 @@ const EN_DATA = {
   plan: { title: 'Seven Days in the Psalms' },
   journal: 6,
   savedMedia: 4,
+  ...EN_PRAYERS,
 };
 
 const TE_DATA = {
@@ -242,6 +291,7 @@ const TE_DATA = {
     text: ['ఇచ్చాడు: ఇది గతకాలంలో జరిగిన పని. ఇప్పటికే పూర్తయింది.', 'ఈ వారం కష్టకాలంలో ఈ వచనం గురించి ప్రార్థించాను.', 'చింతను ప్రార్థనగా మార్చుకోవాలి.'][i],
   })),
   plan: { title: 'కీర్తనలలో ఏడు రోజులు' },
+  ...TE_PRAYERS,
 };
 
 const EN = { app_language_preference: 'en', bible_mode_preference: 'en' };
@@ -272,6 +322,152 @@ const SCENARIOS = [
   { name: 'saved-highlights-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('SavedVerses', { kind: 'highlights' }) },
   { name: 'saved-bookmarks-light', storage: EN, data: EN_DATA, route: route('SavedVerses', { kind: 'bookmarks' }) },
   { name: 'saved-empty-light', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('SavedVerses', { kind: 'notes' }) },
+  // --- Prayers: the church's requests, "Yours", and the journal
+  { name: 'prayers-light', storage: EN, data: EN_DATA, route: route('PrayersHub') },
+  { name: 'prayers-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('PrayersHub') },
+  { name: 'prayers-te', storage: TE, data: TE_DATA, route: route('PrayersHub') },
+  {
+    name: 'prayers-yours',
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-wall-filter-yours');
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'prayers-empty',
+    storage: EN,
+    data: { name: 'Joshua', churchName: 'Maranatha' },
+    route: route('PrayersHub'),
+  },
+  {
+    name: 'prayers-noown',
+    storage: EN,
+    data: { name: 'Joshua', churchName: 'Maranatha', requests: EN_PRAYERS.requests.filter((r) => !r.own) },
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-wall-filter-yours');
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'prayers-ask',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-wall-compose');
+      await qa.advance(600);
+    },
+  },
+  {
+    name: 'prayers-ask-te-dark',
+    reduced: true,
+    storage: { ...TE, theme_preference: 'dark' },
+    dark: true,
+    data: TE_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-wall-compose');
+      await qa.advance(600);
+    },
+  },
+  {
+    name: 'prayers-edit',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-request-edit-r2');
+      await qa.advance(600);
+    },
+  },
+  {
+    name: 'prayers-report',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-request-report-r0');
+      await qa.advance(600);
+      await qa.tap('prayer-wall-report-reason-harassment');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'prayers-delete',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub'),
+    steps: async (qa) => {
+      await qa.tap('prayer-request-delete-r2');
+      await qa.advance(400);
+    },
+  },
+  { name: 'journal-light', storage: EN, data: EN_DATA, route: route('PrayersHub', { tab: 'journal' }) },
+  { name: 'journal-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('PrayersHub', { tab: 'journal' }) },
+  { name: 'journal-te', storage: TE, data: TE_DATA, route: route('PrayersHub', { tab: 'journal' }) },
+  {
+    name: 'journal-empty',
+    storage: EN,
+    data: { name: 'Joshua', churchName: 'Maranatha' },
+    route: route('PrayersHub', { tab: 'journal' }),
+  },
+  {
+    name: 'journal-entry',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub', { tab: 'journal' }),
+    steps: async (qa) => {
+      await qa.tap('prayers-new-entry');
+      await qa.advance(600);
+      await qa.type('prayer-input', 'Lord, give me patience with my brother, and help me to listen before I answer.');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'journal-entry-empty',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub', { tab: 'journal' }),
+    steps: async (qa) => {
+      await qa.tap('prayers-new-entry');
+      await qa.advance(600);
+    },
+  },
+  {
+    name: 'journal-added',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub', { tab: 'journal' }),
+    steps: async (qa) => {
+      await qa.tap('prayers-new-entry');
+      await qa.advance(600);
+      await qa.type('prayer-input', 'Thank you for this day.');
+      await qa.tap('prayer-submit');
+      await qa.advance(800);
+    },
+  },
+  {
+    name: 'journal-delete',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('PrayersHub', { tab: 'journal' }),
+    steps: async (qa) => {
+      await qa.tap('prayer-delete-e0');
+      await qa.advance(400);
+    },
+  },
   // --- The shared update detail
   {
     name: 'detail-light',
@@ -314,6 +510,8 @@ for (const scenario of SCENARIOS) {
     device,
     {
       dark: scenario.dark,
+      // A sheet or a dialog slides in with a CSS animation the fake clock cannot hold still.
+      reduced: scenario.reduced,
       language: scenario.storage.app_language_preference,
       storage: scenario.storage,
       startTime: NOW,
@@ -329,6 +527,7 @@ for (const scenario of SCENARIOS) {
   );
   await qa.advance(1200);
   await qa.advance(1200);
+  if (scenario.steps) await scenario.steps(qa);
   await qa.shot('first');
 
   const m = await qa.eval(() => {
@@ -346,6 +545,8 @@ for (const scenario of SCENARIOS) {
       avatar: rect('you-avatar'),
       name: rect('you-name'),
       shelf: rect('community-shelf'),
+      fab: rect('prayer-wall-compose') ?? rect('prayers-new-entry'),
+      chips: rect('prayer-wall-filter-all'),
       doc: { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth },
     };
   });
@@ -366,5 +567,7 @@ for (const { scenario, m } of results) {
   if (m.monogram) console.log('monogram                        ', `${m.monogram.w}x${m.monogram.h}`, '(24x24)');
   if (m.avatar) console.log('avatar                          ', `${m.avatar.w}x${m.avatar.h}`, '(72x72)');
   if (m.shelf) console.log('shelf                           ', `left ${m.shelf.left} right ${m.shelf.right} (bleeds to the edges)`);
+  if (m.fab) console.log('floating button                 ', `${m.fab.w}x${m.fab.h}, right gap ${390 - m.fab.right} (20), bottom gap to bar ${m.bar.top - m.fab.bottom} (18)`);
+  if (m.chips) console.log('chips                           ', `${m.chips.h} high (36)`);
 }
 console.log(problems.length ? '\nPROBLEMS:\n' + [...new Set(problems)].join('\n') : '\nno console errors or warnings');

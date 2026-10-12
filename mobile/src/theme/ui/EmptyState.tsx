@@ -29,6 +29,7 @@ export function EmptyState({
   message,
   actionLabel,
   onAction,
+  actionTestID,
   variant = 'card',
   mark,
   testID,
@@ -37,6 +38,8 @@ export function EmptyState({
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** The action's own test id (the empty state is also the screen's way to add the first one). */
+  actionTestID?: string;
   variant?: EmptyStateVariant;
   /** The quiet mark above a `screen` variant. */
   mark?: ReactNode;
@@ -67,7 +70,12 @@ export function EmptyState({
       </Text>
       {actionLabel && onAction ? (
         <View style={{ marginTop: spacing.sm }}>
-          <AppButton title={actionLabel} variant="secondary" onPress={onAction} />
+          <AppButton
+            title={actionLabel}
+            variant="secondary"
+            onPress={onAction}
+            testID={actionTestID}
+          />
         </View>
       ) : null}
     </View>

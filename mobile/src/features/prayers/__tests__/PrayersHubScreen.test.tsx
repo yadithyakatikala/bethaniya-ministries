@@ -7,13 +7,28 @@ import { PrayersHubScreen } from '../PrayersHubScreen';
 
 jest.mock('../../../services/firebase/app');
 // The two views are tested on their own; here they only have to be the right one.
+// Each view is handed the hub's title and tabs as its list header and draws them itself.
 jest.mock('../../prayer-wall/PrayerWallScreen', () => {
-  const { Text } = jest.requireActual('react-native');
-  return { PrayerWallScreen: () => <Text testID="wall-stub">The wall</Text> };
+  const { View, Text } = jest.requireActual('react-native');
+  return {
+    PrayerWallScreen: ({ header }: { header?: React.ReactNode }) => (
+      <View testID="wall-stub">
+        {header}
+        <Text>The wall</Text>
+      </View>
+    ),
+  };
 });
 jest.mock('../PrayersScreen', () => {
-  const { Text } = jest.requireActual('react-native');
-  return { PrayersScreen: () => <Text testID="journal-stub">The journal</Text> };
+  const { View, Text } = jest.requireActual('react-native');
+  return {
+    PrayersScreen: ({ header }: { header?: React.ReactNode }) => (
+      <View testID="journal-stub">
+        {header}
+        <Text>The journal</Text>
+      </View>
+    ),
+  };
 });
 
 /**
@@ -93,6 +108,16 @@ describe('PrayersHubScreen', () => {
     const { getByTestId, rerender } = await render(ui());
     await rerender(ui('journal'));
     await waitFor(() => expect(getByTestId('journal-stub')).toBeTruthy());
+  });
+
+  it('hands each view the title and the tabs as its own list header, so they scroll with it', async () => {
+    const { getByTestId, getByText } = await render(ui());
+    expect(getByTestId('wall-stub')).toContainElement(getByText('Prayers'));
+    expect(getByTestId('wall-stub')).toContainElement(getByTestId('prayers-tabs'));
+
+    await fireEvent.press(getByTestId('prayers-tabs-journal'));
+    expect(getByTestId('journal-stub')).toContainElement(getByText('Prayers'));
+    expect(getByTestId('journal-stub')).toContainElement(getByTestId('prayers-tabs'));
   });
 
   it('keeps the title while the view changes', async () => {
