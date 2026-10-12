@@ -1,7 +1,7 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from './Icon';
 import { IconButton } from './IconButton';
-import { CloseIcon } from './FeatureIcons';
 import { useTheme } from '../useTheme';
 import { sheetAnimation, useReducedMotion } from '../motion';
 
@@ -85,11 +85,17 @@ export function Sheet({
               borderTopRightRadius: radii.sheet,
               borderColor: colors.border,
               paddingHorizontal: spacing.screen,
-              paddingTop: spacing.lg,
+              paddingTop: spacing.sm,
               paddingBottom: Math.max(insets.bottom, spacing.lg),
             },
           ]}
         >
+          {/* A 36 x 4 handle: the sheet can be dismissed, and says so. Decorative. */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.handle, { backgroundColor: colors.borderStrong }]}
+          />
           <View style={[styles.header, { marginBottom: spacing.md }]}>
             <Text
               style={[type.title, styles.title, { color: colors.ink }]}
@@ -98,11 +104,12 @@ export function Sheet({
               {title}
             </Text>
             <IconButton
+              variant="tinted"
               accessibilityLabel={closeLabel}
               testID={testID ? `${testID}-close` : undefined}
               onPress={onClose}
             >
-              <CloseIcon color={colors.inkMuted} />
+              <Icon name="close" size={20} color={colors.inkMuted} />
             </IconButton>
           </View>
           {scroll ? (
@@ -129,6 +136,13 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   backdropFill: { flex: 1 },
   sheet: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: '82%' },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 10,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // The title must wrap, not shove the close button off the row: Telugu
   // sheet titles run about twice the length of their English wording.

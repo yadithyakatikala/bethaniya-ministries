@@ -3,6 +3,7 @@ import {
   brandGold,
   darkTokens,
   highlightTints,
+  layout,
   lightTokens,
   radii,
   readingScale,
@@ -37,6 +38,8 @@ export function useTheme() {
     colors: isDark ? darkTokens : lightTokens,
     spacing,
     radii,
+    /** What each piece of the interface measures -- rows, buttons, fields. */
+    layout,
     /** The semantic type scale for the active app language. */
     type: typographyFor(appLanguage),
     /** Reading-experience steps M4's controls bind to. */

@@ -123,7 +123,9 @@ describe('the type scale', () => {
     const en = typographyFor('en');
     const te = typographyFor('te');
     for (const role of ROLES) {
-      expect(te[role].fontSize).toBe(en[role].fontSize);
+      // S4: Telugu reads smaller than Latin at the same size, so its caption
+      // is 13.5/20 where English's is 12.5/17 -- asserted on its own below.
+      if (role !== 'caption') expect(te[role].fontSize).toBe(en[role].fontSize);
       const enLine = en[role].lineHeight;
       const teLine = te[role].lineHeight;
       if (typeof enLine === 'number') {
@@ -131,6 +133,11 @@ describe('the type scale', () => {
         expect(teLine as number).toBeGreaterThan(enLine);
       }
     }
+  });
+
+  it("steps Telugu's caption up to 13.5/20 and sets English's at 12.5/17 (S4)", () => {
+    expect(typographyFor('en').caption).toMatchObject({ fontSize: 12.5, lineHeight: 17 });
+    expect(typographyFor('te').caption).toMatchObject({ fontSize: 13.5, lineHeight: 20 });
   });
 
   it('is a monotonic ramp, not an accidental set of sizes', () => {

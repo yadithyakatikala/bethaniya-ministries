@@ -23,6 +23,7 @@ npm run chapter-golden    # regenerate the chapter's jest fixture (only if the p
 
 # the onboarding screen itself, in a browser (a look, not a proof -- see below)
 npm run screen-qa         # chapter, five questions, Telugu, dark, small phones, keyboard, tablet
+npm run design-qa         # the shared components, light / dark / Telugu (out/qa-shots/ds-*)
 python3 contact-sheets.py # joins the screenshots into one sheet per scenario
 ```
 
@@ -43,6 +44,8 @@ Output (screenshots, bundles) goes to `out/`, which is git-ignored.
 | `compare-chapter-pixels.mjs` | The real `ChapterCanvas` and `SchoolBand` against the prototype's DOM, 13 chapter times and 4 sway times, light and dark. Same thresholds as the opening. |
 | `capture-chapter-golden.mjs` | Rewrites `mobile/src/features/opening/__tests__/fixtures/chapterGolden.json`. |
 | `qa-onboarding-screen.mjs` | Bundles the app's **real** `OnboardingScreen` (every component, the real chapter, band and theme) for Chromium through `react-native-web`, stubbing only what a browser cannot give it (the Firebase contexts, safe-area insets, AsyncStorage, the keyboard events, the font loader), and drives it on a fake clock that stops, so "the frame at 2.8 s" is exact. Writes screenshots to `out/onboarding-shots/`. |
+| `qa-lib.mjs`, `qa-fakes.mjs` | The shared plumbing for the browser QA scripts: bundle any React Native entry for Chromium, with an in-memory Firestore, a fake Auth and stubs for the native modules (notifications, clipboard, audio, webview ...) so the app's REAL contexts, services and screens run against seeded data. |
+| `qa-design-system.mjs` | The real shared components (`mobile/src/theme/ui`) in light, dark and Telugu, for comparison with the approved component sheets. |
 | `contact-sheets.py`, `compare-approved.py` | Join the screenshots into sheets; put an approved still beside the built screen. |
 
 The approved exported film itself is `docs/design/opening/maranatha-opening-approved.mp4`.

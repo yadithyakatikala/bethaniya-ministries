@@ -5,17 +5,21 @@ export type BadgeVariant =
   'live' | 'success' | 'warning' | 'error' | 'info' | 'featured' | 'neutral';
 
 /**
- * A small status pill.
+ * A small status pill: 24 high, a tint fill with the status colour for
+ * its words.
  *
  * TEXT-LED, NEVER COLOUR-ONLY. The label always says what the state is,
  * so a reader who cannot distinguish the hues still gets the
  * information; `live` additionally carries a filled dot, so "live now"
  * differs in shape as well as colour from every other badge.
  *
- * M3 gave `warning`, `error` and `info` their own hues. They used to
- * share: `warning` and `featured` were literally the same two colours
- * (`liveTint` + `accent`), and there was no `error` or `info` variant at
- * all, so a failed save and a pinned announcement looked identical.
+ * LIVE IS THE ONE PLACE RED IS ALLOWED TO BE LOUD: a solid fill. Every
+ * other status is a quiet tint.
+ *
+ * `info` is retired from the design (S8): a category is not a status, so
+ * a category chip is neutral. The variant remains so that nothing that
+ * still asks for it breaks, but it paints as `neutral` -- the Info blue
+ * is no longer drawn anywhere.
  */
 export function Badge({
   label,
@@ -34,7 +38,7 @@ export function Badge({
     success: { bg: colors.successTint, fg: colors.success },
     warning: { bg: colors.warningTint, fg: colors.warning },
     error: { bg: colors.dangerTint, fg: colors.danger },
-    info: { bg: colors.infoTint, fg: colors.info },
+    info: { bg: colors.surfaceRaised, fg: colors.inkMuted },
     featured: { bg: colors.accentTint, fg: colors.accent },
     neutral: { bg: colors.surfaceRaised, fg: colors.inkMuted },
   };
@@ -60,8 +64,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    minHeight: 24,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 3,
     // A long translated label must wrap the pill, not overflow it.
     maxWidth: '100%',
   },

@@ -310,8 +310,57 @@ export const radii = {
   control: 12,
   card: 16,
   sheet: 22,
-  /** A fully rounded pill -- badges, avatars. */
+  /** A fully rounded pill -- actions, chips, segmented controls, badges, avatars. */
   pill: 999,
+} as const;
+
+/**
+ * =====================================================================
+ * SIZES, BY JOB (the approved design system, section 5)
+ * =====================================================================
+ * The spacing scale above says what a gap IS; these say what each piece
+ * of the interface measures. One home for the numbers so a screen never
+ * has to guess "is a row 56 or 64?" and a test can assert them.
+ *
+ *   margins       20 each side of every screen
+ *   sections      32 apart; a label sits 12 above its content; items in
+ *                 a group 16 apart; tight pairs 8
+ *   rows          64 for two lines, 56 for one, 12 above and below,
+ *                 a hairline between; nothing smaller than 44 is a target
+ *   controls      buttons 48 (40 compact), a text button 44, an icon
+ *                 button 44 round, a field 48, a chip 36 with a 44 hit area
+ *   radii         a pill for actions and chips, 12 for fields and
+ *                 thumbnails, 16 for cards and media, 22 for sheets
+ *   no shadows    except the 45% backdrop behind a sheet or a dialog
+ */
+export const layout = {
+  screenMargin: 20,
+  section: 32,
+  labelToContent: 12,
+  group: 16,
+  tight: 8,
+  card: 16,
+  emptyPadding: 24,
+  rowTwoLines: 64,
+  rowOneLine: 56,
+  rowPadding: 12,
+  button: 48,
+  buttonCompact: 40,
+  textButton: 44,
+  iconButton: 44,
+  field: 48,
+  fieldMultiline: 96,
+  chip: 36,
+  badge: 24,
+  hit: 44,
+  /** A leading icon circle, and a leading thumbnail, in a row. */
+  rowIcon: 40,
+  rowThumbnail: 56,
+  /** The tab bar's items, and the gap above them. */
+  tabItem: 52,
+  tabBarTop: 8,
+  /** Content starts this far below the status bar. */
+  belowStatusBar: 12,
 } as const;
 
 /**
@@ -416,10 +465,16 @@ export interface TypeScale {
   body: TextStyle;
   /** Dense secondary text -- list subtitles, help sentences. */
   bodySmall: TextStyle;
-  /** Buttons, selector options, form labels. */
+  /** Tabs, field labels, compact buttons. */
   label: TextStyle;
+  /** Primary and secondary buttons (15/20). Compact buttons use `label`. */
+  button: TextStyle;
   /** Metadata, timestamps, counts. */
   caption: TextStyle;
+  /** The sentence of help or error under a field (13/18). */
+  help: TextStyle;
+  /** The header wordmark beside the fish. Always Latin: "Maranatha". */
+  wordmark: TextStyle;
   /** Tracked uppercase section headers. */
   overline: TextStyle;
   /** Verse text. See also `readingScale` for the reader's own controls. */
@@ -508,11 +563,33 @@ export function typographyFor(language: ScriptLanguage): TypeScale {
       fontWeight: '600',
       lineHeight: 18,
     },
+    button: {
+      fontFamily: fontFamilies.interfaceSemiBold,
+      fontSize: 15,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    // 12.5/17 in English. Telugu reads smaller than Latin at the same size, so
+    // its caption steps up to 13.5/20 (approved decision S4); see below.
     caption: {
       fontFamily: fontFamilies.interfaceMedium,
-      fontSize: 12,
+      fontSize: 12.5,
       fontWeight: '500',
-      lineHeight: 16,
+      lineHeight: 17,
+    },
+    help: {
+      fontFamily: fontFamilies.interfaceRegular,
+      fontSize: 13,
+      fontWeight: '400',
+      lineHeight: 18,
+    },
+    // "Maranatha" is Latin and is never translated, so it is the one role that
+    // takes the English serif in Telugu too (it needs no Telugu glyphs).
+    wordmark: {
+      fontFamily: fontFamilies.serifEnSemiBold,
+      fontSize: 19,
+      fontWeight: '600',
+      lineHeight: 24,
     },
     overline: {
       fontFamily: fontFamilies.interfaceBold,
@@ -537,12 +614,50 @@ export function typographyFor(language: ScriptLanguage): TypeScale {
     },
   };
 
+  if (language === 'te') {
+    // S4: Telugu's caption is 13.5/20 (its leading is already set, not boosted).
+    scale.caption = { ...scale.caption, fontSize: 13.5, lineHeight: 20 };
+  }
+
   return Object.fromEntries(
     Object.entries(scale).map(([role, style]) => [
       role,
-      withTeluguLeading(style, language),
+      // The caption's Telugu line height was set by hand above.
+      language === 'te' && role === 'caption'
+        ? style
+        : withTeluguLeading(style, language),
     ])
   ) as unknown as TypeScale;
+}
+
+/**
+ * The Verse of the Day on Home, in three display steps picked by length.
+ *
+ * A verse can be one line or a few sentences. Rather than cutting a long
+ * one off, the type steps down: 28/40 up to 80 characters, 24/36 up to
+ * 160, 21/32 beyond. Telugu is two points smaller with 12% more leading
+ * (26/45, 22/40, 19/36). Always the serif of the verse's own script.
+ */
+export const SCRIPTURE_DISPLAY_STEPS = [
+  { maxLength: 80, size: 28, line: 40 },
+  { maxLength: 160, size: 24, line: 36 },
+  { maxLength: Infinity, size: 21, line: 32 },
+] as const;
+
+export function scriptureDisplayStyle(language: ScriptLanguage, text: string): TextStyle {
+  const length = Array.from(text.trim()).length;
+  const step =
+    SCRIPTURE_DISPLAY_STEPS.find((s) => length <= s.maxLength) ??
+    SCRIPTURE_DISPLAY_STEPS[SCRIPTURE_DISPLAY_STEPS.length - 1];
+  return {
+    fontFamily: serifFor(language, 'regular'),
+    fontSize: language === 'te' ? step.size - 2 : step.size,
+    fontWeight: '400',
+    lineHeight:
+      language === 'te'
+        ? Math.round(step.line * (1 + TELUGU_LINE_HEIGHT_BOOST))
+        : step.line,
+  };
 }
 
 /**

@@ -167,14 +167,9 @@ describe('IconButton', () => {
 
 describe('Badge', () => {
   it('gives each status its own colours', async () => {
-    const variants = [
-      'success',
-      'warning',
-      'error',
-      'info',
-      'featured',
-      'neutral',
-    ] as const;
+    // `info` is retired from the design (S8: a category is not a status, so
+    // a category chip is neutral) and paints as `neutral` -- see the next test.
+    const variants = ['success', 'warning', 'error', 'featured', 'neutral'] as const;
     const { getByTestId } = await renderThemed(
       <>
         {variants.map((variant) => (
@@ -192,6 +187,29 @@ describe('Badge', () => {
     );
     // Before M3, warning and featured resolved to the same two colours.
     expect(new Set(backgrounds).size).toBe(variants.length);
+  });
+
+  it('no longer draws the Info blue: `info` paints as neutral (S8)', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <Badge label="Healing" variant="info" testID="badge-info" />
+        <Badge label="Draft" variant="neutral" testID="badge-neutral" />
+      </>
+    );
+    expect(flat(getByTestId('badge-info')).backgroundColor).toBe(
+      flat(getByTestId('badge-neutral')).backgroundColor
+    );
+    expect(flat(getByTestId('badge-info')).backgroundColor).not.toBe(
+      lightTokens.infoTint
+    );
+  });
+
+  it('is 24 high and a pill', async () => {
+    const { getByTestId } = await renderThemed(
+      <Badge label="Praying" variant="neutral" testID="badge" />
+    );
+    expect(flat(getByTestId('badge')).minHeight).toBe(24);
+    expect(flat(getByTestId('badge')).borderRadius).toBe(999);
   });
 
   it('marks LIVE with a dot as well as a colour', async () => {

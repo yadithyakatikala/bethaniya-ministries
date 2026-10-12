@@ -10,7 +10,8 @@
     "chapter-numbers": "node compare-chapter.mjs",
     "chapter-pixels": "node compare-chapter-pixels.mjs",
     "chapter-golden": "node capture-chapter-golden.mjs",
-    "screen-qa": "node qa-onboarding-screen.mjs"
+    "screen-qa": "node qa-onboarding-screen.mjs",
+    "design-qa": "node qa-design-system.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.0",
