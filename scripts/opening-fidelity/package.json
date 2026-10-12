@@ -2,11 +2,15 @@
   "name": "opening-fidelity",
   "private": true,
   "type": "module",
-  "description": "Checks that the app's opening animation is the approved film. Not part of the app or its tests; install with `npm install` in this directory.",
+  "description": "Checks that the app's opening animation and onboarding chapter are the approved films, and renders the onboarding screen in a browser for a visual check. Not part of the app or its tests; install with `npm install` in this directory.",
   "scripts": {
     "numbers": "node compare-numbers.mjs",
     "pixels": "node compare-pixels.mjs",
-    "golden": "node capture-golden.mjs"
+    "golden": "node capture-golden.mjs",
+    "chapter-numbers": "node compare-chapter.mjs",
+    "chapter-pixels": "node compare-chapter-pixels.mjs",
+    "chapter-golden": "node capture-chapter-golden.mjs",
+    "screen-qa": "node qa-onboarding-screen.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.0",

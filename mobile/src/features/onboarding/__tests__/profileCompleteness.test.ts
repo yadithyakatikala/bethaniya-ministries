@@ -1,13 +1,18 @@
 import type { UserProfile } from '../../../services/firebase/userProfile';
 import {
+  MAX_AGE,
   MAX_NAME_LENGTH,
   MAX_PHONE_DIGITS,
+  MIN_AGE,
   MIN_PHONE_DIGITS,
   isProfileComplete,
+  isValidAge,
   isValidFullName,
   isValidPhoneNumber,
   normalizePhoneNumber,
   onboardingDefaults,
+  parseAge,
+  toAsciiDigits,
 } from '../profileCompleteness';
 
 /**
@@ -24,6 +29,7 @@ function profile(partial: Partial<UserProfile> = {}): UserProfile {
     phoneNumber: null,
     photoURL: null,
     gender: null,
+    age: null,
     profileCompletedAt: null,
     languagePreference: null,
     appLanguage: null,
@@ -197,5 +203,92 @@ describe('what the form starts with', () => {
         appLanguage: 'te',
       }).preferredLanguage
     ).toBe('te');
+  });
+});
+
+describe('an age', () => {
+  it('is a whole number of years, 1 to 120 -- the range firestore.rules enforces', () => {
+    expect(MIN_AGE).toBe(1);
+    expect(MAX_AGE).toBe(120);
+    expect(parseAge('34')).toBe(34);
+    expect(parseAge('  34 ')).toBe(34);
+    expect(parseAge('1')).toBe(1);
+    expect(parseAge('120')).toBe(120);
+    expect(parseAge('007')).toBe(7);
+  });
+
+  it('rejects everything that is not one', () => {
+    for (const bad of [
+      '',
+      '   ',
+      '0',
+      '121',
+      '999',
+      '-5',
+      '34.5',
+      '34,5',
+      'abc',
+      '3 4',
+      '1e2',
+      '+34',
+    ]) {
+      expect(parseAge(bad)).toBeNull();
+      expect(isValidAge(bad)).toBe(false);
+    }
+  });
+
+  it('accepts the numerals a Telugu keyboard types, as the number they are', () => {
+    expect(toAsciiDigits('౩౪')).toBe('34');
+    expect(parseAge('౩౪')).toBe(34);
+    expect(parseAge('३४')).toBe(34); // Devanagari
+    expect(parseAge('٣٤')).toBe(34); // Arabic-Indic
+    expect(toAsciiDigits('abc 12')).toBe('abc 12'); // everything else is untouched
+  });
+});
+
+describe('what the redesigned form starts with', () => {
+  it('splits a stored number into its country and the part the member types', () => {
+    const d = onboardingDefaults({
+      profile: profile({ phoneNumber: '+919876543210' }),
+      authDisplayName: null,
+      authPhoneNumber: null,
+      appLanguage: 'en',
+    });
+    expect(d.countryIso).toBe('IN');
+    expect(d.nationalPhone).toBe('9876543210');
+    expect(d.phoneNumber).toBe('+919876543210');
+  });
+
+  it('reads a number stored before country codes as an Indian one', () => {
+    const d = onboardingDefaults({
+      profile: profile({ phoneNumber: '9876543210' }),
+      authDisplayName: null,
+      authPhoneNumber: null,
+      appLanguage: 'en',
+    });
+    expect(d.countryIso).toBe('IN');
+    expect(d.nationalPhone).toBe('9876543210');
+  });
+
+  it('starts the country at India and the age empty when nothing is known', () => {
+    const d = onboardingDefaults({
+      profile: null,
+      authDisplayName: null,
+      authPhoneNumber: null,
+      appLanguage: 'en',
+    });
+    expect(d.countryIso).toBe('IN');
+    expect(d.nationalPhone).toBe('');
+    expect(d.age).toBe('');
+  });
+
+  it('shows an age the member already gave, as text', () => {
+    const d = onboardingDefaults({
+      profile: profile({ age: 41 }),
+      authDisplayName: null,
+      authPhoneNumber: null,
+      appLanguage: 'en',
+    });
+    expect(d.age).toBe('41');
   });
 });

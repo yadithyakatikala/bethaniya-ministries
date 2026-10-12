@@ -1,17 +1,29 @@
 # Opening animation fidelity
 
-Proves that the app's opening (`mobile/src/features/opening/`) is the film the
-owner approved. It is development tooling: it is not part of the app, the app's
-tests, or CI, and nothing here is bundled.
+Proves that the app's opening and the onboarding chapter that continues it
+(`mobile/src/features/opening/`) are the films the owner approved, and lets
+the real onboarding screen be looked at in a browser. It is development
+tooling: it is not part of the app, the app's tests, or CI, and nothing here
+is bundled.
 
 ```sh
 cd scripts/opening-fidelity
 npm install          # playwright, esbuild, react-native-web (dev only)
 # Playwright needs a Chromium; if yours is not installed:  npx playwright install chromium
 
+# the opening
 npm run numbers      # every number of 108 frames, app engine vs approved engine
 npm run pixels       # the real OpeningCanvas vs the approved engine, 2x, light + dark
 npm run golden       # regenerate the jest fixture (only if the approved film changes)
+
+# the onboarding chapter (the story that follows the opening)
+npm run chapter-numbers   # every number of 20 frames + the settled band, port vs prototype
+npm run chapter-pixels    # the real ChapterCanvas and SchoolBand vs the prototype, 2x, light + dark
+npm run chapter-golden    # regenerate the chapter's jest fixture (only if the prototype changes)
+
+# the onboarding screen itself, in a browser (a look, not a proof -- see below)
+npm run screen-qa         # chapter, five questions, Telugu, dark, small phones, keyboard, tablet
+python3 contact-sheets.py # joins the screenshots into one sheet per scenario
 ```
 
 Output (screenshots, bundles) goes to `out/`, which is git-ignored.
@@ -26,12 +38,33 @@ Output (screenshots, bundles) goes to `out/`, which is git-ignored.
 | `compare-pixels.mjs` | Screenshots both, at 2×, and fails if the mean difference exceeds 0.5/255 or more than 0.05 % of pixels differ by over 64. |
 | `capture-golden.mjs` | Rewrites `mobile/src/features/opening/__tests__/fixtures/openingGolden.json` from the approved engine. |
 
+| `reference/onboarding-chapter.js` | The approved onboarding chapter prototype, **unmodified** (a copy of it with a debug export is what the harness runs). |
+| `compare-chapter.mjs` | The chapter's frames and the settled band: every fish's position, heading, scale, opacity, rim and ribbon, plus the particle counts. |
+| `compare-chapter-pixels.mjs` | The real `ChapterCanvas` and `SchoolBand` against the prototype's DOM, 13 chapter times and 4 sway times, light and dark. Same thresholds as the opening. |
+| `capture-chapter-golden.mjs` | Rewrites `mobile/src/features/opening/__tests__/fixtures/chapterGolden.json`. |
+| `qa-onboarding-screen.mjs` | Bundles the app's **real** `OnboardingScreen` (every component, the real chapter, band and theme) for Chromium through `react-native-web`, stubbing only what a browser cannot give it (the Firebase contexts, safe-area insets, AsyncStorage, the keyboard events, the font loader), and drives it on a fake clock that stops, so "the frame at 2.8 s" is exact. Writes screenshots to `out/onboarding-shots/`. |
+| `contact-sheets.py`, `compare-approved.py` | Join the screenshots into sheets; put an approved still beside the built screen. |
+
 The approved exported film itself is `docs/design/opening/maranatha-opening-approved.mp4`.
+
+### What the screen QA is, and is not
+
+It found real defects the unit tests could not (the form layer covering the
+chapter's skip target, so a tap never reached it; a Telugu label set in a
+Latin-only typeface), because it hit-tests and paints. It is **not** React
+Native: `KeyboardAvoidingView`, the native animation driver, text metrics and
+the soft keyboard itself all differ, and the keyboard is only simulated (the
+form is padded by the keyboard's height; no keyboard is drawn). Frame rate and
+keyboard behaviour still have to be judged on a phone.
 
 ## Last run
 
 ```
-numbers  worst per-frame differences: fish 0.005 units / 0.014 deg, motes 0.10 (one-decimal rounding),
-         opacities 0.0005, particle tables identical, path length 810.784 vs 810.784
-pixels   worst mean difference 0.156/255 (light), 0.152/255 (dark); 0.0003 % of pixels differ by > 64
+numbers          worst per-frame differences: fish 0.005 units / 0.014 deg, motes 0.10 (one-decimal rounding),
+                 opacities 0.0005, particle tables identical, path length 810.784 vs 810.784
+pixels           worst mean difference 0.156/255 (light), 0.152/255 (dark); 0.0003 % of pixels differ by > 64
+chapter-numbers  worst: position 0.005 px, heading 0.005 deg, scale 0.00002, opacity 0.0004, rim 0.0005,
+                 ribbon paths identical, ribbon opacity 0.0005
+chapter-pixels   worst mean difference 0.156/255 (dark t=0.15); worst 0.0038 % of pixels differ by > 64
+                 (the settled band at sway 30.5 s)
 ```

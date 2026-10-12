@@ -28,6 +28,18 @@ firebase deploy --only firestore:rules,firestore:indexes,storage --project <env>
 empty database with deny-by-default rules is the safe starting state; never
 deploy an app pointed at a project with no rules deployed yet.
 
+**The onboarding's age question needs the current `firestore.rules`.** The
+five-question onboarding writes an `age` (a whole number, 1–120) to the
+member's own `users/{uid}` document, and the rules in this repository are what
+allow it (and reject any other value or type). Until they are deployed that one
+write is refused. Onboarding still completes — the age is written as its own
+best-effort update, so a new build is not locked out by older rules — but the
+age is not saved. Deploying Firestore rules is free; it needs no plan upgrade:
+
+```bash
+firebase deploy --only firestore:rules --project <env>
+```
+
 ## Admin dashboard
 
 `firebase.json` is configured for Firebase Hosting (`public: "admin/dist"`),

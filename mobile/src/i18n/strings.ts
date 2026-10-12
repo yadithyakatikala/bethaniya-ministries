@@ -444,6 +444,33 @@ export interface Strings {
   /** The Profile row that leads back here for anyone who skipped. */
   'onboarding.completePrompt': string;
   'onboarding.completeAction': string;
+  // The five questions, one per screen.
+  'onboarding.q1': string;
+  'onboarding.s1': string;
+  'onboarding.q2': string;
+  'onboarding.s2': string;
+  'onboarding.q3': string;
+  'onboarding.s3': string;
+  'onboarding.q4': string;
+  'onboarding.s4': string;
+  'onboarding.q5': string;
+  'onboarding.s5': string;
+  'onboarding.stepOf': string;
+  'onboarding.next': string;
+  'onboarding.skipQuestion': string;
+  'onboarding.agePlaceholder': string;
+  'onboarding.ageUnit': string;
+  'onboarding.ageError': string;
+  'onboarding.phoneErrorShort': string;
+  'onboarding.phoneErrorLong': string;
+  'onboarding.phoneErrorIndia': string;
+  'onboarding.country': string;
+  'onboarding.countryLabel': string;
+  'onboarding.languageEnglishSub': string;
+  'onboarding.languageTeluguSub': string;
+  'onboarding.interfaceLanguage': string;
+  'onboarding.chapterSkip': string;
+  'onboarding.chapterSkipHint': string;
 
   // --- M6: the media feed ---------------------------------------------
   'media.title': string;
@@ -926,6 +953,37 @@ const en: Strings = {
   'onboarding.saveFailed': 'We could not save your details. Please try again.',
   'onboarding.completePrompt': 'Finish setting up your profile',
   'onboarding.completeAction': 'Complete',
+  // The approved design sets a heading in two balanced lines. React Native has no
+  // `text-wrap: balance`, so where the English wraps unevenly the break is set here
+  // (\n). Telugu is not broken by hand: it wraps by itself, and fits one line.
+  'onboarding.q1': 'What should\nwe call you?',
+  'onboarding.s1': 'Your first name is fine. You can change it later in your profile.',
+  'onboarding.q2': 'How old are you?',
+  'onboarding.s2': 'Just a number. It helps the church know who it is serving.',
+  'onboarding.q3': "What's your\nphone number?",
+  'onboarding.s3':
+    'Optional. So the church can reach you. We will not send you a code, and this is not used to sign in.',
+  'onboarding.q4': 'How do you identify?',
+  'onboarding.s4': 'Choose one.',
+  'onboarding.q5': 'Which language\nwould you prefer?',
+  'onboarding.s5':
+    'Sets the language of the app. You can choose your Bible language separately in Settings.',
+  'onboarding.stepOf': 'Step {n} of {total}',
+  'onboarding.next': 'Continue',
+  'onboarding.skipQuestion': 'Skip for now',
+  'onboarding.agePlaceholder': '34',
+  'onboarding.ageUnit': 'years old',
+  'onboarding.ageError': 'Please enter your age as a number.',
+  'onboarding.phoneErrorShort': 'That number looks too short.',
+  'onboarding.phoneErrorLong': 'That number looks too long.',
+  'onboarding.phoneErrorIndia': 'An Indian mobile number has 10 digits.',
+  'onboarding.country': 'Country code',
+  'onboarding.countryLabel': 'Country code {name}, plus {dial}',
+  'onboarding.languageEnglishSub': 'ఇంగ్లీష్',
+  'onboarding.languageTeluguSub': 'Telugu',
+  'onboarding.interfaceLanguage': 'App language',
+  'onboarding.chapterSkip': 'Skip the introduction',
+  'onboarding.chapterSkipHint': 'Double-tap to go straight to the first question',
 
   'media.title': 'Media',
   'media.sectionTitle': 'Latest media',
@@ -1386,6 +1444,35 @@ const te: Strings = {
   'onboarding.saveFailed': 'మీ వివరాలను సేవ్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
   'onboarding.completePrompt': 'మీ ప్రొఫైల్ సెటప్ పూర్తి చేయండి',
   'onboarding.completeAction': 'పూర్తి చేయండి',
+  'onboarding.q1': 'మిమ్మల్ని ఏమని పిలవాలి?',
+  'onboarding.s1': 'మీ మొదటి పేరు చాలు. దీన్ని తర్వాత మీ ప్రొఫైల్‌లో మార్చుకోవచ్చు.',
+  'onboarding.q2': 'మీ వయసు ఎంత?',
+  'onboarding.s2':
+    'కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది.',
+  'onboarding.q3': 'మీ ఫోన్ నంబర్ ఏమిటి?',
+  'onboarding.s3':
+    'ఐచ్ఛికం. చర్చి మిమ్మల్ని సంప్రదించడానికి. మేము ఏ కోడ్ పంపం, ఇది సైన్ ఇన్ కోసం కాదు.',
+  'onboarding.q4': 'మీ లింగం ఏమిటి?',
+  'onboarding.s4': 'ఒకటి ఎంచుకోండి.',
+  'onboarding.q5': 'మీకు ఏ భాష ఇష్టం?',
+  'onboarding.s5':
+    'యాప్ భాషను సెట్ చేస్తుంది. బైబిల్ భాషను సెట్టింగ్స్‌లో వేరేగా ఎంచుకోవచ్చు.',
+  'onboarding.stepOf': '{total}లో {n}వ దశ',
+  'onboarding.next': 'కొనసాగండి',
+  'onboarding.skipQuestion': 'ఈ ప్రశ్నను దాటవేయండి',
+  'onboarding.agePlaceholder': '34',
+  'onboarding.ageUnit': 'సంవత్సరాలు',
+  'onboarding.ageError': 'దయచేసి మీ వయసును సంఖ్యగా నమోదు చేయండి.',
+  'onboarding.phoneErrorShort': 'ఆ నంబర్ చాలా చిన్నదిగా ఉంది.',
+  'onboarding.phoneErrorLong': 'ఆ నంబర్ చాలా పెద్దదిగా ఉంది.',
+  'onboarding.phoneErrorIndia': 'భారతీయ మొబైల్ నంబర్‌లో 10 అంకెలు ఉంటాయి.',
+  'onboarding.country': 'దేశం కోడ్',
+  'onboarding.countryLabel': 'దేశం కోడ్ {name}, ప్లస్ {dial}',
+  'onboarding.languageEnglishSub': 'ఇంగ్లీష్',
+  'onboarding.languageTeluguSub': 'Telugu',
+  'onboarding.interfaceLanguage': 'యాప్ భాష',
+  'onboarding.chapterSkip': 'పరిచయాన్ని దాటవేయండి',
+  'onboarding.chapterSkipHint': 'మొదటి ప్రశ్నకు నేరుగా వెళ్లడానికి రెండుసార్లు తట్టండి',
 
   'media.title': 'మీడియా',
   'media.sectionTitle': 'తాజా మీడియా',

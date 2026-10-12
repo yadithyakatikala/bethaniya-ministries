@@ -1,5 +1,7 @@
 export { useTheme, useTypographyFor } from './useTheme';
 export { useAppFonts, BUNDLED_FONT_FAMILIES } from './fonts';
+export { contentFontFamily, scriptOf } from './scriptFace';
+export type { TextScript } from './scriptFace';
 export {
   lightTokens,
   darkTokens,

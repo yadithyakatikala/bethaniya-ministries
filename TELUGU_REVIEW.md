@@ -50,10 +50,16 @@ a key cannot be accidentally dropped while editing.
 | `prayers.markAnswered` | జవాబు వచ్చినట్లు గుర్తించండి | Long. A shorter phrase may fit the row better on a narrow phone. |
 | `settings.switchTo` | మార్చండి | Used both as a button label and inside an accessibility sentence -- check it reads naturally in both. |
 | `auth.signIn` | సైన్ ఇన్ | Transliteration ("సైన్ ఇన్") vs a native phrase -- pick one and keep it consistent with `auth.createAccount`. |
+| `onboarding.q2` | మీ వయసు ఎంత? | The five onboarding questions were drafted by the development pass (the approved design showed only the first and last in Telugu). Check each reads as a natural thing to be asked. |
+| `onboarding.s2` | కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది. | The English sentence ("It helps the church know who it is serving.") is itself a draft for the church to confirm; the Telugu follows it. It is the stated purpose of collecting an age. |
+| `onboarding.ageUnit` | సంవత్సరాలు | Added by the development pass: the approved design showed no unit after the age in Telugu. "సంవత్సరాలు" ("years") is a guess; "ఏళ్లు" is the usual spoken form. |
+| `onboarding.q4` | మీ లింగం ఏమిటి? | Asks how the member identifies and offers the two values the church asked for. Check the wording is respectful and natural, and that "పురుషుడు" / "స్త్రీ" are the words the congregation would choose. |
+| `onboarding.skipQuestion` | ఈ ప్రశ్నను దాటవేయండి | Deliberately NOT the same words as `onboarding.skip` ("Not now"): that one leaves the questions altogether; this one skips only the phone number. Check the two read as different things. |
+| `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-401 keys, grouped by screen area.
+428 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -64,6 +70,12 @@ a key cannot be accidentally dropped while editing.
 | `nav.songs` | Songs | పాటలు |  |
 | `nav.events` | Events | కార్యక్రమాలు |  |
 | `nav.more` | More | మరిన్ని |  |
+
+### Opening animation
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `opening.skipHint` | Double-tap to skip | దాటవేయడానికి రెండుసార్లు తట్టండి |  |
 
 ### Common actions
 
@@ -417,7 +429,7 @@ a key cannot be accidentally dropped while editing.
 | `suspended.contactChurch` | If you think this is a mistake, please speak to someone at your church. | ఇది పొరపాటు అని మీరు భావిస్తే, దయచేసి మీ సంఘంలో ఎవరితోనైనా మాట్లాడండి. |  |
 | `suspended.signOut` | Sign out | సైన్ అవుట్ |  |
 
-### onboarding
+### First sign-in questions
 
 | Key | English | Telugu | |
 | --- | --- | --- | --- |
@@ -441,6 +453,32 @@ a key cannot be accidentally dropped while editing.
 | `onboarding.saveFailed` | We could not save your details. Please try again. | మీ వివరాలను సేవ్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి. |  |
 | `onboarding.completePrompt` | Finish setting up your profile | మీ ప్రొఫైల్ సెటప్ పూర్తి చేయండి |  |
 | `onboarding.completeAction` | Complete | పూర్తి చేయండి |  |
+| `onboarding.q1` | What should<br>we call you? | మిమ్మల్ని ఏమని పిలవాలి? |  |
+| `onboarding.s1` | Your first name is fine. You can change it later in your profile. | మీ మొదటి పేరు చాలు. దీన్ని తర్వాత మీ ప్రొఫైల్‌లో మార్చుకోవచ్చు. |  |
+| `onboarding.q2` | How old are you? | మీ వయసు ఎంత? | ⚠️ |
+| `onboarding.s2` | Just a number. It helps the church know who it is serving. | కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది. | ⚠️ |
+| `onboarding.q3` | What's your<br>phone number? | మీ ఫోన్ నంబర్ ఏమిటి? |  |
+| `onboarding.s3` | Optional. So the church can reach you. We will not send you a code, and this is not used to sign in. | ఐచ్ఛికం. చర్చి మిమ్మల్ని సంప్రదించడానికి. మేము ఏ కోడ్ పంపం, ఇది సైన్ ఇన్ కోసం కాదు. |  |
+| `onboarding.q4` | How do you identify? | మీ లింగం ఏమిటి? | ⚠️ |
+| `onboarding.s4` | Choose one. | ఒకటి ఎంచుకోండి. |  |
+| `onboarding.q5` | Which language<br>would you prefer? | మీకు ఏ భాష ఇష్టం? |  |
+| `onboarding.s5` | Sets the language of the app. You can choose your Bible language separately in Settings. | యాప్ భాషను సెట్ చేస్తుంది. బైబిల్ భాషను సెట్టింగ్స్‌లో వేరేగా ఎంచుకోవచ్చు. |  |
+| `onboarding.stepOf` | Step {n} of {total} | {total}లో {n}వ దశ |  |
+| `onboarding.next` | Continue | కొనసాగండి |  |
+| `onboarding.skipQuestion` | Skip for now | ఈ ప్రశ్నను దాటవేయండి | ⚠️ |
+| `onboarding.agePlaceholder` | 34 | 34 |  |
+| `onboarding.ageUnit` | years old | సంవత్సరాలు | ⚠️ |
+| `onboarding.ageError` | Please enter your age as a number. | దయచేసి మీ వయసును సంఖ్యగా నమోదు చేయండి. |  |
+| `onboarding.phoneErrorShort` | That number looks too short. | ఆ నంబర్ చాలా చిన్నదిగా ఉంది. |  |
+| `onboarding.phoneErrorLong` | That number looks too long. | ఆ నంబర్ చాలా పెద్దదిగా ఉంది. |  |
+| `onboarding.phoneErrorIndia` | An Indian mobile number has 10 digits. | భారతీయ మొబైల్ నంబర్‌లో 10 అంకెలు ఉంటాయి. |  |
+| `onboarding.country` | Country code | దేశం కోడ్ |  |
+| `onboarding.countryLabel` | Country code {name}, plus {dial} | దేశం కోడ్ {name}, ప్లస్ {dial} |  |
+| `onboarding.languageEnglishSub` | ఇంగ్లీష్ | ఇంగ్లీష్ |  |
+| `onboarding.languageTeluguSub` | Telugu | Telugu |  |
+| `onboarding.interfaceLanguage` | App language | యాప్ భాష |  |
+| `onboarding.chapterSkip` | Skip the introduction | పరిచయాన్ని దాటవేయండి | ⚠️ |
+| `onboarding.chapterSkipHint` | Double-tap to go straight to the first question | మొదటి ప్రశ్నకు నేరుగా వెళ్లడానికి రెండుసార్లు తట్టండి |  |
 
 ### media
 

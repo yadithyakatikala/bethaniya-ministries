@@ -7,7 +7,9 @@ function catalogue(name){
   const body = src.slice(start, end);
   const out = {};
   for (const m of body.matchAll(/^  '([^']+)':\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")\s*,$/gm)) {
-    out[m[1]] = (m[2] ?? m[3]).replace(/\\'/g, "'").replace(/\\"/g,'"').replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16)));
+    out[m[1]] = (m[2] ?? m[3]).replace(/\\'/g, "'").replace(/\\"/g,'"').replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16)))
+      // a hand-set heading break: one line in a table cell, shown as a break
+      .replace(/\\n/g, '<br>');
   }
   return out;
 }
@@ -26,6 +28,12 @@ const UNCERTAIN = {
   'prayers.markAnswered': 'Long. A shorter phrase may fit the row better on a narrow phone.',
   'settings.switchTo': 'Used both as a button label and inside an accessibility sentence -- check it reads naturally in both.',
   'auth.signIn': 'Transliteration ("సైన్ ఇన్") vs a native phrase -- pick one and keep it consistent with `auth.createAccount`.',
+  'onboarding.q2': 'The five onboarding questions were drafted by the development pass (the approved design showed only the first and last in Telugu). Check each reads as a natural thing to be asked.',
+  'onboarding.s2': 'The English sentence ("It helps the church know who it is serving.") is itself a draft for the church to confirm; the Telugu follows it. It is the stated purpose of collecting an age.',
+  'onboarding.ageUnit': 'Added by the development pass: the approved design showed no unit after the age in Telugu. "సంవత్సరాలు" ("years") is a guess; "ఏళ్లు" is the usual spoken form.',
+  'onboarding.q4': 'Asks how the member identifies and offers the two values the church asked for. Check the wording is respectful and natural, and that "పురుషుడు" / "స్త్రీ" are the words the congregation would choose.',
+  'onboarding.skipQuestion': 'Deliberately NOT the same words as `onboarding.skip` ("Not now"): that one leaves the questions altogether; this one skips only the phone number. Check the two read as different things.',
+  'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 
 const groups = {};
@@ -89,7 +97,7 @@ const titles = {
   songs: 'Songs', events: 'Events', more: 'More', plans: 'Reading plans',
   prayers: 'Prayers', community: 'Community', announcements: 'Announcements',
   dailyVerse: 'Daily verse', notifications: 'Notifications', auth: 'Sign in / sign up',
-  profile: 'Profile', settings: 'Settings',
+  profile: 'Profile', settings: 'Settings', onboarding: 'First sign-in questions', opening: 'Opening animation',
 };
 for (const [g, gk] of Object.entries(groups)) {
   md += `\n### ${titles[g] ?? g}\n\n| Key | English | Telugu | |\n| --- | --- | --- | --- |\n`;

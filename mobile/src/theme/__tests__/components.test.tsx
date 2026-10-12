@@ -73,6 +73,36 @@ describe('AppButton', () => {
     expect(style.opacity).toBe(1);
   });
 
+  it('can look disabled while staying pressable and announced as a button (muted)', async () => {
+    // A form's Continue that "wakes up" when the answer is complete: asleep,
+    // it is painted with the disabled tokens (same readable colours as above)
+    // but a press still reaches the handler -- which says what is missing --
+    // and a screen reader is not told it is unavailable.
+    const onPress = jest.fn();
+    const { getByTestId } = await renderThemed(
+      <AppButton title="Continue" muted onPress={onPress} testID="btn" />
+    );
+    const style = flat(getByTestId('btn'));
+    expect(style.backgroundColor).toBe(lightTokens.disabledSurface);
+    expect(style.opacity).toBe(1);
+    expect(getByTestId('btn').props.accessibilityState).toMatchObject({
+      disabled: false,
+    });
+    await fireEvent.press(getByTestId('btn'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not muted by default, and muting a text button leaves it transparent', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Continue" testID="awake" />
+        <AppButton title="Not now" variant="text" muted testID="quiet" />
+      </>
+    );
+    expect(flat(getByTestId('awake')).backgroundColor).toBe(lightTokens.primary);
+    expect(flat(getByTestId('quiet')).backgroundColor).toBe('transparent');
+  });
+
   it('reports disabled and busy to a screen reader', async () => {
     const { getByTestId } = await renderThemed(
       <AppButton title="Save" loading testID="btn" />
@@ -81,6 +111,17 @@ describe('AppButton', () => {
       disabled: true,
       busy: true,
     });
+  });
+
+  it('keeps its own fill while loading -- busy is not the same as unavailable', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Save" loading testID="primary" />
+        <AppButton title="Delete" variant="destructive" loading testID="destructive" />
+      </>
+    );
+    expect(flat(getByTestId('primary')).backgroundColor).toBe(lightTokens.primary);
+    expect(flat(getByTestId('destructive')).backgroundColor).toBe(lightTokens.danger);
   });
 
   it('does not fire while loading', async () => {

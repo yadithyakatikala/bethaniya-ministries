@@ -59,8 +59,10 @@ exact screen, action, and what happened instead of what was expected.
 1. **Fresh install** — install the APK on a device with no prior app
    data; the launcher shows the real church-logo icon and the name
    **Maranatha** (M0 renamed the product; the icon itself is unchanged);
-   splash screen shows the real logo, not a blank/default screen; app
-   launches without crashing.
+   the native splash is a **plain ground** (the app's paper: #FAFAF8 in
+   light, #0E0F11 in dark) with no logo and no white or black flash — the
+   portrait then fades in as part of the opening animation (1c) — and the
+   app launches without crashing.
 1a. **The build is not stale** — M6. The native `android/` project is
    generated and gitignored, and a plain `expo prebuild` REUSES an
    existing one rather than regenerating it, so a project generated
@@ -74,6 +76,15 @@ exact screen, action, and what happened instead of what was expected.
    The icon must stay the full-colour church logo in both. It used to
    become a faint tinted outline, because the app declared a monochrome
    icon layer; that layer is gone.
+1c. **The opening animation** — the portrait fades in over the ground, the
+   fish brings the golden wind round it and the wind becomes the gold word
+   MARANATHA (about 5.4 s: the approved film's length). One tap, or Android
+   back, skips it. It is smooth on the **lowest-end phone you have** — judge
+   the frame rate on the device; nothing in the tests can. There is no sound,
+   no white, black or blank frame before it, and none between it and the
+   first screen. With Reduce Motion / Remove animations on, the film does not
+   play: the still portrait and word fade in, rest, and fade out. Check light
+   and dark.
 2. **First launch** — Telugu is the default Bible language with no
    stale state from a previous install (if this device ever had a dev/
    emulator build installed before, uninstall it first — Android won't
@@ -93,6 +104,58 @@ exact screen, action, and what happened instead of what was expected.
    subsequent app relaunch does not silently re-authenticate.
 6. **Session persistence** — force-close the app after signing in,
    reopen it; still signed in, lands on Home without re-prompting.
+
+### First sign-in: the chapter and the five questions
+
+Use a **new** account (and, to see the full chapter again, clear the app's
+data or reinstall). Deploy `firestore.rules` first (DEPLOYMENT.md) or the age
+will not be saved.
+
+- [ ] The chapter plays after signing in: portrait and wordmark → the gold
+      releases the letters and forms the fish → it swims off with the wind,
+      round the portrait → a school of fish resolves → the fish joins the
+      school → the school settles above the first question. About 5 s; the
+      question starts to rise at about 3.5 s and you can use it by about 4.3 s.
+- [ ] **Tap anywhere** while it plays — including where the question's field
+      and Continue will appear — and it goes straight to the first question.
+      (A tap must never be swallowed by the invisible form.)
+- [ ] Quit mid-chapter and sign in again: the **two-second** version plays,
+      the school fading in, then the question.
+- [ ] With Reduce Motion on there is no chapter: the question fades in over a
+      still school.
+- [ ] **1 Name** — prefilled from Google if there is one. Continue looks
+      dimmed while the field is empty and wakes when you type; pressing the
+      dimmed Continue says "Please enter your name." (and a screen reader
+      announces it).
+- [ ] **2 Age** — a numeric keypad; a Telugu keyboard's numerals are accepted;
+      0 and 121 are refused with a sentence, not just a red line.
+- [ ] **3 Phone** — the country chip opens a sheet; India needs exactly ten
+      digits; **no SMS or code ever arrives**; "Skip for now" works and the
+      app does not ask again.
+- [ ] **4 Gender** — nothing is preselected; Continue is dimmed until you
+      choose; the chosen row is marked in ink with a tick (never gold).
+- [ ] **5 Language** — the EN | తె switch in the header changes the language
+      of the questions only; choosing Telugu and finishing switches the whole
+      app to Telugu and leaves the Bible language and theme alone. The
+      "English" row is set in the Latin serif even while the questions are in
+      Telugu.
+- [ ] **Back** (the arrow and Android's back button) steps back and keeps every
+      answer; on the first question the Android back button does nothing.
+- [ ] **Keyboard**: the school tucks into a thin strip, the question stays
+      visible, Continue floats just above the keyboard and nothing is covered
+      — on a normal phone and on the **smallest phone you have** (the sentence
+      under the question hides when the screen is under about 400 pt tall with
+      the keyboard up).
+- [ ] **Not now** lets you into the app; Profile still offers to finish.
+- [ ] **Airplane mode**: the last Continue shows "We could not save your
+      details" and keeps every answer; turn the network on and Continue again
+      succeeds.
+- [ ] In the Firebase console the member document has `age`, `gender`,
+      `appLanguage`, `profileCompletedAt`, and `phoneNumber` in the form
+      `+91…` (only if a number was given).
+- [ ] The Telugu lines are **drafts**: have a Telugu reader check
+      `TELUGU_REVIEW.md` (including the added "సంవత్సరాలు" after the age and
+      the separate "skip this question" wording on the phone question).
 
 ### Home
 

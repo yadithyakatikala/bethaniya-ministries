@@ -117,6 +117,120 @@ window.__portReady = true;`
   return file;
 }
 
+
+/**
+ * Builds out/chapter-orig.html: the approved onboarding chapter engine
+ * (reference/onboarding-chapter.js, verbatim plus a debug export) on a 390 x 844 host.
+ */
+export function buildChapterReferencePage() {
+  const engine = fs
+    .readFileSync(path.join(HERE, 'reference/onboarding-chapter.js'), 'utf8')
+    .replace(
+      '  global.MaranathaOnboarding = {',
+      `  global.__dbgC = { PX:PX, PY:PY, PA:PA, J:J, F0:F0, WIND:WIND, FISHP:FISHP, HAZE:HAZE, RIBBON:RIBBON, SCHOOL:SCHOOL, progress:progress };
+  global.MaranathaOnboarding = {`
+    );
+  if (!engine.includes('__dbgC')) throw new Error('chapter reference engine changed shape');
+  const font = b64(path.join(MOBILE, 'assets/fonts/NotoSerif-SemiBold.ttf'));
+  const logo = b64(path.join(MOBILE, 'assets/splash-icon.png'));
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'Noto Serif';font-weight:600;font-style:normal;font-display:block;src:url(data:font/ttf;base64,${font})}
+html,body{margin:0;padding:0;background:#777}
+.host{width:390px;height:844px;position:relative;overflow:hidden}
+.host svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.host[data-scene="light"]{--scene-ground:#FAFAF8;--scene-ink:#101114;--gold-deep:#4A2A06;--gold-base:#8F5A26;--gold-high:#DDB06B;--gold-spec:#FFF8E4;--gold-textpeak:#B9863C;--gold-rim:#6B4012;--ink-soft:#3A3F47;--dust1:#6B4012;--dust2:#8F5A26;--dust3:#BE8637;--dust4:#E3B258}
+.host[data-scene="dark"]{--scene-ground:#0E0F11;--scene-ink:#F4F5F6;--gold-deep:#6E4A1E;--gold-base:#DCA766;--gold-high:#F5DCAC;--gold-spec:#FFFCF4;--gold-textpeak:#F0D6A4;--gold-rim:#8A6330;--ink-soft:#C9CDD2;--dust1:#8A6330;--dust2:#B8863F;--dust3:#DCA766;--dust4:#F2D49B}
+</style></head><body><div class="host" id="host" data-scene="light"></div>
+<script>${engine}</script>
+<script>
+(async function(){
+  await document.fonts.load("600 16px 'Noto Serif'"); await document.fonts.ready;
+  var M = window.MaranathaOnboarding; M.buildTable(); M.buildParticles();
+  var S = M.buildScene(document.getElementById('host'), {});
+  M.setLogo(S, 'data:image/png;base64,${logo}');
+  window.__S = S;
+  window.renderAt = function(t, scene){ document.getElementById('host').setAttribute('data-scene', scene||'light'); M.render(S, t, {}); };
+  M.render(S, 0, {}); window.__ready = true;
+})();
+</script></body></html>`;
+  const file = path.join(OUT, 'chapter-orig.html');
+  fs.writeFileSync(file, html);
+  return file;
+}
+
+/** Bundles the app's chapter engine for a browser (out/chapter.bundle.js). */
+export async function bundleChapterEngine() {
+  const entry = path.join(OUT, 'entry-chapter.ts');
+  fs.writeFileSync(
+    entry,
+    `import * as Ch from '${MOBILE}/src/features/opening/engine/chapter';
+export { Ch };`
+  );
+  const outfile = path.join(OUT, 'chapter.bundle.js');
+  await build({ entryPoints: [entry], bundle: true, format: 'iife', globalName: 'PortChapter', outfile, logLevel: 'warning' });
+  return outfile;
+}
+
+
+/**
+ * Bundles the app's real ChapterCanvas and SchoolBand (react-native-svg through react-native-web)
+ * into out/chapter-port.html: window.renderChapter(t, dark) draws a full-screen chapter frame at
+ * the reference phone, window.renderBand(ambientT, dark) draws the settled band.
+ */
+export async function buildChapterPortPage() {
+  const entry = path.join(OUT, 'entry-chapter-web.tsx');
+  fs.writeFileSync(
+    entry,
+    `import * as React from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+import { View } from 'react-native';
+import { ChapterCanvas } from '${MOBILE}/src/features/opening/ChapterCanvas';
+import { SchoolBand } from '${MOBILE}/src/features/opening/SchoolBand';
+import { getChapterScene, renderChapterFrame, renderBandFrame } from '${MOBILE}/src/features/opening/engine/chapter';
+import { scenePalette } from '${MOBILE}/src/features/opening/palette';
+import { stageMapping } from '${MOBILE}/src/features/opening/stage';
+import { brandGold, lightTokens, darkTokens } from '${MOBILE}/src/theme/tokens';
+const root = createRoot(document.getElementById('root'));
+const scene = getChapterScene();
+const pal = (dark) => scenePalette(dark ? darkTokens : lightTokens, dark ? brandGold.dark : brandGold.light);
+window.renderChapter = (t, dark) => {
+  flushSync(() => root.render(
+    <View style={{ width: 390, height: 844, backgroundColor: pal(dark).ground }}>
+      <ChapterCanvas frame={renderChapterFrame(scene, t)} palette={pal(dark)} portrait={{ uri: window.__PORTRAIT }} mapping={stageMapping(390, 844, 96)} />
+    </View>));
+};
+window.renderBand = (ambientT, dark, compact = 0, exit = 0) => {
+  flushSync(() => root.render(
+    <View style={{ width: 390, backgroundColor: pal(dark).ground }}>
+      <SchoolBand school={renderBandFrame(scene, 5, { ambientT, compact, exit })} palette={pal(dark)} width={390} compact={compact} />
+    </View>));
+};
+window.__portReady = true;`
+  );
+  const nm = path.join(HERE, 'node_modules');
+  const outfile = path.join(OUT, 'chapter-web.bundle.js');
+  await build({
+    entryPoints: [entry], bundle: true, format: 'iife', platform: 'browser', outfile, logLevel: 'warning',
+    alias: {
+      'react-native': path.join(nm, 'react-native-web'),
+      react: path.join(nm, 'react'),
+      'react-dom': path.join(nm, 'react-dom'),
+      'react-native-svg': path.join(MOBILE, 'node_modules/react-native-svg'),
+    },
+    resolveExtensions: ['.web.js', '.web.ts', '.web.tsx', '.js', '.ts', '.tsx', '.json'],
+    mainFields: ['browser', 'module', 'main'],
+    define: { 'process.env.NODE_ENV': '"production"', __DEV__: 'false' },
+    jsx: 'automatic',
+  });
+  const jpg = b64(path.join(MOBILE, 'assets/brand/maranatha-portrait-crop-512.jpg'));
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#777}#root{width:390px;height:844px;position:relative;overflow:hidden}</style></head><body><div id="root"></div>
+<script>window.__PORTRAIT='data:image/jpeg;base64,${jpg}';</script><script>${fs.readFileSync(outfile, 'utf8')}</script></body></html>`;
+  const file = path.join(OUT, 'chapter-port.html');
+  fs.writeFileSync(file, html);
+  return file;
+}
+
 export async function openPage(browser, file, ready, dsf = 1) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: dsf });
   const errors = [];

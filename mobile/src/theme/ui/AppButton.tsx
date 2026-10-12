@@ -15,6 +15,16 @@ interface AppButtonProps extends Omit<PressableProps, 'style'> {
   loading?: boolean;
   /** Stretches to the container's width. Default for primary CTAs. */
   fullWidth?: boolean;
+  /**
+   * Looks disabled but stays pressable.
+   *
+   * For a form whose Continue "wakes up" once the answer is complete: while
+   * it is not, the button is painted as disabled, and pressing it still
+   * does something useful -- it says what is missing. A truly disabled
+   * button cannot explain itself, and to a screen reader it is a dead end;
+   * this one is announced as an ordinary button.
+   */
+  muted?: boolean;
 }
 
 /**
@@ -28,25 +38,31 @@ interface AppButtonProps extends Omit<PressableProps, 'style'> {
  *
  * DISABLED IS A COLOUR, NOT AN OPACITY. This button used to fade the
  * whole control with `opacity: 0.5`, which took the label under 3:1
- * against its own fill -- the brief asks for readable disabled states,
- * and a faded control is also indistinguishable from a loading one.
+ * against its own fill -- the brief asks for readable disabled states.
  * Disabled now paints `disabledSurface`/`disabledInk`, which are tuned
- * for this (see ../tokens.ts).
+ * for this (see ../tokens.ts). A LOADING button is not disabled-looking:
+ * it keeps its own fill and shows a spinner in its label colour.
  */
 export function AppButton({
   title,
   variant = 'primary',
   loading = false,
   fullWidth = false,
+  muted = false,
   disabled,
   testID,
   ...props
 }: AppButtonProps) {
   const { colors, radii, type, minTouchTarget } = useTheme();
+  // What the button DOES (`isDisabled`) and how it LOOKS (`dim`) differ in two
+  // cases: `muted` looks disabled but presses; `loading` does not press but
+  // keeps its colours, with a spinner -- the design's busy state. (A busy
+  // button painted as disabled reads as "unavailable", not "working".)
   const isDisabled = disabled || loading;
+  const dim = disabled || muted;
 
   const filled = variant === 'primary' || variant === 'destructive';
-  const background = isDisabled
+  const background = dim
     ? filled
       ? colors.disabledSurface
       : 'transparent'
@@ -59,7 +75,7 @@ export function AppButton({
   // NOT '#FFFFFF'. `primary` and `danger` invert between the palettes,
   // so a hardcoded white label measured 2.04:1 and 2.80:1 in dark mode
   // -- on the primitive behind every screen's main call to action.
-  const label = isDisabled
+  const label = dim
     ? colors.disabledInk
     : variant === 'primary'
       ? colors.onPrimary
@@ -69,7 +85,7 @@ export function AppButton({
           ? colors.primary
           : colors.primary;
 
-  const border = isDisabled
+  const border = dim
     ? variant === 'secondary'
       ? colors.border
       : 'transparent'
@@ -79,7 +95,7 @@ export function AppButton({
 
   /** Pressed feedback. Colour only -- nothing to animate, no dropped frames. */
   function pressedBackground(pressed: boolean): string {
-    if (!pressed || isDisabled) return background;
+    if (!pressed || dim) return background;
     if (variant === 'primary') return colors.primaryPressed;
     if (variant === 'secondary' || variant === 'text') return colors.primaryTint;
     return background;

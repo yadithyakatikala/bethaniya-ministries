@@ -141,5 +141,8 @@ the previous church logo, is gone from the project.
 - **Home's header** still prefers the church's own `logoUrl` from
   Firestore settings and falls back to a letter monogram. That is church
   content, not product branding, and is deliberately left alone.
-- **Sign In** — see `src/features/auth/SignInScreen.tsx` for where the
-  portrait stands on sign-in after the redesign.
+- **Sign In** does not show the portrait yet. The approved redesign puts the
+  portrait and wordmark there, in the positions the onboarding chapter
+  begins from, so the chapter continues the same picture; until the sign-in
+  screen is restyled, the chapter's first frame (portrait over the word)
+  simply appears when the first question screen mounts.

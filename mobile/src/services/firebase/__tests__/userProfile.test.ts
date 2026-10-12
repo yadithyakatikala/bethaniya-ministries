@@ -1,6 +1,13 @@
-import { doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
+import {
+  doc,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import {
+  completeOnboarding,
   ensureOwnProfileExists,
   subscribeToOwnProfile,
   updateOwnProfile,
@@ -61,6 +68,8 @@ describe('subscribeToOwnProfile', () => {
       // and an absent key would be indistinguishable from a profile that
       // has not loaded.
       gender: null,
+      // The redesigned onboarding's age, on the same reasoning.
+      age: null,
       profileCompletedAt: null,
       // M7's fields, on the same reasoning. `accountStatus` is the one
       // that does NOT default to null: a member whose document says
@@ -117,6 +126,32 @@ describe('subscribeToOwnProfile', () => {
     expect(onNext).toHaveBeenCalledWith(
       expect.objectContaining({ gender: null, profileCompletedAt: null })
     );
+  });
+
+  it('maps a valid age, and nothing that is not a whole number of years from 1 to 120', async () => {
+    // The same defensive mapping as gender: whatever the document holds,
+    // the profile the app sees is something its types allow. 1..120 is the
+    // range firestore.rules enforces on the way in.
+    async function ageOf(value: unknown): Promise<number | null> {
+      const onNext = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+        next({
+          exists: () => true,
+          id: 'uid-age',
+          data: () => ({ role: 'member', age: value }),
+        });
+        return jest.fn();
+      });
+      subscribeToOwnProfile('uid-age', onNext, jest.fn());
+      return (onNext.mock.calls[0][0] as { age: number | null }).age;
+    }
+
+    expect(await ageOf(34)).toBe(34);
+    expect(await ageOf(1)).toBe(1);
+    expect(await ageOf(120)).toBe(120);
+    for (const bad of [0, -3, 121, 34.5, '34', true, null, undefined, NaN]) {
+      expect(await ageOf(bad)).toBeNull();
+    }
   });
 
   it('maps a V1 profile that has no V2 language fields', async () => {
@@ -212,6 +247,14 @@ describe('subscribeToOwnProfile', () => {
 });
 
 describe('updateOwnProfile', () => {
+  it('writes an age when one is given, and only then', async () => {
+    await updateOwnProfile('uid-1', { age: 34 });
+    expect(updateDoc).toHaveBeenLastCalledWith(expect.anything(), { age: 34 });
+
+    await updateOwnProfile('uid-1', { displayName: 'X' });
+    expect(updateDoc).toHaveBeenLastCalledWith(expect.anything(), { displayName: 'X' });
+  });
+
   afterEach(() => jest.clearAllMocks());
 
   it('only writes the fields explicitly passed', async () => {
@@ -304,5 +347,53 @@ describe('ensureOwnProfileExists', () => {
     (runTransaction as jest.Mock).mockRejectedValue(new Error('offline'));
 
     await expect(ensureOwnProfileExists(user)).resolves.toBeUndefined();
+  });
+});
+
+describe('completeOnboarding', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('writes the answers and the completion marker in ONE update', async () => {
+    await completeOnboarding('uid-1', {
+      fullName: 'Ruth',
+      phoneNumber: '+919876543210',
+      gender: 'female',
+      preferredLanguage: 'te',
+    });
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    const [, written] = (updateDoc as jest.Mock).mock.calls[0];
+    expect(Object.keys(written).sort()).toEqual(
+      ['appLanguage', 'displayName', 'gender', 'phoneNumber', 'profileCompletedAt'].sort()
+    );
+    expect(written).toMatchObject({
+      displayName: 'Ruth',
+      phoneNumber: '+919876543210',
+      gender: 'female',
+      appLanguage: 'te',
+    });
+    expect(written.profileCompletedAt).toBe(
+      (serverTimestamp as jest.Mock).mock.results[0].value
+    );
+  });
+
+  it('leaves the phone number OUT when the question was skipped, rather than clearing it', async () => {
+    await completeOnboarding('uid-1', {
+      fullName: 'Ruth',
+      gender: 'female',
+      preferredLanguage: 'en',
+    });
+    const [, written] = (updateDoc as jest.Mock).mock.calls[0];
+    expect('phoneNumber' in written).toBe(false);
+  });
+
+  it('does not swallow a rejected write: the screen has to show it', async () => {
+    (updateDoc as jest.Mock).mockRejectedValueOnce(new Error('permission-denied'));
+    await expect(
+      completeOnboarding('uid-1', {
+        fullName: 'R',
+        gender: 'male',
+        preferredLanguage: 'en',
+      })
+    ).rejects.toThrow('permission-denied');
   });
 });

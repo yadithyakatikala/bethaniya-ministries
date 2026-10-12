@@ -30,6 +30,8 @@ import type {
   LanguagePreference,
   UserProfile,
 } from '../../services/firebase/userProfile';
+import { toAsciiDigits } from './digits';
+import { splitStoredPhone } from './phone';
 
 /** The two values the church asked to collect. Order is the display order. */
 export const GENDERS: readonly Gender[] = ['male', 'female'];
@@ -88,6 +90,30 @@ export function isValidFullName(input: string): boolean {
   return trimmed.length > 0 && trimmed.length <= MAX_NAME_LENGTH;
 }
 
+/**
+ * The age question. A whole number of years, 1..120 -- the same range
+ * firestore.rules enforces, so the form can never offer a save the server
+ * will refuse. It is a number the church keeps ("it helps the church know
+ * who it is serving"), nothing more: there is no under-18 branch, and
+ * nothing in the app reads it to make a decision.
+ */
+export const MIN_AGE = 1;
+export const MAX_AGE = 120;
+
+/** "34" -> 34. Digits only; anything else (decimals, signs, words, blank, 0, 121) -> null. */
+export function parseAge(input: string): number | null {
+  const trimmed = toAsciiDigits(input).trim();
+  if (!/^\d{1,3}$/.test(trimmed)) return null;
+  const age = Number(trimmed);
+  return age >= MIN_AGE && age <= MAX_AGE ? age : null;
+}
+
+export function isValidAge(input: string): boolean {
+  return parseAge(input) !== null;
+}
+
+export { toAsciiDigits };
+
 export function isGender(value: unknown): value is Gender {
   return value === 'male' || value === 'female';
 }
@@ -125,14 +151,25 @@ export function onboardingDefaults(options: {
   appLanguage: LanguagePreference;
 }): {
   fullName: string;
+  /** The number as stored, however it was stored. */
   phoneNumber: string;
+  /** The same number split into the country picker and the typed part. */
+  countryIso: string;
+  nationalPhone: string;
+  /** Whole years as typed text, or '' when none is known. */
+  age: string;
   gender: Gender | null;
   preferredLanguage: LanguagePreference;
 } {
   const { profile, authDisplayName, authPhoneNumber, appLanguage } = options;
+  const phoneNumber = profile?.phoneNumber ?? authPhoneNumber ?? '';
+  const { countryIso, national } = splitStoredPhone(phoneNumber);
   return {
     fullName: profile?.displayName ?? authDisplayName ?? '',
-    phoneNumber: profile?.phoneNumber ?? authPhoneNumber ?? '',
+    phoneNumber,
+    countryIso,
+    nationalPhone: national,
+    age: profile?.age != null ? String(profile.age) : '',
     gender: profile?.gender ?? null,
     preferredLanguage: profile?.appLanguage ?? appLanguage,
   };
