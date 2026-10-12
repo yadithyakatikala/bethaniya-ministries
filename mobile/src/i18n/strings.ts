@@ -324,8 +324,16 @@ export interface Strings {
   'common.member': string;
   'events.dateTBA': string;
   'events.unsupportedStreamLink': string;
+  'events.backToEvent': string;
+  'events.today': string;
   'songs.favoriteAction': string;
   'songs.favoritedState': string;
+  'songs.filterAll': string;
+  'songs.filterFavourites': string;
+  'songs.noFavourites': string;
+  'songs.noFavouritesMessage': string;
+  'songs.lyrics': string;
+  'songs.progress': string;
   'dailyVerse.loadError': string;
   'profile.saved': string;
   'profile.nameEmpty': string;
@@ -912,8 +920,16 @@ const en: Strings = {
   'events.dateTBA': 'Date and time to be announced',
   'events.unsupportedStreamLink':
     'This stream link isn’t a supported YouTube URL, so it can’t be played here.',
+  'events.backToEvent': 'Back to the event',
+  'events.today': 'Today',
   'songs.favoriteAction': 'Favourite',
   'songs.favoritedState': 'Favourited',
+  'songs.filterAll': 'All',
+  'songs.filterFavourites': 'Favourites',
+  'songs.noFavourites': 'No favourites yet',
+  'songs.noFavouritesMessage': 'Choose Favourite on a song to keep it here.',
+  'songs.lyrics': 'Lyrics',
+  'songs.progress': 'Song progress',
   'dailyVerse.loadError': 'Could not load today’s verse.',
   'profile.saved': 'Saved.',
   'profile.nameEmpty': 'Your name cannot be empty.',
@@ -1447,8 +1463,16 @@ const te: Strings = {
   'events.dateTBA': 'తేదీ, సమయం తరువాత ప్రకటిస్తాము',
   'events.unsupportedStreamLink':
     'ఈ ప్రసార లింక్ మద్దతు ఉన్న YouTube URL కాదు, అందుకే ఇక్కడ ప్లే చేయలేము.',
+  'events.backToEvent': 'కార్యక్రమానికి తిరిగి',
+  'events.today': 'ఈరోజు',
   'songs.favoriteAction': 'ఇష్టమైనది',
   'songs.favoritedState': 'ఇష్టమైనవిలో ఉంది',
+  'songs.filterAll': 'అన్నీ',
+  'songs.filterFavourites': 'ఇష్టమైనవి',
+  'songs.noFavourites': 'ఇష్టమైనవి ఇంకా లేవు',
+  'songs.noFavouritesMessage': 'పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది.',
+  'songs.lyrics': 'సాహిత్యం',
+  'songs.progress': 'పాట పురోగతి',
   'dailyVerse.loadError': 'నేటి వచనం లోడ్ చేయలేకపోయాము.',
   'profile.saved': 'సేవ్ అయింది.',
   'profile.nameEmpty': 'మీ పేరు ఖాళీగా ఉండకూడదు.',

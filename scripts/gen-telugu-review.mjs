@@ -47,6 +47,9 @@ const UNCERTAIN = {
   'you.tabSaved': '"భద్రపరచినవి" ("things kept safe"). Confirm it reads as "saved".',
   'prayerWall.anonymousHelp': 'A PRIVACY statement members rely on. Check it says plainly who can and cannot see a name: other members and the church team cannot; the church\'s main administrator can, only to deal with a report.',
   'report.intro': 'A promise that the reporter\'s name is not shown to other members. Check the wording is plain and exact.',
+  'songs.noFavouritesMessage': 'Tells a member how to add a favourite: choose the "Favourite" button on a song. It quotes the button\'s own label (`songs.favoriteAction`, "ఇష్టమైనది"); keep the two the same word.',
+  'songs.progress': 'Spoken by a screen reader for the song\'s progress line ("Song progress", then the time played and the length). A natural spoken phrase is wanted.',
+  'events.today': 'Replaces the date on an event that starts today ("ఈరోజు, 10:30 AM"). Check it reads naturally before a time.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
 };
 

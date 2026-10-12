@@ -55,9 +55,9 @@ Guntur). A verse shown in both languages is `scriptureBilingualStyle`: English
 
 | | |
 |---|---|
-| `AppButton` | Pill, four variants (primary ink · secondary 1.5 pt border · **text in gold ink** · destructive). `compact`, `trailingIcon`, `muted` (looks disabled, still presses and explains), `loading` (keeps its fill and its width, spinner on top, spoken name kept). One primary per screen. |
+| `AppButton` | Pill, five variants (primary ink · secondary 1.5 pt border · **text in gold ink** · destructive · **live**, the live-broadcast fill, only for the way into a stream that is on now). `compact`, `leadingIcon`, `trailingIcon`, `muted` (looks disabled, still presses and explains), `loading` (keeps its fill and its width, spinner on top, spoken name kept). One primary per screen. |
 | `IconButton` | 44 round: `plain`, `outlined`, `tinted`. The accessibility label is **required**. |
-| `Icon` | 49 glyphs on a 24 grid, 1.75 stroke, round caps: vector data (`iconShapes.ts`) drawn by react-native-svg, tinted in code. Decorative. `filled` is the selected look: stroke 2 and a 14% wash of its own colour inside every shape (a solid glyph stays solid). |
+| `Icon` | 49 glyphs on a 24 grid, 1.75 stroke, round caps: vector data (`iconShapes.ts`) drawn by react-native-svg, tinted in code. Decorative. `filled` is the selected look: stroke 2 and a 14% wash of its own colour inside every shape (a solid glyph stays solid). `heartf` is solid: a chosen favourite, never gold. |
 | `Chip` | 36 pill; chosen = ink fill. `icon` puts an 18-point glyph before the words and `tall` makes it a full 44, for a chip that is a door (Community's shelf) rather than a filter. |
 | `SegmentedChoice` | Two or three views of one thing: a pill track with a surface thumb. More than three become chips (still a radiogroup). |
 | `UnderlineTabs` | Sections inside a screen: ink word + 2 pt ink underline; no gold. The tabs sit left to right at their own width, 24 apart, over one full-width hairline; each is at least 44 across and high. |

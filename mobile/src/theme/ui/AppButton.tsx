@@ -10,7 +10,7 @@ import { Icon } from './Icon';
 import type { IconName } from './iconShapes';
 import { useTheme } from '../useTheme';
 
-export type AppButtonVariant = 'primary' | 'secondary' | 'destructive' | 'text';
+export type AppButtonVariant = 'primary' | 'secondary' | 'destructive' | 'live' | 'text';
 
 interface AppButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
@@ -22,6 +22,8 @@ interface AppButtonProps extends Omit<PressableProps, 'style'> {
   compact?: boolean;
   /** An icon after the label -- the arrow on "Read the chapter". */
   trailingIcon?: IconName;
+  /** An icon before the label -- the heart on Favourite, the mark on Open in Maps. */
+  leadingIcon?: IconName;
   /**
    * Looks disabled but stays pressable.
    *
@@ -41,6 +43,8 @@ interface AppButtonProps extends Omit<PressableProps, 'style'> {
  *   secondary    a 1.5 pt strong border on the page.
  *   text         gold ink, no box -- "See all", "Share". 44 high.
  *   destructive  the error fill, only for a confirmed delete.
+ *   live         the live-broadcast fill, for the one way into a stream
+ *                that is on now ("Watch live on YouTube").
  *
  * 48 high (40 compact), a pill radius, the label in the `button` role
  * (15/20 semibold; compact buttons use the 14/18 `label`). A Telugu label
@@ -62,6 +66,7 @@ export function AppButton({
   fullWidth = false,
   compact = false,
   trailingIcon,
+  leadingIcon,
   muted = false,
   disabled,
   testID,
@@ -75,7 +80,7 @@ export function AppButton({
   const isDisabled = disabled || loading;
   const dim = disabled || muted;
 
-  const filled = variant === 'primary' || variant === 'destructive';
+  const filled = variant === 'primary' || variant === 'destructive' || variant === 'live';
   const background = dim
     ? filled
       ? colors.disabledSurface
@@ -84,7 +89,9 @@ export function AppButton({
       ? colors.primary
       : variant === 'destructive'
         ? colors.danger
-        : 'transparent';
+        : variant === 'live'
+          ? colors.live
+          : 'transparent';
 
   // NOT '#FFFFFF'. `primary` and `danger` invert between the palettes,
   // so a hardcoded white label measured 2.04:1 and 2.80:1 in dark mode
@@ -96,9 +103,11 @@ export function AppButton({
       ? colors.onPrimary
       : variant === 'destructive'
         ? colors.onDanger
-        : variant === 'secondary'
-          ? colors.primary
-          : colors.accent;
+        : variant === 'live'
+          ? colors.onLive
+          : variant === 'secondary'
+            ? colors.primary
+            : colors.accent;
 
   const border = dim
     ? variant === 'secondary'
@@ -139,7 +148,8 @@ export function AppButton({
           borderColor: border,
           borderWidth: variant === 'secondary' ? 1.5 : 0,
           borderRadius: radii.pill,
-          opacity: pressed && variant === 'destructive' ? 0.85 : 1,
+          opacity:
+            pressed && (variant === 'destructive' || variant === 'live') ? 0.85 : 1,
         },
       ]}
       {...props}
@@ -160,12 +170,13 @@ export function AppButton({
             <ActivityIndicator color={label} />
           </View>
         </View>
-      ) : trailingIcon ? (
+      ) : trailingIcon || leadingIcon ? (
         <View style={styles.content}>
+          {leadingIcon ? <Icon name={leadingIcon} size={18} color={label} /> : null}
           <Text style={[labelStyle, styles.title, { color: label }]} numberOfLines={2}>
             {title}
           </Text>
-          <Icon name={trailingIcon} size={18} color={label} />
+          {trailingIcon ? <Icon name={trailingIcon} size={18} color={label} /> : null}
         </View>
       ) : (
         <Text style={[labelStyle, styles.title, { color: label }]} numberOfLines={2}>

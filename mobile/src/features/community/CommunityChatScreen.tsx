@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -12,12 +11,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppButton,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   LoadingState,
+  NoticeBanner,
   Tappable,
   useTheme,
 } from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
 import { useMemberIdentity } from '../../context/useMemberIdentity';
 import {
@@ -30,10 +32,7 @@ import {
   type CommunityMessage,
   type MessageCursor,
 } from '../../services/firebase/communityChat';
-import {
-  fetchReportedItemKeys,
-  reportedItemKey,
-} from '../../services/firebase/reports';
+import { fetchReportedItemKeys, reportedItemKey } from '../../services/firebase/reports';
 import { ReportSheet } from '../moderation/ReportSheet';
 import { ChatMessageBubble } from './ChatMessageBubble';
 
@@ -78,8 +77,8 @@ import { ChatMessageBubble } from './ChatMessageBubble';
  * the box the member is typing into.
  */
 export function CommunityChatScreen() {
-  const { colors, radii, spacing, type, minTouchTarget } = useTheme();
-  const { t } = useTranslation();
+  const { colors, layout, radii, type } = useTheme();
+  const { t, appLanguage } = useTranslation();
   const insets = useSafeAreaInsets();
   const { uid, displayName, canPost, suspended } = useMemberIdentity();
 
@@ -92,6 +91,7 @@ export function CommunityChatScreen() {
   const [historyExhausted, setHistoryExhausted] = useState(false);
   const [reportedKeys, setReportedKeys] = useState<ReadonlySet<string>>(new Set());
   const [reporting, setReporting] = useState<CommunityMessage | null>(null);
+  const [deleting, setDeleting] = useState<CommunityMessage | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   /**
@@ -189,21 +189,12 @@ export function CommunityChatScreen() {
     }
   }
 
-  function confirmDelete(message: CommunityMessage) {
-    Alert.alert(t('chat.deleteConfirmTitle'), t('chat.deleteConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          // No local removal: the listener's own snapshot takes the
-          // message out, the same way it would for anybody else's screen.
-          void deleteOwnMessage(message.id).catch((error) => {
-            console.warn('[chat] could not delete:', error);
-          });
-        },
-      },
-    ]);
+  function deleteConfirmed(message: CommunityMessage) {
+    // No local removal: the listener's own snapshot takes the message out,
+    // the same way it would for anybody else's screen.
+    void deleteOwnMessage(message.id).catch((error) => {
+      console.warn('[chat] could not delete:', error);
+    });
   }
 
   if (status === 'loading') {
@@ -267,41 +258,56 @@ export function CommunityChatScreen() {
           inverted
           data={messages}
           keyExtractor={(message) => message.id}
-          contentContainerStyle={[styles.list, { paddingVertical: spacing.md }]}
+          contentContainerStyle={[
+            styles.list,
+            { paddingHorizontal: layout.screenMargin, paddingVertical: 10 },
+          ]}
+          ItemSeparatorComponent={Separator}
           // Taps must reach a bubble's Delete/Report while the keyboard is
           // open; without this the first tap only dismisses the keyboard.
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          renderItem={({ item }) => (
-            <ChatMessageBubble
-              message={item}
-              isOwn={item.authorUid === uid}
-              alreadyReported={reportedKeys.has(
-                reportedItemKey('community_message', item.id)
-              )}
-              onDelete={() => confirmDelete(item)}
-              onReport={() => setReporting(item)}
-            />
-          )}
+          renderItem={({ item, index }) => {
+            // The data is newest-first, so the message BEFORE this one in time
+            // is the next in the array. This one starts a run when the one
+            // before it is somebody else's (or was removed, or is not loaded).
+            const before = messages[index + 1];
+            const startsRun =
+              !before || before.removed || before.authorUid !== item.authorUid;
+            return (
+              <ChatMessageBubble
+                message={item}
+                isOwn={item.authorUid === uid}
+                startsRun={startsRun}
+                alreadyReported={reportedKeys.has(
+                  reportedItemKey('community_message', item.id)
+                )}
+                onDelete={() => setDeleting(item)}
+                onReport={() => setReporting(item)}
+              />
+            );
+          }}
           // In an inverted list the END is the OLDEST message, so this is
           // where history paging belongs.
           onEndReached={() => void loadOlder()}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
             loadingOlder ? (
-              <LoadingState
-                compact
-                label={t('chat.loadingOlder')}
+              <Text
                 testID="chat-loading-older"
-              />
+                accessibilityLiveRegion="polite"
+                style={[styles.older, { color: colors.accent }]}
+              >
+                {t('chat.loadingOlder')}
+              </Text>
             ) : !historyExhausted && historyAvailable ? (
               <Tappable
                 testID="chat-load-older"
                 accessibilityRole="button"
                 onPress={() => void loadOlder()}
-                style={[styles.loadOlder, { minHeight: minTouchTarget }]}
+                style={styles.loadOlder}
               >
-                <Text style={[type.label, { color: colors.primary }]}>
+                <Text style={[styles.older, { color: colors.accent }]}>
                   {t('chat.loadOlder')}
                 </Text>
               </Tappable>
@@ -313,29 +319,26 @@ export function CommunityChatScreen() {
       {suspended ? (
         <View
           testID="chat-suspended"
-          accessibilityLiveRegion="polite"
           style={[
             styles.composer,
-            { backgroundColor: colors.warningTint, padding: spacing.md },
+            styles.suspended,
+            { borderTopColor: colors.border, backgroundColor: colors.paper },
           ]}
         >
-          <Text style={[type.label, { color: colors.warning }]}>
-            {t('account.suspendedTitle')}
-          </Text>
-          <Text style={[type.bodySmall, { color: colors.warning }]}>
-            {t('account.suspendedMessage')}
-          </Text>
+          <NoticeBanner
+            tone="warning"
+            title={t('account.suspendedTitle')}
+            message={t('account.suspendedMessage')}
+          />
         </View>
       ) : (
         <View
           style={[
             styles.composer,
             {
-              backgroundColor: colors.surface,
+              backgroundColor: colors.paper,
               borderTopColor: colors.border,
-              padding: spacing.md,
-              paddingBottom: spacing.md + insets.bottom,
-              gap: spacing.sm,
+              paddingHorizontal: layout.screenMargin,
             },
           ]}
         >
@@ -343,12 +346,12 @@ export function CommunityChatScreen() {
             <Text
               testID="chat-send-failed"
               accessibilityLiveRegion="polite"
-              style={[type.bodySmall, { color: colors.danger }]}
+              style={[type.help, { color: colors.danger }]}
             >
               {t('chat.sendFailed')}
             </Text>
           ) : null}
-          <View style={[styles.composerRow, { gap: spacing.sm }]}>
+          <View style={styles.composerRow}>
             <TextInput
               testID="chat-input"
               accessibilityLabel={t('chat.placeholder')}
@@ -361,13 +364,12 @@ export function CommunityChatScreen() {
               editable={canPost}
               style={[
                 styles.input,
+                appLanguage === 'te' && styles.inputTe,
                 {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderStrong,
                   borderRadius: radii.control,
                   color: colors.ink,
-                  padding: spacing.md,
-                  minHeight: minTouchTarget,
                 },
               ]}
             />
@@ -381,6 +383,22 @@ export function CommunityChatScreen() {
           </View>
         </View>
       )}
+
+      <ConfirmDialog
+        visible={deleting !== null}
+        testID="chat-delete-dialog"
+        title={t('chat.deleteConfirmTitle')}
+        message={t('chat.deleteConfirmMessage')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        destructive
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const message = deleting;
+          setDeleting(null);
+          if (message) deleteConfirmed(message);
+        }}
+      />
 
       {reporting ? (
         <ReportSheet
@@ -402,21 +420,49 @@ export function CommunityChatScreen() {
   );
 }
 
+/** Six points between bubbles; a new voice adds its own four on top (the bubble's margin). */
+function Separator() {
+  return <View style={styles.separator} />;
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   list: { flexGrow: 1 },
+  separator: { height: 6 },
   // Takes the space the list would have, so the composer stays pinned to
   // the bottom whether or not there are any messages.
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 16 },
-  loadOlder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
-  composer: { borderTopWidth: StyleSheet.hairlineWidth },
-  composerRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  loadOlder: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },
+  older: {
+    alignSelf: 'center',
+    textAlign: 'center',
+    paddingVertical: 12,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  composer: {
+    borderTopWidth: 1,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  suspended: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   input: {
     flex: 1,
+    minHeight: 48,
     // A chat message can be long, but the box must not grow until it
     // swallows the conversation: it scrolls past this height.
     maxHeight: 120,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     textAlignVertical: 'top',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    fontFamily: fontFamilies.interfaceRegular,
+    fontSize: 15.5,
+    lineHeight: 23,
   },
+  inputTe: { lineHeight: 27 },
 });

@@ -140,6 +140,45 @@ describe('AppButton', () => {
     );
     expect(getByText('కార్యక్రమాలను చూడండి').props.numberOfLines).toBe(2);
   });
+
+  it('paints the live variant in the live fill with the on-live label, never the error fill', async () => {
+    const { getByTestId, getByText } = await renderThemed(
+      <AppButton title="Watch live" variant="live" testID="btn" />
+    );
+    expect(flat(getByTestId('btn')).backgroundColor).toBe(lightTokens.live);
+    expect(flat(getByText('Watch live')).color).toBe(lightTokens.onLive);
+    expect(flat(getByTestId('btn')).minHeight as number).toBeGreaterThanOrEqual(
+      MIN_TOUCH_TARGET
+    );
+  });
+
+  it('paints a disabled live button with the disabled tokens like any filled button', async () => {
+    const { getByTestId } = await renderThemed(
+      <AppButton title="Watch live" variant="live" disabled testID="btn" />
+    );
+    expect(flat(getByTestId('btn')).backgroundColor).toBe(lightTokens.disabledSurface);
+  });
+
+  it('draws a leading icon before the label, and a trailing one after it', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Favourite" leadingIcon="heart" testID="lead" />
+        <AppButton title="Next" trailingIcon="arrow" testID="trail" />
+        <AppButton title="Both" leadingIcon="back" trailingIcon="arrow" testID="both" />
+        <AppButton title="Plain" testID="plain" />
+      </>
+    );
+    const kinds = (testID: string) =>
+      (getByTestId(testID).children[0] as { children: { type: unknown }[] }).children.map(
+        (child) => (typeof child.type === 'string' ? child.type : 'node')
+      );
+    // The content row is [icon?, label, icon?]; a button with neither has no row at all.
+    expect(kinds('lead')).toHaveLength(2);
+    expect(kinds('trail')).toHaveLength(2);
+    expect(kinds('both')).toHaveLength(3);
+    expect(getByTestId('plain').children).toHaveLength(1);
+    expect(getByTestId('lead')).toHaveTextContent('Favourite');
+  });
 });
 
 describe('IconButton', () => {

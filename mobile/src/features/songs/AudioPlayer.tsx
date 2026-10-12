@@ -1,8 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../../theme';
+import { ErrorState, GoldFill, Icon, Tappable, useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
-import { Tappable } from '../../theme/ui/Tappable';
 
 interface AudioPlayerProps {
   /**
@@ -48,11 +47,15 @@ function formatSeconds(totalSeconds: number): string {
  * component reads that field for its error state rather than needing a
  * try/catch -- there's nothing here that throws.
  *
- * Restyled onto the shared Vespers theme, with a scrubber track filled
- * from the same real `status.currentTime`/`status.duration` the time
- * label already reads -- no new/fake state. The `formatSeconds`
- * output and every testID are unchanged (see AudioPlayer.test.tsx's
- * `'1:05 / 3:20'` assertion).
+ * THE LOOK. A 4-point track filled in gold from the same real
+ * `status.currentTime`/`status.duration` the times read -- no new/fake
+ * state -- with the time played at its left end and the length at its
+ * right; under it a Restart pill (an icon and a word, 44 high) and, at 64,
+ * the round Play/Pause button, whose glyph changes with the state and whose
+ * spoken name says what pressing it does. The track is announced as a
+ * progress bar ("Song progress", "1:05 / 3:20"); it is not a scrubber, and
+ * the design does not draw it as one. A song that cannot load shows the
+ * error box, and one still loading a spinner.
  *
  * Verification note: this project has no way to exercise real native
  * audio playback in its current environment (no device/simulator, no
@@ -66,25 +69,29 @@ function formatSeconds(totalSeconds: number): string {
  * verification gaps -- see /SECURITY.md.
  */
 export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
-  const { colors, radii, type } = useTheme();
+  const { colors, type } = useTheme();
   const { t } = useTranslation();
   const player = useAudioPlayer(audioUrl);
   const status = useAudioPlayerStatus(player);
 
   if (status.error) {
     return (
-      <View style={styles.container} testID="audio-player-error">
-        <Text style={[styles.message, { color: colors.secondaryText }]}>
-          {t('songs.audioError')}
-        </Text>
+      <View style={styles.container}>
+        <ErrorState testID="audio-player-error" message={t('songs.audioError')} />
       </View>
     );
   }
 
   if (!status.isLoaded) {
     return (
-      <View style={styles.container} testID="audio-player-loading">
-        <ActivityIndicator />
+      <View
+        style={[styles.container, styles.loading]}
+        testID="audio-player-loading"
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('common.loading')}
+        accessibilityState={{ busy: true }}
+      >
+        <ActivityIndicator color={colors.inkMuted} />
       </View>
     );
   }
@@ -93,44 +100,71 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     status.duration > 0
       ? Math.min(1, Math.max(0, status.currentTime / status.duration))
       : 0;
+  const elapsed = formatSeconds(status.currentTime);
+  const length = formatSeconds(status.duration);
 
   return (
     <View style={styles.container} testID="audio-player">
-      <View style={[styles.track, { backgroundColor: colors.border }]}>
+      <View
+        testID="audio-track"
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('songs.progress')}
+        accessibilityValue={{
+          min: 0,
+          max: Math.max(1, Math.round(status.duration)),
+          now: Math.round(status.currentTime),
+          text: `${elapsed} / ${length}`,
+        }}
+        style={[styles.track, { backgroundColor: colors.border }]}
+      >
         <View
-          style={[
-            styles.trackFill,
-            { width: `${progress * 100}%`, backgroundColor: colors.primary },
-          ]}
-        />
+          testID="audio-track-fill"
+          style={[styles.trackFill, { width: `${progress * 100}%` }]}
+        >
+          <GoldFill />
+        </View>
       </View>
-      <Text style={[type.caption, { color: colors.secondaryText }]}>
-        {formatSeconds(status.currentTime)} / {formatSeconds(status.duration)}
-      </Text>
+      <View style={styles.times}>
+        <Text
+          testID="audio-time-elapsed"
+          style={[type.caption, { color: colors.inkMuted }]}
+        >
+          {elapsed}
+        </Text>
+        <Text
+          testID="audio-time-length"
+          style={[type.caption, { color: colors.inkMuted }]}
+        >
+          {length}
+        </Text>
+      </View>
       <View style={styles.controls}>
         <Tappable
           testID="audio-restart-button"
           accessibilityRole="button"
+          accessibilityLabel={t('songs.restart')}
           onPress={() => {
             void player.seekTo(0);
             player.play();
           }}
-          style={[styles.secondaryButton, { borderColor: colors.border }]}
+          style={[styles.restart, { borderColor: colors.borderStrong }]}
         >
-          <Text style={[type.label, { color: colors.text }]}>{t('songs.restart')}</Text>
+          <Icon name="restart" size={20} color={colors.ink} />
+          <Text style={[type.label, { color: colors.ink }]}>{t('songs.restart')}</Text>
         </Tappable>
         <Tappable
           testID="audio-play-pause-button"
           accessibilityRole="button"
+          accessibilityLabel={t(status.playing ? 'songs.pause' : 'songs.play')}
           onPress={() => (status.playing ? player.pause() : player.play())}
-          style={[
-            styles.playButton,
-            { backgroundColor: colors.primary, borderRadius: radii.control },
-          ]}
+          style={[styles.play, { backgroundColor: colors.primary }]}
         >
-          <Text style={[type.label, { color: colors.onPrimary }]}>
-            {t(status.playing ? 'songs.pause' : 'songs.play')}
-          </Text>
+          <Icon
+            name={status.playing ? 'pause' : 'play'}
+            size={30}
+            color={colors.onPrimary}
+          />
         </Tappable>
       </View>
     </View>
@@ -138,22 +172,32 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { width: '100%', alignItems: 'center', gap: 10 },
-  message: { textAlign: 'center' },
+  container: { width: '100%', gap: 10 },
+  loading: { alignItems: 'center', justifyContent: 'center', minHeight: 120 },
   track: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden' },
-  trackFill: { height: 4, borderRadius: 2 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  secondaryButton: {
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
+  trackFill: { height: 4 },
+  times: { flexDirection: 'row', justifyContent: 'space-between' },
+  controls: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 22,
+    minHeight: 68,
   },
-  playButton: {
-    width: 56,
-    height: 56,
+  restart: {
+    minHeight: 44,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  play: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },

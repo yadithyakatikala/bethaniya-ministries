@@ -56,6 +56,7 @@ import {
   TERMS_TITLE,
 } from '../features/legal/LegalScreen';
 import { TabBar, type TabRouteName } from './TabBar';
+import { useKeyboardVisible } from './useKeyboardVisible';
 import {
   PUSH_ANIMATION_MS,
   TAB_FADE_MS,
@@ -125,7 +126,8 @@ export type RootStackParamList = {
   SongDetail: { song: PublishedSong };
   EventsList: undefined;
   EventDetail: { event: PublishedEvent };
-  YouTubePlayer: { youtubeUrl: string };
+  /** `title` is the event's name, for the player's top bar. */
+  YouTubePlayer: { youtubeUrl: string; title?: string };
   BibleChapters: { bookId: string };
   /**
    * The immersive reader (M4 -- see
@@ -203,7 +205,9 @@ export { navigationRef };
  * notificationService.ts's tap handler already uses.
  */
 function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
-  if (!activeRoute || !TAB_ROUTE_NAMES.has(activeRoute)) return null;
+  // Out of the way while the keyboard is up (see ./useKeyboardVisible.ts).
+  const keyboardVisible = useKeyboardVisible();
+  if (!activeRoute || !TAB_ROUTE_NAMES.has(activeRoute) || keyboardVisible) return null;
   return (
     <TabBar
       activeRoute={activeRoute}
@@ -350,27 +354,33 @@ export function AppNavigator() {
             <Stack.Screen
               name="SongsList"
               component={SongsListScreen}
-              options={{ title: t('songs.title') }}
+              options={{ title: t('songs.title'), headerShown: false }}
             />
             <Stack.Screen
               name="SongDetail"
               component={SongDetailScreen}
-              options={({ route }) => ({ title: route.params.song.title })}
+              options={({ route }) => ({
+                title: route.params.song.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="EventsList"
               component={EventsListScreen}
-              options={{ title: t('events.title') }}
+              options={{ title: t('events.title'), headerShown: false }}
             />
             <Stack.Screen
               name="EventDetail"
               component={EventDetailScreen}
-              options={({ route }) => ({ title: route.params.event.title })}
+              options={({ route }) => ({
+                title: route.params.event.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="YouTubePlayer"
               component={YouTubePlayerScreen}
-              options={{ title: t('events.watchOnYouTube') }}
+              options={{ title: t('events.watchOnYouTube'), headerShown: false }}
             />
             <Stack.Screen
               name="BibleBooks"

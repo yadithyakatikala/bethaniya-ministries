@@ -1,8 +1,10 @@
 import {
   formatDateTime,
   formatDayMonthShort,
+  formatEventWhen,
   formatIsoDateString,
   formatLongDate,
+  formatMonthShort,
   formatShortDate,
   formatIsoWeekdayDate,
   formatWeekdayDate,
@@ -181,5 +183,56 @@ describe('formatsDatesInTelugu', () => {
     // Diagnostic only -- nothing in the UI branches on it, and the answer
     // legitimately differs between Node here and Hermes on a device.
     expect(typeof formatsDatesInTelugu()).toBe('boolean');
+  });
+});
+
+describe('formatEventWhen', () => {
+  const NOW = new Date(2026, 9, 11, 8, 0);
+
+  it('names the day for a later event and the time after a comma', () => {
+    const text = formatEventWhen(new Date(2026, 9, 14, 18, 30), 'en', 'Today', NOW);
+    expect(text).toMatch(/^Wed 14 Oct, /);
+    expect(text).toMatch(/6:30\s?PM$/i);
+  });
+
+  it('says Today, in the word it is given, for an event starting today', () => {
+    const text = formatEventWhen(new Date(2026, 9, 11, 10, 30), 'en', 'Today', NOW);
+    expect(text).toMatch(/^Today, 10:30\s?AM$/i);
+    expect(formatEventWhen(new Date(2026, 9, 11, 23, 59), 'en', 'ఈరోజు', NOW)).toMatch(
+      /^ఈరోజు, /
+    );
+  });
+
+  it('does not call yesterday or tomorrow "Today"', () => {
+    expect(formatEventWhen(new Date(2026, 9, 10, 10, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+    expect(formatEventWhen(new Date(2026, 9, 12, 10, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+  });
+
+  it('adds the year only when the event is not in this one', () => {
+    expect(formatEventWhen(new Date(2027, 0, 3, 9, 0), 'en', 'Today', NOW)).toMatch(
+      /^Sun 3 Jan 2027, /
+    );
+    // The same calendar day in another year is not today.
+    expect(formatEventWhen(new Date(2027, 9, 11, 9, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+  });
+
+  it('puts the day before the month in Telugu too and never throws', () => {
+    const text = formatEventWhen(new Date(2026, 9, 14, 18, 30), 'te', 'ఈరోజు', NOW);
+    expect(text).toMatch(/ 14 /);
+    expect(text.includes(', ')).toBe(true);
+    expect(text.indexOf('14')).toBeLessThan(text.indexOf(','));
+  });
+});
+
+describe('formatMonthShort', () => {
+  it('is the abbreviated month alone, in either language, and never empty', () => {
+    expect(formatMonthShort(new Date(2026, 9, 14, 12), 'en')).toBe('Oct');
+    expect(formatMonthShort(new Date(2026, 9, 14, 12), 'te').length).toBeGreaterThan(0);
   });
 });

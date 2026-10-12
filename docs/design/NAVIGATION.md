@@ -70,6 +70,11 @@ a centred title, room for one action) with the platform header off, so every
 screen has the same bar in both themes and both languages. Not-yet-redesigned
 screens keep the themed native header until they are rebuilt.
 
+Songs, Events (a list, an event, and the live player) are pushed from Community's
+shelf and are redesigned the same way; see `COMMUNITY.md`. The tab bar steps out of
+the way while the keyboard is up (`navigation/useKeyboardVisible.ts`), as the design
+shows for the chat's message box.
+
 `AnnouncementDetail` and `CommunityPostDetail` are **one screen**
 (`features/updates/UpdateDetail.tsx`) labelled for what it is; `SavedVerses`
 (`features/you/SavedVersesScreen.tsx`) lists notes, highlights or bookmarks, each

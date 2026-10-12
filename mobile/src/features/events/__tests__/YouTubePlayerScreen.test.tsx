@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { YouTubePlayerScreen } from '../YouTubePlayerScreen';
@@ -21,23 +21,25 @@ jest.mock('../../../services/firebase/app');
  * screen's own doc comment for why that's a separate, manual, real-device
  * verification item.
  */
-async function renderScreen(youtubeUrl: string) {
-  return await render(
+async function renderScreen(youtubeUrl: string, title?: string) {
+  const goBack = jest.fn();
+  const utils = await render(
     <AuthProvider>
       <PreferencesProvider>
         <YouTubePlayerScreen
-          navigation={{} as never}
+          navigation={{ goBack } as never}
           route={
             {
               key: 'YouTubePlayer',
               name: 'YouTubePlayer',
-              params: { youtubeUrl },
+              params: { youtubeUrl, title },
             } as never
           }
         />
       </PreferencesProvider>
     </AuthProvider>
   );
+  return { ...utils, goBack };
 }
 
 describe('YouTubePlayerScreen', () => {
@@ -66,5 +68,33 @@ describe('YouTubePlayerScreen', () => {
   it('shows a graceful error, without crashing, for an empty URL', async () => {
     const { getByTestId } = await renderScreen('');
     expect(getByTestId('youtube-player-error')).toBeTruthy();
+  });
+
+  it('names the event in the top bar, or says Watch live on YouTube when it was given none', async () => {
+    const named = await renderScreen('https://youtu.be/dQw4w9WgXcQ', 'Sunday Worship');
+    expect(named.getByText('Sunday Worship')).toBeTruthy();
+    await named.unmount();
+
+    const unnamed = await renderScreen('https://youtu.be/dQw4w9WgXcQ');
+    expect(unnamed.getByText('Watch live on YouTube')).toBeTruthy();
+  });
+
+  it('leaves the player with the top bar Back', async () => {
+    const { getByRole, goBack } = await renderScreen('https://youtu.be/dQw4w9WgXcQ');
+    await fireEvent.press(getByRole('button', { name: 'Back' }));
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the top bar, and offers a way back to the event, when the link is not supported', async () => {
+    const { getByText, getByTestId, getByRole, goBack } = await renderScreen(
+      'https://example.com/not-youtube',
+      'Sunday Worship'
+    );
+    expect(getByText('Sunday Worship')).toBeTruthy();
+    expect(getByTestId('youtube-player-error')).toHaveTextContent(
+      /isn’t a supported YouTube URL/
+    );
+    await fireEvent.press(getByRole('button', { name: 'Back to the event' }));
+    expect(goBack).toHaveBeenCalledTimes(1);
   });
 });

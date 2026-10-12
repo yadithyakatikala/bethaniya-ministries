@@ -1,10 +1,12 @@
 import { Linking, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import { useTheme } from '../../theme';
+import { AppButton, useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
+import { TopBar } from '../common/TopBar';
 import { isAllowedPlayerNavigation, toYouTubeEmbedUrl } from './youtube';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
@@ -22,6 +24,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
  * youtube.ts. An unparseable URL shows a clear error instead of loading
  * a broken/garbage WebView source or crashing.
  *
+ * THE LOOK. A top bar with Back and the event's name (`title`, passed by the
+ * event's page; "Watch live on YouTube" when it was reached without one), and
+ * the player edge to edge at 16:9 on black. A link that is not a supported
+ * YouTube address says so in the error box, with a "Back to the event" button
+ * -- never a dead end.
+ *
  * VERIFICATION NOTE: Jest here mocks react-native-webview entirely (see
  * mobile/__mocks__/react-native-webview.js) -- the tests below prove this
  * screen resolves the right embed URL and *asks* a WebView to load it,
@@ -31,21 +39,54 @@ type Props = NativeStackScreenProps<RootStackParamList, 'YouTubePlayer'>;
  * limitation already documented for AudioPlayer.tsx in Day 6's
  * correction pass.
  */
-export function YouTubePlayerScreen({ route }: Props) {
-  const { youtubeUrl } = route.params;
-  const { colors } = useTheme();
+export function YouTubePlayerScreen({ route, navigation }: Props) {
+  const { youtubeUrl, title } = route.params;
+  const { colors, layout, radii, type } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const embedUrl = toYouTubeEmbedUrl(youtubeUrl);
+  const pad = { paddingHorizontal: layout.screenMargin };
+
+  const bar = (
+    <View style={pad}>
+      <TopBar
+        title={title ?? t('events.watchOnYouTube')}
+        onBack={() => navigation.goBack()}
+      />
+    </View>
+  );
 
   if (!embedUrl) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top }]}
         testID="youtube-player-error"
       >
-        <Text style={[styles.errorText, { color: colors.secondaryText }]}>
-          {t('events.unsupportedStreamLink')}
-        </Text>
+        {bar}
+        <View style={[pad, styles.errorWrap]}>
+          <View
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.error,
+              {
+                backgroundColor: colors.dangerTint,
+                borderColor: colors.danger,
+                borderRadius: radii.card,
+              },
+            ]}
+          >
+            <Text style={[type.body, styles.errorText, { color: colors.ink }]}>
+              {t('events.unsupportedStreamLink')}
+            </Text>
+            <AppButton
+              testID="youtube-back-to-event"
+              title={t('events.backToEvent')}
+              variant="secondary"
+              compact
+              onPress={() => navigation.goBack()}
+            />
+          </View>
+        </View>
       </View>
     );
   }
@@ -72,24 +113,34 @@ export function YouTubePlayerScreen({ route }: Props) {
   }
 
   return (
-    <WebView
-      testID="youtube-webview"
-      source={{ uri: embedUrl }}
-      style={styles.webview}
-      allowsFullscreenVideo
-      // Defence in depth alongside onShouldStartLoadWithRequest below:
-      // originWhitelist governs what the WebView will load at all, the
-      // callback governs each individual navigation.
-      originWhitelist={['https://*.youtube.com', 'https://youtube.com']}
-      onShouldStartLoadWithRequest={handleShouldStartLoad}
-    />
+    <View
+      style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top }]}
+    >
+      {bar}
+      <View style={styles.player}>
+        <WebView
+          testID="youtube-webview"
+          source={{ uri: embedUrl }}
+          style={styles.webview}
+          allowsFullscreenVideo
+          // Defence in depth alongside onShouldStartLoadWithRequest below:
+          // originWhitelist governs what the WebView will load at all, the
+          // callback governs each individual navigation.
+          originWhitelist={['https://*.youtube.com', 'https://youtube.com']}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
-  // Colour comes from the theme in JSX; this hardcoded '#666' was dead
-  // and only invited someone to re-introduce an unthemed colour here.
+  screen: { flex: 1 },
+  // Black behind the video, whichever palette the app is in: it is the
+  // letterbox of a film, not a surface of the interface.
+  player: { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' },
+  webview: { flex: 1, backgroundColor: '#000' },
+  errorWrap: { marginTop: 16 },
+  error: { borderWidth: 1, padding: 24, gap: 12, alignItems: 'center' },
   errorText: { textAlign: 'center' },
-  webview: { flex: 1 },
 });

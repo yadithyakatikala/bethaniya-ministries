@@ -69,11 +69,14 @@ a key cannot be accidentally dropped while editing.
 | `you.tabSaved` | భద్రపరచినవి | "భద్రపరచినవి" ("things kept safe"). Confirm it reads as "saved". |
 | `prayerWall.anonymousHelp` | ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు. | A PRIVACY statement members rely on. Check it says plainly who can and cannot see a name: other members and the church team cannot; the church's main administrator can, only to deal with a report. |
 | `report.intro` | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు. | A promise that the reporter's name is not shown to other members. Check the wording is plain and exact. |
+| `songs.noFavouritesMessage` | పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది. | Tells a member how to add a favourite: choose the "Favourite" button on a song. It quotes the button's own label (`songs.favoriteAction`, "ఇష్టమైనది"); keep the two the same word. |
+| `songs.progress` | పాట పురోగతి | Spoken by a screen reader for the song's progress line ("Song progress", then the time played and the length). A natural spoken phrase is wanted. |
+| `events.today` | ఈరోజు | Replaces the date on an event that starts today ("ఈరోజు, 10:30 AM"). Check it reads naturally before a time. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
 
 ## Every string
 
-464 keys, grouped by screen area.
+472 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -298,6 +301,12 @@ a key cannot be accidentally dropped while editing.
 | `songs.emptyShort` | No songs yet. | ఇంకా పాటలు లేవు. |  |
 | `songs.favoriteAction` | Favourite | ఇష్టమైనది |  |
 | `songs.favoritedState` | Favourited | ఇష్టమైనవిలో ఉంది |  |
+| `songs.filterAll` | All | అన్నీ |  |
+| `songs.filterFavourites` | Favourites | ఇష్టమైనవి |  |
+| `songs.noFavourites` | No favourites yet | ఇష్టమైనవి ఇంకా లేవు |  |
+| `songs.noFavouritesMessage` | Choose Favourite on a song to keep it here. | పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది. | ⚠️ |
+| `songs.lyrics` | Lyrics | సాహిత్యం |  |
+| `songs.progress` | Song progress | పాట పురోగతి | ⚠️ |
 
 ### Events
 
@@ -314,6 +323,8 @@ a key cannot be accidentally dropped while editing.
 | `events.emptyShort` | No upcoming events. | రాబోయే కార్యక్రమాలు లేవు. |  |
 | `events.dateTBA` | Date and time to be announced | తేదీ, సమయం తరువాత ప్రకటిస్తాము |  |
 | `events.unsupportedStreamLink` | This stream link isn’t a supported YouTube URL, so it can’t be played here. | ఈ ప్రసార లింక్ మద్దతు ఉన్న YouTube URL కాదు, అందుకే ఇక్కడ ప్లే చేయలేము. |  |
+| `events.backToEvent` | Back to the event | కార్యక్రమానికి తిరిగి |  |
+| `events.today` | Today | ఈరోజు | ⚠️ |
 
 ### More
 

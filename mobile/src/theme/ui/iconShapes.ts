@@ -151,10 +151,13 @@ export const ICON_SHAPES = {
       d: 'M12 19.8s-7.2-4.4-7.2-9.6A4.1 4.1 0 0 1 12 7.7a4.1 4.1 0 0 1 7.2 2.5c0 5.2-7.2 9.6-7.2 9.6z',
     },
   ],
+  // The same heart, solid: a favourite, a saved post. (Solid, like the play triangle,
+  // rather than the faint wash `filled` gives a tab: a heart is either chosen or not.)
   heartf: [
     {
       t: 'path',
       d: 'M12 19.8s-7.2-4.4-7.2-9.6A4.1 4.1 0 0 1 12 7.7a4.1 4.1 0 0 1 7.2 2.5c0 5.2-7.2 9.6-7.2 9.6z',
+      fill: true,
     },
   ],
   play: [{ t: 'path', d: 'M8.6 6.4v11.2L17.6 12z', fill: true }],

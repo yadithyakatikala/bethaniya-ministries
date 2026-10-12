@@ -35,13 +35,18 @@ import { YouScreen } from ${T('features/you/YouScreen')};
 import { SavedVersesScreen } from ${T('features/you/SavedVersesScreen')};
 import { AnnouncementDetailScreen } from ${T('features/announcements/AnnouncementDetailScreen')};
 import { CommunityPostDetailScreen } from ${T('features/community/CommunityPostDetailScreen')};
+import { SongsListScreen } from ${T('features/songs/SongsListScreen')};
+import { SongDetailScreen } from ${T('features/songs/SongDetailScreen')};
+import { EventsListScreen } from ${T('features/events/EventsListScreen')};
+import { EventDetailScreen } from ${T('features/events/EventDetailScreen')};
+import { YouTubePlayerScreen } from ${T('features/events/YouTubePlayerScreen')};
 import { TabBar } from ${T('navigation/TabBar')};
 
 const Stack = createNativeStackNavigator();
 const ref = createNavigationContainerRef();
 const TABS = new Set(['Home', 'BibleBooks', 'PrayersHub', 'CommunityHub', 'You']);
-const OTHER = ['BibleBooks', 'EventsList', 'SongsList', 'MediaFeed', 'Settings', 'NotificationCenter', 'PlansList',
-  'SavedMedia', 'DailyVerse', 'EventDetail', 'BibleChapter', 'PlanDay'];
+const OTHER = ['BibleBooks', 'MediaFeed', 'Settings', 'NotificationCenter', 'PlansList',
+  'SavedMedia', 'DailyVerse', 'BibleChapter', 'PlanDay'];
 
 function Stub({ route }: any) {
   return (
@@ -77,6 +82,11 @@ function Root() {
             <Stack.Screen name="SavedVerses" component={SavedVersesScreen} initialParams={initial.name === 'SavedVerses' ? initial.params : undefined} />
             <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} initialParams={initial.name === 'AnnouncementDetail' ? initial.params : undefined} />
             <Stack.Screen name="CommunityPostDetail" component={CommunityPostDetailScreen} initialParams={initial.name === 'CommunityPostDetail' ? initial.params : undefined} />
+            <Stack.Screen name="SongsList" component={SongsListScreen} />
+            <Stack.Screen name="SongDetail" component={SongDetailScreen} initialParams={initial.name === 'SongDetail' ? initial.params : undefined} />
+            <Stack.Screen name="EventsList" component={EventsListScreen} />
+            <Stack.Screen name="EventDetail" component={EventDetailScreen} initialParams={initial.name === 'EventDetail' ? initial.params : undefined} />
+            <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} initialParams={initial.name === 'YouTubePlayer' ? initial.params : undefined} />
             {OTHER.map((name) => <Stack.Screen key={name} name={name} component={Stub} />)}
           </Stack.Navigator>
         </View>
@@ -155,6 +165,17 @@ const seed = (d) => {
       ...(r.anonymous ? {} : { authorUid: r.own ? 'qa-member' : 'other-' + i, authorName: r.authorName }),
     };
     if (r.own) docs['users/qa-member/prayerRequests/r' + i] = { createdAt: created, anonymous: !!r.anonymous };
+  });
+  (d.songs ?? []).forEach((song, i) => {
+    docs['songs/s' + i] = { published: true, category: 'Hymn', lyrics: '', audioUrl: 'https://example.org/qa.mp3', coverUrl: null, ...song };
+  });
+  (d.events ?? []).forEach((e, i) => {
+    const { inH, ...rest } = e;
+    docs['events/e' + i] = { published: true, description: '', isLive: false, youtubeUrl: '', ...rest, startsAt: ts(now + inH * hour) };
+  });
+  (d.chat ?? []).forEach((m, i) => {
+    const { minAgo, ...rest } = m;
+    docs['community_messages/m' + String(i).padStart(2, '0')] = { removed: false, ...rest, createdAt: minAgo === null ? null : ts(now - minAgo * 60_000) };
   });
   for (let i = 0; i < (d.savedMedia ?? 0); i++) {
     docs['users/qa-member/mediaSaves/s' + i] = { createdAt: ts(now - i * day) };
@@ -257,6 +278,25 @@ const EN_DATA = {
     { ref: { translationId: 'en', bookId: 'isaiah', chapter: 41, verse: 10 }, days: 8 },
   ],
   plan: { title: 'Seven Days in the Psalms' },
+  songs: [
+    { title: 'Amazing Grace', artist: 'Hymn', coverUrl: 'https://example.org/qa-a.svg', lyrics: 'Amazing grace! How sweet the sound,\nThat saved a wretch like me!\nI once was lost, but now am found;\nWas blind, but now I see.\n\n’Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed.' },
+    { title: 'Be Still', artist: 'Church choir', lyrics: 'Be still, and know that I am God.' },
+    { title: 'How Great Thou Art', artist: 'Hymn', coverUrl: 'https://example.org/qa-b.svg', lyrics: 'O Lord my God, when I in awesome wonder...' },
+  ],
+  events: [
+    { title: 'Sunday Worship', location: 'Main hall', isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', inH: 1, description: 'A time of worship and the word. Bring a friend.' },
+    { title: 'Wednesday Prayer Meeting', location: 'Main hall', inH: 81, description: 'A time of prayer for the week ahead. Bring a friend, and bring the names of people you would like to pray for. Tea is served afterwards in the courtyard.' },
+    { title: 'Youth Fellowship', location: 'Room 2', inH: 128.5 },
+    { title: 'Harvest Thanksgiving', location: 'Main hall', inH: 337 },
+  ],
+  chat: [
+    { authorUid: 'u-asha', authorName: 'Asha', minAgo: 16, text: 'Good morning, church family. Who is bringing tea on Sunday?' },
+    { authorUid: 'u-asha', authorName: 'Asha', minAgo: 15, text: 'I can bring biscuits too.' },
+    { authorUid: 'qa-member', authorName: 'Joshua', minAgo: 10, text: 'I can bring the tea. See you all there.' },
+    { authorUid: 'u-daniel', authorName: 'Daniel', minAgo: 6, text: 'Praise the Lord! The youth meeting moved to 6 PM on Friday.' },
+    { authorUid: 'u-priya', authorName: 'Priya', minAgo: 4, text: 'removed', removed: true },
+    { authorUid: 'qa-member', authorName: 'Joshua', minAgo: null, text: 'Thank you, Daniel.' },
+  ],
   journal: 6,
   savedMedia: 4,
   ...EN_PRAYERS,
@@ -291,6 +331,25 @@ const TE_DATA = {
     text: ['ఇచ్చాడు: ఇది గతకాలంలో జరిగిన పని. ఇప్పటికే పూర్తయింది.', 'ఈ వారం కష్టకాలంలో ఈ వచనం గురించి ప్రార్థించాను.', 'చింతను ప్రార్థనగా మార్చుకోవాలి.'][i],
   })),
   plan: { title: 'కీర్తనలలో ఏడు రోజులు' },
+  songs: [
+    { title: 'ఆశ్చర్యకరమైన కృప', artist: 'కీర్తన', coverUrl: 'https://example.org/qa-a.svg', lyrics: 'ఆశ్చర్యకరమైన కృప! ఎంత మధురమైన నాదం,\nనాలాంటి పాపిని రక్షించింది!\nనేను తప్పిపోయాను, ఇప్పుడు దొరికాను;\nగుడ్డివాడను, ఇప్పుడు చూస్తున్నాను.\n\nకృపే నా హృదయానికి భయం నేర్పింది,\nకృపే నా భయాలను తొలగించింది.' },
+    { title: 'నిశ్శబ్దంగా ఉండు', artist: 'సంఘ గాయక బృందం', lyrics: 'ఊరకుండుడి, నేనే దేవుడనని తెలిసికొనుడి.' },
+    { title: 'నీవే మహా గొప్పవాడవు', artist: 'కీర్తన', lyrics: 'ప్రభువా నా దేవా...' },
+  ],
+  events: [
+    { title: 'ఆదివారం ఆరాధన', location: 'ప్రధాన మందిరం', isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', inH: 1, description: 'ఆరాధన, వాక్యం. ఒక స్నేహితుడిని తీసుకురండి.' },
+    { title: 'బుధవారం ప్రార్థన కూడిక', location: 'ప్రధాన మందిరం', inH: 81, description: 'రాబోయే వారం కోసం ప్రార్థన సమయం. స్నేహితులను తీసుకురండి, ప్రార్థన కోరుకునే వారి పేర్లు తీసుకురండి. తర్వాత ప్రాంగణంలో టీ ఉంటుంది.' },
+    { title: 'యువజన సహవాసం', location: 'గది 2', inH: 128.5 },
+    { title: 'కృతజ్ఞతా పండుగ', location: 'ప్రధాన మందిరం', inH: 337 },
+  ],
+  chat: [
+    { authorUid: 'u-asha', authorName: 'ఆశా', minAgo: 16, text: 'శుభోదయం, సంఘ కుటుంబమా. ఆదివారం టీ ఎవరు తెస్తున్నారు?' },
+    { authorUid: 'u-asha', authorName: 'ఆశా', minAgo: 15, text: 'నేను బిస్కెట్లు కూడా తెస్తాను.' },
+    { authorUid: 'qa-member', authorName: 'జాషువా', minAgo: 10, text: 'టీ నేను తెస్తాను. అక్కడ కలుద్దాం.' },
+    { authorUid: 'u-daniel', authorName: 'డేనియల్', minAgo: 6, text: 'ప్రభువును స్తుతించండి! శుక్రవారం యువజన సమావేశం సాయంత్రం 6 గంటలకు మారింది.' },
+    { authorUid: 'u-priya', authorName: 'ప్రియ', minAgo: 4, text: 'x', removed: true },
+    { authorUid: 'qa-member', authorName: 'జాషువా', minAgo: null, text: 'ధన్యవాదాలు, డేనియల్.' },
+  ],
   ...TE_PRAYERS,
 };
 
@@ -465,6 +524,96 @@ const SCENARIOS = [
     route: route('PrayersHub', { tab: 'journal' }),
     steps: async (qa) => {
       await qa.tap('prayer-delete-e0');
+      await qa.advance(400);
+    },
+  },
+  // --- Songs
+  { name: 'songs-light', storage: { ...EN, song_favorites: '["s0","s2"]' }, data: EN_DATA, route: route('SongsList') },
+  { name: 'songs-dark', storage: { ...EN, song_favorites: '["s0","s2"]', theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('SongsList') },
+  { name: 'songs-te', storage: { ...TE, song_favorites: '["s0","s2"]' }, data: TE_DATA, route: route('SongsList') },
+  {
+    name: 'songs-favourites',
+    storage: { ...EN, song_favorites: '["s0","s2"]' },
+    data: EN_DATA,
+    route: route('SongsList'),
+    steps: async (qa) => {
+      await qa.tap('songs-filter-favourites');
+      await qa.advance(300);
+    },
+  },
+  {
+    name: 'songs-no-favourites',
+    storage: EN,
+    data: EN_DATA,
+    route: route('SongsList'),
+    steps: async (qa) => {
+      await qa.tap('songs-filter-favourites');
+      await qa.advance(300);
+    },
+  },
+  { name: 'songs-empty', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('SongsList') },
+  { name: 'song-detail-light', storage: { ...EN, song_favorites: '["s0"]' }, data: EN_DATA, route: route('SongDetail', { song: { id: 's0', ...EN_DATA.songs[0], category: 'Hymn', audioUrl: 'https://example.org/qa.mp3' } }) },
+  { name: 'song-detail-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('SongDetail', { song: { id: 's1', ...EN_DATA.songs[1], coverUrl: null, category: 'Hymn', audioUrl: 'https://example.org/qa.mp3' } }) },
+  { name: 'song-detail-te', storage: { ...TE, song_favorites: '["s0"]' }, data: TE_DATA, route: route('SongDetail', { song: { id: 's0', ...TE_DATA.songs[0], category: 'Hymn', audioUrl: 'https://example.org/qa.mp3' } }) },
+  // --- Events
+  { name: 'events-light', storage: EN, data: EN_DATA, route: route('EventsList') },
+  { name: 'events-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('EventsList') },
+  { name: 'events-te', storage: TE, data: TE_DATA, route: route('EventsList') },
+  { name: 'events-empty', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('EventsList') },
+  {
+    name: 'event-live-light',
+    storage: EN,
+    data: EN_DATA,
+    route: route('EventDetail', { event: { id: 'e0', title: 'Sunday Worship', location: 'Main hall', description: EN_DATA.events[1].description, isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', startsAt: { __date: NOW + 3_600_000 } } }),
+  },
+  {
+    name: 'event-live-dark',
+    storage: { ...EN, theme_preference: 'dark' },
+    dark: true,
+    data: EN_DATA,
+    route: route('EventDetail', { event: { id: 'e0', title: 'Sunday Worship', location: 'Main hall', description: EN_DATA.events[1].description, isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', startsAt: { __date: NOW + 3_600_000 } } }),
+  },
+  {
+    name: 'event-plain-light',
+    storage: EN,
+    data: EN_DATA,
+    route: route('EventDetail', { event: { id: 'e1', title: 'Wednesday Prayer Meeting', location: 'Main hall', description: EN_DATA.events[1].description, isLive: false, youtubeUrl: '', startsAt: { __date: NOW + 81 * 3_600_000 } } }),
+  },
+  {
+    name: 'event-live-te',
+    storage: TE,
+    data: TE_DATA,
+    route: route('EventDetail', { event: { id: 'e0', title: 'ఆదివారం ఆరాధన', location: 'ప్రధాన మందిరం', description: TE_DATA.events[1].description, isLive: true, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', startsAt: { __date: NOW + 3_600_000 } } }),
+  },
+  {
+    name: 'player-unsupported',
+    storage: EN,
+    data: EN_DATA,
+    route: route('YouTubePlayer', { youtubeUrl: 'https://example.com/not-youtube', title: 'Sunday Worship' }),
+  },
+  // --- Chat
+  { name: 'chat-light', storage: EN, data: EN_DATA, route: route('CommunityHub', { tab: 'chat' }) },
+  { name: 'chat-dark', storage: { ...EN, theme_preference: 'dark' }, dark: true, data: EN_DATA, route: route('CommunityHub', { tab: 'chat' }) },
+  { name: 'chat-te', storage: TE, data: TE_DATA, route: route('CommunityHub', { tab: 'chat' }) },
+  { name: 'chat-empty', storage: EN, data: { name: 'Joshua', churchName: 'Maranatha' }, route: route('CommunityHub', { tab: 'chat' }) },
+  {
+    name: 'chat-draft',
+    storage: EN,
+    data: EN_DATA,
+    route: route('CommunityHub', { tab: 'chat' }),
+    steps: async (qa) => {
+      await qa.type('chat-input', 'Amen. I will bring chairs as well.');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'chat-delete',
+    reduced: true,
+    storage: EN,
+    data: EN_DATA,
+    route: route('CommunityHub', { tab: 'chat' }),
+    steps: async (qa) => {
+      await qa.tap('chat-delete-m02');
       await qa.advance(400);
     },
   },

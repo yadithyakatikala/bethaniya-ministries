@@ -205,6 +205,16 @@ describe('the icon set', () => {
     }
   });
 
+  it('draws a chosen heart solid and an unchosen one as an outline, from the same shape', () => {
+    const [outline] = ICON_SHAPES.heart;
+    const [solid] = ICON_SHAPES.heartf;
+    expect(solid.t === 'path' && outline.t === 'path' && solid.d === outline.d).toBe(
+      true
+    );
+    expect('fill' in outline && outline.fill).toBeFalsy();
+    expect('fill' in solid && solid.fill).toBe(true);
+  });
+
   it('keeps every circle and rectangle on the 24-point grid', () => {
     for (const name of ICON_NAMES) {
       for (const shape of ICON_SHAPES[name]) {

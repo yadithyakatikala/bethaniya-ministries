@@ -130,6 +130,15 @@ export function formatWeekdayDate(date: Date, appLanguage: BibleLanguage): strin
   return `${weekday}, ${date.getDate()} ${month}`;
 }
 
+/** The month abbreviated -- "Oct". For the date block on an event row. */
+export function formatMonthShort(date: Date, appLanguage: BibleLanguage): string {
+  const options: Intl.DateTimeFormatOptions = { month: 'short' };
+  return safely(
+    () => date.toLocaleDateString(localeFor(appLanguage), options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+}
+
 /** The weekday abbreviated -- "Wed". For the date block on an event row. */
 export function formatWeekdayShort(date: Date, appLanguage: BibleLanguage): string {
   const options: Intl.DateTimeFormatOptions = { weekday: 'short' };
@@ -137,6 +146,35 @@ export function formatWeekdayShort(date: Date, appLanguage: BibleLanguage): stri
     () => date.toLocaleDateString(localeFor(appLanguage), options),
     () => date.toLocaleDateString(undefined, options)
   );
+}
+
+/**
+ * When an event starts, as its row and its page say it -- "Wed 14 Oct, 6:30 PM",
+ * or "Today, 10:30 AM" for one that starts today (`todayLabel` is the word, in
+ * the app's language: this module owns no strings). The year is added only when
+ * it is not this one, like formatDayMonthShort. The day comes before the month
+ * in both languages, and each part is built on its own so an engine that lacks
+ * one of them (Telugu month names on a trimmed Hermes) still prints the rest.
+ * `now` is a parameter so a test can pin "today".
+ */
+export function formatEventWhen(
+  date: Date,
+  appLanguage: BibleLanguage,
+  todayLabel: string,
+  now: Date = new Date()
+): string {
+  const time = formatTimeOfDay(date, appLanguage);
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  if (sameDay) return `${todayLabel}, ${time}`;
+  const day = `${formatWeekdayShort(date, appLanguage)} ${formatDayMonthShort(
+    date,
+    appLanguage,
+    now
+  )}`;
+  return `${day}, ${time}`;
 }
 
 /** Just the clock -- "9:14 am". For a chat, where the day is context. */
