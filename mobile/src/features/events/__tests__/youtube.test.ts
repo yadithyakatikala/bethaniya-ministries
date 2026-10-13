@@ -1,8 +1,10 @@
 import {
   buildYouTubeEmbedUrl,
+  buildYouTubeThumbnailUrl,
   isAllowedPlayerNavigation,
   parseYouTubeVideoId,
   toYouTubeEmbedUrl,
+  toYouTubeThumbnailUrl,
 } from '../youtube';
 
 const VIDEO_ID = 'dQw4w9WgXcQ';
@@ -105,6 +107,39 @@ describe('toYouTubeEmbedUrl', () => {
  * chrome-less in-app browser with no URL bar and no sign they had left the
  * app. See isAllowedPlayerNavigation() in ../youtube.ts.
  */
+describe('buildYouTubeThumbnailUrl', () => {
+  it("is the poster on YouTube's own picture host, which the player already loads from", () => {
+    expect(buildYouTubeThumbnailUrl('abcdefghijk')).toBe(
+      'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg'
+    );
+  });
+});
+
+describe('toYouTubeThumbnailUrl', () => {
+  it('turns every supported link shape into the same poster', () => {
+    for (const url of [
+      'https://www.youtube.com/watch?v=abcdefghijk',
+      'https://youtu.be/abcdefghijk',
+      'https://m.youtube.com/watch?v=abcdefghijk',
+      'https://www.youtube.com/live/abcdefghijk',
+    ]) {
+      expect(toYouTubeThumbnailUrl(url)).toBe('https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg');
+    }
+  });
+
+  it('is null for anything that is not a recognised YouTube link, rather than a guess', () => {
+    for (const url of [
+      'https://example.org/clip.mp4',
+      'https://www.youtube.com/@church',
+      'https://www.youtube.com/watch?v=short',
+      'not a url',
+      '',
+    ]) {
+      expect(toYouTubeThumbnailUrl(url)).toBeNull();
+    }
+  });
+});
+
 describe('isAllowedPlayerNavigation', () => {
   it("allows YouTube's own player and playback infrastructure", () => {
     expect(isAllowedPlayerNavigation('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe(

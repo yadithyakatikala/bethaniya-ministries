@@ -1,4 +1,9 @@
-import { MAX_MEDIA_URL_LENGTH, isValidMediaUrl, mediaUrlProblem } from '../mediaUrl';
+import {
+  MAX_MEDIA_URL_LENGTH,
+  isValidMediaUrl,
+  mediaUrlProblem,
+  posterFor,
+} from '../mediaUrl';
 
 /**
  * The link is the whole attack surface -- nothing is ever uploaded (see
@@ -97,5 +102,28 @@ describe('links the app refuses, and why', () => {
     expect(mediaUrlProblem('http://example.org/a.jpg')).not.toBe(
       mediaUrlProblem('https://example.org/a.apk')
     );
+  });
+});
+
+describe('the picture drawn for a post', () => {
+  it('is the post itself for a photograph', () => {
+    expect(posterFor({ type: 'image', mediaUrl: 'https://example.org/photo.jpg' })).toBe(
+      'https://example.org/photo.jpg'
+    );
+  });
+
+  it("is YouTube's poster for a YouTube video", () => {
+    expect(
+      posterFor({
+        type: 'video',
+        mediaUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
+      })
+    ).toBe('https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg');
+  });
+
+  it("is nothing for any other video: a video's address is not a picture, and drawing it costs a request", () => {
+    expect(
+      posterFor({ type: 'video', mediaUrl: 'https://example.org/clip.mp4' })
+    ).toBeNull();
   });
 });

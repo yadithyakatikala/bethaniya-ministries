@@ -1,9 +1,11 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { onSnapshot, Timestamp } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { EventsListScreen } from '../EventsListScreen';
+import { lightTokens } from '../../../theme/tokens';
 
 jest.mock('../../../services/firebase/app');
 
@@ -18,17 +20,45 @@ jest.mock('../../../services/firebase/app');
  */
 async function renderScreen() {
   const navigate = jest.fn();
+  const goBack = jest.fn();
   const utils = await render(
     <AuthProvider>
       <PreferencesProvider>
         <EventsListScreen
-          navigation={{ navigate } as never}
+          navigation={{ navigate, goBack } as never}
           route={{ key: 'EventsList', name: 'EventsList' } as never}
         />
       </PreferencesProvider>
     </AuthProvider>
   );
-  return { ...utils, navigate };
+  return { ...utils, navigate, goBack };
+}
+
+function eventDoc(
+  id: string,
+  startsAt: Date | null,
+  fields: Record<string, unknown> = {}
+) {
+  return {
+    id,
+    data: () => ({
+      title: `Event ${id}`,
+      location: 'Main hall',
+      description: 'Weekly gathering',
+      startsAt: startsAt ? new Timestamp(Math.floor(startsAt.getTime() / 1000), 0) : null,
+      isLive: false,
+      youtubeUrl: '',
+      published: true,
+      ...fields,
+    }),
+  };
+}
+
+function publish(docs: ReturnType<typeof eventDoc>[]) {
+  (onSnapshot as jest.Mock).mockImplementation((_q, next) => {
+    next({ docs });
+    return jest.fn();
+  });
 }
 
 describe('EventsListScreen', () => {
@@ -82,7 +112,7 @@ describe('EventsListScreen', () => {
     await waitFor(() => expect(getByText('Sunday Service')).toBeTruthy());
     expect(getByTestId('live-badge-e1')).toBeTruthy();
 
-    fireEvent.press(getByTestId('event-e1'));
+    await fireEvent.press(getByTestId('event-e1'));
     expect(navigate).toHaveBeenCalledWith(
       'EventDetail',
       expect.objectContaining({ event: expect.objectContaining({ id: 'e1' }) })
@@ -144,5 +174,99 @@ describe('EventsListScreen', () => {
     const { getByText, queryByTestId } = await renderScreen();
     await waitFor(() => expect(getByText('Sunday Service')).toBeTruthy());
     expect(queryByTestId('live-badge-e1')).toBeNull();
+  });
+
+  it('has a top bar named Events whose Back leaves the screen', async () => {
+    publish([eventDoc('e1', new Date(2033, 5, 1, 10, 0))]);
+    const { getByText, getByRole, goBack } = await renderScreen();
+    expect(getByText('Events')).toBeTruthy();
+    await fireEvent.press(getByRole('button', { name: 'Back' }));
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('says when and where on the row, with the day named for a later event', async () => {
+    publish([eventDoc('e1', new Date(2033, 5, 1, 18, 30), { title: 'Prayer Meeting' })]);
+    const { getByText } = await renderScreen();
+    await waitFor(() => expect(getByText('Prayer Meeting')).toBeTruthy());
+    expect(getByText(/^Wed 1 Jun 2033, 6:30\s?PM · Main hall$/i)).toBeTruthy();
+  });
+
+  it('says Today for an event that starts today', async () => {
+    const today = new Date();
+    today.setHours(10, 30, 0, 0);
+    publish([eventDoc('e1', today, { title: 'Sunday Worship' })]);
+    const { getByText } = await renderScreen();
+    await waitFor(() => expect(getByText('Sunday Worship')).toBeTruthy());
+    expect(getByText(/^Today, 10:30\s?AM · Main hall$/i)).toBeTruthy();
+  });
+
+  it('leaves out the place when there is none, and says the date is to be announced when there is none', async () => {
+    publish([
+      eventDoc('e1', new Date(2033, 5, 1, 18, 30), { location: '  ' }),
+      eventDoc('e2', null, { title: 'Date to come' }),
+    ]);
+    const { getByText } = await renderScreen();
+    await waitFor(() => expect(getByText('Date to come')).toBeTruthy());
+    expect(getByText(/^Wed 1 Jun 2033, 6:30\s?PM$/i)).toBeTruthy();
+    expect(getByText('Date and time to be announced · Main hall')).toBeTruthy();
+  });
+
+  it('draws a calendar tile with the weekday, the day and the month', async () => {
+    publish([eventDoc('e1', new Date(2033, 5, 1, 18, 30))]);
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('event-e1')).toBeTruthy());
+    const tile = getByTestId('event-e1-date', { includeHiddenElements: true });
+    expect(tile).toHaveTextContent(/Wed1Jun/);
+  });
+
+  it('lifts a live event into a red-outlined box, and gives the others only a hairline', async () => {
+    publish([
+      eventDoc('live', new Date(2033, 5, 1, 10, 0), { isLive: true }),
+      eventDoc('later', new Date(2033, 5, 3, 10, 0)),
+    ]);
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('event-live')).toBeTruthy());
+    const live = StyleSheet.flatten(getByTestId('event-live').props.style);
+    const later = StyleSheet.flatten(getByTestId('event-later').props.style);
+    expect(live).toMatchObject({ borderWidth: 1.5, borderColor: lightTokens.live });
+    expect(later.borderWidth).toBeUndefined();
+    expect(later.borderBottomWidth).toBe(1);
+  });
+
+  it('names a live row as LIVE NOW first, for a screen reader', async () => {
+    publish([
+      eventDoc('live', new Date(2033, 5, 1, 10, 0), { isLive: true, title: 'Worship' }),
+    ]);
+    const { getByRole } = await renderScreen();
+    await waitFor(() =>
+      expect(getByRole('button', { name: /^LIVE NOW\. Worship\. / })).toBeTruthy()
+    );
+  });
+
+  it('subscribes again, and lists the events, when Try again is pressed', async () => {
+    (onSnapshot as jest.Mock)
+      .mockImplementationOnce((_q, _next, err) => {
+        err({ code: 'unavailable' });
+        return jest.fn();
+      })
+      .mockImplementation((_q, next) => {
+        next({
+          docs: [eventDoc('e1', new Date(2033, 5, 1, 10, 0), { title: 'Back again' })],
+        });
+        return jest.fn();
+      });
+    const { getByText, getByTestId, queryByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('events-error')).toBeTruthy());
+    expect(getByTestId('events-error')).toHaveTextContent(/Could not load events\./);
+    await fireEvent.press(getByText('Try again'));
+    await waitFor(() => expect(getByText('Back again')).toBeTruthy());
+    expect(queryByTestId('events-error')).toBeNull();
+  });
+
+  it('says what the empty page is for', async () => {
+    publish([]);
+    const { getByTestId } = await renderScreen();
+    await waitFor(() => expect(getByTestId('events-empty')).toBeTruthy());
+    expect(getByTestId('events-empty')).toHaveTextContent(/No events yet/);
   });
 });

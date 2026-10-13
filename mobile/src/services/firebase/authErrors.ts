@@ -99,6 +99,35 @@ export function isUserCancellation(error: unknown): boolean {
   return false;
 }
 
+/**
+ * Which field of the email form a sign-in failure is ABOUT, when it is about
+ * one -- so the form can outline it as well as saying so in words.
+ *
+ * A wrong email or password, and an address nobody has registered, all mark
+ * the PASSWORD field. That is deliberate: the message is the same for all of
+ * them (see the table above -- the app never reveals whether an address is
+ * registered), and marking the email field for one and the password field for
+ * another would reveal it. "Already registered" and "not an email address" are
+ * about the email field, and say nothing an address check had not already.
+ */
+export function fieldAtFault(error: unknown): 'email' | 'password' | null {
+  const code = (error as MaybeCodedError | null | undefined)?.code;
+  switch (code) {
+    case 'auth/invalid-email':
+    case 'auth/email-already-in-use':
+      return 'email';
+    case 'auth/missing-password':
+    case 'auth/weak-password':
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'password';
+    default:
+      return null;
+  }
+}
+
 /** Converts any sign-in error into a short, user-safe message. */
 export function toFriendlyAuthMessage(error: unknown): string {
   if (isUserCancellation(error)) return CANCELLED_SIGN_IN_MESSAGE;

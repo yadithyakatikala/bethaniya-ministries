@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { AuthProvider } from '../../../context/AuthContext';
@@ -127,10 +128,129 @@ describe('AudioPlayer', () => {
       currentTime: 65,
       duration: 200,
     });
-    const { getByTestId, getByText } = await renderPlayer('https://example.com/song.mp3');
-    expect(getByText('1:05 / 3:20')).toBeTruthy();
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
+    // The time played at the left end of the track, the length at the right.
+    expect(getByTestId('audio-time-elapsed')).toHaveTextContent('1:05');
+    expect(getByTestId('audio-time-length')).toHaveTextContent('3:20');
     expect(getByTestId('audio-play-pause-button')).toBeTruthy();
     expect(getByTestId('audio-restart-button')).toBeTruthy();
+  });
+
+  it('fills the track in proportion to the time played', async () => {
+    mockedUseAudioPlayer.mockReturnValue({
+      play: jest.fn(),
+      pause: jest.fn(),
+      seekTo: jest.fn(),
+    });
+    mockedUseAudioPlayerStatus.mockReturnValue({
+      isLoaded: true,
+      error: null,
+      playing: true,
+      currentTime: 50,
+      duration: 200,
+    });
+    const { getByTestId } = await renderPlayer('https://example.com/song.mp3');
+    expect(getByTestId('audio-track-fill')).toHaveStyle({ width: '25%' });
+  });
+
+  it('never fills the track past its end, or before its start, or with no length', async () => {
+    mockedUseAudioPlayer.mockReturnValue({
+      play: jest.fn(),
+      pause: jest.fn(),
+      seekTo: jest.fn(),
+    });
+    const fillFor = async (currentTime: number, duration: number) => {
+      mockedUseAudioPlayerStatus.mockReturnValue({
+        isLoaded: true,
+        error: null,
+        playing: false,
+        currentTime,
+        duration,
+      });
+      const { getByTestId, unmount } = await renderPlayer('https://example.com/song.mp3');
+      const width = StyleSheet.flatten(getByTestId('audio-track-fill').props.style).width;
+      await unmount();
+      return width;
+    };
+    // A position a little past the reported length (it happens at the very end).
+    expect(await fillFor(205, 200)).toBe('100%');
+    // A negative position, and a length that is not known yet.
+    expect(await fillFor(-3, 200)).toBe('0%');
+    expect(await fillFor(30, 0)).toBe('0%');
+  });
+
+  it('announces the track as a progress bar with its position and length', async () => {
+    mockedUseAudioPlayer.mockReturnValue({
+      play: jest.fn(),
+      pause: jest.fn(),
+      seekTo: jest.fn(),
+    });
+    mockedUseAudioPlayerStatus.mockReturnValue({
+      isLoaded: true,
+      error: null,
+      playing: false,
+      currentTime: 65,
+      duration: 200,
+    });
+    const { getByRole } = await renderPlayer('https://example.com/song.mp3');
+    const track = getByRole('progressbar', { name: 'Song progress' });
+    expect(track.props.accessibilityValue).toEqual({
+      min: 0,
+      max: 200,
+      now: 65,
+      text: '1:05 / 3:20',
+    });
+  });
+
+  it('names the round button for what pressing it does', async () => {
+    mockedUseAudioPlayer.mockReturnValue({
+      play: jest.fn(),
+      pause: jest.fn(),
+      seekTo: jest.fn(),
+    });
+    mockedUseAudioPlayerStatus.mockReturnValue({
+      isLoaded: true,
+      error: null,
+      playing: false,
+      currentTime: 0,
+      duration: 100,
+    });
+    const paused = await renderPlayer('https://example.com/song.mp3');
+    expect(paused.getByRole('button', { name: 'Play' })).toBeTruthy();
+    await paused.unmount();
+
+    mockedUseAudioPlayerStatus.mockReturnValue({
+      isLoaded: true,
+      error: null,
+      playing: true,
+      currentTime: 10,
+      duration: 100,
+    });
+    const playing = await renderPlayer('https://example.com/song.mp3');
+    expect(playing.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(playing.queryByRole('button', { name: 'Play' })).toBeNull();
+  });
+
+  it('says the audio could not load, in words, in the error box', async () => {
+    mockedUseAudioPlayer.mockReturnValue({
+      play: jest.fn(),
+      pause: jest.fn(),
+      seekTo: jest.fn(),
+    });
+    mockedUseAudioPlayerStatus.mockReturnValue({
+      isLoaded: false,
+      error: 'Failed to load audio',
+      playing: false,
+      currentTime: 0,
+      duration: 0,
+    });
+    const { getByTestId, queryByTestId } = await renderPlayer('not-a-real-url');
+    expect(getByTestId('audio-player-error')).toHaveTextContent(
+      'Could not load this song’s audio.'
+    );
+    // No controls for a song that cannot play.
+    expect(queryByTestId('audio-play-pause-button')).toBeNull();
+    expect(queryByTestId('audio-restart-button')).toBeNull();
   });
 
   it('calls player.play() when Play is pressed while paused', async () => {

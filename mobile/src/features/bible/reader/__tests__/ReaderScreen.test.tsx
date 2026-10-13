@@ -1,6 +1,6 @@
 import React from 'react';
 import { Share, StyleSheet, useWindowDimensions } from 'react-native';
-import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useColorScheme from 'react-native/Libraries/Utilities/useColorScheme';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -11,6 +11,7 @@ import {
   fontFamilies,
   lightTokens,
   readingScale,
+  sepiaTokens,
 } from '../../../../theme/tokens';
 import { AuthProvider } from '../../../../context/AuthContext';
 import { PreferencesProvider } from '../../../../context/PreferencesContext';
@@ -97,9 +98,8 @@ function mockSignedIn(
 }
 
 /**
- * The reference appears TWICE on purpose -- in the top bar and on the
- * bottom bar's chapter selector -- so a text query for it is ambiguous.
- * These read the top bar's node, which is the heading.
+ * The reference is the label of the top bar's chapter selector. This reads
+ * that node directly, which is steadier than a text query for it.
  */
 function referenceOf(getByTestId: (id: string) => { props: Record<string, unknown> }) {
   return getByTestId('reader-reference').props.children;
@@ -135,6 +135,9 @@ async function renderScreen(
 
 beforeEach(() => {
   setScreenWidth(390);
+  // clearAllMocks() does not undo a mockReturnValue, so the one test that puts
+  // the phone in dark mode would otherwise leave every later test in it.
+  (useColorScheme as jest.Mock).mockReturnValue('light');
 });
 
 describe('the reader renders a chapter', () => {
@@ -313,26 +316,32 @@ describe('reader chrome', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('keeps the chapter selector to a NUMBER, so a long book name cannot push Next off the bar', async () => {
-    // Visual QA: with "దినవృత్తాంతములు మొదటి గ్రంథము" in the selector the
-    // bottom bar grew past the screen and clipped "Next". The book is
-    // named in the top bar directly above.
+  it('keeps the place to ONE line, so a long book name cannot push Search or the text settings off the bar', async () => {
+    // Visual QA (M3): with "దినవృత్తాంతములు మొదటి గ్రంథము" in the bottom
+    // selector the bar grew past the screen and clipped "Next". The place now
+    // lives in the top bar, as a pill that shrinks and ellipsizes before
+    // anything beside it moves.
     await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
     await seedBibleMode('te');
     const { getByTestId, queryAllByText } = await renderScreen('1-chronicles', 5);
     await waitFor(() => expect(getByTestId('chapter-selector-button')).toBeTruthy());
 
-    // What the control PRINTS -- deliberately not its accessibilityLabel,
-    // which should still carry the full reference.
-    const selector = within(getByTestId('chapter-selector-button'));
-    expect(selector.getByText('5')).toBeTruthy();
-    expect(selector.queryByText(/దినవృత్తాంతములు/)).toBeNull();
-    // The reference is still what a screen reader hears.
+    expect(getByTestId('reader-reference').props.numberOfLines).toBe(1);
+    // What a screen reader hears is the whole reference.
     expect(getByTestId('chapter-selector-button').props.accessibilityLabel).toContain(
       'దినవృత్తాంతములు'
     );
-    // And the book name is on screen exactly once -- in the top bar.
+    // The book is named on screen exactly once -- in the pill.
     expect(queryAllByText(/దినవృత్తాంతములు/)).toHaveLength(1);
+    // And everything else the bar holds is still there.
+    for (const id of [
+      'reader-back-button',
+      'reader-language-button',
+      'reader-search-button',
+      'reader-settings-button',
+    ]) {
+      expect(getByTestId(id)).toBeTruthy();
+    }
   });
 
   it('marks Previous as disabled on the first chapter of a book', async () => {
@@ -412,13 +421,18 @@ describe('the chapter picker', () => {
 
   it('lets a reader back out to the book list and jump to another book', async () => {
     await seedBibleMode('en');
-    const { getByTestId, navigate } = await renderScreen('genesis', 1);
+    const { getByTestId, queryByTestId, navigate } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByTestId('chapter-selector-button')).toBeTruthy());
 
     fireEvent.press(getByTestId('chapter-selector-button'));
     await waitFor(() => expect(getByTestId('chapter-picker-back-to-books')).toBeTruthy());
     fireEvent.press(getByTestId('chapter-picker-back-to-books'));
 
+    // The books are one testament at a time, opening on the one being read
+    // (Genesis: the Old). John is in the New.
+    await waitFor(() => expect(getByTestId('chapter-picker-book-genesis')).toBeTruthy());
+    expect(queryByTestId('chapter-picker-book-john')).toBeNull();
+    fireEvent.press(getByTestId('chapter-picker-testament-NT'));
     await waitFor(() => expect(getByTestId('chapter-picker-book-john')).toBeTruthy());
     fireEvent.press(getByTestId('chapter-picker-book-john'));
     await waitFor(() => expect(getByTestId('chapter-picker-chapter-3')).toBeTruthy());
@@ -780,6 +794,15 @@ describe('verse state is not colour-only', () => {
   });
 });
 
+/** Opens the reading settings and then "More settings", where the typeface, the Bible and the width are. */
+async function openMoreSettings(utils: { getByTestId: (id: string) => unknown }) {
+  await waitFor(() => expect(utils.getByTestId('reader-settings-button')).toBeTruthy());
+  await fireEvent.press(utils.getByTestId('reader-settings-button') as never);
+  await waitFor(() => expect(utils.getByTestId('reader-more-settings')).toBeTruthy());
+  await fireEvent.press(utils.getByTestId('reader-more-settings') as never);
+  await waitFor(() => expect(utils.getByTestId('reader-font')).toBeTruthy());
+}
+
 describe('reading settings', () => {
   afterEach(async () => {
     await AsyncStorage.clear();
@@ -817,35 +840,137 @@ describe('reading settings', () => {
     expect(fontSizeOf()).toBe(readingScale.size.lg);
   });
 
-  it('offers Light, Dark and System, and drives the app theme', async () => {
+  it('offers a page -- Light, Sepia or Dark -- showing the one in force', async () => {
     await seedBibleMode('en');
     const { getByTestId } = await renderScreen('genesis', 1);
     await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
     fireEvent.press(getByTestId('reader-settings-button'));
 
-    await waitFor(() => expect(getByTestId('reader-theme-system')).toBeTruthy());
-    expect(getByTestId('reader-theme-light')).toBeTruthy();
-    expect(getByTestId('reader-theme-dark')).toBeTruthy();
-    // 'system' is the default, so nothing has been chosen yet.
-    expect(getByTestId('reader-theme-system').props.accessibilityState.selected).toBe(
-      true
-    );
+    await waitFor(() => expect(getByTestId('reader-page-sepia')).toBeTruthy());
+    expect(getByTestId('reader-page-light')).toBeTruthy();
+    expect(getByTestId('reader-page-dark')).toBeTruthy();
+    // Nothing has been chosen, the app follows a light phone: the page is light.
+    expect(getByTestId('reader-page-light').props.accessibilityState.checked).toBe(true);
+    expect(getByTestId('reader-page-sepia').props.accessibilityState.checked).toBe(false);
+    expect(getByTestId('reader-page-dark').props.accessibilityState.checked).toBe(false);
+  });
 
-    fireEvent.press(getByTestId('reader-theme-dark'));
+  it('drives the app theme from Dark, the same choice as Settings', async () => {
+    await seedBibleMode('en');
+    const { getByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
+    fireEvent.press(getByTestId('reader-settings-button'));
+    await waitFor(() => expect(getByTestId('reader-page-dark')).toBeTruthy());
+
+    fireEvent.press(getByTestId('reader-page-dark'));
     await waitFor(async () =>
       expect(await AsyncStorage.getItem('theme_preference')).toBe('dark')
     );
-    const style = StyleSheet.flatten(getByTestId('reader-screen').props.style) as {
-      backgroundColor?: string;
-    };
+    // The sheet is open, so the page is behind a Modal: hidden from queries, as
+    // it is from a screen reader, but still there and still painted.
+    const style = StyleSheet.flatten(
+      getByTestId('reader-screen', { includeHiddenElements: true }).props.style
+    ) as { backgroundColor?: string };
     expect(style.backgroundColor).toBe(darkTokens.paper);
+  });
+
+  it('keeps Sepia to the reader: it sets the page, and leaves the app theme alone', async () => {
+    await seedBibleMode('en');
+    const { getByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
+    fireEvent.press(getByTestId('reader-settings-button'));
+    await waitFor(() => expect(getByTestId('reader-page-sepia')).toBeTruthy());
+
+    fireEvent.press(getByTestId('reader-page-sepia'));
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem('reader_page_preference')).toBe('sepia')
+    );
+    const style = StyleSheet.flatten(
+      getByTestId('reader-screen', { includeHiddenElements: true }).props.style
+    ) as { backgroundColor?: string };
+    expect(style.backgroundColor).toBe(sepiaTokens.paper);
+    // The app's own theme preference was never written: it is a closed set the
+    // rules validate, and sepia is not in it.
+    expect(await AsyncStorage.getItem('theme_preference')).toBeNull();
+    expect(getByTestId('reader-page-sepia').props.accessibilityState.checked).toBe(true);
+    expect(getByTestId('reader-page-light').props.accessibilityState.checked).toBe(false);
+  });
+
+  it('ends a sepia page when Light is chosen, and makes that the app theme too', async () => {
+    await seedBibleMode('en');
+    await AsyncStorage.setItem('reader_page_preference', 'sepia');
+    const { getByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
+    fireEvent.press(getByTestId('reader-settings-button'));
+    await waitFor(() =>
+      expect(getByTestId('reader-page-sepia').props.accessibilityState.checked).toBe(true)
+    );
+
+    fireEvent.press(getByTestId('reader-page-light'));
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem('reader_page_preference')).toBeNull()
+    );
+    expect(await AsyncStorage.getItem('theme_preference')).toBe('light');
+    const style = StyleSheet.flatten(
+      getByTestId('reader-screen', { includeHiddenElements: true }).props.style
+    ) as { backgroundColor?: string };
+    expect(style.backgroundColor).toBe(lightTokens.paper);
+  });
+
+  it('does nothing when the page already in force is chosen again, so System is not given up by a tap', async () => {
+    // The app follows the phone ('system' is the default); the light page is
+    // showing. Tapping the light card would otherwise pin the theme to Light.
+    await seedBibleMode('en');
+    const { getByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
+    fireEvent.press(getByTestId('reader-settings-button'));
+    await waitFor(() => expect(getByTestId('reader-page-light')).toBeTruthy());
+
+    fireEvent.press(getByTestId('reader-page-light'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(await AsyncStorage.getItem('theme_preference')).toBeNull();
+    expect(await AsyncStorage.getItem('reader_page_preference')).toBeNull();
+  });
+
+  it('keeps the typeface, the Bible and the width behind More settings', async () => {
+    await seedBibleMode('en');
+    const { getByTestId, queryByTestId } = await renderScreen('genesis', 1);
+    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
+    fireEvent.press(getByTestId('reader-settings-button'));
+    await waitFor(() => expect(getByTestId('reader-more-settings')).toBeTruthy());
+
+    // The short sheet holds what a reader reaches for mid-chapter.
+    expect(getByTestId('reader-size-increase')).toBeTruthy();
+    expect(getByTestId('reader-line-height')).toBeTruthy();
+    expect(getByTestId('reader-page-sepia')).toBeTruthy();
+    for (const id of ['reader-font', 'reader-bible-mode', 'reader-width']) {
+      expect(queryByTestId(id)).toBeNull();
+    }
+
+    fireEvent.press(getByTestId('reader-more-settings'));
+    await waitFor(() => expect(getByTestId('reader-font')).toBeTruthy());
+    expect(getByTestId('reader-bible-mode')).toBeTruthy();
+    expect(getByTestId('reader-width')).toBeTruthy();
+    // ...and the sheet opens out: the row that did it is gone.
+    expect(queryByTestId('reader-more-settings')).toBeNull();
+  });
+
+  it('opens the short sheet again, not the opened-out one, the next time', async () => {
+    await seedBibleMode('en');
+    const utils = await renderScreen('genesis', 1);
+    await openMoreSettings(utils);
+    await fireEvent.press(utils.getByTestId('reader-settings-sheet-close'));
+
+    await fireEvent.press(utils.getByTestId('reader-settings-button'));
+    await waitFor(() => expect(utils.getByTestId('reader-more-settings')).toBeTruthy());
+    expect(utils.queryByTestId('reader-font')).toBeNull();
   });
 
   it('changes the reading font and the column width', async () => {
     await seedBibleMode('en');
-    const { getByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
-    fireEvent.press(getByTestId('reader-settings-button'));
+    const utils = await renderScreen('genesis', 1);
+    const { getByTestId } = utils;
+    await openMoreSettings(utils);
 
     await waitFor(() => expect(getByTestId('reader-font-sans')).toBeTruthy());
     fireEvent.press(getByTestId('reader-font-sans'));
@@ -861,18 +986,16 @@ describe('reading settings', () => {
 
   it('hides the bilingual layout control outside bilingual mode', async () => {
     await seedBibleMode('en');
-    const { getByTestId, queryByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
-    fireEvent.press(getByTestId('reader-settings-button'));
-    await waitFor(() => expect(getByTestId('reader-font')).toBeTruthy());
-    expect(queryByTestId('reader-layout')).toBeNull();
+    const utils = await renderScreen('genesis', 1);
+    await openMoreSettings(utils);
+    expect(utils.queryByTestId('reader-layout')).toBeNull();
   });
 
   it('offers the three Bible modes and writes only the Bible key', async () => {
     await seedBibleMode('te');
-    const { getByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
-    fireEvent.press(getByTestId('reader-settings-button'));
+    const utils = await renderScreen('genesis', 1);
+    const { getByTestId } = utils;
+    await openMoreSettings(utils);
 
     await waitFor(() => expect(getByTestId('reader-bible-mode-bilingual')).toBeTruthy());
     fireEvent.press(getByTestId('reader-bible-mode-en'));
@@ -1081,7 +1204,10 @@ describe('scripture typography', () => {
     expect(style.fontFamily).not.toBe(fontFamilies.serifEnSemiBold);
   });
 
-  it('sets an English book name in the English serif', async () => {
+  it('sets an English book name in the interface face as well: the place is a control, not scripture', async () => {
+    // The place is a button's label, so it takes the interface family -- one
+    // face that covers both scripts, which is what lets a Telugu name with an
+    // ordinary digit in it ("1 దినవృత్తాంతములు") be set in one piece.
     await AsyncStorage.setItem(APP_LANGUAGE_KEY, 'en');
     await seedBibleMode('en');
     const { getByTestId } = await renderScreen('1-chronicles', 1);
@@ -1090,7 +1216,7 @@ describe('scripture typography', () => {
     const style = StyleSheet.flatten(getByTestId('reader-reference').props.style) as {
       fontFamily?: string;
     };
-    expect(style.fontFamily).toBe(fontFamilies.serifEnSemiBold);
+    expect(style.fontFamily).toBe(fontFamilies.interfaceSemiBold);
   });
 
   it('sets Telugu scripture in the Telugu serif, not a Latin-only one', async () => {
@@ -1133,21 +1259,18 @@ describe('side-by-side bilingual needs the room', () => {
     // then quietly ignored -- see ../ScriptureBody.tsx.
     setScreenWidth(390);
     await seedBibleMode('bilingual');
-    const { getByTestId, queryByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
-    fireEvent.press(getByTestId('reader-settings-button'));
-    await waitFor(() => expect(getByTestId('reader-font')).toBeTruthy());
-    expect(queryByTestId('reader-layout')).toBeNull();
+    const utils = await renderScreen('genesis', 1);
+    await openMoreSettings(utils);
+    expect(utils.queryByTestId('reader-layout')).toBeNull();
   });
 
   it('offers it on a tablet, where two columns are readable', async () => {
     setScreenWidth(834);
     await seedBibleMode('bilingual');
-    const { getByTestId } = await renderScreen('genesis', 1);
-    await waitFor(() => expect(getByTestId('reader-settings-button')).toBeTruthy());
-    fireEvent.press(getByTestId('reader-settings-button'));
-    await waitFor(() => expect(getByTestId('reader-layout')).toBeTruthy());
-    expect(getByTestId('reader-layout-sideBySide')).toBeTruthy();
+    const utils = await renderScreen('genesis', 1);
+    await openMoreSettings(utils);
+    await waitFor(() => expect(utils.getByTestId('reader-layout')).toBeTruthy());
+    expect(utils.getByTestId('reader-layout-sideBySide')).toBeTruthy();
   });
 });
 
@@ -1198,27 +1321,27 @@ describe('switching the Bible with the reader open', () => {
   }
 
   /**
-   * Opens the settings sheet, picks a Bible mode, and CLOSES THE SHEET.
+   * Picks a Bible mode from the language pill's sheet, which CLOSES ITSELF
+   * on a choice.
    *
-   * Closing it is not tidiness. The sheet is a Modal, so while it is
-   * open everything behind it is hidden from the accessibility tree --
-   * and RNTL's queries skip hidden elements by default, exactly as a
-   * screen reader would. Assertions made with the sheet still open
-   * report "unable to find" for scripture that is demonstrably rendered,
-   * which reads as a broken reader rather than an obscured one. A member
-   * closes the sheet to see their chapter; so does this.
+   * That it closes matters to the tests as much as to a member: the sheet
+   * is a Modal, so while it is open everything behind it is hidden from the
+   * accessibility tree -- and RNTL's queries skip hidden elements by
+   * default, exactly as a screen reader would. Assertions made with a
+   * sheet still open report "unable to find" for scripture that is
+   * demonstrably rendered, which reads as a broken reader rather than an
+   * obscured one.
    */
   async function switchModeTo(
     mode: BibleMode,
     utils: { getByTestId: (id: string) => unknown }
   ) {
-    await waitFor(() => expect(utils.getByTestId('reader-settings-button')).toBeTruthy());
-    await fireEvent.press(utils.getByTestId('reader-settings-button') as never);
+    await waitFor(() => expect(utils.getByTestId('reader-language-button')).toBeTruthy());
+    await fireEvent.press(utils.getByTestId('reader-language-button') as never);
     await waitFor(() =>
-      expect(utils.getByTestId(`reader-bible-mode-${mode}`)).toBeTruthy()
+      expect(utils.getByTestId(`reader-language-${mode}`)).toBeTruthy()
     );
-    await fireEvent.press(utils.getByTestId(`reader-bible-mode-${mode}`) as never);
-    await fireEvent.press(utils.getByTestId('reader-settings-sheet-close') as never);
+    await fireEvent.press(utils.getByTestId(`reader-language-${mode}`) as never);
     await settle();
   }
 
@@ -1302,9 +1425,11 @@ describe('switching the Bible with the reader open', () => {
       expect(await AsyncStorage.getItem('reading_prefs')).toContain('"size":"lg"')
     );
 
-    // The sheet is still open, so the Bible control is one press away --
-    // and it has to be CLOSED again before anything behind it can be
-    // queried. See switchModeTo() above for why.
+    // The sheet is still open, so the Bible control is two presses away (More
+    // settings, then the language) -- and it has to be CLOSED again before
+    // anything behind it can be queried. See switchModeTo() above for why.
+    await fireEvent.press(utils.getByTestId('reader-more-settings'));
+    await waitFor(() => expect(utils.getByTestId('reader-bible-mode-te')).toBeTruthy());
     await fireEvent.press(utils.getByTestId('reader-bible-mode-te'));
     await fireEvent.press(utils.getByTestId('reader-settings-sheet-close'));
     await waitFor(() => expect(utils.getByText(TELUGU_GENESIS_1_1)).toBeTruthy());

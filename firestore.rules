@@ -366,6 +366,14 @@ service cloud.firestore {
         // Exactly the two values the church asked for, and no others --
         // this is a closed set, not free text.
         && (!('gender' in data) || data.gender in ['male', 'female'])
+        // The onboarding questionnaire's age answer: a whole number of
+        // years, or nothing. `is int` rejects 34.5 and "34" and true;
+        // 1..120 rejects 0, negatives and the obviously mistyped. A closed
+        // numeric range rather than free text, for the same reason gender
+        // is a closed set. Null is allowed: a member may withdraw it.
+        && (!('age' in data)
+            || data.age == null
+            || (data.age is int && data.age >= 1 && data.age <= 120))
         // The onboarding marker is a timestamp or nothing. NOT checked
         // against request.time: the client writes serverTimestamp(), so
         // the server sets the value and a device's own clock never
@@ -977,6 +985,16 @@ service cloud.firestore {
       // signed up with an email address. 'email' and 'createdAt' stay
       // server-controlled, and 'role' remains Super-Admin-only.
       //
+      // The redesigned onboarding adds one more, 'age': a whole number
+      // the member typed, 1..120, validated in
+      // isValidUserProfileSelfUpdate() above. Like gender and the phone
+      // number it is congregation information the church keeps; nothing
+      // reads it to make a decision, and it is not an authentication
+      // factor. It is written in a SEPARATE update from the completion
+      // marker (see mobile/src/services/firebase/userProfile.ts), so a
+      // client released before this rule is deployed can still finish
+      // onboarding -- its answers simply do not include an age.
+      //
       // M7 adds two more owner-writable keys, 'authProvider' and
       // 'lastActiveAt'. Both are facts about the member's OWN session
       // that only their own client can observe -- see isActiveMember()
@@ -992,7 +1010,7 @@ service cloud.firestore {
                .hasOnly(['displayName', 'photoURL', 'languagePreference',
                          'appLanguage', 'bibleMode',
                          'themePreference', 'notificationsEnabled',
-                         'phoneNumber', 'gender', 'profileCompletedAt',
+                         'phoneNumber', 'gender', 'age', 'profileCompletedAt',
                          'authProvider', 'lastActiveAt'])
           && isValidUserProfileSelfUpdate(request.resource.data))
         || (isSuperAdmin()

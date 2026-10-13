@@ -15,7 +15,11 @@
  * reader and Settings can disagree about what the app looks like. The
  * reader's Light / Dark / System control therefore drives that one
  * existing preference, which M4 extends with 'system'. See
- * ./userProfile.ts's ThemePreference.
+ * ./userProfile.ts's ThemePreference. (The reader's Page control now offers
+ * Light, Sepia and Dark: Light and Dark are that same preference; Sepia is the
+ * reader's alone and is kept on the phone only -- see
+ * ../../context/readingPrefsStorage.ts's ReaderPage -- because this document is
+ * validated against closed sets by firestore.rules.)
  *
  * EVERY FIELD IS A NAMED STEP, never a raw number: the stored value is
  * a short key from ../../theme/tokens.ts's `readingScale`, so a synced

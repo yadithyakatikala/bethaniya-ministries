@@ -1,7 +1,7 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from './Icon';
 import { IconButton } from './IconButton';
-import { CloseIcon } from './FeatureIcons';
 import { useTheme } from '../useTheme';
 import { sheetAnimation, useReducedMotion } from '../motion';
 
@@ -30,6 +30,13 @@ import { sheetAnimation, useReducedMotion } from '../motion';
  * IT SLIDES UP, AND BACK DOWN -- and does neither when the phone's
  * "reduce motion" setting is on, in which case it simply appears. That
  * is the honest reading of "remove animations"; see ../motion.ts.
+ *
+ * TWO VARIANTS, from the approved design. `tall` gives the sheet a fixed
+ * height (nine tenths of the screen) rather than the height of its content,
+ * for a sheet whose content changes under it -- the chapter picker's two panes,
+ * the reading settings once opened out. `scrim="light"` dims the page behind
+ * far less (16%, not 45%) for a sheet that CHANGES that page while it is open:
+ * the reading settings, where the page is the live sample.
  */
 export function Sheet({
   visible,
@@ -39,6 +46,8 @@ export function Sheet({
   children,
   testID,
   scroll = true,
+  tall = false,
+  scrim = 'normal',
 }: {
   visible: boolean;
   onClose: () => void;
@@ -49,6 +58,10 @@ export function Sheet({
   testID?: string;
   /** Set false when the content manages its own scrolling. */
   scroll?: boolean;
+  /** A fixed, nearly full-height sheet instead of one the height of its content. */
+  tall?: boolean;
+  /** `light` lets the page behind show through: the sheet changes that page. */
+  scrim?: 'normal' | 'light';
 }) {
   const { colors, radii, spacing, type } = useTheme();
   const insets = useSafeAreaInsets();
@@ -68,7 +81,10 @@ export function Sheet({
       // the reader page underneath it.
       accessibilityViewIsModal
     >
-      <View style={styles.backdrop} testID={testID}>
+      <View
+        style={[styles.backdrop, scrim === 'light' && styles.backdropLight]}
+        testID={testID}
+      >
         <Pressable
           style={styles.backdropFill}
           accessibilityRole="button"
@@ -79,17 +95,24 @@ export function Sheet({
         <View
           style={[
             styles.sheet,
+            tall && styles.sheetTall,
             {
               backgroundColor: colors.surface,
               borderTopLeftRadius: radii.sheet,
               borderTopRightRadius: radii.sheet,
               borderColor: colors.border,
               paddingHorizontal: spacing.screen,
-              paddingTop: spacing.lg,
+              paddingTop: spacing.sm,
               paddingBottom: Math.max(insets.bottom, spacing.lg),
             },
           ]}
         >
+          {/* A 36 x 4 handle: the sheet can be dismissed, and says so. Decorative. */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.handle, { backgroundColor: colors.borderStrong }]}
+          />
           <View style={[styles.header, { marginBottom: spacing.md }]}>
             <Text
               style={[type.title, styles.title, { color: colors.ink }]}
@@ -98,11 +121,12 @@ export function Sheet({
               {title}
             </Text>
             <IconButton
+              variant="tinted"
               accessibilityLabel={closeLabel}
               testID={testID ? `${testID}-close` : undefined}
               onPress={onClose}
             >
-              <CloseIcon color={colors.inkMuted} />
+              <Icon name="close" size={20} color={colors.inkMuted} />
             </IconButton>
           </View>
           {scroll ? (
@@ -127,8 +151,17 @@ const styles = StyleSheet.create({
   // front of the page, and on the reader's near-black dark ground an
   // undimmed backdrop makes the two surfaces indistinguishable.
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  backdropLight: { backgroundColor: 'rgba(0,0,0,0.16)' },
   backdropFill: { flex: 1 },
   sheet: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: '82%' },
+  sheetTall: { height: '90%', maxHeight: '90%' },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 10,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // The title must wrap, not shove the close button off the row: Telugu
   // sheet titles run about twice the length of their English wording.

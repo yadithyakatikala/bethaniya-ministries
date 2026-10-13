@@ -3,7 +3,7 @@ import { Tappable } from './Tappable';
 import { useTheme } from '../useTheme';
 
 /**
- * A square, icon-only control.
+ * A round, icon-only control: 44 across, a pill.
  *
  * WHY THIS EXISTS. The audit found eight icon-only controls -- Home's
  * Profile and Announcements buttons, the Bible reader's back chevron,
@@ -15,6 +15,10 @@ import { useTheme } from '../useTheme';
  * `accessibilityLabel` is REQUIRED by the type here. An icon-only
  * control with no label is silent to a screen reader, which is the one
  * accessibility failure a sighted reviewer never notices.
+ *
+ * Three looks: `plain` (just the glyph), `outlined` (a hairline ring, as
+ * Share and Copy on Home) and `tinted` (a quiet filled disc, as a close
+ * button on a sheet).
  */
 export function IconButton({
   onPress,
@@ -33,8 +37,7 @@ export function IconButton({
   children: React.ReactNode;
   testID?: string;
   disabled?: boolean;
-  /** `tinted` gives the button a quiet filled backdrop. */
-  variant?: 'plain' | 'tinted';
+  variant?: 'plain' | 'outlined' | 'tinted';
   style?: ViewStyle;
 }) {
   const { colors, radii, minTouchTarget } = useTheme();
@@ -52,8 +55,10 @@ export function IconButton({
         {
           width: minTouchTarget,
           height: minTouchTarget,
-          borderRadius: radii.control,
-          backgroundColor: variant === 'tinted' ? colors.primaryTint : 'transparent',
+          borderRadius: radii.pill,
+          backgroundColor: variant === 'tinted' ? colors.surfaceRaised : 'transparent',
+          borderWidth: variant === 'outlined' ? 1 : 0,
+          borderColor: colors.border,
         },
         style,
       ]}

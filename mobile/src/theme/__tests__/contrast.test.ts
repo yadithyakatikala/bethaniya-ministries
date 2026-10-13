@@ -2,6 +2,8 @@ import {
   darkTokens,
   highlightTints,
   lightTokens,
+  onPhoto,
+  sepiaTokens,
   type ThemeColors,
 } from '../tokens';
 
@@ -80,6 +82,12 @@ const PAIRS: { name: string; fg: keyof ThemeColors; bg: keyof ThemeColors }[] = 
   { name: 'accent text on a raised panel', fg: 'accent', bg: 'surfaceRaised' },
   // ui/ErrorState.tsx.
   { name: 'error state message', fg: 'ink', bg: 'dangerTint' },
+  // ui/NoticeBanner.tsx -- the words of a warning and of an error are in the tone's
+  // own colour on its tint, and so is the suspension notice's "Until ..." line and the
+  // legal pages' "provisional text" line.
+  { name: 'NoticeBanner warning words', fg: 'warning', bg: 'warningTint' },
+  { name: 'NoticeBanner error words', fg: 'danger', bg: 'dangerTint' },
+  { name: 'NoticeBanner neutral words', fg: 'ink', bg: 'surfaceRaised' },
   { name: 'primary link on surface', fg: 'primary', bg: 'surface' },
   // Solid status fills, for the places a status is the whole control.
   { name: 'solid success label', fg: 'onSuccess', bg: 'success' },
@@ -118,6 +126,7 @@ const DISABLED_PAIRS: { name: string; fg: keyof ThemeColors; bg: keyof ThemeColo
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette meets WCAG AA for normal text', (_paletteName, tokens) => {
   it.each(PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(
@@ -160,6 +169,7 @@ describe('the on- tokens exist precisely because white is not always right', () 
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette meets 3:1 for meaningful non-text UI', (_name, tokens) => {
   it.each(NON_TEXT_PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(AA_NON_TEXT);
@@ -169,6 +179,7 @@ describe.each([
 describe.each([
   ['light', lightTokens],
   ['dark', darkTokens],
+  ['sepia', sepiaTokens],
 ] as const)('%s palette keeps disabled states readable', (_name, tokens) => {
   it.each(DISABLED_PAIRS)('$name', ({ fg, bg }) => {
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(AA_NON_TEXT);
@@ -187,6 +198,7 @@ describe('the decorative border is deliberately low-contrast', () => {
   it.each([
     ['light', lightTokens],
     ['dark', darkTokens],
+    ['sepia', sepiaTokens],
   ] as const)('%s: border is softer than borderStrong', (_name, tokens) => {
     expect(contrastRatio(tokens.border, tokens.surface)).toBeLessThan(
       contrastRatio(tokens.borderStrong, tokens.surface)
@@ -200,6 +212,7 @@ describe('the five status hues are distinguishable from each other', () => {
   it.each([
     ['light', lightTokens],
     ['dark', darkTokens],
+    ['sepia', sepiaTokens],
   ] as const)('%s: no two status colours are the same value', (_name, tokens) => {
     // Not a contrast requirement -- a correctness one. Before M3 the
     // Badge's `warning` and `featured` variants resolved to identical
@@ -225,6 +238,7 @@ describe('verse highlights M4 will paint', () => {
   it.each([
     ['light', highlightTints.light, lightTokens],
     ['dark', highlightTints.dark, darkTokens],
+    ['sepia', highlightTints.sepia, sepiaTokens],
   ] as const)('%s: body text still reads on every highlight', (_name, tints, tokens) => {
     for (const [hue, background] of Object.entries(tints)) {
       const ratio = contrastRatio(tokens.ink, background);
@@ -235,7 +249,7 @@ describe('verse highlights M4 will paint', () => {
   it('keeps all four highlights at one lightness, so a page keeps its rhythm', () => {
     // The documented consequence: hue alone cannot distinguish them, so
     // M4's picker must name each colour rather than show four swatches.
-    for (const tints of [highlightTints.light, highlightTints.dark]) {
+    for (const tints of [highlightTints.light, highlightTints.dark, highlightTints.sepia]) {
       const values = Object.values(tints);
       for (const a of values) {
         for (const b of values) {
@@ -243,5 +257,42 @@ describe('verse highlights M4 will paint', () => {
         }
       }
     }
+  });
+});
+describe('words on a photograph the church attached', () => {
+  /** An "rgba(r, g, b, a)" veil laid over an opaque hex colour, as a hex colour. */
+  function overlay(veil: string, base: string): string {
+    const match = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(veil);
+    if (!match) throw new Error(`not an rgba colour: ${veil}`);
+    const [r, g, b] = [match[1], match[2], match[3]].map(Number);
+    const alpha = Number(match[4]);
+    const under = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16));
+    const mixed = [r, g, b].map((channel, i) =>
+      Math.round(channel * alpha + under[i] * (1 - alpha))
+    );
+    return `#${mixed.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  it('keeps white words above AA even over a pure white photograph', () => {
+    // The picture is anyone's, and the worst picture is a white one. This is
+    // why the veil is as dark as it is, and why gold text stays off it.
+    const worst = overlay(onPhoto.veil, '#FFFFFF');
+    expect(contrastRatio(onPhoto.ink, worst)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it('keeps white words readable on the base that shows if the picture never loads', () => {
+    expect(contrastRatio(onPhoto.ink, onPhoto.base)).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT
+    );
+    // ...and over that base with the veil on top, as it will actually be drawn.
+    expect(
+      contrastRatio(onPhoto.ink, overlay(onPhoto.veil, onPhoto.base))
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it("reads the white pill's label", () => {
+    expect(contrastRatio(onPhoto.onButton, onPhoto.button)).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT
+    );
   });
 });

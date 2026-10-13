@@ -10,6 +10,11 @@ import { useTheme } from '../useTheme';
  * only recovery was to leave the screen and come back. Where a retry did
  * exist it was a bare Pressable with a 13px label.
  *
+ * SAY WHAT HAPPENED AND HOW TO FIX IT, WITHOUT BLAME. `title` is the
+ * short bold first line ("We could not load this"); `message` is the
+ * plain sentence under it. Either may stand alone. The wash is the error
+ * tint with a 1 pt error border -- never colour alone: the words say so.
+ *
  * The icon-free wording is deliberate: the app has no icon library, and
  * an error drawn as a coloured triangle would be communicating by colour
  * and shape alone. A sentence works in both languages and for a screen
@@ -17,11 +22,13 @@ import { useTheme } from '../useTheme';
  * replaces a spinner should be announced, not silently swapped in.
  */
 export function ErrorState({
+  title,
   message,
   retryLabel,
   onRetry,
   testID,
 }: {
+  title?: string;
   message: string;
   retryLabel?: string;
   onRetry?: () => void;
@@ -39,10 +46,13 @@ export function ErrorState({
           borderColor: colors.danger,
           borderRadius: radii.card,
           padding: spacing.xl,
-          gap: spacing.lg,
+          gap: spacing.md,
         },
       ]}
     >
+      {title ? (
+        <Text style={[type.button, styles.message, { color: colors.ink }]}>{title}</Text>
+      ) : null}
       <Text style={[type.body, styles.message, { color: colors.ink }]}>{message}</Text>
       {retryLabel && onRetry ? (
         <AppButton title={retryLabel} variant="secondary" onPress={onRetry} />

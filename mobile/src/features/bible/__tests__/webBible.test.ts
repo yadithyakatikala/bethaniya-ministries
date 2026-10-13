@@ -45,6 +45,25 @@ describe('the bundled WEB corpus', () => {
     expect(offenders).toHaveLength(0);
   });
 
+  it('leaves no HTML entity in the reading text: no "&gt;" in front of a Psalm', () => {
+    // 117 Psalm verses arrived as "&gt; Yahweh is my shepherd..." -- the source's
+    // escaped poetry marker, printed on the page, in Verse of the Day, in a share.
+    const offenders = VERSES.filter((v) => /&(?:[a-z]+|#\d+);/i.test(v.text));
+    expect(offenders.slice(0, 5)).toEqual([]);
+    expect(offenders).toHaveLength(0);
+  });
+
+  it('opens Psalm 23 with its first word, not with a markup marker', () => {
+    expect(getWebVerseTexts(19, 23)?.[0]).toBe(
+      'Yahweh is my shepherd: I shall lack nothing.'
+    );
+  });
+
+  it('starts no verse with a stray angle bracket or space', () => {
+    const offenders = VERSES.filter((v) => /^[>\s]/.test(v.text));
+    expect(offenders.slice(0, 5)).toEqual([]);
+  });
+
   it('prints ordinary quotation marks around reported speech', () => {
     // Genesis 1:3 is the verse the defect was found on.
     expect(getWebVerseTexts(1, 1)?.[2]).toBe(

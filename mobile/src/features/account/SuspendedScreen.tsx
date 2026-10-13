@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { usePreferences } from '../../context/PreferencesContext';
-import { useTheme, useTypographyFor } from '../../theme';
+import { AppButton, Icon, useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
-import { AppButton } from '../../theme/ui/AppButton';
+import { formatDayMonthYear, formatTimeOfDay } from '../../i18n/locale';
+import { subscribeToChurchSettings } from '../../services/firebase/settings';
 import type { MemberSuspension } from '../../services/firebase/userProfile';
 
 /**
@@ -21,6 +22,20 @@ import type { MemberSuspension } from '../../services/firebase/userProfile';
  *
  * So the app says it. Once, at the door, in plain words, with the date
  * it ends when there is one.
+ *
+ * =====================================================================
+ * THE LOOK
+ * =====================================================================
+ * A pause mark in a ring (not the portrait: the portrait is the church's
+ * welcome, and this is not one), the title in the serif, one plain
+ * sentence, and -- for a temporary suspension -- the date it ends in a
+ * warning-tinted box. Two quieter sentences follow. When the church has
+ * set a support email, it is shown as PLAIN TEXT under "Contact the
+ * church", which a member can press and hold to copy. Sign out sits
+ * apart, at the foot of the screen.
+ *
+ * It is announced when it appears (a polite live region) and its title is
+ * a heading, so a screen reader opens on what happened.
  *
  * =====================================================================
  * WHAT IT DOES NOT SAY
@@ -41,68 +56,70 @@ import type { MemberSuspension } from '../../services/firebase/userProfile';
  * =====================================================================
  * Not a "contact us" button: this app has no support inbox, and a
  * button that opened a blank mail composer addressed to nobody would be
- * worse than the sentence it replaced. Sign out is here because a shared
- * phone is normal in this congregation, and the household's other
- * member must be able to get to their own account.
+ * worse than the sentence it replaced. The support email, when there is
+ * one, is words a member can read and copy -- not a link. Sign out is
+ * here because a shared phone is normal in this congregation, and the
+ * household's other member must be able to get to their own account.
+ *
+ * Reading the church's support email needs no more than being signed in
+ * (firestore.rules: any signed-in member may read /settings), and a
+ * suspension stops writes, not reads -- so this works for a suspended
+ * member. If it cannot be read the row is simply absent.
  */
-function formatWhen(date: Date): string {
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatWhen(date: Date, appLanguage: 'en' | 'te'): string {
+  return `${formatDayMonthYear(date, appLanguage)}, ${formatTimeOfDay(date, appLanguage)}`;
 }
 
 export function SuspendedScreen({ suspension }: { suspension: MemberSuspension | null }) {
-  const { colors, spacing, radii } = useTheme();
-  const { t } = useTranslation();
+  const { colors, type } = useTheme();
+  const { t, appLanguage } = useTranslation();
   const { signOut } = useAuth();
-  const { appLanguage } = usePreferences();
-  // The interface typeface for the member's own language -- this screen
-  // is chrome, not scripture, so it follows the app language.
-  const typography = useTypographyFor(appLanguage);
   const insets = useSafeAreaInsets();
+  const [supportEmail, setSupportEmail] = useState('');
+
+  useEffect(
+    () =>
+      subscribeToChurchSettings(
+        (settings) => setSupportEmail(settings?.supportEmail ?? ''),
+        // Unreadable: the row stays out (or as it was). The notice never waits on it.
+        () => undefined
+      ),
+    []
+  );
 
   const expiresAt = suspension?.expiresAt ?? null;
 
   return (
     <View
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top }]}
       testID="suspended-screen"
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + spacing.xxl,
-            paddingBottom: insets.bottom + spacing.xl,
-            paddingHorizontal: spacing.screen,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderRadius: radii.card,
-              padding: spacing.lg,
-              gap: spacing.md,
-            },
-          ]}
-        >
+      <ScrollView contentContainerStyle={styles.content}>
+        <View accessibilityLiveRegion="polite" style={styles.group}>
+          <View
+            style={[styles.mark, { borderColor: colors.borderStrong }]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="pause" size={28} color={colors.ink} />
+          </View>
+
           <Text
-            style={[typography.headline, { color: colors.ink }]}
+            accessibilityRole="header"
+            textBreakStrategy="balanced"
+            style={[
+              type.headline,
+              styles.title,
+              appLanguage === 'te' ? styles.titleTe : styles.titleEn,
+              { color: colors.ink },
+            ]}
             testID="suspended-title"
           >
             {t('suspended.title')}
           </Text>
 
           <Text
-            style={[typography.body, { color: colors.inkMuted }]}
+            style={[type.bodyLarge, { color: colors.inkMuted }]}
             testID="suspended-message"
           >
             {expiresAt
@@ -114,50 +131,104 @@ export function SuspendedScreen({ suspension }: { suspension: MemberSuspension |
               has nothing honest to put here, and inventing a date would
               be the cruellest possible mistake on this screen. */}
           {expiresAt ? (
-            <View
-              style={[
-                styles.untilRow,
-                {
-                  backgroundColor: colors.warningTint,
-                  borderRadius: radii.control,
-                  padding: spacing.md,
-                },
-              ]}
-            >
+            <View style={[styles.until, { backgroundColor: colors.warningTint }]}>
               <Text
-                style={[typography.title, { color: colors.onWarning }]}
+                style={[type.button, { color: colors.warning }]}
                 testID="suspended-until"
               >
-                {t('suspended.until', { when: formatWhen(expiresAt) })}
+                {t('suspended.until', { when: formatWhen(expiresAt, appLanguage) })}
               </Text>
             </View>
           ) : null}
 
-          <Text style={[typography.bodySmall, { color: colors.inkSubtle }]}>
+          <Text style={[type.bodySmall, { color: colors.inkSubtle }]}>
             {t('suspended.canStillRead')}
           </Text>
-          <Text style={[typography.bodySmall, { color: colors.inkSubtle }]}>
+          <Text style={[type.bodySmall, { color: colors.inkSubtle }]}>
             {t('suspended.contactChurch')}
           </Text>
         </View>
 
-        <View style={{ marginTop: spacing.xl }}>
-          <AppButton
-            title={t('suspended.signOut')}
-            variant="secondary"
-            fullWidth
-            onPress={() => void signOut()}
-            testID="suspended-sign-out"
-          />
-        </View>
+        {supportEmail ? (
+          <View
+            testID="suspended-contact"
+            style={[styles.contact, { borderTopColor: colors.border }]}
+          >
+            <Icon name="msg" size={20} color={colors.inkMuted} />
+            <View style={styles.contactWords}>
+              <Text style={[type.help, { color: colors.inkMuted }]}>
+                {t('settings.contactChurch')}
+              </Text>
+              <Text
+                selectable
+                testID="suspended-contact-email"
+                style={[type.button, { color: colors.ink }]}
+              >
+                {supportEmail}
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
+
+      <View
+        style={[
+          styles.foot,
+          {
+            backgroundColor: colors.paper,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 34),
+          },
+        ]}
+      >
+        <AppButton
+          title={t('suspended.signOut')}
+          variant="secondary"
+          fullWidth
+          onPress={() => void signOut()}
+          testID="suspended-sign-out"
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center' },
-  card: { borderWidth: StyleSheet.hairlineWidth },
-  untilRow: { alignItems: 'center' },
+  // Centred in the space above Sign out; a long Telugu message scrolls
+  // rather than pushing the button off the screen.
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 24,
+  },
+  group: { gap: 14 },
+  mark: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { marginTop: 6 },
+  titleEn: { fontSize: 28, lineHeight: 36 },
+  titleTe: { fontSize: 25, lineHeight: 40 },
+  until: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  contact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderTopWidth: 1,
+    paddingTop: 14,
+    marginTop: 6,
+  },
+  contactWords: { flex: 1, minWidth: 0 },
+  foot: {
+    borderTopWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+  },
 });

@@ -77,6 +77,9 @@ function navigateToTarget(data: Record<string, unknown> | null) {
   if (!target || !navigationRef.isReady()) return;
   if (target.screen === 'BibleChapter') {
     navigationRef.navigate('BibleChapter', target.params);
+  } else if (target.screen === 'You') {
+    if (target.params) navigationRef.navigate('You', target.params);
+    else navigationRef.navigate('You');
   } else {
     navigationRef.navigate(target.screen as never);
   }

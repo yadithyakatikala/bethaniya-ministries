@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -10,6 +11,7 @@ import { SignInScreen } from './src/features/auth/SignInScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { OnboardingGate } from './src/features/onboarding/OnboardingGate';
 import { SuspensionGate } from './src/features/account/SuspensionGate';
+import { OpeningOverlay } from './src/features/opening';
 import {
   configureNotificationHandler,
   useNotificationListeners,
@@ -20,6 +22,12 @@ import {
 // auth state or React lifecycle, so it runs once at import time rather
 // than inside a component.
 configureNotificationHandler();
+
+// The native splash is a bare ground colour. Keep it up until the opening
+// (below) has painted its own first frame on the same ground, so the swap
+// is invisible. Module scope, not a component: it has to run before the
+// splash can auto-hide. See src/features/opening/OpeningOverlay.tsx.
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /**
  * Root component.
@@ -53,20 +61,36 @@ export default function App() {
       <AuthProvider>
         <PreferencesProvider>
           {/* M4. Inside PreferencesProvider because the reader reads both
-              (its Light/Dark/System control drives the theme preference
-              there), and above the navigator because the reader screen
-              and its settings sheet are separate components that must
-              see the same values. */}
+              (its Page control sets the app's theme preference there for
+              Light and Dark; Sepia is the reader's own page and is kept on
+              the phone only), and above the navigator because the reader
+              screen and its settings sheet are separate components that
+              must see the same values. */}
           <ReadingPreferencesProvider>
             <FontGate>
               <AuthGate />
             </FontGate>
+            {/* The opening plays OVER the app while it loads underneath, so
+                it costs no extra waiting. */}
+            <OpeningHost />
           </ReadingPreferencesProvider>
           <ThemedStatusBar />
         </PreferencesProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * Plays the opening once per launch, over everything, then removes it.
+ *
+ * Unmounting matters as much as playing: the film's frame state and its
+ * portrait are released the moment it is over.
+ */
+function OpeningHost() {
+  const [finished, setFinished] = useState(false);
+  if (finished) return null;
+  return <OpeningOverlay onFinished={() => setFinished(true)} />;
 }
 
 /**

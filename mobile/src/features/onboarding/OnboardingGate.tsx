@@ -6,6 +6,7 @@ import {
   type UserProfile,
 } from '../../services/firebase/userProfile';
 import { isProfileComplete } from './profileCompleteness';
+import { hasSeenChapter } from './chapterSeen';
 import { OnboardingScreen } from './OnboardingScreen';
 
 /**
@@ -67,6 +68,21 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   } | null>(null);
   const [settledFor, setSettledFor] = useState<string | null>(null);
 
+  // Has this device played the onboarding chapter before? It is read while
+  // the profile loads, so by the time the form appears the screen already
+  // knows which version to play and never has to show one and then switch.
+  const [chapterSeen, setChapterSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!uid) return undefined;
+    let cancelled = false;
+    void hasSeenChapter().then((seen) => {
+      if (!cancelled) setChapterSeen(seen);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+
   useEffect(() => {
     if (!uid) return undefined;
     const unsubscribe = subscribeToOwnProfile(
@@ -94,6 +110,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   return (
     <OnboardingScreen
       profile={profile}
+      chapterSeen={chapterSeen}
       onDone={() => setSettledFor(uid)}
       onSkip={() => setSettledFor(uid)}
     />

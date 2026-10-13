@@ -8,7 +8,13 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { getStoredReadingPrefs, setStoredReadingPrefs } from './readingPrefsStorage';
+import {
+  getStoredReadingPrefs,
+  getStoredReaderPage,
+  setStoredReadingPrefs,
+  setStoredReaderPage,
+  type ReaderPage,
+} from './readingPrefsStorage';
 import {
   DEFAULT_READING_PREFS,
   saveReadingPrefs,
@@ -27,10 +33,11 @@ import {
  * PreferencesContext would re-render every screen in the app each time
  * someone nudged the font size.
  *
- * The theme is deliberately NOT here. The reader's Light / Dark / System
- * control drives `usePreferences().setThemePreference`, so there is one
- * theme preference in the app rather than two that can disagree -- see
- * ../services/firebase/userProfile.ts's ThemePreference.
+ * The theme is deliberately NOT here. The reader's Page control -- Light,
+ * Sepia, Dark -- drives `usePreferences().setThemePreference` for Light and
+ * Dark, so there is one theme preference in the app rather than two that can
+ * disagree (see ../services/firebase/userProfile.ts's ThemePreference). Sepia
+ * is the one reader-only page: `page` below, local to the phone.
  *
  * PERSISTENCE, the same two tiers PreferencesContext.tsx uses:
  *   - AsyncStorage always holds the latest value locally, so the reader
@@ -44,9 +51,16 @@ import {
  * once, and a failed sync must not undo what the member just chose.
  */
 interface ReadingPreferencesContextValue extends ReadingPrefs {
+  /**
+   * The paper the page is set on: 'sepia', or null for the app's own light or
+   * dark. LOCAL TO THIS PHONE and never written to Firestore -- see
+   * ./readingPrefsStorage.ts's ReaderPage for why.
+   */
+  page: ReaderPage;
   /** True once the initial local (and, if signed in, remote) read settled. */
   isLoaded: boolean;
   setReadingPrefs: (fields: Partial<ReadingPrefs>) => Promise<void>;
+  setReaderPage: (page: ReaderPage) => Promise<void>;
 }
 
 const ReadingPreferencesContext = createContext<
@@ -58,6 +72,7 @@ export function ReadingPreferencesProvider({ children }: { children: React.React
   const uid = status === 'authenticated' ? (user?.uid ?? null) : null;
 
   const [prefs, setPrefsState] = useState<ReadingPrefs>(DEFAULT_READING_PREFS);
+  const [page, setPageState] = useState<ReaderPage>(null);
   const [localLoaded, setLocalLoaded] = useState(false);
   const [remoteLoaded, setRemoteLoaded] = useState(false);
 
@@ -85,12 +100,20 @@ export function ReadingPreferencesProvider({ children }: { children: React.React
   // wins over both -- the same guard PreferencesContext.tsx uses, and
   // for the same reason: nothing guarantees the ordering.
   const authoritativeRef = useRef(false);
+  // The same guard for the page, which has no remote tier: a choice made while
+  // the stored one is still being read wins over it.
+  const pageChosenRef = useRef(false);
 
   useEffect(() => {
     void (async () => {
-      const stored = await getStoredReadingPrefs();
+      const [stored, storedPage] = await Promise.all([
+        getStoredReadingPrefs(),
+        // A page that cannot be read is "none chosen": the reader must open.
+        getStoredReaderPage().catch((): ReaderPage => null),
+      ]);
       if (!mountedRef.current) return;
       if (!authoritativeRef.current) setPrefs(stored);
+      if (!pageChosenRef.current) setPageState(storedPage);
       setLocalLoaded(true);
     })();
   }, [setPrefs]);
@@ -138,13 +161,26 @@ export function ReadingPreferencesProvider({ children }: { children: React.React
     [uid, setPrefs]
   );
 
+  const setReaderPage = useCallback(async (next: ReaderPage) => {
+    pageChosenRef.current = true;
+    setPageState(next);
+    try {
+      await setStoredReaderPage(next);
+    } catch (error) {
+      // The page is in effect for this session; only its being remembered failed.
+      console.warn('[readingPrefs] could not store the reader page:', error);
+    }
+  }, []);
+
   const value = useMemo<ReadingPreferencesContextValue>(
     () => ({
       ...prefs,
+      page,
       isLoaded: localLoaded && (uid ? remoteLoaded : true),
       setReadingPrefs,
+      setReaderPage,
     }),
-    [prefs, localLoaded, remoteLoaded, uid, setReadingPrefs]
+    [prefs, page, localLoaded, remoteLoaded, uid, setReadingPrefs, setReaderPage]
   );
 
   return (

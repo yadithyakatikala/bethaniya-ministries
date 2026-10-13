@@ -1,12 +1,21 @@
-import React from 'react';
-import { Text } from 'react-native';
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, updateDoc } from 'firebase/firestore';
-import { AuthProvider } from '../../../context/AuthContext';
-import { PreferencesProvider } from '../../../context/PreferencesContext';
-import { OnboardingGate } from '../OnboardingGate';
+import {
+  installAnimatedDriver,
+  type AnimatedDriver,
+} from '../../../testing/animatedDriver';
+import { installFrameClock, type FrameClock } from '../../../testing/frameClock';
+import {
+  GOOD,
+  answerAll,
+  answerThroughGender,
+  answers,
+  mockSignedIn,
+  renderGate,
+  skipChapter,
+} from '../../../testing/onboardingHarness';
 
 jest.mock('../../../services/firebase/app');
 
@@ -17,80 +26,44 @@ jest.mock('../../../services/firebase/app');
  * The gate is mounted over a stand-in for the app, because what matters
  * is WHICH of the two renders -- the real navigator would drag twenty
  * screens and their Firebase mocks in without testing anything more.
+ *
+ * The questionnaire is five screens now, one question each (see
+ * ../OnboardingScreen.tsx), so "answering it" is five steps rather than
+ * one form. Every behaviour this file has always asserted is still
+ * asserted; only the way the test gets there changed. The new behaviour
+ * -- the questions, the chapter, the country picker -- is covered in
+ * ./OnboardingScreen.test.tsx.
  */
-function TheApp() {
-  return <Text testID="the-app">the app</Text>;
-}
-
-/** Signs a member in and hands back a way to deliver profile snapshots,
- *  so a test can control exactly what the gate sees and when. */
-function mockSignedIn(
-  uid: string,
-  authUser: { displayName?: string | null; phoneNumber?: string | null } = {}
-) {
-  (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {
-    onNext({
-      uid,
-      displayName: authUser.displayName ?? null,
-      email: 'member@example.com',
-      phoneNumber: authUser.phoneNumber ?? null,
-    });
-    return jest.fn();
-  });
-
-  const listeners: ((snapshot: unknown) => void)[] = [];
-  const errorHandlers: ((error: unknown) => void)[] = [];
-  (onSnapshot as jest.Mock).mockImplementation((_ref, next, onError) => {
-    listeners.push(next);
-    if (onError) errorHandlers.push(onError);
-    return jest.fn();
-  });
-
-  return {
-    /** The profile document as the server holds it. */
-    emit: async (data: Record<string, unknown> | null) => {
-      await act(async () => {
-        listeners.forEach((next) =>
-          next(
-            data === null
-              ? { exists: () => false }
-              : { exists: () => true, id: uid, data: () => data }
-          )
-        );
-      });
-    },
-    fail: async (error: unknown) => {
-      await act(async () => {
-        errorHandlers.forEach((onError) => onError(error));
-      });
-    },
-  };
-}
-
-async function renderGate() {
-  return render(
-    <AuthProvider>
-      <PreferencesProvider>
-        <OnboardingGate>
-          <TheApp />
-        </OnboardingGate>
-      </PreferencesProvider>
-    </AuthProvider>
-  );
-}
+let clock: FrameClock;
+let driver: AnimatedDriver;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // The chapter and the school are animations; hold them still so the
+  // tests are about the questionnaire, not a clock.
+  clock = installFrameClock();
+  driver = installAnimatedDriver();
   (updateDoc as jest.Mock).mockResolvedValue(undefined);
 });
 
 afterEach(async () => {
   await cleanup();
   await AsyncStorage.clear();
+  clock.restore();
+  driver.restore();
   (onAuthStateChanged as jest.Mock).mockImplementation(() => jest.fn());
   (onSnapshot as jest.Mock).mockImplementation(() => jest.fn());
   jest.restoreAllMocks();
 });
+
+/** The one write that finishes onboarding: the one carrying the completion marker. */
+function completionWrite(): Record<string, unknown> {
+  const call = (updateDoc as jest.Mock).mock.calls.find(
+    ([, data]: [unknown, Record<string, unknown>]) => 'profileCompletedAt' in data
+  ) as [unknown, Record<string, unknown>] | undefined;
+  expect(call).toBeDefined();
+  return call![1];
+}
 
 describe('who sees the questionnaire', () => {
   it('a brand-new email/password member does', async () => {
@@ -141,7 +114,7 @@ describe('who sees the questionnaire', () => {
 
   it('an existing member with a half-filled profile gets the completion flow', async () => {
     // Name and phone from somewhere, no gender, never submitted. They see
-    // the form, prefilled with what is already known.
+    // the questions, prefilled with what is already known.
     const server = mockSignedIn('half-done');
     const screen = await renderGate();
     await server.emit({
@@ -152,6 +125,11 @@ describe('who sees the questionnaire', () => {
 
     await waitFor(() => expect(screen.getByTestId('onboarding-screen')).toBeTruthy());
     expect(screen.getByTestId('onboarding-full-name').props.value).toBe('Ruth Samuel');
+
+    // The phone number is on the third question; get there.
+    await skipChapter(screen);
+    await fireEvent.press(screen.getByTestId('onboarding-continue'));
+    await answers.age(screen, '40');
     expect(screen.getByTestId('onboarding-phone').props.value).toBe('9876543210');
   });
 
@@ -187,43 +165,78 @@ describe('answering it', () => {
 
   it('writes every answer in ONE update, and lets the member through', async () => {
     const { screen } = await showForm();
+    await answerAll(screen, { ...GOOD, language: 'te' });
 
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'Ruth Samuel');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '98765 43210');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-female'));
-    await fireEvent.press(screen.getByTestId('onboarding-language-te'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
-
-    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
-    const [, written] = (updateDoc as jest.Mock).mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
+    await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
+    const written = completionWrite();
     expect(written.displayName).toBe('Ruth Samuel');
-    // Stored normalized, not as typed.
-    expect(written.phoneNumber).toBe('9876543210');
+    // Stored as one number with its country, not as typed.
+    expect(written.phoneNumber).toBe('+919876543210');
     expect(written.gender).toBe('female');
     expect(written.appLanguage).toBe('te');
     expect(written.profileCompletedAt).toBeDefined();
+    // ONE update carries the answers and the marker together -- and nothing
+    // else: the age is deliberately written beside it, not inside it.
+    expect(Object.keys(written).sort()).toEqual(
+      ['appLanguage', 'displayName', 'gender', 'phoneNumber', 'profileCompletedAt'].sort()
+    );
+  });
+
+  it('writes the age beside the completion, so a rejected age can never stop onboarding', async () => {
+    const { screen } = await showForm();
+    await answerAll(screen, GOOD);
+    await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
+
+    const ageWrite = (updateDoc as jest.Mock).mock.calls.find(
+      ([, data]: [unknown, Record<string, unknown>]) => 'age' in data
+    ) as [unknown, Record<string, unknown>];
+    expect(ageWrite[1]).toEqual({ age: 34 });
+  });
+
+  it('still finishes when the age write is refused (rules not yet deployed)', async () => {
+    // An app released before the age rule is deployed must not strand
+    // anyone: the age is best-effort, everything else is not.
+    (updateDoc as jest.Mock).mockImplementation(
+      async (_ref, data: Record<string, unknown>) => {
+        if ('age' in data) throw new Error('permission-denied');
+      }
+    );
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { screen } = await showForm();
+    await answerAll(screen, GOOD);
 
     await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
+    expect(completionWrite().gender).toBe('female');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('could not save the age'),
+      expect.anything()
+    );
   });
 
   it('saves English when English is chosen', async () => {
     const { screen } = await showForm();
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'John');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '9876543210');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-male'));
-    await fireEvent.press(screen.getByTestId('onboarding-language-en'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await answerAll(screen, {
+      name: 'John',
+      age: '51',
+      phone: '9876543210',
+      gender: 'male',
+      language: 'en',
+    });
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
-    const [, written] = (updateDoc as jest.Mock).mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
+    const written = completionWrite();
     expect(written.gender).toBe('male');
     expect(written.appLanguage).toBe('en');
+  });
+
+  it('leaves the phone number OUT of the write when that question was skipped', async () => {
+    const { screen } = await showForm();
+    await answerAll(screen, { ...GOOD, phone: null });
+
+    await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
+    const written = completionWrite();
+    expect('phoneNumber' in written).toBe(false);
+    expect(written.displayName).toBe('Ruth Samuel');
   });
 
   it('initializes the APP language from the answer, and touches nothing else', async () => {
@@ -231,11 +244,7 @@ describe('answering it', () => {
     // independent preferences. Answering "Telugu" here says which
     // language the MENUS are in.
     const { screen } = await showForm();
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'Ruth');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '9876543210');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-female'));
-    await fireEvent.press(screen.getByTestId('onboarding-language-te'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await answerAll(screen, { ...GOOD, name: 'Ruth', language: 'te' });
 
     await waitFor(() =>
       expect(AsyncStorage.getItem('app_language_preference')).resolves.toBe('te')
@@ -251,26 +260,45 @@ describe('answering it', () => {
     expect(languageWrites).not.toContain('themePreference');
   });
 
-  it('will not submit an incomplete form, and says which field is missing', async () => {
+  it('will not leave a question that is not answered, and says which', async () => {
     const { screen } = await showForm();
+    await skipChapter(screen);
 
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    // The name.
+    await fireEvent.press(screen.getByTestId('onboarding-continue'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onboarding-full-name-error')).toBeTruthy()
+    );
+    expect(screen.getByTestId('onboarding-full-name')).toBeTruthy(); // still on it
 
+    // Past it, to the gender question, unanswered.
+    await answers.name(screen, 'Ruth Samuel');
+    await answers.age(screen, '34');
+    await answers.phone(screen, '9876543210');
+    await fireEvent.press(screen.getByTestId('onboarding-continue'));
     await waitFor(() =>
       expect(screen.getByTestId('onboarding-gender-error')).toBeTruthy()
     );
+
     expect(updateDoc).not.toHaveBeenCalled();
     expect(screen.queryByTestId('the-app')).toBeNull();
   });
 
   it('rejects a phone number that is not one, without losing the name', async () => {
     const { screen } = await showForm();
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'Ruth Samuel');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '123');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-female'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await skipChapter(screen);
+    await answers.name(screen, 'Ruth Samuel');
+    await answers.age(screen, '34');
+    await answers.phone(screen, '123');
 
-    await waitFor(() => expect(updateDoc).not.toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByTestId('onboarding-phone-error')).toBeTruthy()
+    );
+    expect(updateDoc).not.toHaveBeenCalled();
+
+    // The name is still there, three questions back.
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
     expect(screen.getByTestId('onboarding-full-name').props.value).toBe('Ruth Samuel');
   });
 
@@ -278,21 +306,48 @@ describe('answering it', () => {
     // The M6 BUG 1 lesson, applied here from the start: a write that did
     // not happen must never be reported as one that did.
     (updateDoc as jest.Mock).mockRejectedValue(new Error('permission-denied'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { screen } = await showForm();
-
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'Ruth Samuel');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '9876543210');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-female'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await answerAll(screen, GOOD);
 
     await waitFor(() => expect(screen.getByTestId('onboarding-error')).toBeTruthy());
     expect(screen.queryByTestId('the-app')).toBeNull();
-    // Nothing typed was thrown away.
-    expect(screen.getByTestId('onboarding-full-name').props.value).toBe('Ruth Samuel');
-    expect(screen.getByTestId('onboarding-phone').props.value).toBe('9876543210');
+    expect(warn).toHaveBeenCalled();
+
+    // Nothing typed was thrown away: walk back through the questions.
+    expect(screen.getByTestId('onboarding-language-en')).toBeTruthy(); // still on the last
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
     expect(
       screen.getByTestId('onboarding-gender-female').props.accessibilityState.selected
     ).toBe(true);
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
+    expect(screen.getByTestId('onboarding-phone').props.value).toBe('98765 43210');
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
+    expect(screen.getByTestId('onboarding-age').props.value).toBe('34');
+    await fireEvent.press(screen.getByTestId('onboarding-back'));
+    expect(screen.getByTestId('onboarding-full-name').props.value).toBe('Ruth Samuel');
+  });
+
+  it('lets the member try again after a failed save', async () => {
+    // Refuse the first attempt at the COMPLETION write (the age is written
+    // beside it and is not what is being tested here).
+    let refused = false;
+    (updateDoc as jest.Mock).mockImplementation(
+      async (_ref, data: Record<string, unknown>) => {
+        if ('profileCompletedAt' in data && !refused) {
+          refused = true;
+          throw new Error('unavailable');
+        }
+      }
+    );
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { screen } = await showForm();
+    await answerAll(screen, GOOD);
+    await waitFor(() => expect(screen.getByTestId('onboarding-error')).toBeTruthy());
+    expect(screen.queryByTestId('the-app')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
   });
 
   it('does not bounce the member back into the form on the pre-server snapshot', async () => {
@@ -301,16 +356,13 @@ describe('answering it', () => {
     // reads null for a tick. Without the gate latching, that tick would
     // put the member straight back on the form they just submitted.
     const { screen, server } = await showForm();
-    await fireEvent.changeText(screen.getByTestId('onboarding-full-name'), 'Ruth Samuel');
-    await fireEvent.changeText(screen.getByTestId('onboarding-phone'), '9876543210');
-    await fireEvent.press(screen.getByTestId('onboarding-gender-female'));
-    await fireEvent.press(screen.getByTestId('onboarding-submit'));
+    await answerAll(screen, GOOD);
     await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
 
     await server.emit({
       role: 'member',
       displayName: 'Ruth Samuel',
-      phoneNumber: '9876543210',
+      phoneNumber: '+919876543210',
       gender: 'female',
       profileCompletedAt: null,
     });
@@ -323,9 +375,30 @@ describe('answering it', () => {
     // Not a trap. An incomplete record beats a member who cannot use the
     // app at all.
     const { screen } = await showForm();
+    await skipChapter(screen);
     await fireEvent.press(screen.getByTestId('onboarding-skip'));
 
     await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
     expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('lets them leave from the last question too -- keeping a language they chose, and nothing else', async () => {
+    const { screen } = await showForm();
+    await answerThroughGender(screen, { ...GOOD, phone: null });
+    await answers.language(screen, 'te');
+    // On the last question, "Not now" is still there.
+    await fireEvent.press(screen.getByTestId('onboarding-skip'));
+
+    await waitFor(() => expect(screen.getByTestId('the-app')).toBeTruthy());
+    // The answers are NOT saved and the member is not marked complete...
+    expect(
+      (updateDoc as jest.Mock).mock.calls.some(([, data]) => 'profileCompletedAt' in data)
+    ).toBe(false);
+    // ...but somebody who switched to Telugu is not dropped back into English.
+    expect(await AsyncStorage.getItem('app_language_preference')).toBe('te');
+    const written = (updateDoc as jest.Mock).mock.calls.flatMap(
+      ([, data]: [unknown, Record<string, unknown>]) => Object.keys(data)
+    );
+    expect(written).toEqual(['appLanguage']);
   });
 });

@@ -1,10 +1,19 @@
-import { getDoc, onSnapshot, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  getDoc,
+  onSnapshot,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import {
   markDayComplete,
   startPlan,
   subscribeToPlanDays,
   subscribeToPlanProgress,
   subscribeToPublishedPlans,
+  subscribeToAllPlanProgress,
+  subscribeToStartedPlanCount,
 } from '../plans';
 
 jest.mock('../app');
@@ -42,6 +51,96 @@ describe('plans service', () => {
           dayCount: 7,
         }),
       ]);
+    });
+  });
+
+  describe('subscribeToAllPlanProgress', () => {
+    it("maps every document of the member's own planProgress into progress, by plan id", () => {
+      const onNext = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+        next({
+          docs: [
+            { id: 'psalms', data: () => ({ currentDay: 3, completedDays: [1, 2] }) },
+            { id: 'luke', data: () => ({ currentDay: 'x', completedDays: ['a', 4] }) },
+          ],
+        });
+        return jest.fn();
+      });
+
+      subscribeToAllPlanProgress('uid-1', onNext, jest.fn());
+
+      expect(onNext).toHaveBeenCalledWith({
+        psalms: {
+          startedAt: null,
+          currentDay: 3,
+          completedDays: [1, 2],
+          lastReadAt: null,
+        },
+        // A malformed document degrades to the defaults and keeps only the numbers.
+        luke: { startedAt: null, currentDay: 1, completedDays: [4], lastReadAt: null },
+      });
+      expect(collection).toHaveBeenCalledWith(
+        expect.anything(),
+        'users',
+        'uid-1',
+        'planProgress'
+      );
+    });
+
+    it('is an empty record for a member who has started nothing, and passes errors on', () => {
+      const onNext = jest.fn();
+      const onError = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next, error) => {
+        next({ docs: [] });
+        error({ code: 'unavailable' });
+        return jest.fn();
+      });
+      subscribeToAllPlanProgress('uid-1', onNext, onError);
+      expect(onNext).toHaveBeenCalledWith({});
+      expect(onError).toHaveBeenCalledWith({ code: 'unavailable' });
+    });
+  });
+
+  describe('subscribeToStartedPlanCount', () => {
+    it("counts the documents in the member's own planProgress collection", () => {
+      const onNext = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+        next({ docs: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
+        return jest.fn();
+      });
+
+      subscribeToStartedPlanCount('uid-1', onNext, jest.fn());
+
+      expect(onNext).toHaveBeenCalledWith(3);
+      // Only the member's own subcollection is listened to, never plans or days.
+      expect(collection).toHaveBeenCalledWith(
+        expect.anything(),
+        'users',
+        'uid-1',
+        'planProgress'
+      );
+    });
+
+    it('reports zero for a member who has started nothing', () => {
+      const onNext = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, next) => {
+        next({ docs: [] });
+        return jest.fn();
+      });
+      subscribeToStartedPlanCount('uid-1', onNext, jest.fn());
+      expect(onNext).toHaveBeenCalledWith(0);
+    });
+
+    it('passes a failure to the caller and hands back the unsubscribe', () => {
+      const onError = jest.fn();
+      const unsubscribe = jest.fn();
+      (onSnapshot as jest.Mock).mockImplementation((_ref, _next, error) => {
+        error({ code: 'permission-denied' });
+        return unsubscribe;
+      });
+      const result = subscribeToStartedPlanCount('uid-1', jest.fn(), onError);
+      expect(onError).toHaveBeenCalledWith({ code: 'permission-denied' });
+      expect(result).toBe(unsubscribe);
     });
   });
 

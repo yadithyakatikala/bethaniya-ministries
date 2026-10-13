@@ -167,6 +167,38 @@ describe('useNotificationListeners', () => {
     expect(navigationRef.navigate).toHaveBeenCalledWith('SongsList');
   });
 
+  it("opens the Profile tab of You for a notification that still says 'Profile'", async () => {
+    // Profile stopped being a screen of its own when the tabs became
+    // Home | Bible | Prayers | Community | You.
+    await renderHook(() => useNotificationListeners());
+    const onResponse = (
+      Notifications.addNotificationResponseReceivedListener as jest.Mock
+    ).mock.calls[0][0];
+
+    const notification = buildNotification({
+      identifier: 'n4b',
+      data: { screen: 'Profile' },
+    });
+    onResponse({ notification, actionIdentifier: 'default' });
+
+    expect(navigationRef.navigate).toHaveBeenCalledWith('You', { tab: 'profile' });
+  });
+
+  it('opens a tab destination with no view asked for as just that tab', async () => {
+    await renderHook(() => useNotificationListeners());
+    const onResponse = (
+      Notifications.addNotificationResponseReceivedListener as jest.Mock
+    ).mock.calls[0][0];
+
+    const notification = buildNotification({
+      identifier: 'n4c',
+      data: { screen: 'You' },
+    });
+    onResponse({ notification, actionIdentifier: 'default' });
+
+    expect(navigationRef.navigate).toHaveBeenCalledWith('You');
+  });
+
   it('does not navigate when the navigator is not ready', async () => {
     (navigationRef.isReady as jest.Mock).mockReturnValue(false);
     await renderHook(() => useNotificationListeners());

@@ -88,6 +88,17 @@ how the upstream SQL dump was escaped into JSON.
 corpus contains no escape characters, no leftover footnote braces, and
 stays pure ASCII, so this cannot come back unnoticed.
 
+**Cleaning applied, step 3 — a leading `&gt; `:** the redesign's QA put
+Psalm 23 on screen in a list and its first verse read `&gt; Yahweh is my
+shepherd...`. **117 verses of the Psalms** carried the source's
+HTML-escaped poetry marker (a USFM start-of-poetic-line) in front of
+their first word. The fix removes that marker and the space after it, and
+nothing else: a character-frequency comparison of the file before and
+after differs in those five characters (`&`, `g`, `t`, `;` and the space),
+117 times each, and the verse count is unchanged. No HTML entity of any
+kind remains; `webBible.test.ts` asserts it, so it cannot come back
+unnoticed.
+
 **Seven verses are legitimately empty** and are NOT a data defect:
 Luke 17:36, Acts 8:37, Acts 15:34, Acts 24:7 and Romans 16:25-27. In the
 source, each consists *entirely* of a translator's note saying the
@@ -146,9 +157,10 @@ It explicitly permits redistribution **and** adaptation/modification
 them in an app's UI requires), conditioned on two things this project
 now satisfies:
 1. **Attribution** to the copyright holder + a link to the license —
-   this document, plus an in-app credit on the Settings screen
-   (`mobile/src/features/settings/SettingsScreen.tsx`, testID
-   `settings-bible-attribution`).
+   this document, plus an in-app credit on its own screen, one tap from
+   Settings (`mobile/src/features/settings/BibleTranslationsScreen.tsx`,
+   testID `bible-translations-screen`, opened by Settings' "Bible
+   translations" row).
 2. **ShareAlike** — a derivative distribution must carry the same
    license. This app's own use of the Telugu text (rendering it inside
    the Bible reader) is disclosed under CC BY-SA 4.0 terms here and in
@@ -353,11 +365,14 @@ Telugu remains the **default** Bible language on first launch (this
 was not reverted); English remains fully available as a one-tap toggle,
 and any user's explicit choice always persists.
 
-**Required attribution (CC BY-SA 4.0):** the Settings screen shows a
-permanent "Bible translations" card crediting the World English Bible
-(public domain) and the IRV 2019 (© Bridge Connectivity Solutions,
-CC BY-SA 4.0, with the license URL) — see
-`SettingsScreen.tsx`'s `settings-bible-attribution` card.
+**Required attribution (CC BY-SA 4.0):** a permanent "Bible translations"
+screen, opened from Settings, credits the World English Bible (public
+domain) and the IRV 2019 (© Bridge Connectivity Solutions, CC BY-SA 4.0,
+with the license URL and a button that opens it) — see
+`BibleTranslationsScreen.tsx`. (It used to be a card on the Settings screen
+itself; the approved redesign moved it one tap deeper. Whether that is still
+findable enough under the Telugu licence is a question for the church's
+counsel, listed as unresolved in the design log.)
 
 ## Remaining, unresolved gap — Telugu Bible is NOT complete
 
@@ -449,7 +464,7 @@ required, credited anyway.
 run** and aborts the import if the type, version, or copyright holder has
 changed upstream, rather than silently redistributing text under terms
 nobody reviewed. The CC BY-SA attribution both translations need is shown
-in the app's Settings screen.
+on the app's Bible translations screen (one tap from Settings).
 
 ## The defect: two source markers were discarded
 

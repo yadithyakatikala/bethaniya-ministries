@@ -11,6 +11,7 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.test.{ts,tsx}',
     '!src/**/__tests__/**',
+    '!src/testing/**',
     '!src/features/bible/placeholderData.ts',
   ],
 };

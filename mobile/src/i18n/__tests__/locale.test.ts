@@ -1,8 +1,17 @@
 import {
   formatDateTime,
+  formatDayMonthShort,
+  formatDayMonthYear,
+  formatEventWhen,
   formatIsoDateString,
+  formatIsoDayMonth,
   formatLongDate,
+  formatMonthShort,
+  formatNotificationWhen,
   formatShortDate,
+  formatIsoWeekdayDate,
+  formatWeekdayDate,
+  formatWeekdayShort,
   formatsDatesInTelugu,
   localeFor,
 } from '../locale';
@@ -71,6 +80,65 @@ describe('date formatting', () => {
   });
 });
 
+describe('the weekday formats on Home and on an event row', () => {
+  // 11 October 2026 is a Sunday.
+  const SUNDAY = new Date(2026, 9, 11, 9, 30);
+
+  it('puts the day before the month, the way Home reads "Sunday, 11 October"', () => {
+    const text = formatWeekdayDate(SUNDAY, 'en');
+    expect(text).toMatch(/^[A-Za-z]+, 11 [A-Za-z]+$/);
+  });
+
+  it('returns a non-empty weekday date and abbreviation in both languages, whatever the engine', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatWeekdayDate(SUNDAY, language)).toContain('11');
+      expect(formatWeekdayShort(SUNDAY, language).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('abbreviates the weekday', () => {
+    expect(formatWeekdayShort(SUNDAY, 'en').length).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('formatDayMonthShort', () => {
+  const NOW = new Date(2026, 9, 12, 12, 0);
+
+  it('is the day then the abbreviated month for a date in this year', () => {
+    expect(formatDayMonthShort(new Date(2026, 9, 9, 12, 0), 'en', NOW)).toBe('9 Oct');
+    expect(formatDayMonthShort(new Date(2026, 8, 29, 12, 0), 'en', NOW)).toBe('29 Sep');
+    expect(formatDayMonthShort(new Date(2026, 0, 1, 12, 0), 'en', NOW)).toBe('1 Jan');
+  });
+
+  it('adds the year for any other year, so an old date does not read as recent', () => {
+    expect(formatDayMonthShort(new Date(2025, 11, 31, 12, 0), 'en', NOW)).toBe(
+      '31 Dec 2025'
+    );
+    expect(formatDayMonthShort(new Date(2027, 0, 1, 12, 0), 'en', NOW)).toBe(
+      '1 Jan 2027'
+    );
+  });
+
+  it('puts the day before the month in Telugu too, and carries a Telugu month name', () => {
+    const text = formatDayMonthShort(new Date(2026, 9, 9, 12, 0), 'te', NOW);
+    expect(text.startsWith('9 ')).toBe(true);
+    // A Telugu month where the engine has Telugu data; the English one where it does not.
+    expect(text.length).toBeGreaterThan(2);
+    if (formatsDatesInTelugu()) expect(text).toMatch(/[ఀ-౿]/u);
+  });
+
+  it('uses the clock only when it is not given one', () => {
+    const today = new Date();
+    expect(formatDayMonthShort(today, 'en')).toMatch(/^\d{1,2} [A-Za-z]+$/);
+  });
+
+  it('never throws and is never empty, whatever the engine supports', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatDayMonthShort(SAMPLE, language, NOW).length).toBeGreaterThan(0);
+    }
+  });
+});
+
 describe('formatIsoDateString', () => {
   it('formats the YYYY-MM-DD strings the daily-verse collection stores', () => {
     const formatted = formatIsoDateString('2026-09-18', 'en');
@@ -87,10 +155,174 @@ describe('formatIsoDateString', () => {
   });
 });
 
+describe('formatDayMonthYear', () => {
+  it('is the day, the month spelled out and the year -- day first, where en-US would say month first', () => {
+    expect(formatDayMonthYear(new Date(2026, 9, 14, 18, 30), 'en')).toBe(
+      '14 October 2026'
+    );
+    expect(formatDayMonthYear(new Date(2027, 0, 1, 12, 0), 'en')).toBe('1 January 2027');
+  });
+
+  it('puts the day before the month in Telugu too, and the year last', () => {
+    const text = formatDayMonthYear(new Date(2026, 9, 14, 18, 30), 'te');
+    expect(text.startsWith('14 ')).toBe(true);
+    expect(text.endsWith(' 2026')).toBe(true);
+    if (formatsDatesInTelugu()) expect(text).toMatch(/[ఀ-౿]/u);
+  });
+
+  it('never throws and is never empty, whatever the engine supports', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatDayMonthYear(SAMPLE, language).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('formatIsoDayMonth', () => {
+  const NOW = new Date(2026, 9, 12, 12, 0);
+
+  it('is a stored date as a list row says it: the day, the short month, and the year only when it is not this one', () => {
+    expect(formatIsoDayMonth('2026-10-09', 'en', NOW)).toBe('9 Oct');
+    expect(formatIsoDayMonth('2025-12-31', 'en', NOW)).toBe('31 Dec 2025');
+  });
+
+  it('reads the first of a month as that day, not the day before', () => {
+    // The key names a CALENDAR day and is built as that day in the phone's own zone (like
+    // formatIsoWeekdayDate's), not as UTC midnight, which would slide to 30 September west of
+    // Greenwich. These tests run in UTC, where the two agree, so this pins the edge itself
+    // rather than the zone; the construction is what keeps it true on a phone.
+    expect(formatIsoDayMonth('2026-10-01', 'en', NOW)).toBe('1 Oct');
+    expect(formatIsoDayMonth('2026-01-01', 'en', new Date(2026, 5, 1))).toBe('1 Jan');
+  });
+
+  it('returns a malformed value unchanged rather than rendering "NaN Invalid Date"', () => {
+    expect(formatIsoDayMonth('not-a-date', 'en', NOW)).toBe('not-a-date');
+    expect(formatIsoDayMonth('', 'te', NOW)).toBe('');
+  });
+});
+
+describe('formatIsoWeekdayDate', () => {
+  it("names the calendar day a key stands for, in the phone's own zone", () => {
+    // 2026-10-11 was a Sunday. A key is a CALENDAR day: it must not slide to
+    // Saturday on a phone west of Greenwich, which is what reading it as UTC
+    // midnight would do.
+    expect(formatIsoWeekdayDate('2026-10-11', 'en')).toMatch(/^Sunday, 11 October$/);
+  });
+
+  it('works for the first and last day of a month and of a year', () => {
+    expect(formatIsoWeekdayDate('2026-01-01', 'en')).toMatch(/^Thursday, 1 January$/);
+    expect(formatIsoWeekdayDate('2026-12-31', 'en')).toMatch(/^Thursday, 31 December$/);
+    expect(formatIsoWeekdayDate('2028-02-29', 'en')).toMatch(/^Tuesday, 29 February$/);
+  });
+
+  it('gives a Telugu reader a non-empty line that still carries the day number', () => {
+    const text = formatIsoWeekdayDate('2026-10-11', 'te');
+    expect(text.length).toBeGreaterThan(0);
+    expect(text).toContain('11');
+  });
+
+  it('returns a malformed key unchanged rather than "Invalid Date"', () => {
+    expect(formatIsoWeekdayDate('not-a-date', 'en')).toBe('not-a-date');
+    expect(formatIsoWeekdayDate('', 'te')).toBe('');
+  });
+});
+
 describe('formatsDatesInTelugu', () => {
   it('answers without throwing, so QA can tell a real Telugu date from a fallback', () => {
     // Diagnostic only -- nothing in the UI branches on it, and the answer
     // legitimately differs between Node here and Hermes on a device.
     expect(typeof formatsDatesInTelugu()).toBe('boolean');
+  });
+});
+
+describe('formatEventWhen', () => {
+  const NOW = new Date(2026, 9, 11, 8, 0);
+
+  it('names the day for a later event and the time after a comma', () => {
+    const text = formatEventWhen(new Date(2026, 9, 14, 18, 30), 'en', 'Today', NOW);
+    expect(text).toMatch(/^Wed 14 Oct, /);
+    expect(text).toMatch(/6:30\s?PM$/i);
+  });
+
+  it('says Today, in the word it is given, for an event starting today', () => {
+    const text = formatEventWhen(new Date(2026, 9, 11, 10, 30), 'en', 'Today', NOW);
+    expect(text).toMatch(/^Today, 10:30\s?AM$/i);
+    expect(formatEventWhen(new Date(2026, 9, 11, 23, 59), 'en', 'ఈరోజు', NOW)).toMatch(
+      /^ఈరోజు, /
+    );
+  });
+
+  it('does not call yesterday or tomorrow "Today"', () => {
+    expect(formatEventWhen(new Date(2026, 9, 10, 10, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+    expect(formatEventWhen(new Date(2026, 9, 12, 10, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+  });
+
+  it('adds the year only when the event is not in this one', () => {
+    expect(formatEventWhen(new Date(2027, 0, 3, 9, 0), 'en', 'Today', NOW)).toMatch(
+      /^Sun 3 Jan 2027, /
+    );
+    // The same calendar day in another year is not today.
+    expect(formatEventWhen(new Date(2027, 9, 11, 9, 0), 'en', 'Today', NOW)).not.toMatch(
+      /^Today/
+    );
+  });
+
+  it('puts the day before the month in Telugu too and never throws', () => {
+    const text = formatEventWhen(new Date(2026, 9, 14, 18, 30), 'te', 'ఈరోజు', NOW);
+    expect(text).toMatch(/ 14 /);
+    expect(text.includes(', ')).toBe(true);
+    expect(text.indexOf('14')).toBeLessThan(text.indexOf(','));
+  });
+});
+
+describe('formatMonthShort', () => {
+  it('is the abbreviated month alone, in either language, and never empty', () => {
+    expect(formatMonthShort(new Date(2026, 9, 14, 12), 'en')).toBe('Oct');
+    expect(formatMonthShort(new Date(2026, 9, 14, 12), 'te').length).toBeGreaterThan(0);
+  });
+});
+
+describe('formatNotificationWhen', () => {
+  const NOW = new Date(2026, 9, 12, 0, 10);
+  const labels = { today: 'Today', yesterday: 'Yesterday' };
+
+  it('says Today and Yesterday by CALENDAR day, so 11:50 pm last night is Yesterday at ten past midnight', () => {
+    expect(
+      formatNotificationWhen(new Date(2026, 9, 12, 0, 5), 'en', labels, NOW)
+    ).toMatch(/^Today, /);
+    expect(
+      formatNotificationWhen(new Date(2026, 9, 11, 23, 50), 'en', labels, NOW)
+    ).toMatch(/^Yesterday, /);
+  });
+
+  it('is the day and month, then the time, for anything older in this year', () => {
+    expect(formatNotificationWhen(new Date(2026, 9, 6, 9, 0), 'en', labels, NOW)).toMatch(
+      /^6 Oct, 9:00\s?AM$/i
+    );
+  });
+
+  it('adds the year for another year', () => {
+    expect(
+      formatNotificationWhen(new Date(2025, 11, 31, 9, 0), 'en', labels, NOW)
+    ).toMatch(/^31 Dec 2025, /);
+  });
+
+  it('uses the day words it is given, so a Telugu screen says them in Telugu', () => {
+    expect(
+      formatNotificationWhen(
+        new Date(2026, 9, 12, 0, 5),
+        'te',
+        { today: 'ఈరోజు', yesterday: 'నిన్న' },
+        NOW
+      )
+    ).toMatch(/^ఈరోజు, /);
+  });
+
+  it('does not call a time in the future yesterday', () => {
+    const text = formatNotificationWhen(new Date(2026, 9, 13, 9, 0), 'en', labels, NOW);
+    expect(text).not.toMatch(/^(Today|Yesterday)/);
   });
 });

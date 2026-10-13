@@ -7,6 +7,11 @@ import { translate } from '../src/i18n';
 
 jest.mock('../src/services/firebase/app');
 jest.mock('../src/features/auth/useGoogleSignIn');
+// The opening plays over the app at launch. Here it would only be a
+// 60 fps loop competing with the assertions about which screen the auth
+// state selects; it is covered in __tests__/AppOpening.test.tsx and
+// src/features/opening/__tests__.
+jest.mock('../src/features/opening', () => ({ OpeningOverlay: () => null }));
 
 /**
  * Day 2 replaces the Day 1 static-placeholder smoke test with real coverage

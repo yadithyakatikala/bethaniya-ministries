@@ -116,6 +116,13 @@ export interface UserProfile {
   /** M6 onboarding. `null` for every account created before it. */
   gender: Gender | null;
   /**
+   * Whole years, as the member typed them, from the redesigned
+   * onboarding. `null` for every account that has not answered it.
+   * Congregation information the church keeps -- nothing in the app
+   * reads it to make a decision.
+   */
+  age: number | null;
+  /**
    * When the member finished the onboarding questionnaire -- M6.
    *
    * THIS, NOT A FIELD-BY-FIELD GUESS, is what decides whether onboarding
@@ -214,6 +221,8 @@ export interface UpdatableUserProfileFields {
    */
   phoneNumber?: string | null;
   gender?: Gender;
+  /** Whole years, 1..120 -- the same range firestore.rules enforces. */
+  age?: number;
 }
 
 function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile {
@@ -242,6 +251,13 @@ function toUserProfile(uid: string, data: Record<string, unknown>): UserProfile 
     phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : null,
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
     gender: data.gender === 'male' || data.gender === 'female' ? data.gender : null,
+    age:
+      typeof data.age === 'number' &&
+      Number.isInteger(data.age) &&
+      data.age >= 1 &&
+      data.age <= 120
+        ? data.age
+        : null,
     // serverTimestamp() resolves to null in the LOCAL snapshot that fires
     // before the server acknowledges the write. Treating that tick as
     // "not completed" is exactly the flicker back into onboarding this
@@ -350,6 +366,7 @@ export async function updateOwnProfile(
     update.notificationsEnabled = fields.notificationsEnabled;
   if ('phoneNumber' in fields) update.phoneNumber = fields.phoneNumber;
   if ('gender' in fields) update.gender = fields.gender;
+  if ('age' in fields) update.age = fields.age;
 
   await updateDoc(doc(db, 'users', uid), update);
 }
@@ -358,7 +375,13 @@ export async function updateOwnProfile(
  *  screen and ../../features/onboarding/profileCompleteness.ts. */
 export interface OnboardingAnswers {
   fullName: string;
-  phoneNumber: string;
+  /**
+   * E.164, e.g. "+919876543210". OPTIONAL: the phone question can be
+   * skipped, and a skipped answer is left OUT of the write rather than
+   * written as null -- a number the member gave elsewhere (or that the
+   * sign-in provider supplied) must not be wiped by declining to retype it.
+   */
+  phoneNumber?: string;
   gender: Gender;
   /** Becomes the member's APP language. Never their Bible language and
    *  never their theme -- those are separate preferences and M2/M4's
@@ -390,7 +413,7 @@ export async function completeOnboarding(
 ): Promise<void> {
   await updateDoc(doc(db, 'users', uid), {
     displayName: answers.fullName,
-    phoneNumber: answers.phoneNumber,
+    ...(answers.phoneNumber ? { phoneNumber: answers.phoneNumber } : {}),
     gender: answers.gender,
     appLanguage: answers.preferredLanguage,
     profileCompletedAt: serverTimestamp(),

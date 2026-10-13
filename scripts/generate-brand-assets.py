@@ -222,6 +222,21 @@ def main() -> None:
     # backgrounds alike.
     outputs[ASSETS / "splash-icon.png"] = circular_portrait(source, 720)
 
+    # The opening animation's portrait. The same circular crop as the
+    # splash icon, kept SQUARE and opaque: the animation clips it to a
+    # circle itself (a vector clip is crisper than a baked alpha edge at
+    # any scale), and a 512px JPEG is ~50 KB where the same crop as a
+    # transparent PNG is ~220 KB.
+    outputs[BRAND / "maranatha-portrait-crop-512.jpg"] = (
+        source.crop(circle_box()).resize((512, 512), Image.LANCZOS).convert("RGB")
+    )
+
+    # The native splash screen is a plain ground colour with this fully
+    # transparent image on it: the portrait is drawn by the opening
+    # animation, which begins by fading it in over the same ground, so a
+    # portrait on the native splash would jump when the two met.
+    outputs[BRAND / "splash-blank.png"] = Image.new("RGBA", (288, 288), (0, 0, 0, 0))
+
     # Web favicon for the Expo web target.
     outputs[ASSETS / "favicon.png"] = (
         source.crop(SQUARE_CROP).resize((48, 48), Image.LANCZOS).convert("RGB")
@@ -240,7 +255,10 @@ def main() -> None:
             print(f"  {status:>7}  {path.relative_to(ROOT)}")
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(path, "PNG", optimize=True)
+        if path.suffix == ".jpg":
+            image.save(path, "JPEG", quality=90, optimize=True, progressive=True)
+        else:
+            image.save(path, "PNG", optimize=True)
         print(
             f"  wrote {path.relative_to(ROOT)}  "
             f"{image.width}x{image.height} {image.mode}"

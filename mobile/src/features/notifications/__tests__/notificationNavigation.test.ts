@@ -49,4 +49,36 @@ describe('getNavigationTargetFromData', () => {
       })
     ).toBeNull();
   });
+
+  it.each(['PrayersHub', 'CommunityHub', 'You'])(
+    'resolves %s, one of the five tab destinations',
+    (screen) => {
+      expect(getNavigationTargetFromData({ screen })).toEqual({ screen });
+    }
+  );
+
+  it("sends the retired 'Profile' name to the Profile tab of You", () => {
+    expect(getNavigationTargetFromData({ screen: 'Profile' })).toEqual({
+      screen: 'You',
+      params: { tab: 'profile' },
+    });
+  });
+
+  it.each([
+    'More',
+    'Announcements',
+    'Prayers',
+    'PrayerWall',
+    'CommunityList',
+    'CommunityChat',
+  ])('still ignores %s, which a notification never could open', (screen) => {
+    expect(getNavigationTargetFromData({ screen })).toBeNull();
+  });
+
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
+    'does not mistake the object property %s for a route',
+    (screen) => {
+      expect(getNavigationTargetFromData({ screen })).toBeNull();
+    }
+  );
 });

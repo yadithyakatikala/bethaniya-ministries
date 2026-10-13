@@ -17,6 +17,7 @@ import { bookNameLanguageFor } from '../features/bible/types';
 import type { ThemeColors } from '../theme';
 import { useTranslation } from '../i18n';
 import { HomeScreen } from '../features/auth/HomeScreen';
+import { BibleTranslationsScreen } from '../features/settings/BibleTranslationsScreen';
 import { SongsListScreen } from '../features/songs/SongsListScreen';
 import { SongDetailScreen } from '../features/songs/SongDetailScreen';
 import type { PublishedSong } from '../services/firebase/songs';
@@ -24,16 +25,13 @@ import { EventsListScreen } from '../features/events/EventsListScreen';
 import { EventDetailScreen } from '../features/events/EventDetailScreen';
 import { YouTubePlayerScreen } from '../features/events/YouTubePlayerScreen';
 import type { PublishedEvent } from '../services/firebase/events';
-import { BooksListScreen } from '../features/bible/BooksListScreen';
+import { BibleHomeScreen } from '../features/bible/BibleHomeScreen';
 import { ChaptersListScreen } from '../features/bible/ChaptersListScreen';
 import { ReaderScreen } from '../features/bible/reader/ReaderScreen';
 import { BibleSearchScreen } from '../features/bible/BibleSearchScreen';
 import { getBookNameById } from '../features/bible/books';
-import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { NotificationCenterScreen } from '../features/notifications/NotificationCenterScreen';
-import { MoreScreen } from '../features/more/MoreScreen';
-import { AnnouncementsScreen } from '../features/announcements/AnnouncementsScreen';
 import { AnnouncementDetailScreen } from '../features/announcements/AnnouncementDetailScreen';
 import type { PublishedAnnouncement } from '../services/firebase/announcements';
 import { DailyVerseScreen } from '../features/daily-verses/DailyVerseScreen';
@@ -41,24 +39,20 @@ import { MediaFeedScreen } from '../features/media/MediaFeedScreen';
 import { MediaDetailScreen } from '../features/media/MediaDetailScreen';
 import { SavedMediaScreen } from '../features/media/SavedMediaScreen';
 import type { MediaPost } from '../services/firebase/media';
-import { PrayersScreen } from '../features/prayers/PrayersScreen';
-import { CommunityListScreen } from '../features/community/CommunityListScreen';
+import { PrayersHubScreen } from '../features/prayers/PrayersHubScreen';
+import { CommunityHubScreen } from '../features/community/CommunityHubScreen';
 import { CommunityPostDetailScreen } from '../features/community/CommunityPostDetailScreen';
-import { CommunityChatScreen } from '../features/community/CommunityChatScreen';
-import { PrayerWallScreen } from '../features/prayer-wall/PrayerWallScreen';
+import { YouScreen } from '../features/you/YouScreen';
+import { SavedVersesScreen } from '../features/you/SavedVersesScreen';
 import type { PublishedCommunityPost } from '../services/firebase/communityPosts';
-import { PlansListScreen } from '../features/plans/PlansListScreen';
 import { PlanDetailScreen } from '../features/plans/PlanDetailScreen';
 import { PlanDayScreen } from '../features/plans/PlanDayScreen';
+import { PlanDoneScreen } from '../features/plans/PlanDoneScreen';
 import type { PublishedPlan } from '../services/firebase/plans';
-import {
-  LegalScreen,
-  PRIVACY_POLICY_BODY,
-  PRIVACY_POLICY_TITLE,
-  TERMS_BODY,
-  TERMS_TITLE,
-} from '../features/legal/LegalScreen';
+import type { PlanReading } from '../features/plans/planReading';
+import { LegalScreen } from '../features/legal/LegalScreen';
 import { TabBar, type TabRouteName } from './TabBar';
+import { useKeyboardVisible } from './useKeyboardVisible';
 import {
   PUSH_ANIMATION_MS,
   TAB_FADE_MS,
@@ -68,55 +62,70 @@ import {
   useReducedMotion,
 } from '../theme/motion';
 
-/** The five top-level routes the hand-rolled tab bar switches between -- see TabBar.tsx. */
-const TAB_ROUTE_NAMES: ReadonlySet<string> = new Set([
+/**
+ * The five top-level routes the hand-rolled tab bar switches between -- see
+ * TabBar.tsx. Songs, Events and Photos and videos are no longer among them:
+ * they are on Community's shelf and open as ordinary pushed screens.
+ */
+const TAB_ROUTE_NAMES: ReadonlySet<string> = new Set<TabRouteName>([
   'Home',
   'BibleBooks',
-  'SongsList',
-  'EventsList',
-  'More',
+  'PrayersHub',
+  'CommunityHub',
+  'You',
 ]);
 
 /**
  * Real navigation, introduced in Day 6 -- per the user's explicit
  * approval, this replaces the state-based screen toggle that would
  * otherwise have been used, so the structure below doesn't need to be
- * replaced again when Day 9 (Bible Search + Profile) adds more screens:
- * new top-level destinations become new entries in RootStackParamList
- * and new <Stack.Screen> registrations, without touching the ones
- * already here.
+ * replaced again as screens are added: new destinations become new entries
+ * in RootStackParamList and new <Stack.Screen> registrations, without
+ * touching the ones already here.
  *
- * Matches the approved structure exactly:
- *   Home -> Songs (SongsList) -> Song Detail + Player (SongDetail)
- *   Home -> Events (EventsList) -> Event Detail (EventDetail) -> YouTube
- *     Player (YouTubePlayer), reached only via EventDetail's "WATCH LIVE"
- *     button, itself only shown when the event is actually live.
- *   Home -> Bible (BibleBooks) -> Chapters (BibleChapters) -> Chapter
- *     Reader (BibleChapter), added Day 8. Retires the orphaned Day 1
- *     BibleScreen (never wired into navigation) rather than leaving a
- *     second, dead Bible UI around -- see features/bible/dataSource.ts
- *     for the module's data-source seam and current placeholder-content
- *     status.
+ * THE SHAPE (the approved "Shape A"). Five tabs -- Home | Bible | Prayers |
+ * Community | You -- each ONE destination, with its views inside it:
+ *   Prayers   = Requests (the wall) and My journal      (PrayersHub)
+ *   Community = Updates (announcements + posts) and Chat (CommunityHub),
+ *               with a shelf to Events, Songs and Photos and videos
+ *   You       = Saved and Profile, with Notifications and Settings beside
+ *               the title                                (You)
+ * The old fifth tab, More, is retired -- everything on it has a home above
+ * -- and so are the separate Announcements, Prayers, Prayer wall, Community
+ * and Chat screens: each is a view inside a hub now. Songs and Events used to
+ * be tabs; they are pushed from Community's shelf.
  *
- * SongDetail/EventDetail receive the full song/event object as a route
- * param rather than an id the screen re-subscribes by -- SongsListScreen/
- * EventsListScreen already hold the complete, real-time list, so passing
- * the object avoids a redundant second Firestore subscription for a
- * screen this simple. Proportional to Days 6-7; a param-store or
- * id-based re-fetch pattern can be introduced later if a future day's
- * screen needs to be linked to directly (e.g. from a push notification)
- * without coming from the list. YouTubePlayer takes only the raw
- * youtubeUrl string (not the whole event) -- see youtube.ts for how it's
- * parsed into a playable embed URL.
+ * Detail screens (a song, an event, a post) receive the full object as a
+ * route param rather than an id the screen re-subscribes by -- the list that
+ * opens them already holds the complete, real-time data, so passing the
+ * object avoids a redundant second Firestore subscription. YouTubePlayer
+ * takes only the raw youtubeUrl string (not the whole event) -- see
+ * youtube.ts for how it's parsed into a playable embed URL.
+ *
+ * `tab` params choose the hub's inner view when another screen sends the
+ * member there ("My journal" from Saved, Profile from a notification); see
+ * ./useRouteTab.ts.
  */
 export type RootStackParamList = {
   Home: undefined;
+  /** Bible -- Read (the books) | Plans. See ../features/bible/BibleHomeScreen.tsx. */
+  BibleBooks: { tab?: 'read' | 'plans' } | undefined;
+  /** Prayers -- Requests | My journal. See ../features/prayers/PrayersHubScreen.tsx. */
+  PrayersHub: { tab?: 'requests' | 'journal' } | undefined;
+  /** Community -- Updates | Chat. See ../features/community/CommunityHubScreen.tsx. */
+  CommunityHub: { tab?: 'updates' | 'chat' } | undefined;
+  /** You -- Saved | Profile. See ../features/you/YouScreen.tsx. */
+  You: { tab?: 'saved' | 'profile' } | undefined;
+  /** The member's notes, highlights or bookmarks, as lists. See ../features/you/SavedVersesScreen.tsx. */
+  SavedVerses: { kind?: 'notes' | 'highlights' | 'bookmarks' } | undefined;
+  /** Who wrote the bundled Bibles and under what licence. See ../features/settings/BibleTranslationsScreen.tsx. */
+  BibleTranslations: undefined;
   SongsList: undefined;
   SongDetail: { song: PublishedSong };
   EventsList: undefined;
   EventDetail: { event: PublishedEvent };
-  YouTubePlayer: { youtubeUrl: string };
-  BibleBooks: undefined;
+  /** `title` is the event's name, for the player's top bar. */
+  YouTubePlayer: { youtubeUrl: string; title?: string };
   BibleChapters: { bookId: string };
   /**
    * The immersive reader (M4 -- see
@@ -130,32 +139,31 @@ export type RootStackParamList = {
    * result lands on the right line. It is a scroll target, never a
    * redirect: the book and chapter the caller asked for are what the
    * reader shows.
+   *
+   * `fromPlan` is set when the reading was opened from a day of a reading
+   * plan: the reader then shows that plan's chip (and its Mark Complete) and
+   * carries it across chapters. See ../features/plans/planReading.ts.
    */
-  BibleChapter: { bookId: string; chapterNumber: number; verse?: number };
+  BibleChapter: {
+    bookId: string;
+    chapterNumber: number;
+    verse?: number;
+    fromPlan?: PlanReading;
+  };
   BibleSearch: undefined;
-  Profile: undefined;
   Settings: undefined;
+  /** Church content vs local delivery history: not the same as Updates. */
   NotificationCenter: undefined;
-  /** The fifth tab -- see ../features/more/MoreScreen.tsx and ./TabBar.tsx. */
-  More: undefined;
-  /** The announcements list, reached from Home's top-right utility icon.
-   * Announcements used to be a content block on Home; see
-   * ../features/announcements/AnnouncementsScreen.tsx for why it moved.
-   * Distinct from NotificationCenter -- church content vs local delivery
-   * history. */
-  Announcements: undefined;
   /** See ../features/announcements/AnnouncementDetailScreen.tsx -- same
    * "pass the full object, not just an id" reasoning as SongDetail/
-   * EventDetail (AnnouncementsList already holds the complete, real-time
+   * EventDetail (the Updates feed already holds the complete, real-time
    * list). */
   AnnouncementDetail: { announcement: PublishedAnnouncement };
   /** See ../features/daily-verses/DailyVerseScreen.tsx. */
   DailyVerse: undefined;
   /**
-   * M6's media feed. Reached from Home's media section and from the More
-   * tab -- NOT from the bottom bar, which stays Home | Bible | Songs |
-   * Events | More exactly as it was. Media is content, like
-   * Announcements and Community, and those live behind More too.
+   * M6's media feed. Reached from Home's Together section and from
+   * Community's shelf -- never from the bottom bar.
    */
   MediaFeed: undefined;
   /** The full post. Takes the whole object rather than an id, the same
@@ -165,31 +173,14 @@ export type RootStackParamList = {
   MediaDetail: { post: MediaPost };
   /** The member's bookmarks. See ../features/media/SavedMediaScreen.tsx. */
   SavedMedia: undefined;
-  /** New V1 feature -- see ../features/prayers/PrayersScreen.tsx. Reached
-   * from the More tab, not the bottom tab bar (existing
-   * Home/Bible/Songs/Events/More navigation is kept unchanged per
-   * explicit owner decision). */
-  Prayers: undefined;
-  /** New V1 feature -- see ../features/community/. Same "pass the full
-   * object, not just an id" reasoning as AnnouncementDetail. */
-  CommunityList: undefined;
+  /** See ../features/community/CommunityPostDetailScreen.tsx. Same "pass the
+   * full object, not just an id" reasoning as AnnouncementDetail. */
   CommunityPostDetail: { post: PublishedCommunityPost };
-  /**
-   * M7's group chat. A SEPARATE route from CommunityList, and a separate
-   * collection: CommunityList is the admin-authored posts feed, this is
-   * the congregation talking to each other. Reached from the More tab;
-   * the bottom bar stays Home | Bible | Songs | Events | More.
-   */
-  CommunityChat: undefined;
-  /**
-   * M7's shared prayer wall. Distinct from `Prayers`, which is the
-   * member's own private journal -- see ../features/prayer-wall/.
-   */
-  PrayerWall: undefined;
   /** New V1 feature -- see ../features/plans/. */
-  PlansList: undefined;
   PlanDetail: { plan: PublishedPlan };
   PlanDay: { plan: PublishedPlan; dayNumber: number };
+  /** The finish of a plan: opened in place of its last day. */
+  PlanDone: { plan: PublishedPlan };
   /** Reached from Settings' "Privacy policy" / "Terms" rows -- see
    * ../features/legal/LegalScreen.tsx. */
   PrivacyPolicy: undefined;
@@ -222,12 +213,19 @@ export { navigationRef };
  * notificationService.ts's tap handler already uses.
  */
 function RootTabBar({ activeRoute }: { activeRoute: string | undefined }) {
-  if (!activeRoute || !TAB_ROUTE_NAMES.has(activeRoute)) return null;
+  // Out of the way while the keyboard is up (see ./useKeyboardVisible.ts).
+  const keyboardVisible = useKeyboardVisible();
+  if (!activeRoute || !TAB_ROUTE_NAMES.has(activeRoute) || keyboardVisible) return null;
   return (
     <TabBar
       activeRoute={activeRoute}
       onNavigate={(route: TabRouteName) => {
-        if (navigationRef.isReady()) navigationRef.navigate(route);
+        // `pop`: go BACK to the tab if it is already below in the stack
+        // (and drop what was opened above it), instead of pushing a second
+        // copy -- Home, Bible, Home, Bible would otherwise be four screens
+        // deep and Back would replay them.
+        if (navigationRef.isReady())
+          navigationRef.navigate(route, undefined, { pop: true });
       }}
     />
   );
@@ -364,32 +362,42 @@ export function AppNavigator() {
             <Stack.Screen
               name="SongsList"
               component={SongsListScreen}
-              options={{ ...tabScreenOptions, title: t('songs.title') }}
+              options={{ title: t('songs.title'), headerShown: false }}
             />
             <Stack.Screen
               name="SongDetail"
               component={SongDetailScreen}
-              options={({ route }) => ({ title: route.params.song.title })}
+              options={({ route }) => ({
+                title: route.params.song.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="EventsList"
               component={EventsListScreen}
-              options={{ ...tabScreenOptions, title: t('events.title') }}
+              options={{ title: t('events.title'), headerShown: false }}
             />
             <Stack.Screen
               name="EventDetail"
               component={EventDetailScreen}
-              options={({ route }) => ({ title: route.params.event.title })}
+              options={({ route }) => ({
+                title: route.params.event.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="YouTubePlayer"
               component={YouTubePlayerScreen}
-              options={{ title: t('events.watchOnYouTube') }}
+              options={{ title: t('events.watchOnYouTube'), headerShown: false }}
             />
             <Stack.Screen
               name="BibleBooks"
-              component={BooksListScreen}
-              options={{ ...tabScreenOptions, title: t('bible.title') }}
+              component={BibleHomeScreen}
+              options={{
+                ...tabScreenOptions,
+                title: t('bible.title'),
+                headerShown: false,
+              }}
             />
             <Stack.Screen
               name="BibleChapters"
@@ -398,6 +406,7 @@ export function AppNavigator() {
                 title:
                   getBookNameById(route.params.bookId, bookNameLanguage) ??
                   t('bible.chapters'),
+                headerShown: false,
               })}
             />
             <Stack.Screen
@@ -413,37 +422,58 @@ export function AppNavigator() {
             <Stack.Screen
               name="BibleSearch"
               component={BibleSearchScreen}
-              options={{ title: t('common.search') }}
-            />
-            <Stack.Screen
-              name="Profile"
-              component={ProfileScreen}
-              options={{ title: t('profile.title') }}
+              options={{ title: t('common.search'), headerShown: false }}
             />
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ title: t('settings.title') }}
+              options={{ title: t('settings.title'), headerShown: false }}
+            />
+            <Stack.Screen
+              name="BibleTranslations"
+              component={BibleTranslationsScreen}
+              options={{ title: t('settings.bibleTranslations'), headerShown: false }}
             />
             <Stack.Screen
               name="NotificationCenter"
               component={NotificationCenterScreen}
-              options={{ title: t('notifications.title') }}
+              options={{ title: t('notifications.title'), headerShown: false }}
             />
             <Stack.Screen
-              name="More"
-              component={MoreScreen}
-              options={{ ...tabScreenOptions, title: t('more.title') }}
+              name="PrayersHub"
+              component={PrayersHubScreen}
+              options={{
+                ...tabScreenOptions,
+                title: t('nav.prayers'),
+                headerShown: false,
+              }}
             />
             <Stack.Screen
-              name="Announcements"
-              component={AnnouncementsScreen}
-              options={{ title: t('announcements.title') }}
+              name="CommunityHub"
+              component={CommunityHubScreen}
+              options={{
+                ...tabScreenOptions,
+                title: t('nav.community'),
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="You"
+              component={YouScreen}
+              options={{ ...tabScreenOptions, title: t('nav.you'), headerShown: false }}
+            />
+            <Stack.Screen
+              name="SavedVerses"
+              component={SavedVersesScreen}
+              options={{ title: t('you.tabSaved'), headerShown: false }}
             />
             <Stack.Screen
               name="AnnouncementDetail"
               component={AnnouncementDetailScreen}
-              options={({ route }) => ({ title: route.params.announcement.title })}
+              options={({ route }) => ({
+                title: route.params.announcement.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="DailyVerse"
@@ -453,70 +483,65 @@ export function AppNavigator() {
             <Stack.Screen
               name="MediaFeed"
               component={MediaFeedScreen}
-              options={{ title: t('media.title') }}
+              options={{ title: t('media.title'), headerShown: false }}
             />
             <Stack.Screen
               name="MediaDetail"
               component={MediaDetailScreen}
-              options={{ title: t('media.title') }}
+              options={{ title: t('media.title'), headerShown: false }}
             />
             <Stack.Screen
               name="SavedMedia"
               component={SavedMediaScreen}
-              options={{ title: t('media.savedTitle') }}
-            />
-            <Stack.Screen
-              name="Prayers"
-              component={PrayersScreen}
-              options={{ title: t('prayers.title') }}
-            />
-            <Stack.Screen
-              name="CommunityList"
-              component={CommunityListScreen}
-              options={{ title: t('community.title') }}
+              options={{ title: t('media.savedTitle'), headerShown: false }}
             />
             <Stack.Screen
               name="CommunityPostDetail"
               component={CommunityPostDetailScreen}
-              options={({ route }) => ({ title: route.params.post.title })}
-            />
-            <Stack.Screen
-              name="CommunityChat"
-              component={CommunityChatScreen}
-              options={{ title: t('chat.title') }}
-            />
-            <Stack.Screen
-              name="PrayerWall"
-              component={PrayerWallScreen}
-              options={{ title: t('prayerWall.title') }}
-            />
-            <Stack.Screen
-              name="PlansList"
-              component={PlansListScreen}
-              options={{ title: t('plans.title') }}
+              options={({ route }) => ({
+                title: route.params.post.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="PlanDetail"
               component={PlanDetailScreen}
-              options={({ route }) => ({ title: route.params.plan.title })}
+              options={({ route }) => ({
+                title: route.params.plan.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="PlanDay"
               component={PlanDayScreen}
               options={({ route }) => ({
                 title: `${route.params.plan.title} • ${t('plans.day')} ${route.params.dayNumber}`,
+                headerShown: false,
+              })}
+            />
+            <Stack.Screen
+              name="PlanDone"
+              component={PlanDoneScreen}
+              options={({ route }) => ({
+                title: route.params.plan.title,
+                headerShown: false,
               })}
             />
             <Stack.Screen
               name="PrivacyPolicy"
-              options={{ title: t('settings.privacyPolicy') }}
+              options={{ title: t('settings.privacyPolicy'), headerShown: false }}
             >
-              {() => (
-                <LegalScreen title={PRIVACY_POLICY_TITLE} body={PRIVACY_POLICY_BODY} />
+              {({ navigation }) => (
+                <LegalScreen kind="privacy" onBack={() => navigation.goBack()} />
               )}
             </Stack.Screen>
-            <Stack.Screen name="Terms" options={{ title: t('settings.terms') }}>
-              {() => <LegalScreen title={TERMS_TITLE} body={TERMS_BODY} />}
+            <Stack.Screen
+              name="Terms"
+              options={{ title: t('settings.terms'), headerShown: false }}
+            >
+              {({ navigation }) => (
+                <LegalScreen kind="terms" onBack={() => navigation.goBack()} />
+              )}
             </Stack.Screen>
           </Stack.Navigator>
         </View>

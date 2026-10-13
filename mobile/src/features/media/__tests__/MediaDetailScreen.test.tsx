@@ -1,4 +1,5 @@
 import React from 'react';
+import { Linking, StyleSheet } from 'react-native';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,6 +7,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
+import { lightTokens } from '../../../theme/tokens';
+import { translate } from '../../../i18n/strings';
 import { MediaDetailScreen } from '../MediaDetailScreen';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import type { MediaPost } from '../../../services/firebase/media';
@@ -125,15 +128,98 @@ describe('the post', () => {
     expect(screen.queryByTestId('media-detail-image')).toBeNull();
   });
 
-  it('falls back to showing a non-YouTube video link as an image rather than guessing', async () => {
+  it('shows a non-YouTube video as a link card, with the caption as its title', async () => {
     // The app has no general video player, and a WebView pointed at an
-    // arbitrary URL is a browser. See the screen's header.
+    // arbitrary URL is a browser. See the screen's header. (It used to hand
+    // the video's address to an <Image>, which draws nothing for a video.)
     const screen = await renderDetail({
       ...VIDEO_POST,
       mediaUrl: 'https://example.org/clip.mp4',
     });
-    await waitFor(() => expect(screen.getByTestId('media-detail-image')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId('media-detail-link-card')).toBeTruthy()
+    );
     expect(screen.queryByTestId('media-detail-player')).toBeNull();
+    expect(screen.queryByTestId('media-detail-image')).toBeNull();
+    // The caption is the card's title -- once, not again beneath it.
+    expect(screen.getAllByText('Sunday worship')).toHaveLength(1);
+    expect(screen.getByTestId('media-detail-caption').props.children).toBe(
+      'Sunday worship'
+    );
+    expect(screen.getByText(translate('en', 'media.videoLink'))).toBeTruthy();
+  });
+
+  it('opens that link outside the app when Open video is pressed', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const screen = await renderDetail({
+      ...VIDEO_POST,
+      mediaUrl: 'https://example.org/clip.mp4',
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('media-detail-open-video')).toBeTruthy()
+    );
+
+    await fireEvent.press(screen.getByTestId('media-detail-open-video'));
+    expect(open).toHaveBeenCalledWith('https://example.org/clip.mp4');
+  });
+
+  it('offers no Open video for a link that is not https -- it is not opened on trust', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const screen = await renderDetail({
+      ...VIDEO_POST,
+      mediaUrl: 'http://example.org/clip.mp4',
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('media-detail-link-card')).toBeTruthy()
+    );
+    expect(screen.queryByTestId('media-detail-open-video')).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('keeps the caption beneath the picture of an image post, and not in a card', async () => {
+    const screen = await renderDetail(IMAGE_POST);
+    await waitFor(() => expect(screen.getByTestId('media-detail-caption')).toBeTruthy());
+    expect(screen.queryByTestId('media-detail-link-card')).toBeNull();
+  });
+});
+
+describe('the actions', () => {
+  const outline = (node: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(node.props.style as never) as { borderColor?: string })
+      .borderColor;
+
+  it('marks a liked post in ink, with a firmer outline, and never in red', async () => {
+    const screen = await renderDetail(IMAGE_POST);
+    await waitFor(() => expect(screen.getByTestId('media-detail-like')).toBeTruthy());
+    expect(outline(screen.getByTestId('media-detail-like'))).toBe(lightTokens.border);
+
+    await fireEvent.press(screen.getByTestId('media-detail-like'));
+    await waitFor(() =>
+      expect(screen.getByTestId('media-detail-like').props.accessibilityLabel).toBe(
+        translate('en', 'media.liked')
+      )
+    );
+    expect(outline(screen.getByTestId('media-detail-like'))).toBe(
+      lightTokens.borderStrong
+    );
+    const painted = JSON.stringify(screen.getByTestId('media-detail-like'));
+    expect(painted).toContain(lightTokens.ink);
+    expect(painted).not.toContain(lightTokens.danger);
+  });
+
+  it('marks a saved post the same way', async () => {
+    const screen = await renderDetail(IMAGE_POST);
+    await waitFor(() => expect(screen.getByTestId('media-detail-save')).toBeTruthy());
+
+    await fireEvent.press(screen.getByTestId('media-detail-save'));
+    await waitFor(() =>
+      expect(screen.getByTestId('media-detail-save').props.accessibilityLabel).toBe(
+        translate('en', 'media.saved')
+      )
+    );
+    expect(outline(screen.getByTestId('media-detail-save'))).toBe(
+      lightTokens.borderStrong
+    );
   });
 });
 
@@ -219,6 +305,32 @@ describe('comments', () => {
     await fireEvent.press(screen.getByTestId('media-comment-delete-mine'));
 
     await waitFor(() => expect(deleteDoc).toHaveBeenCalled());
+  });
+});
+
+describe('when the comments cannot be read', () => {
+  it('says so, and Try again listens again', async () => {
+    (onSnapshot as jest.Mock).mockImplementation((target, _next, onError) => {
+      const path = (target as { path?: string } | undefined)?.path ?? '';
+      if (path.includes('comments')) onError?.(new Error('unavailable'));
+      return jest.fn();
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const screen = await renderDetail(IMAGE_POST);
+    await waitFor(() => expect(screen.getByTestId('media-comments-error')).toBeTruthy());
+    expect(screen.getByTestId('media-comments-error')).toHaveTextContent(
+      translate('en', 'media.commentsError')
+    );
+
+    // Back online: the same listen now delivers a comment.
+    mockComments([
+      { id: 'c1', data: { text: 'Amen', authorUid: 'other', authorName: 'John' } },
+    ]);
+    await fireEvent.press(screen.getByTestId('media-comments-retry'));
+
+    await waitFor(() => expect(screen.getByTestId('media-comment-c1')).toBeTruthy());
+    expect(screen.queryByTestId('media-comments-error')).toBeNull();
+    warn.mockRestore();
   });
 });
 

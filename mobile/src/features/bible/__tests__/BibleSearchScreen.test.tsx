@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { BibleSearchScreen } from '../BibleSearchScreen';
@@ -8,17 +9,18 @@ jest.mock('../../../services/firebase/app');
 
 async function renderScreen() {
   const navigate = jest.fn();
+  const goBack = jest.fn();
   const utils = await render(
     <AuthProvider>
       <PreferencesProvider>
         <BibleSearchScreen
-          navigation={{ navigate } as never}
+          navigation={{ navigate, goBack } as never}
           route={{ key: 'BibleSearch', name: 'BibleSearch' } as never}
         />
       </PreferencesProvider>
     </AuthProvider>
   );
-  return { ...utils, navigate };
+  return { ...utils, navigate, goBack };
 }
 
 describe('BibleSearchScreen', () => {
@@ -92,6 +94,59 @@ describe('BibleSearchScreen', () => {
     await waitFor(() => expect(getByTestId('bible-search-results')).toBeTruthy());
     expect(getByTestId('bible-search-results').props.keyboardShouldPersistTaps).toBe(
       'handled'
+    );
+  });
+
+  it('has a round Back before the field', async () => {
+    const { getByRole, goBack } = await renderScreen();
+    await fireEvent.press(getByRole('button', { name: 'Back' }));
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('says how many results there are', async () => {
+    const { getByTestId } = await renderScreen();
+    await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
+    await waitFor(() => expect(getByTestId('bible-search-count')).toBeTruthy());
+    expect(getByTestId('bible-search-count')).toHaveTextContent(/^\d+ results$/);
+  });
+
+  it('offers a clear button only once something is typed, and it empties the field', async () => {
+    const { getByTestId, queryByTestId } = await renderScreen();
+    expect(queryByTestId('bible-search-clear')).toBeNull();
+    await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
+    expect(getByTestId('bible-search-clear')).toBeTruthy();
+    await fireEvent.press(getByTestId('bible-search-clear'));
+    expect(getByTestId('bible-search-input').props.value).toBe('');
+    expect(getByTestId('bible-search-empty-query')).toBeTruthy();
+    expect(queryByTestId('bible-search-clear')).toBeNull();
+  });
+
+  it('sets the matched words in bold, with no background wash, and shows two lines of the verse at most', async () => {
+    const { getByTestId } = await renderScreen();
+    await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
+    await waitFor(() => expect(getByTestId('search-result-genesis-1-1')).toBeTruthy());
+    const row = within(getByTestId('search-result-genesis-1-1'));
+    // The match is in the REFERENCE ("Genesis 1:1"); its words are the one nested Text.
+    const bold = row
+      .getByTestId('search-result-reference')
+      .children.find((child) => typeof child !== 'string') as
+      { props: { style: unknown } } | undefined;
+    expect(bold).toBeDefined();
+    const style = StyleSheet.flatten(bold?.props.style as never) as {
+      fontWeight?: string;
+      backgroundColor?: string;
+    };
+    expect(style.fontWeight).toBe('700');
+    expect(style.backgroundColor).toBeUndefined();
+    expect(row.getByTestId('search-result-text').props.numberOfLines).toBe(2);
+  });
+
+  it('names each result by its reference and its words, for a screen reader', async () => {
+    const { getByTestId } = await renderScreen();
+    await fireEvent.changeText(getByTestId('bible-search-input'), 'genesis');
+    await waitFor(() => expect(getByTestId('search-result-genesis-1-1')).toBeTruthy());
+    expect(getByTestId('search-result-genesis-1-1').props.accessibilityLabel).toMatch(
+      /^Genesis 1:1\. /
     );
   });
 });

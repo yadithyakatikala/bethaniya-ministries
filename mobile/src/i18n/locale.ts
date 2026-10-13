@@ -69,6 +69,23 @@ export function formatLongDate(date: Date, appLanguage: BibleLanguage): string {
   );
 }
 
+/**
+ * A date with its month spelled out and the DAY FIRST in both languages --
+ * "14 October 2026" -- the way the approved suspension notice says when it
+ * ends. Built from the day, the month name and the year rather than one Intl
+ * pattern, for the reason `formatDayMonthShort` gives: en-US would put the
+ * month first.
+ */
+export function formatDayMonthYear(date: Date, appLanguage: BibleLanguage): string {
+  const locale = localeFor(appLanguage);
+  const options: Intl.DateTimeFormatOptions = { month: 'long' };
+  const month = safely(
+    () => date.toLocaleDateString(locale, options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+  return `${date.getDate()} ${month} ${date.getFullYear()}`;
+}
+
 /** A compact date -- "18 Sep 2026". Used where space is tight. */
 export function formatShortDate(date: Date, appLanguage: BibleLanguage): string {
   const options: Intl.DateTimeFormatOptions = {
@@ -80,6 +97,124 @@ export function formatShortDate(date: Date, appLanguage: BibleLanguage): string 
     () => date.toLocaleDateString(localeFor(appLanguage), options),
     () => date.toLocaleDateString(undefined, options)
   );
+}
+
+/**
+ * The day and the abbreviated month, for a row in a list -- "9 Oct" -- with
+ * the year added only when it is not this one ("9 Oct 2025"): a date in the
+ * current year needs no year, and an older one must not read as recent.
+ *
+ * Built from the day number and the month name rather than one Intl pattern,
+ * so the day comes BEFORE the month in both languages (the en-US pattern
+ * would give "Oct 9"), the way the approved lists show it. `now` is a
+ * parameter, not a call to the clock, so this stays pure and a test can pin
+ * the year boundary.
+ */
+export function formatDayMonthShort(
+  date: Date,
+  appLanguage: BibleLanguage,
+  now: Date = new Date()
+): string {
+  const locale = localeFor(appLanguage);
+  const options: Intl.DateTimeFormatOptions = { month: 'short' };
+  const month = safely(
+    () => date.toLocaleDateString(locale, options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+  const base = `${date.getDate()} ${month}`;
+  return date.getFullYear() === now.getFullYear()
+    ? base
+    : `${base} ${date.getFullYear()}`;
+}
+
+/**
+ * The day, as Home's date line says it -- "Sunday, 11 October".
+ *
+ * Built from the weekday, the day number and the month name rather than one
+ * Intl pattern, so the day comes BEFORE the month in both languages (the
+ * en-US pattern would give "Sunday, October 11"), and so a Telugu engine
+ * that lacks one part still produces the others.
+ */
+export function formatWeekdayDate(date: Date, appLanguage: BibleLanguage): string {
+  const locale = localeFor(appLanguage);
+  const part = (options: Intl.DateTimeFormatOptions): string =>
+    safely(
+      () => date.toLocaleDateString(locale, options),
+      () => date.toLocaleDateString(undefined, options)
+    );
+  const weekday = part({ weekday: 'long' });
+  const month = part({ month: 'long' });
+  return `${weekday}, ${date.getDate()} ${month}`;
+}
+
+/** The month abbreviated -- "Oct". For the date block on an event row. */
+export function formatMonthShort(date: Date, appLanguage: BibleLanguage): string {
+  const options: Intl.DateTimeFormatOptions = { month: 'short' };
+  return safely(
+    () => date.toLocaleDateString(localeFor(appLanguage), options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+}
+
+/** The weekday abbreviated -- "Wed". For the date block on an event row. */
+export function formatWeekdayShort(date: Date, appLanguage: BibleLanguage): string {
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short' };
+  return safely(
+    () => date.toLocaleDateString(localeFor(appLanguage), options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+}
+
+/**
+ * When an event starts, as its row and its page say it -- "Wed 14 Oct, 6:30 PM",
+ * or "Today, 10:30 AM" for one that starts today (`todayLabel` is the word, in
+ * the app's language: this module owns no strings). The year is added only when
+ * it is not this one, like formatDayMonthShort. The day comes before the month
+ * in both languages, and each part is built on its own so an engine that lacks
+ * one of them (Telugu month names on a trimmed Hermes) still prints the rest.
+ * `now` is a parameter so a test can pin "today".
+ */
+export function formatEventWhen(
+  date: Date,
+  appLanguage: BibleLanguage,
+  todayLabel: string,
+  now: Date = new Date()
+): string {
+  const time = formatTimeOfDay(date, appLanguage);
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  if (sameDay) return `${todayLabel}, ${time}`;
+  const day = `${formatWeekdayShort(date, appLanguage)} ${formatDayMonthShort(
+    date,
+    appLanguage,
+    now
+  )}`;
+  return `${day}, ${time}`;
+}
+
+/**
+ * When a notification arrived, as the Notifications list says it -- "Today,
+ * 10:31 AM", "Yesterday, 4:15 PM", "6 Oct, 9:00 AM" -- with the year added only
+ * when it is not this one. The two day words are passed in (this module owns no
+ * strings). A day is a calendar day in the phone's own zone, so a notification
+ * from 11:50 pm last night is "Yesterday" at 12:10 am, not "Today". `now` is a
+ * parameter so a test can pin the day.
+ */
+export function formatNotificationWhen(
+  date: Date,
+  appLanguage: BibleLanguage,
+  labels: { today: string; yesterday: string },
+  now: Date = new Date()
+): string {
+  const time = formatTimeOfDay(date, appLanguage);
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return `${labels.today}, ${time}`;
+  if (days === 1) return `${labels.yesterday}, ${time}`;
+  return `${formatDayMonthShort(date, appLanguage, now)}, ${time}`;
 }
 
 /** Just the clock -- "9:14 am". For a chat, where the day is context. */
@@ -133,6 +268,43 @@ export function formatIsoDateString(
   const [year, month, day] = dateString.split('-').map(Number);
   if (!year || !month || !day) return dateString;
   return formatLongDate(new Date(year, month - 1, day), appLanguage);
+}
+
+/**
+ * A `YYYY-MM-DD` string as a row in a list says it -- "9 Oct", with the year
+ * added when it is not this one ("9 Oct 2025"), exactly as
+ * `formatDayMonthShort` does. The Verse screen's earlier verses.
+ *
+ * Returns the input unchanged if it is not that shape, so a malformed record
+ * shows its raw value rather than "NaN Invalid Date".
+ */
+export function formatIsoDayMonth(
+  dateString: string,
+  appLanguage: BibleLanguage,
+  now: Date = new Date()
+): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (!year || !month || !day) return dateString;
+  return formatDayMonthShort(new Date(year, month - 1, day), appLanguage, now);
+}
+
+/**
+ * "Sunday, 11 October" for a `YYYY-MM-DD` key -- Home's date line over the
+ * Verse of the Day, which is keyed by the canonical Indian date.
+ *
+ * The key names a CALENDAR day, so it is read as that day in the phone's own
+ * zone (at noon, which no daylight-saving step can move to another day)
+ * rather than as an instant: parsing "2026-10-11" as UTC midnight would
+ * print Saturday on a phone west of Greenwich. A malformed key comes back
+ * unchanged, like formatIsoDateString.
+ */
+export function formatIsoWeekdayDate(
+  dateString: string,
+  appLanguage: BibleLanguage
+): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (!year || !month || !day) return dateString;
+  return formatWeekdayDate(new Date(year, month - 1, day, 12), appLanguage);
 }
 
 /**

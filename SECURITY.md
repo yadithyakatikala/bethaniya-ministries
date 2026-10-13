@@ -427,6 +427,29 @@ FINAL_ARCHITECTURE_SPECIFICATION.md's Day 11 Admin Users page describes
 (name, email, phone, role, join date). No unnecessary personal data is
 collected.
 
+### Onboarding answers (what a member chooses to give)
+
+The first-sign-in questionnaire asks a name, an age, a phone number (which can
+be skipped), how the member identifies (`male` or `female`, the two values the
+church asked for — a closed set) and a language. The member can leave without
+answering any of it.
+
+- **Held in memory only** while the member answers. The only thing the app
+  writes to the device is a flag saying the intro chapter has been played
+  (`onboarding_chapter_seen`) — no name, age, number or choice.
+- **Written once**, by the member's own client, to the member's own
+  `users/{uid}` document (`completeOnboarding`), with the age as a separate
+  best-effort update beside it. Nothing is sent to any other service: no
+  analytics, no SMS, no code. The phone number is **not used to sign in** and
+  the question says so.
+- **Validated by `firestore.rules`** (`isValidUserProfileSelfUpdate`, tested in
+  `firebase-tests/src/firestore.rules.test.ts`): `age` is an integer 1–120 or
+  null; `gender` is `male` or `female`; the owner can write these keys and no
+  other, and cannot write another member's. The phone number is stored in E.164
+  form (`+<country code><number>`).
+- **Purpose is stated on the screen** that asks (the age's sentence is a draft
+  for the church to confirm).
+
 ### Admin/Host authorization boundary
 
 `admin/src/routes/ProtectedRoute.tsx` distinguishes: unauthenticated (deny,

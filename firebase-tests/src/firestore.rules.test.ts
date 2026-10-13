@@ -459,6 +459,9 @@ describe('firestore.rules', () => {
      * an email address had no way to give the church their number. The
      * cases below pin both halves: the new writes are allowed, and the
      * fields that stayed locked (email, createdAt, role) still are.
+     *
+     * The redesigned onboarding added a fourth, 'age' (a whole number,
+     * 1..120).
      */
     describe('M6: the onboarding questionnaire', () => {
       async function seedNewMember() {
@@ -526,6 +529,53 @@ describe('firestore.rules', () => {
         await assertFails(db.doc('users/member-1').update({ phoneNumber: 9876543210 }));
         await assertFails(
           db.doc('users/member-1').update({ phoneNumber: '9'.repeat(33) })
+        );
+      });
+
+      it('lets a member write an age, alone or with the other answers', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertSucceeds(db.doc('users/member-1').update({ age: 34 }));
+        await assertSucceeds(
+          db.doc('users/member-1').update({ age: 1, gender: 'male' })
+        );
+        await assertSucceeds(db.doc('users/member-1').update({ age: 120 }));
+        // and withdraw it
+        await assertSucceeds(db.doc('users/member-1').update({ age: null }));
+      });
+
+      it('rejects an age that is not a whole number of years from 1 to 120', async () => {
+        await seedNewMember();
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-1').update({ age: 0 }));
+        await assertFails(db.doc('users/member-1').update({ age: -5 }));
+        await assertFails(db.doc('users/member-1').update({ age: 121 }));
+        await assertFails(db.doc('users/member-1').update({ age: 34.5 }));
+        await assertFails(db.doc('users/member-1').update({ age: '34' }));
+        await assertFails(db.doc('users/member-1').update({ age: true }));
+      });
+
+      it("cannot write another member's age", async () => {
+        await seedNewMember();
+        await seed(async (db) =>
+          db.doc('users/member-2').set({ role: 'member', displayName: 'B' })
+        );
+        const db = dbFor('member-1');
+        await assertFails(db.doc('users/member-2').update({ age: 40 }));
+      });
+
+      it('cannot be smuggled in when the profile is created', async () => {
+        // The create allowlist is unchanged: age arrives by a later update.
+        const db = dbFor('member-9');
+        await assertFails(
+          db.doc('users/member-9').set({
+            role: 'member',
+            displayName: 'New',
+            email: 'new@example.com',
+            phoneNumber: null,
+            createdAt: new Date(),
+            age: 30,
+          })
         );
       });
 

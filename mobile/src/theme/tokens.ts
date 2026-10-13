@@ -219,6 +219,123 @@ export const darkTokens: ThemeColors = {
 };
 
 /**
+ * THE SEPIA READING PAGE (approved design B1) -- the app's paper, warmed.
+ *
+ * A third page for the Bible reader only: it is not a theme the app offers in
+ * Settings, and it is not a value of `ThemePreference` (firestore.rules
+ * validates that set, and a reading comfort is not worth a rules change). It is
+ * applied to the reader's page and chrome through `ThemeScope`
+ * (./ThemeScope.tsx); the sheets over the page stay in the app's own palette.
+ *
+ * Everything the design does not name -- the five status hues -- is the light
+ * palette's own, as in the design's CSS, where the sepia scope overrides only
+ * the surfaces, the ink, and the gold. The gold ink is a step darker than on
+ * paper (#7A4A1C against #8F5A26) so verse numbers keep 4.5:1 on the warmer
+ * ground. Every pair is run through ./__tests__/contrast.test.ts like the other
+ * two palettes.
+ */
+const sepiaBase = {
+  ...lightBase,
+  paper: '#F2E8D5',
+  surface: '#F8F0E0',
+  surfaceRaised: '#E9DEC6',
+  border: '#D6C7A8',
+  borderStrong: '#8A7A5C',
+  ink: '#2E2418',
+  inkMuted: '#5C4C36',
+  inkSubtle: '#6B5A42',
+  primary: '#2E2418',
+  primaryPressed: '#1A130A',
+  primaryTint: '#E6D9BD',
+  onPrimary: '#F8F0E0',
+  accent: '#7A4A1C',
+  accentTint: '#EFE2C8',
+  disabledInk: '#7A6A52',
+  disabledSurface: '#EADFC8',
+};
+
+export const sepiaTokens: ThemeColors = {
+  ...sepiaBase,
+  background: sepiaBase.paper,
+  text: sepiaBase.ink,
+  secondaryText: sepiaBase.inkMuted,
+};
+
+/**
+ * =====================================================================
+ * THE BRAND'S METALLIC GOLD
+ * =====================================================================
+ * The fish and the gold it carries are brand, alongside the portrait.
+ * Gold is used thin and on purpose: hairlines, small marks, the opening
+ * and onboarding animations -- never a fill, a background or an icon
+ * colour (see the approved design's rule S2). `ThemeColors.accent` is
+ * the one gold that ever carries text; it is `base` below.
+ *
+ * Metal reads as metal because of the RANGE between a dark rim and a
+ * near-white specular, so the animation paints with these stops rather
+ * than one flat colour:
+ *
+ *   deep      the shadow side of a letter and the darkest bronze
+ *   rim       the edge of a bead of gold
+ *   base      the body of the metal; equal to `accent`
+ *   high      a lit surface
+ *   spec      the near-white glint (motes only; a letter filled with it
+ *             would vanish against the paper)
+ *   textPeak  the brightest a LETTER's sheen goes -- dimmer than `spec`
+ *   dust      the four brightness tiers a speck is drawn in
+ *   inkSoft   the faint lift through the middle of the ink-black fish
+ *
+ * Both palettes keep `base` equal to the matching `accent`, asserted in
+ * ./__tests__/brandGold.test.ts.
+ */
+export interface BrandGold {
+  deep: string;
+  rim: string;
+  base: string;
+  high: string;
+  spec: string;
+  textPeak: string;
+  dust: readonly [string, string, string, string];
+  inkSoft: string;
+}
+
+export const brandGold: { light: BrandGold; dark: BrandGold; sepia: BrandGold } = {
+  light: {
+    deep: '#4A2A06',
+    rim: '#6B4012',
+    base: '#8F5A26',
+    high: '#DDB06B',
+    spec: '#FFF8E4',
+    textPeak: '#B9863C',
+    dust: ['#6B4012', '#8F5A26', '#BE8637', '#E3B258'],
+    inkSoft: '#3A3F47',
+  },
+  dark: {
+    deep: '#6E4A1E',
+    rim: '#8A6330',
+    base: '#DCA766',
+    high: '#F5DCAC',
+    spec: '#FFFCF4',
+    textPeak: '#F0D6A4',
+    dust: ['#8A6330', '#B8863F', '#DCA766', '#F2D49B'],
+    inkSoft: '#C9CDD2',
+  },
+  // The sepia page's gold is the darker ink, `base` equal to its `accent`.
+  // The reader draws no metallic animation, so the other stops are the light
+  // palette's own.
+  sepia: {
+    deep: '#4A2A06',
+    rim: '#5C3612',
+    base: '#7A4A1C',
+    high: '#C9A15F',
+    spec: '#FFF8E4',
+    textPeak: '#A5763A',
+    dust: ['#5C3612', '#7A4A1C', '#A8782F', '#D2A24E'],
+    inkSoft: '#3A2F20',
+  },
+};
+
+/**
  * The spacing scale. A 4dp base, plus the semantic names screens
  * actually reach for -- `screen` existed as the literal `padding: 20` in
  * a dozen containers and was not on the old scale at all.
@@ -249,8 +366,57 @@ export const radii = {
   control: 12,
   card: 16,
   sheet: 22,
-  /** A fully rounded pill -- badges, avatars. */
+  /** A fully rounded pill -- actions, chips, segmented controls, badges, avatars. */
   pill: 999,
+} as const;
+
+/**
+ * =====================================================================
+ * SIZES, BY JOB (the approved design system, section 5)
+ * =====================================================================
+ * The spacing scale above says what a gap IS; these say what each piece
+ * of the interface measures. One home for the numbers so a screen never
+ * has to guess "is a row 56 or 64?" and a test can assert them.
+ *
+ *   margins       20 each side of every screen
+ *   sections      32 apart; a label sits 12 above its content; items in
+ *                 a group 16 apart; tight pairs 8
+ *   rows          64 for two lines, 56 for one, 12 above and below,
+ *                 a hairline between; nothing smaller than 44 is a target
+ *   controls      buttons 48 (40 compact), a text button 44, an icon
+ *                 button 44 round, a field 48, a chip 36 with a 44 hit area
+ *   radii         a pill for actions and chips, 12 for fields and
+ *                 thumbnails, 16 for cards and media, 22 for sheets
+ *   no shadows    except the 45% backdrop behind a sheet or a dialog
+ */
+export const layout = {
+  screenMargin: 20,
+  section: 32,
+  labelToContent: 12,
+  group: 16,
+  tight: 8,
+  card: 16,
+  emptyPadding: 24,
+  rowTwoLines: 64,
+  rowOneLine: 56,
+  rowPadding: 12,
+  button: 48,
+  buttonCompact: 40,
+  textButton: 44,
+  iconButton: 44,
+  field: 48,
+  fieldMultiline: 96,
+  chip: 36,
+  badge: 24,
+  hit: 44,
+  /** A leading icon circle, and a leading thumbnail, in a row. */
+  rowIcon: 40,
+  rowThumbnail: 56,
+  /** The tab bar's items, and the gap above them. */
+  tabItem: 52,
+  tabBarTop: 8,
+  /** Content starts this far below the status bar. */
+  belowStatusBar: 12,
 } as const;
 
 /**
@@ -355,10 +521,16 @@ export interface TypeScale {
   body: TextStyle;
   /** Dense secondary text -- list subtitles, help sentences. */
   bodySmall: TextStyle;
-  /** Buttons, selector options, form labels. */
+  /** Tabs, field labels, compact buttons. */
   label: TextStyle;
+  /** Primary and secondary buttons (15/20). Compact buttons use `label`. */
+  button: TextStyle;
   /** Metadata, timestamps, counts. */
   caption: TextStyle;
+  /** The sentence of help or error under a field (13/18). */
+  help: TextStyle;
+  /** The header wordmark beside the fish. Always Latin: "Maranatha". */
+  wordmark: TextStyle;
   /** Tracked uppercase section headers. */
   overline: TextStyle;
   /** Verse text. See also `readingScale` for the reader's own controls. */
@@ -447,11 +619,33 @@ export function typographyFor(language: ScriptLanguage): TypeScale {
       fontWeight: '600',
       lineHeight: 18,
     },
+    button: {
+      fontFamily: fontFamilies.interfaceSemiBold,
+      fontSize: 15,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    // 12.5/17 in English. Telugu reads smaller than Latin at the same size, so
+    // its caption steps up to 13.5/20 (approved decision S4); see below.
     caption: {
       fontFamily: fontFamilies.interfaceMedium,
-      fontSize: 12,
+      fontSize: 12.5,
       fontWeight: '500',
-      lineHeight: 16,
+      lineHeight: 17,
+    },
+    help: {
+      fontFamily: fontFamilies.interfaceRegular,
+      fontSize: 13,
+      fontWeight: '400',
+      lineHeight: 18,
+    },
+    // "Maranatha" is Latin and is never translated, so it is the one role that
+    // takes the English serif in Telugu too (it needs no Telugu glyphs).
+    wordmark: {
+      fontFamily: fontFamilies.serifEnSemiBold,
+      fontSize: 19,
+      fontWeight: '600',
+      lineHeight: 24,
     },
     overline: {
       fontFamily: fontFamilies.interfaceBold,
@@ -476,13 +670,105 @@ export function typographyFor(language: ScriptLanguage): TypeScale {
     },
   };
 
+  if (language === 'te') {
+    // S4: Telugu's caption is 13.5/20 (its leading is already set, not boosted).
+    scale.caption = { ...scale.caption, fontSize: 13.5, lineHeight: 20 };
+    // Telugu has no capitals to shout in, and wide tracking pulls a conjunct
+    // apart: the overline keeps its weight but drops the uppercase and the
+    // tracking, and steps up to 12.5 -- the same step the caption takes.
+    scale.overline = {
+      ...scale.overline,
+      fontSize: 12.5,
+      letterSpacing: 0.25,
+      textTransform: 'none',
+    };
+  }
+
   return Object.fromEntries(
     Object.entries(scale).map(([role, style]) => [
       role,
-      withTeluguLeading(style, language),
+      // The caption's Telugu line height was set by hand above.
+      language === 'te' && role === 'caption'
+        ? style
+        : withTeluguLeading(style, language),
     ])
   ) as unknown as TypeScale;
 }
+
+/**
+ * The Verse of the Day on Home, in three display steps picked by length.
+ *
+ * A verse can be one line or a few sentences. Rather than cutting a long
+ * one off, the type steps down: 28/40 up to 80 characters, 24/36 up to
+ * 160, 21/32 beyond. Telugu is two points smaller with 12% more leading
+ * (26/45, 22/40, 19/36). Always the serif of the verse's own script.
+ */
+export const SCRIPTURE_DISPLAY_STEPS = [
+  { maxLength: 80, size: 28, line: 40 },
+  { maxLength: 160, size: 24, line: 36 },
+  { maxLength: Infinity, size: 21, line: 32 },
+] as const;
+
+export function scriptureDisplayStyle(language: ScriptLanguage, text: string): TextStyle {
+  const length = Array.from(text.trim()).length;
+  const step =
+    SCRIPTURE_DISPLAY_STEPS.find((s) => length <= s.maxLength) ??
+    SCRIPTURE_DISPLAY_STEPS[SCRIPTURE_DISPLAY_STEPS.length - 1];
+  return {
+    fontFamily: serifFor(language, 'regular'),
+    fontSize: language === 'te' ? step.size - 2 : step.size,
+    fontWeight: '400',
+    lineHeight:
+      language === 'te'
+        ? Math.round(step.line * (1 + TELUGU_LINE_HEIGHT_BOOST))
+        : step.line,
+  };
+}
+
+/**
+ * A verse shown in BOTH languages on Home: English 22/33, then Telugu 19/34
+ * beneath it (the Telugu is 12% more generously leaded already, so it is
+ * set by hand rather than boosted). Two nodes, each in its own script's
+ * serif -- never one node carrying both.
+ */
+export function scriptureBilingualStyle(language: ScriptLanguage): TextStyle {
+  return language === 'te'
+    ? {
+        fontFamily: serifFor('te', 'regular'),
+        fontSize: 19,
+        fontWeight: '400',
+        lineHeight: 34,
+      }
+    : {
+        fontFamily: serifFor('en', 'regular'),
+        fontSize: 22,
+        fontWeight: '400',
+        lineHeight: 33,
+      };
+}
+
+/**
+ * Colours for words laid over a photograph the church attached (a Verse of
+ * the Day override with a picture).
+ *
+ * The picture is anyone's: it can be white. So the words on it take a
+ * dark veil (`veil`) that holds white text above 4.5:1 even over a pure
+ * white photograph, and gold stays out of it -- gold small text cannot be
+ * guaranteed over an arbitrary picture, so on a photograph the only gold
+ * is the hairline. `base` is what shows if the picture never loads, so the
+ * white words are never left on a white page. Asserted in
+ * ./__tests__/contrast.test.ts.
+ */
+export const onPhoto = {
+  base: '#1B130C',
+  veil: 'rgba(14, 10, 6, 0.6)',
+  ink: '#FFFFFF',
+  /** The hairline ring around an outlined control on a photograph. */
+  ring: 'rgba(255, 255, 255, 0.55)',
+  /** The primary action: a white pill with dark ink. */
+  button: '#FFFFFF',
+  onButton: '#16181C',
+} as const;
 
 /**
  * =====================================================================
@@ -608,6 +894,13 @@ export const highlightTints = {
     green: '#1B2E22',
     blue: '#1A2833',
     pink: '#33202A',
+  },
+  // Warmed to sit on the sepia page; same lightness among the four.
+  sepia: {
+    yellow: '#F3E3A6',
+    green: '#D8E6C8',
+    blue: '#D3E0E6',
+    pink: '#EDD3CF',
   },
 } as const;
 

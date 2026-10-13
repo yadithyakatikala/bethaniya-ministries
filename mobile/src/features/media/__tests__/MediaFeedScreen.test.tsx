@@ -1,5 +1,5 @@
 import React from 'react';
-import { Share, Text } from 'react-native';
+import { Share, StyleSheet, Text } from 'react-native';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,6 +9,8 @@ import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import { MediaFeedScreen } from '../MediaFeedScreen';
 import { MEDIA_PAGE_SIZE } from '../../../services/firebase/media';
+import { lightTokens } from '../../../theme/tokens';
+import { translate } from '../../../i18n/strings';
 
 jest.mock('../../../services/firebase/app');
 
@@ -24,6 +26,10 @@ const Stack = createNativeStackNavigator();
 
 function DetailStub() {
   return <Text testID="media-detail-stub">detail</Text>;
+}
+
+function SavedStub() {
+  return <Text testID="saved-media-stub">saved</Text>;
 }
 
 function docFor(id: string, data: Record<string, unknown>) {
@@ -100,6 +106,7 @@ async function renderFeed() {
           <Stack.Navigator>
             <Stack.Screen name="MediaFeed" component={MediaFeedScreen} />
             <Stack.Screen name="MediaDetail" component={DetailStub} />
+            <Stack.Screen name="SavedMedia" component={SavedStub} />
           </Stack.Navigator>
         </NavigationContainer>
       </PreferencesProvider>
@@ -156,6 +163,35 @@ describe('what the feed shows', () => {
     expect(screen.queryByTestId('media-play-img')).toBeNull();
   });
 
+  it('draws YouTube’s poster behind a YouTube video’s play marker, and no picture for any other video', async () => {
+    mockReads({
+      pages: [
+        [
+          mediaDoc('yt', {
+            type: 'video',
+            mediaUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
+          }),
+          mediaDoc('other', { type: 'video', mediaUrl: 'https://example.org/clip.mp4' }),
+          mediaDoc('img'),
+        ],
+      ],
+    });
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-card-other')).toBeTruthy());
+
+    expect(screen.getByTestId('media-image-yt').props.source).toEqual({
+      uri: 'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg',
+    });
+    // The photograph is its own address, as ever.
+    expect(screen.getByTestId('media-image-img').props.source).toEqual({
+      uri: 'https://example.org/img.jpg',
+    });
+    // A video the app can show no still of keeps its block and its marker; its address is
+    // never handed to an image.
+    expect(screen.getByTestId('media-image-other').props.source).toBeUndefined();
+    expect(screen.getByTestId('media-play-other')).toBeTruthy();
+  });
+
   it('shows a verse when the post carries one', async () => {
     mockReads({
       pages: [[mediaDoc('a', { verseReference: 'John 3:16', verseText: 'For God...' })]],
@@ -184,6 +220,113 @@ describe('what the feed shows', () => {
     (getDocs as jest.Mock).mockRejectedValue(new Error('unavailable'));
     const screen = await renderFeed();
     await waitFor(() => expect(screen.getByTestId('media-error')).toBeTruthy());
+  });
+});
+
+describe('the top bar and the waiting', () => {
+  it('names the screen "Photos and videos" and opens the member’s saved posts from a bookmark', async () => {
+    mockReads({ pages: [[mediaDoc('a')]] });
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-card-a')).toBeTruthy());
+
+    expect(screen.getByText(translate('en', 'community.goToMedia'))).toBeTruthy();
+    expect(screen.getByTestId('media-saved-button').props.accessibilityLabel).toBe(
+      translate('en', 'media.savedTitle')
+    );
+    await fireEvent.press(screen.getByTestId('media-saved-button'));
+    await waitFor(() => expect(screen.getByTestId('saved-media-stub')).toBeTruthy());
+  });
+
+  it('keeps the bar while it waits, and waits as a picture and two lines, announced as busy', async () => {
+    (getDocs as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-loading')).toBeTruthy());
+    expect(screen.getByTestId('media-loading').props.accessibilityState.busy).toBe(true);
+    expect(screen.getByTestId('media-saved-button')).toBeTruthy();
+    expect(screen.queryByTestId('media-feed')).toBeNull();
+  });
+
+  it('keeps the bar when the feed could not be read, so Back is still there', async () => {
+    (getDocs as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-error')).toBeTruthy());
+    expect(screen.getByTestId('media-saved-button')).toBeTruthy();
+    expect(screen.getByTestId('top-bar-back')).toBeTruthy();
+    warn.mockRestore();
+  });
+});
+
+describe('what a post wears', () => {
+  it('marks a liked post with a solid heart in ink, and never in red', async () => {
+    mockSignedIn('member-1');
+    mockReads({ pages: [[mediaDoc('a'), mediaDoc('b')]], likes: ['a'] });
+    const screen = await renderFeed();
+    await waitFor(() =>
+      expect(screen.getByTestId('media-like-a').props.accessibilityState.selected).toBe(
+        true
+      )
+    );
+
+    const liked = JSON.stringify(screen.getByTestId('media-like-a'));
+    const plain = JSON.stringify(screen.getByTestId('media-like-b'));
+    expect(liked).toContain(lightTokens.ink);
+    expect(liked).not.toContain(lightTokens.danger);
+    // An unliked heart is the quiet ink.
+    expect(plain).toContain(lightTokens.inkMuted);
+    expect(plain).not.toContain(lightTokens.danger);
+  });
+
+  it('says what is on in the word a screen reader hears', async () => {
+    mockSignedIn('member-1');
+    mockReads({ pages: [[mediaDoc('a')]], likes: ['a'], saves: ['a'] });
+    const screen = await renderFeed();
+    await waitFor(() =>
+      expect(screen.getByTestId('media-like-a').props.accessibilityLabel).toBe(
+        translate('en', 'media.liked')
+      )
+    );
+    expect(screen.getByTestId('media-save-a').props.accessibilityLabel).toBe(
+      translate('en', 'media.saved')
+    );
+  });
+
+  it('runs the picture edge to edge and puts who and when beneath the words', async () => {
+    mockReads({ pages: [[mediaDoc('a', { authorName: 'Church office' })]] });
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-card-a')).toBeTruthy());
+    const picture = StyleSheet.flatten(
+      screen.getByTestId('media-image-a').props.style
+    ) as {
+      width?: string;
+      aspectRatio?: number;
+    };
+    expect(picture.width).toBe('100%');
+    expect(picture.aspectRatio).toBeCloseTo(4 / 3);
+    // "1 Apr", the day before the month as the approved lists write it -- and a year only
+    // when it is not this one, so an old post never reads as recent.
+    expect(screen.getByTestId('media-meta-a')).toHaveTextContent(
+      /^Church office · Posted \d{1,2} (Mar|Apr)( 2026)?$/
+    );
+  });
+
+  it('shows the neutral notice to someone signed out and the danger notice to a failure', async () => {
+    mockReads({ pages: [[mediaDoc('a')]] });
+    const screen = await renderFeed();
+    await waitFor(() => expect(screen.getByTestId('media-card-a')).toBeTruthy());
+    await fireEvent.press(screen.getByTestId('media-like-a'));
+    await waitFor(() => expect(screen.getByTestId('media-sign-in-notice')).toBeTruthy());
+    // The neutral notice is the raised ground -- not a warning's cream or a failure's pink.
+    const ground = (id: string) =>
+      (
+        StyleSheet.flatten(screen.getByTestId(id).props.style) as {
+          backgroundColor?: string;
+        }
+      ).backgroundColor;
+    expect(ground('media-sign-in-notice')).toBe(lightTokens.surfaceRaised);
+    expect(screen.getByTestId('media-sign-in-notice')).toHaveTextContent(
+      translate('en', 'media.signInRequired')
+    );
   });
 });
 

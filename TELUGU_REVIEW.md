@@ -50,10 +50,56 @@ a key cannot be accidentally dropped while editing.
 | `prayers.markAnswered` | జవాబు వచ్చినట్లు గుర్తించండి | Long. A shorter phrase may fit the row better on a narrow phone. |
 | `settings.switchTo` | మార్చండి | Used both as a button label and inside an accessibility sentence -- check it reads naturally in both. |
 | `auth.signIn` | సైన్ ఇన్ | Transliteration ("సైన్ ఇన్") vs a native phrase -- pick one and keep it consistent with `auth.createAccount`. |
+| `onboarding.q2` | మీ వయసు ఎంత? | The five onboarding questions were drafted by the development pass (the approved design showed only the first and last in Telugu). Check each reads as a natural thing to be asked. |
+| `onboarding.s2` | కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది. | The English sentence ("It helps the church know who it is serving.") is itself a draft for the church to confirm; the Telugu follows it. It is the stated purpose of collecting an age. |
+| `onboarding.ageUnit` | సంవత్సరాలు | Added by the development pass: the approved design showed no unit after the age in Telugu. "సంవత్సరాలు" ("years") is a guess; "ఏళ్లు" is the usual spoken form. |
+| `onboarding.q4` | మీ లింగం ఏమిటి? | Asks how the member identifies and offers the two values the church asked for. Check the wording is respectful and natural, and that "పురుషుడు" / "స్త్రీ" are the words the congregation would choose. |
+| `onboarding.skipQuestion` | ఈ ప్రశ్నను దాటవేయండి | Deliberately NOT the same words as `onboarding.skip` ("Not now"): that one leaves the questions altogether; this one skips only the phone number. Check the two read as different things. |
+| `home.readChapter` | అధ్యాయం చదవండి | The primary button under the Verse of the Day. "అధ్యాయం" is "chapter"; check "చదవండి" ("read") is the verb the congregation uses on a button. |
+| `home.together` | కలిసి | A one-word title over Prayer requests, Church chat and Photos and videos. Confirm "కలిసి" ("together") reads as "together as a church", not only as the adverb. |
+| `home.askPray` | సంఘం మీతో కలిసి ప్రార్థించమని కోరండి | A full sentence under "Prayer requests" on Home. Check the polite plural register is how the church speaks to its members. |
+| `home.updatesLabel` | సమాచారాన్ని తెరవండి | Read aloud by a screen reader on Home's header button, which opens announcements and posts. "సమాచారం" is a broad word for "information"; confirm it is the church's word for updates. |
+| `prophetVerse.readMore` | ఇంకా చదవండి | The control under a long Prophet Verse; it pairs with `prophetVerse.showLess`. Check the two read naturally as a pair. |
+| `nav.prayers` | ప్రార్థనలు | The tab for prayer requests and the private journal. Confirm the plural "ప్రార్థనలు" reads as the place for both. |
+| `nav.you` | మీరు | "మీరు" ("you", polite) names the member's own corner: their saved things, profile and settings. Confirm it reads as that and not as a form of address. |
+| `prayers.tabRequests` | విన్నపాలు | "విన్నపాలు" ("petitions"). Confirm it is the word members use for a prayer request. |
+| `prayers.tabJournal` | నా పుస్తకం | Literally "my book". Confirm it reads as a prayer journal; "నా ప్రార్థన పుస్తకం" may be clearer, at more width. |
+| `prayers.shared` | మీ విన్నపం పంచుకోబడింది | The passive "పంచుకోబడింది" ("was shared") is formal; a simpler spoken form may be preferred. |
+| `community.tabUpdates` | సమాచారం | The same word as Home's Updates button (`home.updatesLabel`); keep the two the same. |
+| `you.tabSaved` | భద్రపరచినవి | "భద్రపరచినవి" ("things kept safe"). Confirm it reads as "saved". |
+| `prayerWall.anonymousHelp` | ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు. | A PRIVACY statement members rely on. Check it says plainly who can and cannot see a name: other members and the church team cannot; the church's main administrator can, only to deal with a report. |
+| `report.intro` | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు. | A promise that the reporter's name is not shown to other members. Check the wording is plain and exact. |
+| `songs.noFavouritesMessage` | పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది. | Tells a member how to add a favourite: choose the "Favourite" button on a song. It quotes the button's own label (`songs.favoriteAction`, "ఇష్టమైనది"); keep the two the same word. |
+| `songs.progress` | పాట పురోగతి | Spoken by a screen reader for the song's progress line ("Song progress", then the time played and the length). A natural spoken phrase is wanted. |
+| `events.today` | ఈరోజు | Replaces the date on an event that starts today ("ఈరోజు, 10:30 AM"). Check it reads naturally before a time. |
+| `profile.age` | వయస్సు | "వయస్సు" ("age"). The label of the row that shows the number of years a member gave. |
+| `settings.logOutConfirmTitle` | మరనాథ నుండి లాగ్ అవుట్ అవుతారా? | Asks before signing out and names the app ("మరనాథ"). Check the app's name is written the way the church writes it in Telugu. |
+| `settings.logOutConfirmMessage` | యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు. | Reassures the member that nothing is deleted when they log out. Check it reads as reassurance, not as a warning. |
+| `credits.intro` | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | Says the Bibles are stored on the phone and work without a connection. |
+| `credits.publicDomain` | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | The English Bible's status. "ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)" is long; a shorter accepted term may be preferred. |
+| `credits.licensed` | {licence} లైసెన్స్ కింద | The licence line the Telugu Bible's terms require (CC BY-SA 4.0). Keep the licence name exactly as it is. |
+| `notifications.new` | కొత్తది | Spoken before an unread notification by a screen reader ("కొత్తది", "a new one"). Check it reads naturally before a title. |
+| `notifications.emptyMessage` | ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి. | The empty Notifications page: says where a church notification is kept. |
+| `plans.myPlans` | నా ప్రణాళికలు | The chip for the plans a member has started. "నా ప్రణాళికలు" ("my plans"); keep it consistent with `plans.title`. |
+| `plans.findPlans` | కనుగొనండి | The chip for plans not yet started. A single verb, "కనుగొనండి" ("find"), to fit a chip; confirm it reads as "find plans" and not just "find". |
+| `plans.beginWithPlan` | ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది. | A short invitation under "Start a plan" when a member has none. Drafted; check the tone is warm, not pushy. |
+| `plans.reflect` | ధ్యానించండి | "ధ్యానించండి" ("meditate"). The second of three steps in a plan day (Read, Reflect, Pray); confirm it is the verb the church uses for reflecting on a passage. |
+| `plans.doneMessage` | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | The sentence on "Plan complete": "{plan} యొక్క {n} రోజులూ మీరు చదివారు." Check the order of the name and the number reads naturally. |
+| `plans.nextDay` | తదుపరి: {n}వ రోజు | "తదుపరి: {n}వ రోజు" ("Next: day {n}"). Check the ordinal ending "వ" after a number reads correctly for every day. |
+| `bible.pageSepia` | సెపియా | A page colour, transliterated ("సెపియా"). Confirm members would recognise it, or choose a native word for a warm cream page. |
+| `bible.page` | పేజీ | "పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings. |
+| `bible.moreSettings` | మరిన్ని అమరికలు | "మరిన్ని అమరికలు": opens the rest of the reading settings. `settings.title` uses "సెట్టింగ్‌లు" for Settings; decide whether this should use the same word. |
+| `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
+| `auth.show` | చూపించు | The small text action inside the password box ("చూపించు", "show"); it pairs with `auth.hide`. Check both read naturally as one-word buttons. |
+| `auth.hide` | దాచు | The same action once the password is showing ("దాచు", "hide"). Pairs with `auth.show`. |
+| `auth.passwordHint` | కనీసం {min} అక్షరాలు | Under the password box when creating an account: how short a password may be. "కనీసం {min} అక్షరాలు" ("at least {min} letters"). Keep {min} as it is. |
+| `dailyVerse.archiveError` | గత వచనాలు లోడ్ కాలేదు. | Said in place of the list of earlier verses when it could not be loaded. Keep it parallel to `dailyVerse.unavailable`. |
+| `legal.provisional` | తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు. | Says the Privacy Policy and Terms have not yet been reviewed by the church's counsel. It is a statement about a LEGAL text: check it is exact and not alarming. |
+| `legal.englishOnly` | ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది. | Added after `legal.provisional` under a Telugu interface, because the legal text itself is English only for now. Stop using it once a Telugu text has been approved. |
 
 ## Every string
 
-401 keys, grouped by screen area.
+513 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -64,6 +110,87 @@ a key cannot be accidentally dropped while editing.
 | `nav.songs` | Songs | పాటలు |  |
 | `nav.events` | Events | కార్యక్రమాలు |  |
 | `nav.more` | More | మరిన్ని |  |
+| `nav.prayers` | Prayers | ప్రార్థనలు | ⚠️ |
+| `nav.community` | Community | సమాజం |  |
+| `nav.you` | You | మీరు | ⚠️ |
+
+### Prayers
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `prayers.tabRequests` | Requests | విన్నపాలు | ⚠️ |
+| `prayers.tabJournal` | My journal | నా పుస్తకం | ⚠️ |
+| `prayers.filterAll` | All | అన్నీ |  |
+| `prayers.filterYours` | Yours | మీవి |  |
+| `prayers.noOwn` | You have not asked for prayer yet | మీరు ఇంకా ప్రార్థన కోరలేదు |  |
+| `prayers.noOwnMessage` | When you do, your requests are listed here so you can find them. | కోరినప్పుడు, మీ విన్నపాలు ఇక్కడ కనిపిస్తాయి, సులభంగా కనుగొనవచ్చు. |  |
+| `prayers.shared` | Your request was shared | మీ విన్నపం పంచుకోబడింది | ⚠️ |
+| `prayers.private` | Only you can see this | ఇది మీకు మాత్రమే కనిపిస్తుంది |  |
+| `prayers.newEntry` | New entry | కొత్త నమోదు |  |
+| `prayers.addedToJournal` | Added to your journal | మీ పుస్తకంలో చేర్చబడింది |  |
+| `prayers.title` | Prayers | ప్రార్థనలు |  |
+| `prayers.newRequest` | New Prayer Request | కొత్త ప్రార్థన అభ్యర్థన |  |
+| `prayers.placeholder` | What’s on your heart? | మీ హృదయంలో ఏముంది? |  |
+| `prayers.add` | Add Prayer | ప్రార్థన చేర్చండి |  |
+| `prayers.empty` | Nothing in your journal yet | మీ పుస్తకంలో ఇంకా ఏమీ లేదు |  |
+| `prayers.emptyMessage` | Add a prayer with the button below. Only you can see it. | కింది బటన్‌తో ప్రార్థన చేర్చండి. ఇది మీకు మాత్రమే కనిపిస్తుంది. |  |
+| `prayers.loadError` | Couldn’t load prayers | ప్రార్థనలు లోడ్ కాలేదు |  |
+| `prayers.loadErrorMessage` | Check your connection and try again. | కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
+| `prayers.markAnswered` | Mark answered | జవాబు వచ్చినట్లు గుర్తించండి | ⚠️ |
+| `prayers.markUnanswered` | Mark unanswered | జవాబు రాలేదని గుర్తించండి |  |
+| `prayers.answered` | Answered | జవాబు వచ్చింది |  |
+| `prayers.deleteLabel` | Delete this prayer | ఈ ప్రార్థనను తొలగించండి |  |
+| `prayers.deleteConfirmTitle` | Delete this prayer? | ఈ ప్రార్థనను తొలగించాలా? |  |
+| `prayers.deleteConfirmMessage` | This cannot be undone. | ఇది తిరిగి పొందలేరు. |  |
+
+### Community
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `community.tabUpdates` | Updates | సమాచారం | ⚠️ |
+| `community.tabChat` | Chat | చాట్ |  |
+| `community.title` | Community | సమాజం |  |
+| `community.empty` | No posts yet | ఇంకా పోస్ట్‌లు లేవు |  |
+| `community.emptyMessage` | Community posts from the church will appear here. | చర్చి సమాజ పోస్ట్‌లు ఇక్కడ కనిపిస్తాయి. |  |
+| `community.loadError` | Couldn’t load community posts. | సమాజ పోస్ట్‌లు లోడ్ కాలేదు. |  |
+| `community.loadErrorShort` | Could not load posts. | పోస్ట్‌లు లోడ్ చేయలేకపోయాము. |  |
+| `community.emptyShort` | No community posts yet. | ఇంకా సమాజ పోస్ట్‌లు లేవు. |  |
+| `community.introMessage` | Everything the church family shares, in one place. | సంఘ కుటుంబం పంచుకునేదంతా ఒకే చోట. |  |
+| `community.postsSection` | From the church | సంఘం నుండి |  |
+| `community.goToChat` | Church chat | సంఘ సంభాషణ |  |
+| `community.goToChatHint` | Talk with the whole church | సంఘం మొత్తంతో మాట్లాడండి |  |
+| `community.goToMedia` | Photos and videos | ఫోటోలు, వీడియోలు |  |
+| `community.goToMediaHint` | Pictures and clips from church life | సంఘ జీవితంలోని చిత్రాలు, క్లిప్‌లు |  |
+
+### updates
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `updates.announcement` | Announcement | ప్రకటన |  |
+
+### you
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `you.tabSaved` | Saved | భద్రపరచినవి | ⚠️ |
+| `you.notes` | Notes | నోట్‌లు |  |
+| `you.highlights` | Highlights | హైలైట్‌లు |  |
+| `you.bookmarks` | Bookmarks | బుక్‌మార్క్‌లు |  |
+| `you.readingPlans` | Reading plans | పఠన ప్రణాళికలు |  |
+| `you.prayerJournal` | Prayer journal | ప్రార్థన పుస్తకం |  |
+| `you.noNotes` | No notes yet | ఇంకా నోట్‌లు లేవు |  |
+| `you.noNotesMessage` | Tap a verse while you read and choose Add note. | చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి “నోట్ జోడించండి” ఎంచుకోండి. |  |
+| `you.noHighlights` | No highlights yet | ఇంకా హైలైట్‌లు లేవు |  |
+| `you.noHighlightsMessage` | Tap a verse while you read and choose a colour. | చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి రంగు ఎంచుకోండి. |  |
+| `you.noBookmarks` | No bookmarks yet | ఇంకా బుక్‌మార్క్‌లు లేవు |  |
+| `you.noBookmarksMessage` | Bookmarked verses will appear here. | బుక్‌మార్క్ చేసిన వచనాలు ఇక్కడ కనిపిస్తాయి. |  |
+| `you.loadError` | Your saved verses could not be loaded. | మీరు భద్రపరచిన వచనాలను లోడ్ చేయలేకపోయాం. |  |
+
+### Opening animation
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `opening.skipHint` | Double-tap to skip | దాటవేయడానికి రెండుసార్లు తట్టండి |  |
 
 ### Common actions
 
@@ -103,6 +230,11 @@ a key cannot be accidentally dropped while editing.
 | `home.readingPlan` | Reading Plan | పఠన ప్రణాళిక |  |
 | `home.startAPlan` | Start a Reading Plan | పఠన ప్రణాళిక ప్రారంభించండి |  |
 | `home.percentComplete` | {percent}% | {percent}% |  |
+| `home.readChapter` | Read chapter | అధ్యాయం చదవండి | ⚠️ |
+| `home.together` | Together | కలిసి | ⚠️ |
+| `home.askPray` | Ask the church to pray with you | సంఘం మీతో కలిసి ప్రార్థించమని కోరండి | ⚠️ |
+| `home.updatesLabel` | Open updates | సమాచారాన్ని తెరవండి | ⚠️ |
+| `home.updatesHint` | Shows announcements and posts from the church | సంఘం నుండి ప్రకటనలు, పోస్ట్‌లను చూపుతుంది |  |
 
 ### Bible
 
@@ -174,6 +306,14 @@ a key cannot be accidentally dropped while editing.
 | `bible.layoutLabel` | Bilingual layout | ద్విభాషా అమరిక |  |
 | `bible.layoutStacked` | Stacked | ఒకదానిపై ఒకటి |  |
 | `bible.layoutSideBySide` | Side by side | ప్రక్కప్రక్కన |  |
+| `bible.tabRead` | Read | చదవండి |  |
+| `bible.tabPlans` | Plans | ప్రణాళికలు |  |
+| `bible.booksLabel` | Books | గ్రంథాలు |  |
+| `bible.chapterCount` | {n} chapters | {n} అధ్యాయాలు |  |
+| `bible.page` | Page | పేజీ | ⚠️ |
+| `bible.pageSepia` | Sepia | సెపియా | ⚠️ |
+| `bible.moreSettings` | More settings | మరిన్ని అమరికలు | ⚠️ |
+| `bible.resultsCount` | {n} results | {n} ఫలితాలు |  |
 
 ### Songs
 
@@ -192,6 +332,12 @@ a key cannot be accidentally dropped while editing.
 | `songs.emptyShort` | No songs yet. | ఇంకా పాటలు లేవు. |  |
 | `songs.favoriteAction` | Favourite | ఇష్టమైనది |  |
 | `songs.favoritedState` | Favourited | ఇష్టమైనవిలో ఉంది |  |
+| `songs.filterAll` | All | అన్నీ |  |
+| `songs.filterFavourites` | Favourites | ఇష్టమైనవి |  |
+| `songs.noFavourites` | No favourites yet | ఇష్టమైనవి ఇంకా లేవు |  |
+| `songs.noFavouritesMessage` | Choose Favourite on a song to keep it here. | పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది. | ⚠️ |
+| `songs.lyrics` | Lyrics | సాహిత్యం |  |
+| `songs.progress` | Song progress | పాట పురోగతి | ⚠️ |
 
 ### Events
 
@@ -208,6 +354,8 @@ a key cannot be accidentally dropped while editing.
 | `events.emptyShort` | No upcoming events. | రాబోయే కార్యక్రమాలు లేవు. |  |
 | `events.dateTBA` | Date and time to be announced | తేదీ, సమయం తరువాత ప్రకటిస్తాము |  |
 | `events.unsupportedStreamLink` | This stream link isn’t a supported YouTube URL, so it can’t be played here. | ఈ ప్రసార లింక్ మద్దతు ఉన్న YouTube URL కాదు, అందుకే ఇక్కడ ప్లే చేయలేము. |  |
+| `events.backToEvent` | Back to the event | కార్యక్రమానికి తిరిగి |  |
+| `events.today` | Today | ఈరోజు | ⚠️ |
 
 ### More
 
@@ -243,45 +391,22 @@ a key cannot be accidentally dropped while editing.
 | `plans.loadError` | Couldn’t load this plan | ఈ ప్రణాళిక లోడ్ కాలేదు |  |
 | `plans.loadErrorMessage` | Check your connection and open the plan again. | కనెక్షన్ చూసి ప్రణాళికను మళ్లీ తెరవండి. |  |
 | `plans.dayNotFound` | This day could not be found. | ఈ రోజు కనబడలేదు. |  |
+| `plans.myPlans` | My plans | నా ప్రణాళికలు | ⚠️ |
+| `plans.findPlans` | Find plans | కనుగొనండి | ⚠️ |
+| `plans.findAPlan` | Find a plan | ప్రణాళికను కనుగొనండి |  |
+| `plans.beginWithPlan` | Begin with a plan, and today has a path. | ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది. | ⚠️ |
+| `plans.dayWord` | Day | రోజు |  |
+| `plans.read` | Read | చదవండి |  |
+| `plans.reflect` | Reflect | ధ్యానించండి | ⚠️ |
+| `plans.pray` | Pray | ప్రార్థించండి |  |
+| `plans.openInBible` | Open in the Bible | బైబిల్‌లో తెరవండి |  |
+| `plans.nextDay` | Next: day {n} | తదుపరి: {n}వ రోజు | ⚠️ |
+| `plans.doneTitle` | Plan complete | ప్రణాళిక పూర్తయింది |  |
+| `plans.doneMessage` | You read all {n} days of {plan}. | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | ⚠️ |
+| `plans.chooseAnother` | Choose another plan | మరో ప్రణాళికను ఎంచుకోండి |  |
 | `plans.dayLoadError` | This reading couldn’t be loaded. Check your connection and try again. | ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
 | `plans.loadErrorShort` | Could not load reading plans. | పఠన ప్రణాళికలు లోడ్ చేయలేకపోయాము. |  |
 | `plans.emptyShort` | No reading plans yet. | ఇంకా పఠన ప్రణాళికలు లేవు. |  |
-
-### Prayers
-
-| Key | English | Telugu | |
-| --- | --- | --- | --- |
-| `prayers.title` | Prayers | ప్రార్థనలు |  |
-| `prayers.newRequest` | New Prayer Request | కొత్త ప్రార్థన అభ్యర్థన |  |
-| `prayers.placeholder` | What’s on your heart? | మీ హృదయంలో ఏముంది? |  |
-| `prayers.add` | Add Prayer | ప్రార్థన చేర్చండి |  |
-| `prayers.empty` | No prayers yet | ఇంకా ప్రార్థనలు లేవు |  |
-| `prayers.emptyMessage` | Add a prayer request above — only you can see it. | పైన ప్రార్థన అభ్యర్థన చేర్చండి — మీకు మాత్రమే కనిపిస్తుంది. |  |
-| `prayers.loadError` | Couldn’t load prayers | ప్రార్థనలు లోడ్ కాలేదు |  |
-| `prayers.loadErrorMessage` | Check your connection and try again. | కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
-| `prayers.markAnswered` | Mark answered | జవాబు వచ్చినట్లు గుర్తించండి | ⚠️ |
-| `prayers.markUnanswered` | Mark unanswered | జవాబు రాలేదని గుర్తించండి |  |
-| `prayers.answered` | Answered | జవాబు వచ్చింది |  |
-| `prayers.deleteLabel` | Delete this prayer | ఈ ప్రార్థనను తొలగించండి |  |
-| `prayers.deleteConfirmTitle` | Delete this prayer? | ఈ ప్రార్థనను తొలగించాలా? |  |
-| `prayers.deleteConfirmMessage` | This cannot be undone. | ఇది తిరిగి పొందలేరు. |  |
-
-### Community
-
-| Key | English | Telugu | |
-| --- | --- | --- | --- |
-| `community.title` | Community | సమాజం |  |
-| `community.empty` | No posts yet | ఇంకా పోస్ట్‌లు లేవు |  |
-| `community.emptyMessage` | Community posts from the church will appear here. | చర్చి సమాజ పోస్ట్‌లు ఇక్కడ కనిపిస్తాయి. |  |
-| `community.loadError` | Couldn’t load community posts. | సమాజ పోస్ట్‌లు లోడ్ కాలేదు. |  |
-| `community.loadErrorShort` | Could not load posts. | పోస్ట్‌లు లోడ్ చేయలేకపోయాము. |  |
-| `community.emptyShort` | No community posts yet. | ఇంకా సమాజ పోస్ట్‌లు లేవు. |  |
-| `community.introMessage` | Everything the church family shares, in one place. | సంఘ కుటుంబం పంచుకునేదంతా ఒకే చోట. |  |
-| `community.postsSection` | From the church | సంఘం నుండి |  |
-| `community.goToChat` | Church chat | సంఘ సంభాషణ |  |
-| `community.goToChatHint` | Talk with the whole church | సంఘం మొత్తంతో మాట్లాడండి |  |
-| `community.goToMedia` | Photos and videos | ఫోటోలు, వీడియోలు |  |
-| `community.goToMediaHint` | Pictures and clips from church life | సంఘ జీవితంలోని చిత్రాలు, క్లిప్‌లు |  |
 
 ### Announcements
 
@@ -311,6 +436,7 @@ a key cannot be accidentally dropped while editing.
 | `dailyVerse.loadError` | Could not load today’s verse. | నేటి వచనం లోడ్ చేయలేకపోయాము. |  |
 | `dailyVerse.imageLabel` | Illustration for today's verse | నేటి వచనానికి చిత్రం |  |
 | `dailyVerse.unavailable` | Today's verse could not be loaded. | నేటి వచనం లోడ్ కాలేదు. |  |
+| `dailyVerse.archiveError` | Earlier verses could not be loaded. | గత వచనాలు లోడ్ కాలేదు. | ⚠️ |
 | `dailyVerse.loading` | Loading today's verse | నేటి వచనం లోడ్ అవుతోంది |  |
 
 ### Notifications
@@ -320,6 +446,10 @@ a key cannot be accidentally dropped while editing.
 | `notifications.title` | Notifications | నోటిఫికేషన్‌లు |  |
 | `notifications.empty` | You have no notifications yet. | మీకు ఇంకా నోటిఫికేషన్‌లు లేవు. |  |
 | `notifications.readError` | Your notification history couldn’t be read on this device. | ఈ ఫోన్‌లో మీ నోటిఫికేషన్ చరిత్రను చదవలేకపోయాము. |  |
+| `notifications.today` | Today | ఈరోజు |  |
+| `notifications.yesterday` | Yesterday | నిన్న |  |
+| `notifications.new` | New | కొత్తది | ⚠️ |
+| `notifications.emptyMessage` | Notifications this phone receives from the church are kept here. | ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి. | ⚠️ |
 
 ### Sign in / sign up
 
@@ -330,7 +460,6 @@ a key cannot be accidentally dropped while editing.
 | `auth.email` | Email | ఇమెయిల్ |  |
 | `auth.emailPlaceholder` | you@example.com | you@example.com |  |
 | `auth.password` | Password | పాస్‌వర్డ్ |  |
-| `auth.passwordPlaceholder` | Password ({min}+ characters) | పాస్‌వర్డ్ ({min}+ అక్షరాలు) |  |
 | `auth.namePlaceholder` | Your name | మీ పేరు |  |
 | `auth.signIn` | Sign in | సైన్ ఇన్ | ⚠️ |
 | `auth.createAccount` | Create account | ఖాతా సృష్టించండి |  |
@@ -342,6 +471,9 @@ a key cannot be accidentally dropped while editing.
 | `auth.resetSent` | If an account exists for that email, a password reset link is on its way. | ఆ ఇమెయిల్‌కు ఖాతా ఉంటే, పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడుతుంది. |  |
 | `auth.continueWithGoogle` | Continue with Google | Googleతో కొనసాగించండి |  |
 | `auth.continueWithApple` | Continue with Apple | Appleతో కొనసాగించండి |  |
+| `auth.show` | Show | చూపించు | ⚠️ |
+| `auth.hide` | Hide | దాచు | ⚠️ |
+| `auth.passwordHint` | At least {min} characters | కనీసం {min} అక్షరాలు | ⚠️ |
 
 ### Profile
 
@@ -359,6 +491,7 @@ a key cannot be accidentally dropped while editing.
 | `profile.resendVerification` | Resend verification email | ధృవీకరణ ఇమెయిల్ మళ్లీ పంపండి |  |
 | `profile.loadError` | Could not load your profile. | మీ ప్రొఫైల్ లోడ్ చేయలేకపోయాము. |  |
 | `profile.phoneNumber` | Phone Number | ఫోన్ నంబర్ |  |
+| `profile.age` | Age | వయస్సు | ⚠️ |
 | `profile.saved` | Saved. | సేవ్ అయింది. |  |
 | `profile.nameEmpty` | Your name cannot be empty. | మీ పేరు ఖాళీగా ఉండకూడదు. |  |
 | `profile.nameSaveFailed` | Could not save your name. Please try again. | మీ పేరు సేవ్ కాలేదు. మళ్లీ ప్రయత్నించండి. |  |
@@ -389,6 +522,8 @@ a key cannot be accidentally dropped while editing.
 | `settings.notSetYet` | Not set yet | ఇంకా ఇవ్వలేదు |  |
 | `settings.bibleTranslations` | Bible translations | బైబిల్ అనువాదాలు |  |
 | `settings.view` | View | చూడండి |  |
+| `settings.logOutConfirmTitle` | Log out of Maranatha? | మరనాథ నుండి లాగ్ అవుట్ అవుతారా? | ⚠️ |
+| `settings.logOutConfirmMessage` | You will need to sign in again to use the app. Nothing is deleted. | యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు. | ⚠️ |
 | `settings.appLanguage` | App language | యాప్ భాష |  |
 | `settings.appLanguageHelp` | Changes the app’s buttons, menus and messages. Does not change the Bible. | యాప్‌లోని బటన్‌లు, మెనూలు, సందేశాలను మారుస్తుంది. బైబిల్‌ను మార్చదు. |  |
 | `settings.bibleLanguage` | Bible language | బైబిల్ భాష |  |
@@ -396,10 +531,28 @@ a key cannot be accidentally dropped while editing.
 | `settings.themeSystem` | System | సిస్టమ్ |  |
 | `settings.syncFailed` | Saved on this device. We could not sync it to your account just now. | ఈ పరికరంలో సేవ్ అయింది. ప్రస్తుతం దాన్ని మీ ఖాతాకు సింక్ చేయలేకపోయాం. |  |
 
+### legal
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `legal.provisional` | Provisional text. The church’s counsel has not reviewed it yet. | తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు. | ⚠️ |
+| `legal.englishOnly` | This text is in English only for now. | ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది. | ⚠️ |
+
+### credits
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `credits.intro` | The Bibles in this app are stored on your phone, so you can read without a connection. | ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు. | ⚠️ |
+| `credits.publicDomain` | Public domain | ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్) | ⚠️ |
+| `credits.licensed` | Licensed under {licence} | {licence} లైసెన్స్ కింద | ⚠️ |
+| `credits.readLicence` | Read the licence | లైసెన్స్ చదవండి |  |
+
 ### prophetVerse
 
 | Key | English | Telugu | |
 | --- | --- | --- | --- |
+| `prophetVerse.readMore` | Read more | ఇంకా చదవండి | ⚠️ |
+| `prophetVerse.showLess` | Show less | తక్కువ చూపండి |  |
 | `prophetVerse.title` | Prophet Verse of the Day | ఈ రోజు ప్రవక్త వచనం |  |
 | `prophetVerse.imageLabel` | Illustration for this prophet verse | ఈ ప్రవక్త వచనానికి చిత్రం |  |
 | `prophetVerse.empty` | No prophet verse today | ఈ రోజు ప్రవక్త వచనం లేదు |  |
@@ -417,7 +570,7 @@ a key cannot be accidentally dropped while editing.
 | `suspended.contactChurch` | If you think this is a mistake, please speak to someone at your church. | ఇది పొరపాటు అని మీరు భావిస్తే, దయచేసి మీ సంఘంలో ఎవరితోనైనా మాట్లాడండి. |  |
 | `suspended.signOut` | Sign out | సైన్ అవుట్ |  |
 
-### onboarding
+### First sign-in questions
 
 | Key | English | Telugu | |
 | --- | --- | --- | --- |
@@ -441,6 +594,32 @@ a key cannot be accidentally dropped while editing.
 | `onboarding.saveFailed` | We could not save your details. Please try again. | మీ వివరాలను సేవ్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి. |  |
 | `onboarding.completePrompt` | Finish setting up your profile | మీ ప్రొఫైల్ సెటప్ పూర్తి చేయండి |  |
 | `onboarding.completeAction` | Complete | పూర్తి చేయండి |  |
+| `onboarding.q1` | What should<br>we call you? | మిమ్మల్ని ఏమని పిలవాలి? |  |
+| `onboarding.s1` | Your first name is fine. You can change it later in your profile. | మీ మొదటి పేరు చాలు. దీన్ని తర్వాత మీ ప్రొఫైల్‌లో మార్చుకోవచ్చు. |  |
+| `onboarding.q2` | How old are you? | మీ వయసు ఎంత? | ⚠️ |
+| `onboarding.s2` | Just a number. It helps the church know who it is serving. | కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది. | ⚠️ |
+| `onboarding.q3` | What's your<br>phone number? | మీ ఫోన్ నంబర్ ఏమిటి? |  |
+| `onboarding.s3` | Optional. So the church can reach you. We will not send you a code, and this is not used to sign in. | ఐచ్ఛికం. చర్చి మిమ్మల్ని సంప్రదించడానికి. మేము ఏ కోడ్ పంపం, ఇది సైన్ ఇన్ కోసం కాదు. |  |
+| `onboarding.q4` | How do you identify? | మీ లింగం ఏమిటి? | ⚠️ |
+| `onboarding.s4` | Choose one. | ఒకటి ఎంచుకోండి. |  |
+| `onboarding.q5` | Which language<br>would you prefer? | మీకు ఏ భాష ఇష్టం? |  |
+| `onboarding.s5` | Sets the language of the app. You can choose your Bible language separately in Settings. | యాప్ భాషను సెట్ చేస్తుంది. బైబిల్ భాషను సెట్టింగ్స్‌లో వేరేగా ఎంచుకోవచ్చు. |  |
+| `onboarding.stepOf` | Step {n} of {total} | {total}లో {n}వ దశ |  |
+| `onboarding.next` | Continue | కొనసాగండి |  |
+| `onboarding.skipQuestion` | Skip for now | ఈ ప్రశ్నను దాటవేయండి | ⚠️ |
+| `onboarding.agePlaceholder` | 34 | 34 |  |
+| `onboarding.ageUnit` | years old | సంవత్సరాలు | ⚠️ |
+| `onboarding.ageError` | Please enter your age as a number. | దయచేసి మీ వయసును సంఖ్యగా నమోదు చేయండి. |  |
+| `onboarding.phoneErrorShort` | That number looks too short. | ఆ నంబర్ చాలా చిన్నదిగా ఉంది. |  |
+| `onboarding.phoneErrorLong` | That number looks too long. | ఆ నంబర్ చాలా పెద్దదిగా ఉంది. |  |
+| `onboarding.phoneErrorIndia` | An Indian mobile number has 10 digits. | భారతీయ మొబైల్ నంబర్‌లో 10 అంకెలు ఉంటాయి. |  |
+| `onboarding.country` | Country code | దేశం కోడ్ |  |
+| `onboarding.countryLabel` | Country code {name}, plus {dial} | దేశం కోడ్ {name}, ప్లస్ {dial} |  |
+| `onboarding.languageEnglishSub` | ఇంగ్లీష్ | ఇంగ్లీష్ |  |
+| `onboarding.languageTeluguSub` | Telugu | Telugu |  |
+| `onboarding.interfaceLanguage` | App language | యాప్ భాష |  |
+| `onboarding.chapterSkip` | Skip the introduction | పరిచయాన్ని దాటవేయండి | ⚠️ |
+| `onboarding.chapterSkipHint` | Double-tap to go straight to the first question | మొదటి ప్రశ్నకు నేరుగా వెళ్లడానికి రెండుసార్లు తట్టండి |  |
 
 ### media
 
@@ -476,6 +655,10 @@ a key cannot be accidentally dropped while editing.
 | `media.actionFailed` | That did not work. Please try again. | అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి. |  |
 | `media.publishedOn` | Posted {date} | {date}న పోస్ట్ చేయబడింది |  |
 | `media.refresh` | Refresh | రిఫ్రెష్ చేయండి |  |
+| `media.openVideo` | Open video | వీడియో తెరవండి |  |
+| `media.videoLink` | This video plays outside the app. | ఈ వీడియో యాప్ బయట ప్లే అవుతుంది. |  |
+| `media.unavailable` | This post is no longer available. | ఈ పోస్ట్ ఇప్పుడు అందుబాటులో లేదు. |  |
+| `media.commentsError` | Comments could not be loaded. | వ్యాఖ్యలను లోడ్ చేయలేకపోయాం. |  |
 
 ### chat
 
@@ -522,7 +705,7 @@ a key cannot be accidentally dropped while editing.
 | `prayerWall.category.other` | Other | ఇతరం |  |
 | `prayerWall.anonymousLabel` | Anonymous | పేరు లేకుండా |  |
 | `prayerWall.anonymousToggle` | Post anonymously | పేరు లేకుండా పంచుకోండి |  |
-| `prayerWall.anonymousHelp` | Your name is not saved with this request and nobody in the church can see who wrote it. | ఈ విన్నపంతో మీ పేరు భద్రపరచబడదు, ఎవరు రాశారో సంఘంలో ఎవరికీ తెలియదు. |  |
+| `prayerWall.anonymousHelp` | Other members and the church team will not see your name. The church’s main administrator can look it up, only to deal with a report. | ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు. | ⚠️ |
 | `prayerWall.anonymousLocked` | Whether this request shows your name cannot be changed. | ఈ విన్నపంలో మీ పేరు కనిపించడాన్ని ఇక మార్చలేరు. |  |
 | `prayerWall.submit` | Share request | విన్నపాన్ని పంచుకోండి |  |
 | `prayerWall.submitFailed` | Your request could not be shared. | మీ విన్నపాన్ని పంచుకోలేకపోయాం. |  |
@@ -552,7 +735,7 @@ a key cannot be accidentally dropped while editing.
 | --- | --- | --- | --- |
 | `report.action` | Report | ఫిర్యాదు చేయండి |  |
 | `report.title` | Report this | దీనిపై ఫిర్యాదు |  |
-| `report.intro` | A church administrator will look at this. Your name is not shown to anyone else. | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. మీ పేరు ఇతరులకు కనిపించదు. |  |
+| `report.intro` | A church administrator will look at this. Other members will not see your name. | సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు. | ⚠️ |
 | `report.reasonLabel` | Why are you reporting it? | దేనికి ఫిర్యాదు చేస్తున్నారు? |  |
 | `report.reason.spam` | Spam or advertising | స్పామ్ లేదా ప్రకటన |  |
 | `report.reason.harassment` | Harassment or bullying | వేధింపు |  |

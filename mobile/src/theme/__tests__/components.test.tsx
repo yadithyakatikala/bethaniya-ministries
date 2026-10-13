@@ -73,6 +73,36 @@ describe('AppButton', () => {
     expect(style.opacity).toBe(1);
   });
 
+  it('can look disabled while staying pressable and announced as a button (muted)', async () => {
+    // A form's Continue that "wakes up" when the answer is complete: asleep,
+    // it is painted with the disabled tokens (same readable colours as above)
+    // but a press still reaches the handler -- which says what is missing --
+    // and a screen reader is not told it is unavailable.
+    const onPress = jest.fn();
+    const { getByTestId } = await renderThemed(
+      <AppButton title="Continue" muted onPress={onPress} testID="btn" />
+    );
+    const style = flat(getByTestId('btn'));
+    expect(style.backgroundColor).toBe(lightTokens.disabledSurface);
+    expect(style.opacity).toBe(1);
+    expect(getByTestId('btn').props.accessibilityState).toMatchObject({
+      disabled: false,
+    });
+    await fireEvent.press(getByTestId('btn'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not muted by default, and muting a text button leaves it transparent', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Continue" testID="awake" />
+        <AppButton title="Not now" variant="text" muted testID="quiet" />
+      </>
+    );
+    expect(flat(getByTestId('awake')).backgroundColor).toBe(lightTokens.primary);
+    expect(flat(getByTestId('quiet')).backgroundColor).toBe('transparent');
+  });
+
   it('reports disabled and busy to a screen reader', async () => {
     const { getByTestId } = await renderThemed(
       <AppButton title="Save" loading testID="btn" />
@@ -81,6 +111,17 @@ describe('AppButton', () => {
       disabled: true,
       busy: true,
     });
+  });
+
+  it('keeps its own fill while loading -- busy is not the same as unavailable', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Save" loading testID="primary" />
+        <AppButton title="Delete" variant="destructive" loading testID="destructive" />
+      </>
+    );
+    expect(flat(getByTestId('primary')).backgroundColor).toBe(lightTokens.primary);
+    expect(flat(getByTestId('destructive')).backgroundColor).toBe(lightTokens.danger);
   });
 
   it('does not fire while loading', async () => {
@@ -98,6 +139,45 @@ describe('AppButton', () => {
       <AppButton title="కార్యక్రమాలను చూడండి" testID="btn" />
     );
     expect(getByText('కార్యక్రమాలను చూడండి').props.numberOfLines).toBe(2);
+  });
+
+  it('paints the live variant in the live fill with the on-live label, never the error fill', async () => {
+    const { getByTestId, getByText } = await renderThemed(
+      <AppButton title="Watch live" variant="live" testID="btn" />
+    );
+    expect(flat(getByTestId('btn')).backgroundColor).toBe(lightTokens.live);
+    expect(flat(getByText('Watch live')).color).toBe(lightTokens.onLive);
+    expect(flat(getByTestId('btn')).minHeight as number).toBeGreaterThanOrEqual(
+      MIN_TOUCH_TARGET
+    );
+  });
+
+  it('paints a disabled live button with the disabled tokens like any filled button', async () => {
+    const { getByTestId } = await renderThemed(
+      <AppButton title="Watch live" variant="live" disabled testID="btn" />
+    );
+    expect(flat(getByTestId('btn')).backgroundColor).toBe(lightTokens.disabledSurface);
+  });
+
+  it('draws a leading icon before the label, and a trailing one after it', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <AppButton title="Favourite" leadingIcon="heart" testID="lead" />
+        <AppButton title="Next" trailingIcon="arrow" testID="trail" />
+        <AppButton title="Both" leadingIcon="back" trailingIcon="arrow" testID="both" />
+        <AppButton title="Plain" testID="plain" />
+      </>
+    );
+    const kinds = (testID: string) =>
+      (getByTestId(testID).children[0] as { children: { type: unknown }[] }).children.map(
+        (child) => (typeof child.type === 'string' ? child.type : 'node')
+      );
+    // The content row is [icon?, label, icon?]; a button with neither has no row at all.
+    expect(kinds('lead')).toHaveLength(2);
+    expect(kinds('trail')).toHaveLength(2);
+    expect(kinds('both')).toHaveLength(3);
+    expect(getByTestId('plain').children).toHaveLength(1);
+    expect(getByTestId('lead')).toHaveTextContent('Favourite');
   });
 });
 
@@ -126,14 +206,9 @@ describe('IconButton', () => {
 
 describe('Badge', () => {
   it('gives each status its own colours', async () => {
-    const variants = [
-      'success',
-      'warning',
-      'error',
-      'info',
-      'featured',
-      'neutral',
-    ] as const;
+    // `info` is retired from the design (S8: a category is not a status, so
+    // a category chip is neutral) and paints as `neutral` -- see the next test.
+    const variants = ['success', 'warning', 'error', 'featured', 'neutral'] as const;
     const { getByTestId } = await renderThemed(
       <>
         {variants.map((variant) => (
@@ -151,6 +226,29 @@ describe('Badge', () => {
     );
     // Before M3, warning and featured resolved to the same two colours.
     expect(new Set(backgrounds).size).toBe(variants.length);
+  });
+
+  it('no longer draws the Info blue: `info` paints as neutral (S8)', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <Badge label="Healing" variant="info" testID="badge-info" />
+        <Badge label="Draft" variant="neutral" testID="badge-neutral" />
+      </>
+    );
+    expect(flat(getByTestId('badge-info')).backgroundColor).toBe(
+      flat(getByTestId('badge-neutral')).backgroundColor
+    );
+    expect(flat(getByTestId('badge-info')).backgroundColor).not.toBe(
+      lightTokens.infoTint
+    );
+  });
+
+  it('is 24 high and a pill', async () => {
+    const { getByTestId } = await renderThemed(
+      <Badge label="Praying" variant="neutral" testID="badge" />
+    );
+    expect(flat(getByTestId('badge')).minHeight).toBe(24);
+    expect(flat(getByTestId('badge')).borderRadius).toBe(999);
   });
 
   it('marks LIVE with a dot as well as a colour', async () => {

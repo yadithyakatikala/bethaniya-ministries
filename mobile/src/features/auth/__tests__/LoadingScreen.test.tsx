@@ -1,8 +1,10 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
+import { translate } from '../../../i18n';
 import { darkTokens, lightTokens } from '../../../theme';
 import { LoadingScreen } from '../LoadingScreen';
 
@@ -44,5 +46,54 @@ describe('LoadingScreen', () => {
   it('renders no hardcoded colour', async () => {
     const { getByTestId } = await renderWithTheme();
     expect(JSON.stringify(getByTestId('auth-loading-screen'))).not.toContain('#666');
+  });
+
+  // --- The look: the portrait, a gold thread, and "Loading…" --------------
+
+  it('stands the round portrait over a short gold thread over "Loading…", in the middle of the screen', async () => {
+    const { getByTestId, getByText } = await renderWithTheme();
+    const hidden = { includeHiddenElements: true };
+    expect(
+      StyleSheet.flatten(getByTestId('auth-loading-portrait', hidden).props.style)
+    ).toMatchObject({
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+    });
+    expect(
+      StyleSheet.flatten(getByTestId('auth-loading-thread', hidden).props.style)
+    ).toMatchObject({
+      width: 132,
+      height: 2,
+    });
+    expect(getByText('Loading…')).toBeTruthy();
+    expect(
+      StyleSheet.flatten(getByTestId('auth-loading-screen').props.style)
+    ).toMatchObject({
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 22,
+    });
+  });
+
+  it('is ONE announcement for a screen reader -- a busy progress indicator named "Loading…" -- not three things to swipe past', async () => {
+    const { getByTestId } = await renderWithTheme();
+    const screen = getByTestId('auth-loading-screen');
+    expect(screen.props.accessible).toBe(true);
+    expect(screen.props.accessibilityRole).toBe('progressbar');
+    expect(screen.props.accessibilityLabel).toBe('Loading…');
+    expect(screen.props.accessibilityState).toMatchObject({ busy: true });
+  });
+
+  it('says it in Telugu under a Telugu interface', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    const { getByTestId } = await renderWithTheme();
+    await waitFor(() =>
+      expect(getByTestId('auth-loading-screen').props.accessibilityLabel).toBe(
+        translate('te', 'common.loading')
+      )
+    );
+    await AsyncStorage.removeItem('app_language_preference');
   });
 });

@@ -336,6 +336,14 @@ export interface VotdContent {
   label: string | null;
   /** Null for an override. */
   citation: VotdCitation | null;
+  /**
+   * WHERE the verse is, so "Read chapter" can open the Bible there. The
+   * book's id (not its printed name), the chapter and the first verse.
+   * Null for an override: its reference is a string an administrator
+   * typed, which cannot be taken apart and must not be guessed at -- so an
+   * override offers Share and Copy, but no "Read chapter".
+   */
+  location: VotdReference | null;
 }
 
 function overrideContent(override: VotdOverride): VotdContent {
@@ -350,6 +358,7 @@ function overrideContent(override: VotdOverride): VotdContent {
     imageUrl: override.imageUrl,
     label: null,
     citation: null,
+    location: null,
   };
 }
 
@@ -381,6 +390,7 @@ function scriptureContent(
     imageUrl: null,
     label: scripture.label,
     citation: { bookName, chapter: selection.reference.chapter, label: scripture.label },
+    location: { ...selection.reference },
   };
 }
 

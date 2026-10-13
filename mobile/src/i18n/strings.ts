@@ -51,6 +51,38 @@ export interface Strings {
   'nav.songs': string;
   'nav.events': string;
   'nav.more': string;
+  'nav.prayers': string;
+  'nav.community': string;
+  'nav.you': string;
+  'prayers.tabRequests': string;
+  'prayers.tabJournal': string;
+  'prayers.filterAll': string;
+  'prayers.filterYours': string;
+  'prayers.noOwn': string;
+  'prayers.noOwnMessage': string;
+  'prayers.shared': string;
+  'prayers.private': string;
+  'prayers.newEntry': string;
+  'prayers.addedToJournal': string;
+  'community.tabUpdates': string;
+  'community.tabChat': string;
+  'updates.announcement': string;
+  'you.tabSaved': string;
+  'you.notes': string;
+  'you.highlights': string;
+  'you.bookmarks': string;
+  'you.readingPlans': string;
+  'you.prayerJournal': string;
+  'you.noNotes': string;
+  'you.noNotesMessage': string;
+  'you.noHighlights': string;
+  'you.noHighlightsMessage': string;
+  'you.noBookmarks': string;
+  'you.noBookmarksMessage': string;
+  'you.loadError': string;
+
+  // --- The opening animation ---
+  'opening.skipHint': string;
 
   // --- Common actions and states ---
   'common.loading': string;
@@ -142,6 +174,19 @@ export interface Strings {
   'plans.loadError': string;
   'plans.loadErrorMessage': string;
   'plans.dayNotFound': string;
+  'plans.myPlans': string;
+  'plans.findPlans': string;
+  'plans.findAPlan': string;
+  'plans.beginWithPlan': string;
+  'plans.dayWord': string;
+  'plans.read': string;
+  'plans.reflect': string;
+  'plans.pray': string;
+  'plans.openInBible': string;
+  'plans.nextDay': string;
+  'plans.doneTitle': string;
+  'plans.doneMessage': string;
+  'plans.chooseAnother': string;
   'plans.dayLoadError': string;
 
   // --- Prayers ---
@@ -182,6 +227,10 @@ export interface Strings {
   'notifications.title': string;
   'notifications.empty': string;
   'notifications.readError': string;
+  'notifications.today': string;
+  'notifications.yesterday': string;
+  'notifications.new': string;
+  'notifications.emptyMessage': string;
 
   // --- Authentication ---
   'auth.signInTitle': string;
@@ -189,7 +238,6 @@ export interface Strings {
   'auth.email': string;
   'auth.emailPlaceholder': string;
   'auth.password': string;
-  'auth.passwordPlaceholder': string;
   'auth.namePlaceholder': string;
   'auth.signIn': string;
   'auth.createAccount': string;
@@ -201,6 +249,9 @@ export interface Strings {
   'auth.resetSent': string;
   'auth.continueWithGoogle': string;
   'auth.continueWithApple': string;
+  'auth.show': string;
+  'auth.hide': string;
+  'auth.passwordHint': string;
 
   // --- Profile ---
   'profile.title': string;
@@ -226,12 +277,20 @@ export interface Strings {
   'settings.about': string;
   'settings.privacyPolicy': string;
   'settings.terms': string;
+  'legal.provisional': string;
+  'legal.englishOnly': string;
   'settings.logOut': string;
   'settings.account': string;
   'settings.contactChurch': string;
   'settings.notSetYet': string;
   'settings.bibleTranslations': string;
   'settings.view': string;
+  'settings.logOutConfirmTitle': string;
+  'settings.logOutConfirmMessage': string;
+  'credits.intro': string;
+  'credits.publicDomain': string;
+  'credits.licensed': string;
+  'credits.readLicence': string;
 
   // --- Added while wiring the remaining V1 screens ---
   'songs.loadError': string;
@@ -250,6 +309,7 @@ export interface Strings {
   'community.emptyShort': string;
   'profile.loadError': string;
   'profile.phoneNumber': string;
+  'profile.age': string;
   'events.openInMaps': string;
   'events.emptyShort': string;
   'bible.chapterLoadError': string;
@@ -264,6 +324,13 @@ export interface Strings {
   'home.readingPlan': string;
   'home.startAPlan': string;
   'home.percentComplete': string;
+  'home.readChapter': string;
+  'home.together': string;
+  'home.askPray': string;
+  'home.updatesLabel': string;
+  'home.updatesHint': string;
+  'prophetVerse.readMore': string;
+  'prophetVerse.showLess': string;
   'announcements.title': string;
 
   // --- M2: independent app / Bible language ---------------------------
@@ -285,8 +352,16 @@ export interface Strings {
   'common.member': string;
   'events.dateTBA': string;
   'events.unsupportedStreamLink': string;
+  'events.backToEvent': string;
+  'events.today': string;
   'songs.favoriteAction': string;
   'songs.favoritedState': string;
+  'songs.filterAll': string;
+  'songs.filterFavourites': string;
+  'songs.noFavourites': string;
+  'songs.noFavouritesMessage': string;
+  'songs.lyrics': string;
+  'songs.progress': string;
   'dailyVerse.loadError': string;
   'profile.saved': string;
   'profile.nameEmpty': string;
@@ -359,6 +434,14 @@ export interface Strings {
   'bible.layoutLabel': string;
   'bible.layoutStacked': string;
   'bible.layoutSideBySide': string;
+  'bible.tabRead': string;
+  'bible.tabPlans': string;
+  'bible.booksLabel': string;
+  'bible.chapterCount': string;
+  'bible.page': string;
+  'bible.pageSepia': string;
+  'bible.moreSettings': string;
+  'bible.resultsCount': string;
 
   // --- M5: automated Verse of the Day + Prophet Verse -----------------
   /** Accessibility label for an override's illustration. The automated
@@ -371,6 +454,7 @@ export interface Strings {
    * wrong: with automation there is always a verse to show.
    */
   'dailyVerse.unavailable': string;
+  'dailyVerse.archiveError': string;
   'dailyVerse.loading': string;
   /** The Prophet Verse is a SEPARATE content system, with its own
    *  section heading below the Verse of the Day. */
@@ -441,6 +525,33 @@ export interface Strings {
   /** The Profile row that leads back here for anyone who skipped. */
   'onboarding.completePrompt': string;
   'onboarding.completeAction': string;
+  // The five questions, one per screen.
+  'onboarding.q1': string;
+  'onboarding.s1': string;
+  'onboarding.q2': string;
+  'onboarding.s2': string;
+  'onboarding.q3': string;
+  'onboarding.s3': string;
+  'onboarding.q4': string;
+  'onboarding.s4': string;
+  'onboarding.q5': string;
+  'onboarding.s5': string;
+  'onboarding.stepOf': string;
+  'onboarding.next': string;
+  'onboarding.skipQuestion': string;
+  'onboarding.agePlaceholder': string;
+  'onboarding.ageUnit': string;
+  'onboarding.ageError': string;
+  'onboarding.phoneErrorShort': string;
+  'onboarding.phoneErrorLong': string;
+  'onboarding.phoneErrorIndia': string;
+  'onboarding.country': string;
+  'onboarding.countryLabel': string;
+  'onboarding.languageEnglishSub': string;
+  'onboarding.languageTeluguSub': string;
+  'onboarding.interfaceLanguage': string;
+  'onboarding.chapterSkip': string;
+  'onboarding.chapterSkipHint': string;
 
   // --- M6: the media feed ---------------------------------------------
   'media.title': string;
@@ -477,6 +588,10 @@ export interface Strings {
   /** M7: "Posted 3 March 2026", under a card. */
   'media.publishedOn': string;
   'media.refresh': string;
+  'media.openVideo': string;
+  'media.videoLink': string;
+  'media.unavailable': string;
+  'media.commentsError': string;
 
   // --- M7: the group chat ----------------------------------------------
   // NOT `community.*`: that prefix belongs to the admin-authored posts
@@ -594,6 +709,38 @@ const en: Strings = {
   'nav.songs': 'Songs',
   'nav.events': 'Events',
   'nav.more': 'More',
+  'nav.prayers': 'Prayers',
+  'nav.community': 'Community',
+  'nav.you': 'You',
+  'prayers.tabRequests': 'Requests',
+  'prayers.tabJournal': 'My journal',
+  'prayers.filterAll': 'All',
+  'prayers.filterYours': 'Yours',
+  'prayers.noOwn': 'You have not asked for prayer yet',
+  'prayers.noOwnMessage':
+    'When you do, your requests are listed here so you can find them.',
+  'prayers.shared': 'Your request was shared',
+  'prayers.private': 'Only you can see this',
+  'prayers.newEntry': 'New entry',
+  'prayers.addedToJournal': 'Added to your journal',
+  'community.tabUpdates': 'Updates',
+  'community.tabChat': 'Chat',
+  'updates.announcement': 'Announcement',
+  'you.tabSaved': 'Saved',
+  'you.notes': 'Notes',
+  'you.highlights': 'Highlights',
+  'you.bookmarks': 'Bookmarks',
+  'you.readingPlans': 'Reading plans',
+  'you.prayerJournal': 'Prayer journal',
+  'you.noNotes': 'No notes yet',
+  'you.noNotesMessage': 'Tap a verse while you read and choose Add note.',
+  'you.noHighlights': 'No highlights yet',
+  'you.noHighlightsMessage': 'Tap a verse while you read and choose a colour.',
+  'you.noBookmarks': 'No bookmarks yet',
+  'you.noBookmarksMessage': 'Bookmarked verses will appear here.',
+  'you.loadError': 'Your saved verses could not be loaded.',
+
+  'opening.skipHint': 'Double-tap to skip',
 
   'common.loading': 'Loading…',
   'common.tryAgain': 'Try again',
@@ -673,6 +820,19 @@ const en: Strings = {
   'plans.loadError': 'Couldn’t load this plan',
   'plans.loadErrorMessage': 'Check your connection and open the plan again.',
   'plans.dayNotFound': 'This day could not be found.',
+  'plans.myPlans': 'My plans',
+  'plans.findPlans': 'Find plans',
+  'plans.findAPlan': 'Find a plan',
+  'plans.beginWithPlan': 'Begin with a plan, and today has a path.',
+  'plans.dayWord': 'Day',
+  'plans.read': 'Read',
+  'plans.reflect': 'Reflect',
+  'plans.pray': 'Pray',
+  'plans.openInBible': 'Open in the Bible',
+  'plans.nextDay': 'Next: day {n}',
+  'plans.doneTitle': 'Plan complete',
+  'plans.doneMessage': 'You read all {n} days of {plan}.',
+  'plans.chooseAnother': 'Choose another plan',
   'plans.dayLoadError':
     'This reading couldn’t be loaded. Check your connection and try again.',
 
@@ -680,8 +840,8 @@ const en: Strings = {
   'prayers.newRequest': 'New Prayer Request',
   'prayers.placeholder': 'What’s on your heart?',
   'prayers.add': 'Add Prayer',
-  'prayers.empty': 'No prayers yet',
-  'prayers.emptyMessage': 'Add a prayer request above — only you can see it.',
+  'prayers.empty': 'Nothing in your journal yet',
+  'prayers.emptyMessage': 'Add a prayer with the button below. Only you can see it.',
   'prayers.loadError': 'Couldn’t load prayers',
   'prayers.loadErrorMessage': 'Check your connection and try again.',
   'prayers.markAnswered': 'Mark answered',
@@ -709,13 +869,17 @@ const en: Strings = {
   'notifications.title': 'Notifications',
   'notifications.empty': 'You have no notifications yet.',
   'notifications.readError': 'Your notification history couldn’t be read on this device.',
+  'notifications.today': 'Today',
+  'notifications.yesterday': 'Yesterday',
+  'notifications.new': 'New',
+  'notifications.emptyMessage':
+    'Notifications this phone receives from the church are kept here.',
 
   'auth.signInTitle': 'Sign in to {app}',
   'auth.signUpTitle': 'Create your {app} account',
   'auth.email': 'Email',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'Password',
-  'auth.passwordPlaceholder': 'Password ({min}+ characters)',
   'auth.namePlaceholder': 'Your name',
   'auth.signIn': 'Sign in',
   'auth.createAccount': 'Create account',
@@ -728,6 +892,9 @@ const en: Strings = {
     'If an account exists for that email, a password reset link is on its way.',
   'auth.continueWithGoogle': 'Continue with Google',
   'auth.continueWithApple': 'Continue with Apple',
+  'auth.show': 'Show',
+  'auth.hide': 'Hide',
+  'auth.passwordHint': 'At least {min} characters',
 
   'profile.title': 'Profile',
   'profile.displayName': 'Name',
@@ -751,12 +918,22 @@ const en: Strings = {
   'settings.about': 'About',
   'settings.privacyPolicy': 'Privacy policy',
   'settings.terms': 'Terms of service',
+  'legal.provisional': 'Provisional text. The church’s counsel has not reviewed it yet.',
+  'legal.englishOnly': 'This text is in English only for now.',
   'settings.logOut': 'Log Out',
   'settings.account': 'Account',
   'settings.contactChurch': 'Contact the church',
   'settings.notSetYet': 'Not set yet',
   'settings.bibleTranslations': 'Bible translations',
   'settings.view': 'View',
+  'settings.logOutConfirmTitle': 'Log out of Maranatha?',
+  'settings.logOutConfirmMessage':
+    'You will need to sign in again to use the app. Nothing is deleted.',
+  'credits.intro':
+    'The Bibles in this app are stored on your phone, so you can read without a connection.',
+  'credits.publicDomain': 'Public domain',
+  'credits.licensed': 'Licensed under {licence}',
+  'credits.readLicence': 'Read the licence',
 
   'songs.loadError': 'Could not load songs.',
   'songs.emptyShort': 'No songs yet.',
@@ -775,6 +952,7 @@ const en: Strings = {
   'community.emptyShort': 'No community posts yet.',
   'profile.loadError': 'Could not load your profile.',
   'profile.phoneNumber': 'Phone Number',
+  'profile.age': 'Age',
   'events.openInMaps': 'Open in Maps',
   'events.emptyShort': 'No upcoming events.',
   'bible.chapterLoadError': 'Could not load this chapter.',
@@ -789,6 +967,13 @@ const en: Strings = {
   'home.readingPlan': 'Reading Plan',
   'home.startAPlan': 'Start a Reading Plan',
   'home.percentComplete': '{percent}%',
+  'home.readChapter': 'Read chapter',
+  'home.together': 'Together',
+  'home.askPray': 'Ask the church to pray with you',
+  'home.updatesLabel': 'Open updates',
+  'home.updatesHint': 'Shows announcements and posts from the church',
+  'prophetVerse.readMore': 'Read more',
+  'prophetVerse.showLess': 'Show less',
   'announcements.title': 'Announcements',
 
   'settings.appLanguage': 'App language',
@@ -807,8 +992,16 @@ const en: Strings = {
   'events.dateTBA': 'Date and time to be announced',
   'events.unsupportedStreamLink':
     'This stream link isn’t a supported YouTube URL, so it can’t be played here.',
+  'events.backToEvent': 'Back to the event',
+  'events.today': 'Today',
   'songs.favoriteAction': 'Favourite',
   'songs.favoritedState': 'Favourited',
+  'songs.filterAll': 'All',
+  'songs.filterFavourites': 'Favourites',
+  'songs.noFavourites': 'No favourites yet',
+  'songs.noFavouritesMessage': 'Choose Favourite on a song to keep it here.',
+  'songs.lyrics': 'Lyrics',
+  'songs.progress': 'Song progress',
   'dailyVerse.loadError': 'Could not load today’s verse.',
   'profile.saved': 'Saved.',
   'profile.nameEmpty': 'Your name cannot be empty.',
@@ -868,10 +1061,19 @@ const en: Strings = {
   'bible.layoutLabel': 'Bilingual layout',
   'bible.layoutStacked': 'Stacked',
   'bible.layoutSideBySide': 'Side by side',
+  'bible.tabRead': 'Read',
+  'bible.tabPlans': 'Plans',
+  'bible.booksLabel': 'Books',
+  'bible.chapterCount': '{n} chapters',
+  'bible.page': 'Page',
+  'bible.pageSepia': 'Sepia',
+  'bible.moreSettings': 'More settings',
+  'bible.resultsCount': '{n} results',
 
   // --- M5 ---
   'dailyVerse.imageLabel': "Illustration for today's verse",
   'dailyVerse.unavailable': "Today's verse could not be loaded.",
+  'dailyVerse.archiveError': 'Earlier verses could not be loaded.',
   'dailyVerse.loading': "Loading today's verse",
   // "of the Day" is load-bearing: this block sits directly under the
   // Verse of the Day, and a tester could not tell the two apart.
@@ -921,6 +1123,37 @@ const en: Strings = {
   'onboarding.saveFailed': 'We could not save your details. Please try again.',
   'onboarding.completePrompt': 'Finish setting up your profile',
   'onboarding.completeAction': 'Complete',
+  // The approved design sets a heading in two balanced lines. React Native has no
+  // `text-wrap: balance`, so where the English wraps unevenly the break is set here
+  // (\n). Telugu is not broken by hand: it wraps by itself, and fits one line.
+  'onboarding.q1': 'What should\nwe call you?',
+  'onboarding.s1': 'Your first name is fine. You can change it later in your profile.',
+  'onboarding.q2': 'How old are you?',
+  'onboarding.s2': 'Just a number. It helps the church know who it is serving.',
+  'onboarding.q3': "What's your\nphone number?",
+  'onboarding.s3':
+    'Optional. So the church can reach you. We will not send you a code, and this is not used to sign in.',
+  'onboarding.q4': 'How do you identify?',
+  'onboarding.s4': 'Choose one.',
+  'onboarding.q5': 'Which language\nwould you prefer?',
+  'onboarding.s5':
+    'Sets the language of the app. You can choose your Bible language separately in Settings.',
+  'onboarding.stepOf': 'Step {n} of {total}',
+  'onboarding.next': 'Continue',
+  'onboarding.skipQuestion': 'Skip for now',
+  'onboarding.agePlaceholder': '34',
+  'onboarding.ageUnit': 'years old',
+  'onboarding.ageError': 'Please enter your age as a number.',
+  'onboarding.phoneErrorShort': 'That number looks too short.',
+  'onboarding.phoneErrorLong': 'That number looks too long.',
+  'onboarding.phoneErrorIndia': 'An Indian mobile number has 10 digits.',
+  'onboarding.country': 'Country code',
+  'onboarding.countryLabel': 'Country code {name}, plus {dial}',
+  'onboarding.languageEnglishSub': 'ఇంగ్లీష్',
+  'onboarding.languageTeluguSub': 'Telugu',
+  'onboarding.interfaceLanguage': 'App language',
+  'onboarding.chapterSkip': 'Skip the introduction',
+  'onboarding.chapterSkipHint': 'Double-tap to go straight to the first question',
 
   'media.title': 'Media',
   'media.sectionTitle': 'Latest media',
@@ -953,6 +1186,10 @@ const en: Strings = {
   'media.actionFailed': 'That did not work. Please try again.',
   'media.publishedOn': 'Posted {date}',
   'media.refresh': 'Refresh',
+  'media.openVideo': 'Open video',
+  'media.videoLink': 'This video plays outside the app.',
+  'media.unavailable': 'This post is no longer available.',
+  'media.commentsError': 'Comments could not be loaded.',
 
   'chat.title': 'Church chat',
   'chat.sectionTitle': 'Church chat',
@@ -992,7 +1229,7 @@ const en: Strings = {
   'prayerWall.anonymousLabel': 'Anonymous',
   'prayerWall.anonymousToggle': 'Post anonymously',
   'prayerWall.anonymousHelp':
-    'Your name is not saved with this request and nobody in the church can see who wrote it.',
+    'Other members and the church team will not see your name. The church’s main administrator can look it up, only to deal with a report.',
   'prayerWall.anonymousLocked': 'Whether this request shows your name cannot be changed.',
   'prayerWall.submit': 'Share request',
   'prayerWall.submitFailed': 'Your request could not be shared.',
@@ -1018,7 +1255,8 @@ const en: Strings = {
 
   'report.action': 'Report',
   'report.title': 'Report this',
-  'report.intro': 'A church administrator will look at this. Your name is not shown to anyone else.',
+  'report.intro':
+    'A church administrator will look at this. Other members will not see your name.',
   'report.reasonLabel': 'Why are you reporting it?',
   'report.reason.spam': 'Spam or advertising',
   'report.reason.harassment': 'Harassment or bullying',
@@ -1059,6 +1297,38 @@ const te: Strings = {
   'nav.songs': 'పాటలు',
   'nav.events': 'కార్యక్రమాలు',
   'nav.more': 'మరిన్ని',
+  'nav.prayers': 'ప్రార్థనలు',
+  'nav.community': 'సమాజం',
+  'nav.you': 'మీరు',
+  'prayers.tabRequests': 'విన్నపాలు',
+  'prayers.tabJournal': 'నా పుస్తకం',
+  'prayers.filterAll': 'అన్నీ',
+  'prayers.filterYours': 'మీవి',
+  'prayers.noOwn': 'మీరు ఇంకా ప్రార్థన కోరలేదు',
+  'prayers.noOwnMessage':
+    'కోరినప్పుడు, మీ విన్నపాలు ఇక్కడ కనిపిస్తాయి, సులభంగా కనుగొనవచ్చు.',
+  'prayers.shared': 'మీ విన్నపం పంచుకోబడింది',
+  'prayers.private': 'ఇది మీకు మాత్రమే కనిపిస్తుంది',
+  'prayers.newEntry': 'కొత్త నమోదు',
+  'prayers.addedToJournal': 'మీ పుస్తకంలో చేర్చబడింది',
+  'community.tabUpdates': 'సమాచారం',
+  'community.tabChat': 'చాట్',
+  'updates.announcement': 'ప్రకటన',
+  'you.tabSaved': 'భద్రపరచినవి',
+  'you.notes': 'నోట్‌లు',
+  'you.highlights': 'హైలైట్‌లు',
+  'you.bookmarks': 'బుక్‌మార్క్‌లు',
+  'you.readingPlans': 'పఠన ప్రణాళికలు',
+  'you.prayerJournal': 'ప్రార్థన పుస్తకం',
+  'you.noNotes': 'ఇంకా నోట్‌లు లేవు',
+  'you.noNotesMessage': 'చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి “నోట్ జోడించండి” ఎంచుకోండి.',
+  'you.noHighlights': 'ఇంకా హైలైట్‌లు లేవు',
+  'you.noHighlightsMessage': 'చదువుతున్నప్పుడు ఒక వచనాన్ని తాకి రంగు ఎంచుకోండి.',
+  'you.noBookmarks': 'ఇంకా బుక్‌మార్క్‌లు లేవు',
+  'you.noBookmarksMessage': 'బుక్‌మార్క్ చేసిన వచనాలు ఇక్కడ కనిపిస్తాయి.',
+  'you.loadError': 'మీరు భద్రపరచిన వచనాలను లోడ్ చేయలేకపోయాం.',
+
+  'opening.skipHint': 'దాటవేయడానికి రెండుసార్లు తట్టండి',
 
   'common.loading': 'లోడ్ అవుతోంది…',
   'common.tryAgain': 'మళ్లీ ప్రయత్నించండి',
@@ -1138,14 +1408,28 @@ const te: Strings = {
   'plans.loadError': 'ఈ ప్రణాళిక లోడ్ కాలేదు',
   'plans.loadErrorMessage': 'కనెక్షన్ చూసి ప్రణాళికను మళ్లీ తెరవండి.',
   'plans.dayNotFound': 'ఈ రోజు కనబడలేదు.',
+  'plans.myPlans': 'నా ప్రణాళికలు',
+  'plans.findPlans': 'కనుగొనండి',
+  'plans.findAPlan': 'ప్రణాళికను కనుగొనండి',
+  'plans.beginWithPlan': 'ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది.',
+  'plans.dayWord': 'రోజు',
+  'plans.read': 'చదవండి',
+  'plans.reflect': 'ధ్యానించండి',
+  'plans.pray': 'ప్రార్థించండి',
+  'plans.openInBible': 'బైబిల్‌లో తెరవండి',
+  'plans.nextDay': 'తదుపరి: {n}వ రోజు',
+  'plans.doneTitle': 'ప్రణాళిక పూర్తయింది',
+  'plans.doneMessage': '{plan} యొక్క {n} రోజులూ మీరు చదివారు.',
+  'plans.chooseAnother': 'మరో ప్రణాళికను ఎంచుకోండి',
   'plans.dayLoadError': 'ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
 
   'prayers.title': 'ప్రార్థనలు',
   'prayers.newRequest': 'కొత్త ప్రార్థన అభ్యర్థన',
   'prayers.placeholder': 'మీ హృదయంలో ఏముంది?',
   'prayers.add': 'ప్రార్థన చేర్చండి',
-  'prayers.empty': 'ఇంకా ప్రార్థనలు లేవు',
-  'prayers.emptyMessage': 'పైన ప్రార్థన అభ్యర్థన చేర్చండి — మీకు మాత్రమే కనిపిస్తుంది.',
+  'prayers.empty': 'మీ పుస్తకంలో ఇంకా ఏమీ లేదు',
+  'prayers.emptyMessage':
+    'కింది బటన్‌తో ప్రార్థన చేర్చండి. ఇది మీకు మాత్రమే కనిపిస్తుంది.',
   'prayers.loadError': 'ప్రార్థనలు లోడ్ కాలేదు',
   'prayers.loadErrorMessage': 'కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
   'prayers.markAnswered': 'జవాబు వచ్చినట్లు గుర్తించండి',
@@ -1173,13 +1457,16 @@ const te: Strings = {
   'notifications.title': 'నోటిఫికేషన్‌లు',
   'notifications.empty': 'మీకు ఇంకా నోటిఫికేషన్‌లు లేవు.',
   'notifications.readError': 'ఈ ఫోన్‌లో మీ నోటిఫికేషన్ చరిత్రను చదవలేకపోయాము.',
+  'notifications.today': 'ఈరోజు',
+  'notifications.yesterday': 'నిన్న',
+  'notifications.new': 'కొత్తది',
+  'notifications.emptyMessage': 'ఈ ఫోన్‌కు సంఘం నుండి వచ్చే నోటిఫికేషన్‌లు ఇక్కడ ఉంటాయి.',
 
   'auth.signInTitle': '{app}లోకి సైన్ ఇన్ అవ్వండి',
   'auth.signUpTitle': 'మీ {app} ఖాతాను సృష్టించండి',
   'auth.email': 'ఇమెయిల్',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'పాస్‌వర్డ్',
-  'auth.passwordPlaceholder': 'పాస్‌వర్డ్ ({min}+ అక్షరాలు)',
   'auth.namePlaceholder': 'మీ పేరు',
   'auth.signIn': 'సైన్ ఇన్',
   'auth.createAccount': 'ఖాతా సృష్టించండి',
@@ -1191,6 +1478,9 @@ const te: Strings = {
   'auth.resetSent': 'ఆ ఇమెయిల్‌కు ఖాతా ఉంటే, పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడుతుంది.',
   'auth.continueWithGoogle': 'Googleతో కొనసాగించండి',
   'auth.continueWithApple': 'Appleతో కొనసాగించండి',
+  'auth.show': 'చూపించు',
+  'auth.hide': 'దాచు',
+  'auth.passwordHint': 'కనీసం {min} అక్షరాలు',
 
   'profile.title': 'ప్రొఫైల్',
   'profile.displayName': 'పేరు',
@@ -1214,12 +1504,22 @@ const te: Strings = {
   'settings.about': 'గురించి',
   'settings.privacyPolicy': 'గోప్యతా విధానం',
   'settings.terms': 'సేవా నిబంధనలు',
+  'legal.provisional': 'తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు.',
+  'legal.englishOnly': 'ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది.',
   'settings.logOut': 'లాగ్ అవుట్',
   'settings.account': 'ఖాతా',
   'settings.contactChurch': 'చర్చిని సంప్రదించండి',
   'settings.notSetYet': 'ఇంకా ఇవ్వలేదు',
   'settings.bibleTranslations': 'బైబిల్ అనువాదాలు',
   'settings.view': 'చూడండి',
+  'settings.logOutConfirmTitle': 'మరనాథ నుండి లాగ్ అవుట్ అవుతారా?',
+  'settings.logOutConfirmMessage':
+    'యాప్ వాడటానికి మళ్లీ సైన్ ఇన్ చేయాలి. ఏదీ తొలగించబడదు.',
+  'credits.intro':
+    'ఈ యాప్‌లోని బైబిళ్లు మీ ఫోన్‌లోనే ఉంటాయి, కాబట్టి కనెక్షన్ లేకుండా చదవచ్చు.',
+  'credits.publicDomain': 'ప్రజా వినియోగ హక్కు (పబ్లిక్ డొమైన్)',
+  'credits.licensed': '{licence} లైసెన్స్ కింద',
+  'credits.readLicence': 'లైసెన్స్ చదవండి',
 
   'songs.loadError': 'పాటలు లోడ్ చేయలేకపోయాము.',
   'songs.emptyShort': 'ఇంకా పాటలు లేవు.',
@@ -1238,6 +1538,7 @@ const te: Strings = {
   'community.emptyShort': 'ఇంకా సమాజ పోస్ట్‌లు లేవు.',
   'profile.loadError': 'మీ ప్రొఫైల్ లోడ్ చేయలేకపోయాము.',
   'profile.phoneNumber': 'ఫోన్ నంబర్',
+  'profile.age': 'వయస్సు',
   'events.openInMaps': 'మ్యాప్స్‌లో తెరవండి',
   'events.emptyShort': 'రాబోయే కార్యక్రమాలు లేవు.',
   'bible.chapterLoadError': 'ఈ అధ్యాయం లోడ్ చేయలేకపోయాము.',
@@ -1252,6 +1553,13 @@ const te: Strings = {
   'home.readingPlan': 'పఠన ప్రణాళిక',
   'home.startAPlan': 'పఠన ప్రణాళిక ప్రారంభించండి',
   'home.percentComplete': '{percent}%',
+  'home.readChapter': 'అధ్యాయం చదవండి',
+  'home.together': 'కలిసి',
+  'home.askPray': 'సంఘం మీతో కలిసి ప్రార్థించమని కోరండి',
+  'home.updatesLabel': 'సమాచారాన్ని తెరవండి',
+  'home.updatesHint': 'సంఘం నుండి ప్రకటనలు, పోస్ట్‌లను చూపుతుంది',
+  'prophetVerse.readMore': 'ఇంకా చదవండి',
+  'prophetVerse.showLess': 'తక్కువ చూపండి',
   'announcements.title': 'ప్రకటనలు',
 
   'settings.appLanguage': 'యాప్ భాష',
@@ -1270,8 +1578,16 @@ const te: Strings = {
   'events.dateTBA': 'తేదీ, సమయం తరువాత ప్రకటిస్తాము',
   'events.unsupportedStreamLink':
     'ఈ ప్రసార లింక్ మద్దతు ఉన్న YouTube URL కాదు, అందుకే ఇక్కడ ప్లే చేయలేము.',
+  'events.backToEvent': 'కార్యక్రమానికి తిరిగి',
+  'events.today': 'ఈరోజు',
   'songs.favoriteAction': 'ఇష్టమైనది',
   'songs.favoritedState': 'ఇష్టమైనవిలో ఉంది',
+  'songs.filterAll': 'అన్నీ',
+  'songs.filterFavourites': 'ఇష్టమైనవి',
+  'songs.noFavourites': 'ఇష్టమైనవి ఇంకా లేవు',
+  'songs.noFavouritesMessage': 'పాటలో “ఇష్టమైనది” ఎంచుకుంటే అది ఇక్కడ ఉంటుంది.',
+  'songs.lyrics': 'సాహిత్యం',
+  'songs.progress': 'పాట పురోగతి',
   'dailyVerse.loadError': 'నేటి వచనం లోడ్ చేయలేకపోయాము.',
   'profile.saved': 'సేవ్ అయింది.',
   'profile.nameEmpty': 'మీ పేరు ఖాళీగా ఉండకూడదు.',
@@ -1332,10 +1648,19 @@ const te: Strings = {
   'bible.layoutLabel': 'ద్విభాషా అమరిక',
   'bible.layoutStacked': 'ఒకదానిపై ఒకటి',
   'bible.layoutSideBySide': 'ప్రక్కప్రక్కన',
+  'bible.tabRead': 'చదవండి',
+  'bible.tabPlans': 'ప్రణాళికలు',
+  'bible.booksLabel': 'గ్రంథాలు',
+  'bible.chapterCount': '{n} అధ్యాయాలు',
+  'bible.page': 'పేజీ',
+  'bible.pageSepia': 'సెపియా',
+  'bible.moreSettings': 'మరిన్ని అమరికలు',
+  'bible.resultsCount': '{n} ఫలితాలు',
 
   // --- M5 ---
   'dailyVerse.imageLabel': 'నేటి వచనానికి చిత్రం',
   'dailyVerse.unavailable': 'నేటి వచనం లోడ్ కాలేదు.',
+  'dailyVerse.archiveError': 'గత వచనాలు లోడ్ కాలేదు.',
   'dailyVerse.loading': 'నేటి వచనం లోడ్ అవుతోంది',
   'prophetVerse.title': 'ఈ రోజు ప్రవక్త వచనం',
   'prophetVerse.imageLabel': 'ఈ ప్రవక్త వచనానికి చిత్రం',
@@ -1379,6 +1704,35 @@ const te: Strings = {
   'onboarding.saveFailed': 'మీ వివరాలను సేవ్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
   'onboarding.completePrompt': 'మీ ప్రొఫైల్ సెటప్ పూర్తి చేయండి',
   'onboarding.completeAction': 'పూర్తి చేయండి',
+  'onboarding.q1': 'మిమ్మల్ని ఏమని పిలవాలి?',
+  'onboarding.s1': 'మీ మొదటి పేరు చాలు. దీన్ని తర్వాత మీ ప్రొఫైల్‌లో మార్చుకోవచ్చు.',
+  'onboarding.q2': 'మీ వయసు ఎంత?',
+  'onboarding.s2':
+    'కేవలం ఒక సంఖ్య. చర్చి ఎవరికి సేవ చేస్తోందో తెలుసుకోవడానికి ఇది సహాయపడుతుంది.',
+  'onboarding.q3': 'మీ ఫోన్ నంబర్ ఏమిటి?',
+  'onboarding.s3':
+    'ఐచ్ఛికం. చర్చి మిమ్మల్ని సంప్రదించడానికి. మేము ఏ కోడ్ పంపం, ఇది సైన్ ఇన్ కోసం కాదు.',
+  'onboarding.q4': 'మీ లింగం ఏమిటి?',
+  'onboarding.s4': 'ఒకటి ఎంచుకోండి.',
+  'onboarding.q5': 'మీకు ఏ భాష ఇష్టం?',
+  'onboarding.s5':
+    'యాప్ భాషను సెట్ చేస్తుంది. బైబిల్ భాషను సెట్టింగ్స్‌లో వేరేగా ఎంచుకోవచ్చు.',
+  'onboarding.stepOf': '{total}లో {n}వ దశ',
+  'onboarding.next': 'కొనసాగండి',
+  'onboarding.skipQuestion': 'ఈ ప్రశ్నను దాటవేయండి',
+  'onboarding.agePlaceholder': '34',
+  'onboarding.ageUnit': 'సంవత్సరాలు',
+  'onboarding.ageError': 'దయచేసి మీ వయసును సంఖ్యగా నమోదు చేయండి.',
+  'onboarding.phoneErrorShort': 'ఆ నంబర్ చాలా చిన్నదిగా ఉంది.',
+  'onboarding.phoneErrorLong': 'ఆ నంబర్ చాలా పెద్దదిగా ఉంది.',
+  'onboarding.phoneErrorIndia': 'భారతీయ మొబైల్ నంబర్‌లో 10 అంకెలు ఉంటాయి.',
+  'onboarding.country': 'దేశం కోడ్',
+  'onboarding.countryLabel': 'దేశం కోడ్ {name}, ప్లస్ {dial}',
+  'onboarding.languageEnglishSub': 'ఇంగ్లీష్',
+  'onboarding.languageTeluguSub': 'Telugu',
+  'onboarding.interfaceLanguage': 'యాప్ భాష',
+  'onboarding.chapterSkip': 'పరిచయాన్ని దాటవేయండి',
+  'onboarding.chapterSkipHint': 'మొదటి ప్రశ్నకు నేరుగా వెళ్లడానికి రెండుసార్లు తట్టండి',
 
   'media.title': 'మీడియా',
   'media.sectionTitle': 'తాజా మీడియా',
@@ -1411,6 +1765,10 @@ const te: Strings = {
   'media.actionFailed': 'అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
   'media.publishedOn': '{date}న పోస్ట్ చేయబడింది',
   'media.refresh': 'రిఫ్రెష్ చేయండి',
+  'media.openVideo': 'వీడియో తెరవండి',
+  'media.videoLink': 'ఈ వీడియో యాప్ బయట ప్లే అవుతుంది.',
+  'media.unavailable': 'ఈ పోస్ట్ ఇప్పుడు అందుబాటులో లేదు.',
+  'media.commentsError': 'వ్యాఖ్యలను లోడ్ చేయలేకపోయాం.',
 
   'chat.title': 'సంఘ సంభాషణ',
   'chat.sectionTitle': 'సంఘ సంభాషణ',
@@ -1451,7 +1809,7 @@ const te: Strings = {
   'prayerWall.anonymousLabel': 'పేరు లేకుండా',
   'prayerWall.anonymousToggle': 'పేరు లేకుండా పంచుకోండి',
   'prayerWall.anonymousHelp':
-    'ఈ విన్నపంతో మీ పేరు భద్రపరచబడదు, ఎవరు రాశారో సంఘంలో ఎవరికీ తెలియదు.',
+    'ఇతర సభ్యులకు, సంఘ బృందానికి మీ పేరు కనిపించదు. ఫిర్యాదును పరిష్కరించడానికి మాత్రమే సంఘ ప్రధాన నిర్వాహకులు దాన్ని చూడగలరు.',
   'prayerWall.anonymousLocked': 'ఈ విన్నపంలో మీ పేరు కనిపించడాన్ని ఇక మార్చలేరు.',
   'prayerWall.submit': 'విన్నపాన్ని పంచుకోండి',
   'prayerWall.submitFailed': 'మీ విన్నపాన్ని పంచుకోలేకపోయాం.',
@@ -1478,8 +1836,7 @@ const te: Strings = {
 
   'report.action': 'ఫిర్యాదు చేయండి',
   'report.title': 'దీనిపై ఫిర్యాదు',
-  'report.intro':
-    'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. మీ పేరు ఇతరులకు కనిపించదు.',
+  'report.intro': 'సంఘ నిర్వాహకులు దీనిని పరిశీలిస్తారు. ఇతర సభ్యులకు మీ పేరు కనిపించదు.',
   'report.reasonLabel': 'దేనికి ఫిర్యాదు చేస్తున్నారు?',
   'report.reason.spam': 'స్పామ్ లేదా ప్రకటన',
   'report.reason.harassment': 'వేధింపు',

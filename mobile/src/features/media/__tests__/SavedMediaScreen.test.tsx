@@ -7,6 +7,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs } from 'firebase/firestore';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
+import { translate } from '../../../i18n/strings';
 import { SavedMediaScreen } from '../SavedMediaScreen';
 
 jest.mock('../../../services/firebase/app');
@@ -139,5 +140,56 @@ describe('saved media', () => {
       expect(screen.getByTestId('saved-media-open-failed')).toBeTruthy()
     );
     expect(screen.queryByTestId('media-detail-stub')).toBeNull();
+    // It says the post is gone -- not that something "could not load".
+    expect(screen.getByTestId('saved-media-open-failed')).toHaveTextContent(
+      translate('en', 'media.unavailable')
+    );
+  });
+
+  it('says it could not be read, and not that it is gone, when the read itself fails', async () => {
+    (getDocs as jest.Mock).mockResolvedValue({ docs: [savedDoc('a')] });
+    (getDoc as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const screen = await renderSaved();
+    await waitFor(() => expect(screen.getByTestId('saved-media-a')).toBeTruthy());
+
+    await fireEvent.press(screen.getByTestId('saved-media-a'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('saved-media-open-failed')).toBeTruthy()
+    );
+    expect(screen.getByTestId('saved-media-open-failed')).toHaveTextContent(
+      translate('en', 'media.loadError')
+    );
+    expect(screen.getByTestId('saved-media-open-failed')).not.toHaveTextContent(
+      translate('en', 'media.unavailable')
+    );
+    warn.mockRestore();
+  });
+
+  it('puts a play marker on a saved video and none on a saved picture', async () => {
+    (getDocs as jest.Mock).mockResolvedValue({
+      docs: [savedDoc('pic'), savedDoc('vid', { type: 'video' })],
+    });
+    const screen = await renderSaved();
+    await waitFor(() => expect(screen.getByTestId('saved-media-vid')).toBeTruthy());
+    expect(screen.getByTestId('saved-media-play-vid')).toBeTruthy();
+    expect(screen.queryByTestId('saved-media-play-pic')).toBeNull();
+  });
+
+  it('keeps its own top bar -- titled Saved media, with Back -- through every state', async () => {
+    (getDocs as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    const waiting = await renderSaved();
+    await waitFor(() => expect(waiting.getByTestId('saved-media-loading')).toBeTruthy());
+    expect(
+      waiting.getAllByText(translate('en', 'media.savedTitle')).length
+    ).toBeGreaterThan(0);
+    expect(waiting.getByTestId('top-bar-back')).toBeTruthy();
+    await waiting.unmount();
+
+    (getDocs as jest.Mock).mockResolvedValue({ docs: [savedDoc('a')] });
+    const ready = await renderSaved();
+    await waitFor(() => expect(ready.getByTestId('saved-media-a')).toBeTruthy());
+    expect(ready.getByTestId('top-bar-back')).toBeTruthy();
   });
 });

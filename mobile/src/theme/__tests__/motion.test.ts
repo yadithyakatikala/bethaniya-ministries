@@ -3,6 +3,7 @@ import {
   TAB_FADE_MS,
   animationDuration,
   pushAnimation,
+  dialogAnimation,
   sheetAnimation,
   tabAnimation,
 } from '../motion';
@@ -37,6 +38,7 @@ describe('the three movements', () => {
 
   it('slides a sheet up from the bottom', () => {
     expect(sheetAnimation(false)).toBe('slide');
+    expect(dialogAnimation(false)).toBe('fade');
   });
 
   it('keeps every one of them short', () => {
@@ -53,6 +55,7 @@ describe('when the phone asks for no animations', () => {
     expect(pushAnimation(true)).toBe('none');
     expect(tabAnimation(true)).toBe('none');
     expect(sheetAnimation(true)).toBe('none');
+    expect(dialogAnimation(true)).toBe('none');
   });
 
   it('zeroes the duration as well as the name', () => {

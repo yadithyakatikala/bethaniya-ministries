@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Tappable } from '../../../theme/ui/Tappable';
-import { BookmarkIcon, NoteIcon } from '../../../theme/ui/ReaderIcons';
-import { useTheme } from '../../../theme';
+import { Icon, useTheme } from '../../../theme';
 import type { VerseAnnotation } from './useVerseAnnotations';
 
 /** The indicator glyphs sit in the number gutter, so they must be small. */
-const INDICATOR_SIZE = 13;
+const INDICATOR_SIZE = 14;
 
 /**
  * One verse: its number, its text, and whatever the member has done
@@ -36,6 +35,7 @@ export function VerseRow({
   onPress,
   stateLabels,
   textForAccessibility,
+  numberLineHeight = 20,
   onLayout,
   children,
   testID,
@@ -48,11 +48,18 @@ export function VerseRow({
   /** Translated words for highlighted / bookmarked / has-a-note. */
   stateLabels: string[];
   textForAccessibility: string;
+  /**
+   * The line height of the verse's text, which the number is set on too: its
+   * line box is as tall as the text's, so the number sits on the first line
+   * (at the size of the text, with Telugu's extra leading) instead of riding
+   * above it.
+   */
+  numberLineHeight?: number;
   onLayout?: (event: LayoutChangeEvent) => void;
   children: ReactNode;
   testID?: string;
 }) {
-  const { colors, radii, spacing, type, highlights, reading } = useTheme();
+  const { colors, spacing, type, highlights, reading } = useTheme();
 
   const highlightTint = annotation.highlight ? highlights[annotation.highlight] : null;
 
@@ -69,8 +76,12 @@ export function VerseRow({
       style={[
         styles.row,
         {
-          gap: spacing.md - 2,
-          borderRadius: radii.chip,
+          // A few points, not none: the column is only wide enough for "39-40"
+          // (see readingScale.verseNumberColumn), and a merged range must not
+          // touch the first word.
+          gap: 4,
+          // Nearly square, as the approved page draws a highlight band.
+          borderRadius: 2,
           // Negative margin against the padding, so a highlighted row's
           // tint extends past the text column rather than inset from it
           // -- a highlight that stops short of the words reads as a box.
@@ -86,14 +97,21 @@ export function VerseRow({
       ]}
     >
       <View style={[styles.gutter, { width: reading.verseNumberColumn }]}>
-        <Text style={[type.scriptureReference, { color: colors.accent }]}>{label}</Text>
+        <Text
+          style={[
+            type.scriptureReference,
+            { color: colors.accent, lineHeight: numberLineHeight },
+          ]}
+        >
+          {label}
+        </Text>
         {annotation.bookmarked || annotation.note ? (
           <View style={styles.indicators}>
             {annotation.bookmarked ? (
-              <BookmarkIcon color={colors.accent} size={INDICATOR_SIZE} filled />
+              <Icon name="bookmarkf" color={colors.accent} size={INDICATOR_SIZE} />
             ) : null}
             {annotation.note ? (
-              <NoteIcon color={colors.inkMuted} size={INDICATOR_SIZE} />
+              <Icon name="note" color={colors.accent} size={INDICATOR_SIZE} />
             ) : null}
           </View>
         ) : null}
@@ -107,7 +125,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   // flex-start rather than baseline: the gutter now holds indicators
   // under the number, so the two columns align at their tops.
-  gutter: { alignItems: 'flex-start', gap: 4 },
+  gutter: { alignItems: 'flex-start', gap: 2 },
   indicators: { flexDirection: 'row', gap: 2 },
   body: { flex: 1, gap: 4 },
 });

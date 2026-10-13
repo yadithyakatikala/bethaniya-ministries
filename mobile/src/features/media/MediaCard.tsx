@@ -1,20 +1,23 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { useTheme, useTypographyFor } from '../../theme';
+import { Icon, Tappable, useTheme } from '../../theme';
+import { fontFamilies } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
-import { formatShortDate } from '../../i18n/locale';
+import { formatDayMonthShort } from '../../i18n/locale';
 import { usePreferences } from '../../context/PreferencesContext';
-import { Tappable } from '../../theme/ui/Tappable';
-import {
-  BookmarkIcon,
-  CommentIcon,
-  HeartIcon,
-  PlayIcon,
-  ShareIcon,
-} from '../../theme/ui/MediaIcons';
 import type { MediaPost } from '../../services/firebase/media';
+import { posterFor } from './mediaUrl';
+import { PlayMarker, PostVerse } from './MediaParts';
 
 /**
  * One post in the feed.
+ *
+ * THE LOOK. The picture runs edge to edge (4:3), then the church's words in
+ * a 20-point margin -- the caption, the verse it quotes (a thin gold bar,
+ * the words in the serif of their script, the reference in gold ink), who
+ * and when -- and a row of four 44-point icon buttons: like, comment, share,
+ * save. A hairline ends the post. No card, no shadow: rows before cards.
+ * What is on is **ink** -- a solid heart, a solid ribbon -- never red and
+ * never gold.
  *
  * =====================================================================
  * A VIDEO IS A POSTER AND A PLAY MARKER, NOT A PLAYER
@@ -34,8 +37,7 @@ import type { MediaPost } from '../../services/firebase/media';
  * INTERFACE family, never a serif: the Telugu serif has no Latin letters
  * and the Latin serif no Telugu ones, so a mixed caption in either would
  * lose half its characters to a substituted face. A quoted VERSE is
- * different -- it is scripture, and it gets the scripture treatment for
- * the Bible language the member reads.
+ * different -- it is scripture, and it takes the serif of its script.
  */
 export function MediaCard({
   post,
@@ -56,23 +58,45 @@ export function MediaCard({
   onShare: () => void;
   onComment: () => void;
 }) {
-  const { colors, radii, spacing, type } = useTheme();
+  const { colors, type } = useTheme();
   const { t } = useTranslation();
   const { appLanguage } = usePreferences();
-  // Interface family for the caption -- see the header.
-  const interfaceType = useTypographyFor(appLanguage);
+  const poster = posterFor(post);
+
+  /** One of the four icon buttons: muted until it is on, then ink. */
+  const action = (
+    testID: string,
+    label: string,
+    icon: 'heart' | 'heartf' | 'comment' | 'share' | 'bookmark' | 'bookmarkf',
+    on: boolean,
+    onPress: () => void,
+    selected?: boolean
+  ) => (
+    <Tappable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={selected === undefined ? undefined : { selected }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={styles.action}
+    >
+      <Icon name={icon} size={24} color={on ? colors.ink : colors.inkMuted} />
+    </Tappable>
+  );
+
+  const meta = [
+    post.authorName.length > 0 ? post.authorName : null,
+    post.publishAt
+      ? t('media.publishedOn', { date: formatDayMonthShort(post.publishAt, appLanguage) })
+      : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ');
 
   return (
     <View
       testID={`media-card-${post.id}`}
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          borderRadius: radii.card,
-        },
-      ]}
+      style={[styles.post, { borderBottomColor: colors.border }]}
     >
       <Tappable
         testID={`media-open-${post.id}`}
@@ -81,60 +105,50 @@ export function MediaCard({
         onPress={onOpen}
       >
         <View>
-          <Image
-            testID={`media-image-${post.id}`}
-            source={{ uri: post.mediaUrl }}
-            style={[
-              styles.media,
-              { borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card },
-            ]}
-            accessibilityLabel={t('media.imageLabel')}
-            resizeMode="cover"
-          />
-          {post.type === 'video' ? (
+          {poster ? (
+            <Image
+              testID={`media-image-${post.id}`}
+              source={{ uri: poster }}
+              style={[styles.media, { backgroundColor: colors.surfaceRaised }]}
+              accessibilityLabel={t('media.imageLabel')}
+              resizeMode="cover"
+            />
+          ) : (
+            // A video with no still to show: the same 4:3 block, so the feed's
+            // rhythm does not change, with the play marker on it.
             <View
-              testID={`media-play-${post.id}`}
-              accessibilityLabel={t('media.playVideo')}
-              // `primary`/`onPrimary` rather than a hardcoded black disc:
-              // primary inverts between the palettes, so the marker stays
-              // readable over both a bright and a dark photograph.
-              style={[styles.playBadge, { backgroundColor: colors.primary }]}
-            >
-              <PlayIcon color={colors.onPrimary} size={28} />
+              testID={`media-image-${post.id}`}
+              style={[styles.media, { backgroundColor: colors.surfaceRaised }]}
+            />
+          )}
+          {post.type === 'video' ? (
+            <View style={styles.play} pointerEvents="none">
+              <PlayMarker testID={`media-play-${post.id}`} label={t('media.playVideo')} />
             </View>
           ) : null}
         </View>
       </Tappable>
 
-      <View style={{ padding: spacing.md, gap: spacing.xs }}>
+      <View style={styles.body}>
         {post.caption.length > 0 ? (
           <Text
             testID={`media-caption-${post.id}`}
-            style={[interfaceType.body, { color: colors.ink }]}
+            style={[
+              styles.caption,
+              appLanguage === 'te' && styles.captionTe,
+              { color: colors.ink },
+            ]}
           >
             {post.caption}
           </Text>
         ) : null}
 
         {post.verseReference || post.verseText ? (
-          <View
+          <PostVerse
             testID={`media-verse-${post.id}`}
-            style={[
-              styles.verse,
-              { borderLeftColor: colors.primary, paddingLeft: spacing.sm },
-            ]}
-          >
-            {post.verseText ? (
-              <Text style={[interfaceType.bodySmall, { color: colors.ink }]}>
-                {post.verseText}
-              </Text>
-            ) : null}
-            {post.verseReference ? (
-              <Text style={[type.caption, { color: colors.inkMuted }]}>
-                {post.verseReference}
-              </Text>
-            ) : null}
-          </View>
+            text={post.verseText}
+            reference={post.verseReference}
+          />
         ) : null}
 
         {/* M7: the author AND the publication date. A feed without dates
@@ -144,96 +158,72 @@ export function MediaCard({
             when the church chose to show it -- not when the document was
             written, because those differ for a scheduled post and the
             first one is the one that means anything to a reader. */}
-        {post.authorName.length > 0 || post.publishAt ? (
+        {meta.length > 0 ? (
           <Text
             testID={`media-meta-${post.id}`}
             style={[type.caption, { color: colors.inkMuted }]}
           >
-            {[
-              post.authorName.length > 0 ? post.authorName : null,
-              post.publishAt
-                ? t('media.publishedOn', {
-                    date: formatShortDate(post.publishAt, appLanguage),
-                  })
-                : null,
-            ]
-              .filter((part): part is string => part !== null)
-              .join(' · ')}
+            {meta}
           </Text>
         ) : null}
       </View>
 
-      <View
-        style={[styles.actions, { borderTopColor: colors.border, padding: spacing.sm }]}
-      >
+      <View style={styles.actions}>
         {/* Every action names its CURRENT state in its label, so a screen
-            reader says "Liked" rather than leaving the state to a colour
-            a screen reader cannot see. */}
-        <Tappable
-          testID={`media-like-${post.id}`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: liked }}
-          accessibilityLabel={liked ? t('media.liked') : t('media.like')}
-          onPress={onLike}
-          style={styles.action}
-        >
-          <HeartIcon color={liked ? colors.danger : colors.inkMuted} filled={liked} />
-        </Tappable>
-
-        <Tappable
-          testID={`media-comment-${post.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={t('media.comment')}
-          onPress={onComment}
-          style={styles.action}
-        >
-          <CommentIcon color={colors.inkMuted} />
-        </Tappable>
-
-        <Tappable
-          testID={`media-share-${post.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={t('media.share')}
-          onPress={onShare}
-          style={styles.action}
-        >
-          <ShareIcon color={colors.inkMuted} />
-        </Tappable>
-
-        <Tappable
-          testID={`media-save-${post.id}`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: saved }}
-          accessibilityLabel={saved ? t('media.saved') : t('media.save')}
-          onPress={onSave}
-          style={styles.action}
-        >
-          <BookmarkIcon color={saved ? colors.primary : colors.inkMuted} filled={saved} />
-        </Tappable>
+            reader says "Liked" rather than leaving the state to a mark a
+            screen reader cannot see. */}
+        {action(
+          `media-like-${post.id}`,
+          liked ? t('media.liked') : t('media.like'),
+          liked ? 'heartf' : 'heart',
+          liked,
+          onLike,
+          liked
+        )}
+        {action(
+          `media-comment-${post.id}`,
+          t('media.comment'),
+          'comment',
+          false,
+          onComment
+        )}
+        {action(`media-share-${post.id}`, t('media.share'), 'share', false, onShare)}
+        {action(
+          `media-save-${post.id}`,
+          saved ? t('media.saved') : t('media.save'),
+          saved ? 'bookmarkf' : 'bookmark',
+          saved,
+          onSave,
+          saved
+        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  // A fixed 4:3-ish band rather than the image's own ratio: a feed whose
+  post: { borderBottomWidth: 1, paddingBottom: 2 },
+  // A fixed 4:3 band rather than the image's own ratio: a feed whose
   // rows jump to different heights as images load is unreadable to
   // scroll, and `cover` fills the band whatever the source shape is.
   media: { width: '100%', aspectRatio: 4 / 3 },
-  playBadge: {
+  play: {
     position: 'absolute',
-    alignSelf: 'center',
-    top: '50%',
-    marginTop: -28,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  verse: { borderLeftWidth: 3, gap: 2 },
-  actions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
-  // 44dp targets, spread evenly across the row.
+  body: { paddingHorizontal: 20, paddingTop: 14, gap: 10 },
+  caption: {
+    fontFamily: fontFamilies.interfaceRegular,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  captionTe: { lineHeight: 29 },
+  // 44-point targets, spread evenly across the row.
+  actions: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 2 },
   action: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
 });
