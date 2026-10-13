@@ -249,6 +249,16 @@ def main() -> None:
         source.crop(SQUARE_CROP).resize((64, 64), Image.LANCZOS).convert("RGB")
     )
 
+    # The admin dashboard's brand mark, shown in the navigation rail and on
+    # the sign-in page. The same circular crop as the splash icon, kept
+    # SQUARE and opaque (the page clips it to a circle with CSS, which is
+    # crisper than a baked alpha edge), at 192px: it is drawn at 40-96 CSS
+    # pixels, so this is 2x headroom for a dense screen without carrying
+    # weight nothing can see (~10 KB).
+    outputs[ADMIN_PUBLIC / "brand/maranatha-mark-192.jpg"] = (
+        source.crop(circle_box()).resize((192, 192), Image.LANCZOS).convert("RGB")
+    )
+
     for path, image in outputs.items():
         if check_only:
             status = "exists" if path.exists() else "MISSING"

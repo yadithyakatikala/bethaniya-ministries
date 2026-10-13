@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
 import { Paper } from '@mui/material';
+import { adminRadii } from '../theme/tokens';
 
 /**
- * Bordered card wrapper for admin data tables -- gives every list page's
- * table the same outlined-card treatment DashboardPage.tsx's stat cards
- * and recent-activity panel already use (Paper variant="outlined",
- * borderRadius 3), instead of a bare <Table> sitting directly on the
- * page background with no edge at all.
+ * Bordered card wrapper for admin data tables: a white surface with a
+ * hairline edge and the card radius, clipping its table so the header
+ * band's corners follow the card's. The table inside scrolls sideways on
+ * its own `TableContainer` on a narrow screen -- the page never does.
  */
 export function AdminTableCard({ children }: { children: ReactNode }) {
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
+    <Paper
+      variant="outlined"
+      sx={{ borderRadius: `${adminRadii.card}px`, overflow: 'hidden' }}
+    >
       {children}
     </Paper>
   );

@@ -3,113 +3,75 @@ import {
   AppBar,
   Avatar,
   Box,
-  Divider,
+  Button,
   Drawer,
   IconButton,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Toolbar,
   Typography,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { ADMIN_TITLE, PRODUCT_NAME } from '../theme/brand';
-import { adminColors } from '../theme/tokens';
+import { PRODUCT_NAME } from '../theme/brand';
+import { adminColors, adminFonts, adminLayout } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
+import { ROLE_LABELS } from '../types';
+import { NAV_GROUPS, isNavItemActive } from './navigation';
 
-const DRAWER_WIDTH = 250;
+const DRAWER_WIDTH = adminLayout.sidebarWidth;
 
-/**
- * Shared admin dashboard shell -- Day 13's "Refinement: Sidebar
- * navigation, responsive layout" plan item
- * (FINAL_ARCHITECTURE_SPECIFICATION.md's Day 13 section). Before this,
- * only DashboardPage.tsx had any navigation links at all (a plain button
- * row), and no other admin page linked anywhere; every other page was
- * only reachable by typing its URL directly or coming from
- * DashboardPage. This wraps every authenticated route in App.tsx with
- * one persistent, always-current navigation surface instead.
- *
- * Purely additive: no existing page component's own internals, tests,
- * or data-testids change -- App.tsx wraps each route's element in this
- * layout (see that file), and DashboardPage.tsx's redundant button row
- * (now duplicating this sidebar's own links) is removed there as the
- * same Day 13 "Admin dashboard polished" refinement, but every other
- * page (AnnouncementsListPage, EventsListPage, etc.) is completely
- * untouched.
- *
- * Restyled for the approved "Vespers" direction (see the UI audit and
- * its visual prototype) -- a branded dark-evergreen sidebar with the
- * signed-in user/role at the bottom, in place of the plain MUI default
- * drawer. The responsive-drawer mechanism itself (two CSS-only-visible
- * Drawers -- see the original doc comment below) and every nav
- * link/testid are unchanged, so AdminLayout.test.tsx's assertions still
- * hold.
- *
- * Responsive via MUI's own documented "responsive drawer" recipe --
- * https://mui.com/material-ui/react-drawer/#responsive-drawer -- two
- * Drawers whose visibility is controlled purely by each one's own
- * `sx.display` breakpoint object (CSS media queries), not
- * useMediaQuery()/window.matchMedia(). jsdom (this project's test
- * environment) does not implement matchMedia by default, and using
- * useMediaQuery would have required a new polyfill in
- * admin/src/test/setup.ts just to keep App.test.tsx (which renders the
- * full app, including this layout) from crashing -- the CSS-only
- * approach avoids that entirely while producing the identical visual
- * result: a permanent drawer at the `sm` breakpoint and up, a
- * hamburger-triggered temporary drawer below it.
- */
-const NAV_ITEMS: { label: string; path: string; testId: string }[] = [
-  { label: 'Dashboard', path: '/', testId: 'sidebar-dashboard-link' },
-  {
-    label: 'Announcements',
-    path: '/announcements',
-    testId: 'sidebar-announcements-link',
-  },
-  // ONE entry per feature. "Daily Verses" and "Verse Automation" used to
-  // be two entries for what has only ever been one thing, which is
-  // precisely what made an automatic feature look like a manual one: a
-  // sidebar item called "Automation" reads as something you have to go
-  // and operate. The two verse streams below stay separate because they
-  // genuinely are separate -- a prophet verse is never a candidate for
-  // the Verse of the Day -- and the labels now say which is which
-  // instead of leaving it to be guessed.
-  {
-    label: 'Verse of the Day',
-    path: '/daily-verses',
-    testId: 'sidebar-daily-verses-link',
-  },
-  {
-    label: 'Prophet Verse of the Day',
-    path: '/prophet-verses',
-    testId: 'sidebar-prophet-verses-link',
-  },
-  { label: 'Media', path: '/media', testId: 'sidebar-media-link' },
-  { label: 'Songs', path: '/songs', testId: 'sidebar-songs-link' },
-  { label: 'Events', path: '/events', testId: 'sidebar-events-link' },
-  { label: 'Community', path: '/community', testId: 'sidebar-community-link' },
-  { label: 'Plans', path: '/plans', testId: 'sidebar-plans-link' },
-  {
-    label: 'Notifications',
-    path: '/notifications',
-    testId: 'sidebar-notifications-link',
-  },
-  // M7. Moderation sits next to Users: it is day-to-day work on the
-  // congregation's own content, and it is the people whose content it is
-  // that an administrator reaches for next.
-  { label: 'Reports', path: '/reports', testId: 'sidebar-reports-link' },
-  { label: 'Users', path: '/users', testId: 'sidebar-users-link' },
-  { label: 'Settings', path: '/settings', testId: 'sidebar-settings-link' },
-];
-
-const SIDEBAR_BG = adminColors.sidebarBg;
-const SIDEBAR_BORDER = adminColors.sidebarBorder;
-const SIDEBAR_TEXT_MUTED = adminColors.sidebarTextMuted;
+function BrandLockup() {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 2.5 }}>
+      <Box
+        component="img"
+        src="/brand/maranatha-mark-192.jpg"
+        alt=""
+        width={40}
+        height={40}
+        sx={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          // A thin ring of the brand gold: the metal, as a line.
+          boxShadow: `0 0 0 1.5px ${adminColors.sidebarAccent}`,
+        }}
+      />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          component="p"
+          sx={{
+            fontFamily: adminFonts.heading,
+            fontWeight: 600,
+            fontSize: '1.0625rem',
+            lineHeight: 1.2,
+            color: adminColors.sidebarText,
+          }}
+        >
+          {PRODUCT_NAME}
+        </Typography>
+        <Typography
+          variant="overline"
+          component="p"
+          sx={{ color: adminColors.sidebarAccent, m: 0, lineHeight: 1.3 }}
+        >
+          Admin
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
+  const signOut = useAuthStore((s) => s.signOut);
 
   return (
     <Box
@@ -117,100 +79,216 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        bgcolor: SIDEBAR_BG,
+        bgcolor: adminColors.sidebarBg,
+        color: adminColors.sidebarText,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 2.5 }}>
-        <Avatar
-          sx={{
-            bgcolor: adminColors.sidebarAvatarBg,
-            color: adminColors.sidebarAvatarText,
-            fontWeight: 700,
-            width: 34,
-            height: 34,
-          }}
-        >
-          {PRODUCT_NAME.charAt(0)}
-        </Avatar>
-        <Typography variant="h6" sx={{ color: adminColors.sidebarText }}>
-          {ADMIN_TITLE}
-        </Typography>
+      <BrandLockup />
+
+      <Box
+        component="nav"
+        aria-label="Main"
+        sx={{ flex: 1, overflowY: 'auto', px: 1.5, pb: 2 }}
+      >
+        {NAV_GROUPS.map((group, index) => (
+          <Box key={group.label ?? `group-${index}`} sx={{ mt: group.label ? 2 : 0 }}>
+            {group.label ? (
+              <Typography
+                variant="overline"
+                component="p"
+                sx={{ color: adminColors.sidebarTextMuted, px: 1.5, pb: 0.5, m: 0 }}
+              >
+                {group.label}
+              </Typography>
+            ) : null}
+            <List disablePadding>
+              {group.items.map((item) => {
+                const selected = isNavItemActive(item.path, location.pathname);
+                return (
+                  <ListItemButton
+                    key={item.path}
+                    component={RouterLink}
+                    to={item.path}
+                    selected={selected}
+                    aria-current={selected ? 'page' : undefined}
+                    data-testid={item.testId}
+                    onClick={onNavigate}
+                    sx={{
+                      position: 'relative',
+                      borderRadius: 1,
+                      mb: 0.25,
+                      py: 0.875,
+                      color: adminColors.sidebarTextMuted,
+                      '&:hover': { bgcolor: adminColors.sidebarSelectedBg },
+                      // The selected item is carried by a fill, a heavier
+                      // label AND a gold marker on its left edge -- the
+                      // fill alone is a difference too slight to rely on.
+                      '&.Mui-selected': {
+                        bgcolor: adminColors.sidebarSelectedBg,
+                        color: adminColors.sidebarSelectedText,
+                        '&:hover': { bgcolor: adminColors.sidebarSelectedBg },
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: 8,
+                          bottom: 8,
+                          width: 3,
+                          borderRadius: '0 3px 3px 0',
+                          bgcolor: adminColors.sidebarAccent,
+                        },
+                      },
+                      '&.Mui-focusVisible': {
+                        outline: `2px solid ${adminColors.sidebarAccent}`,
+                        outlineOffset: -2,
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{ minWidth: 34, color: 'inherit' }}
+                      aria-hidden
+                    >
+                      <item.Icon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      slotProps={{
+                        primary: {
+                          sx: {
+                            fontSize: 13.5,
+                            fontWeight: selected ? 700 : 500,
+                            lineHeight: 1.3,
+                          },
+                        },
+                      }}
+                    />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          </Box>
+        ))}
       </Box>
-      <Divider sx={{ borderColor: SIDEBAR_BORDER }} />
-      <List sx={{ px: 1.5, py: 1.5, flex: 1 }}>
-        {NAV_ITEMS.map((item) => (
-          <ListItemButton
-            key={item.path}
-            component={RouterLink}
-            to={item.path}
-            selected={location.pathname === item.path}
-            data-testid={item.testId}
-            onClick={onNavigate}
+
+      <Box
+        sx={{
+          borderTop: `1px solid ${adminColors.sidebarBorder}`,
+          px: 2,
+          py: 1.75,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Avatar
             sx={{
-              borderRadius: 2,
-              mb: 0.25,
-              color: SIDEBAR_TEXT_MUTED,
-              // Selection is carried by a fill, a left rule AND a
-              // heavier label. The fill alone measures 1.3:1 against the
-              // rail, which is not a difference someone can rely on.
-              '&.Mui-selected': {
-                bgcolor: adminColors.sidebarSelectedBg,
-                color: adminColors.sidebarSelectedText,
-                fontWeight: 700,
-                borderLeft: `3px solid ${adminColors.sidebarSelectedText}`,
-                '&:hover': { bgcolor: adminColors.sidebarSelectedBg },
-              },
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+              bgcolor: adminColors.sidebarAvatarBg,
+              color: adminColors.sidebarAvatarText,
+              fontWeight: 700,
+              width: 32,
+              height: 32,
+              fontSize: 14,
             }}
           >
-            <ListItemText
-              primary={
-                <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>
-                  {item.label}
-                </Typography>
-              }
-            />
-          </ListItemButton>
-        ))}
-      </List>
-      <Divider sx={{ borderColor: SIDEBAR_BORDER }} />
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 2 }}>
-        <Avatar
+            {(user?.email ?? 'A').charAt(0).toUpperCase()}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              noWrap
+              variant="subtitle2"
+              sx={{ color: adminColors.sidebarText }}
+              data-testid="sidebar-user-email"
+            >
+              {user?.email ?? 'Signed in'}
+            </Typography>
+            <Typography
+              sx={{ color: adminColors.sidebarTextMuted, fontSize: 12 }}
+              data-testid="sidebar-user-role"
+            >
+              {role ? ROLE_LABELS[role] : 'Role pending'}
+            </Typography>
+          </Box>
+        </Box>
+        <Button
+          size="small"
+          startIcon={<LogoutOutlined fontSize="small" />}
+          onClick={() => void signOut()}
+          data-testid="sidebar-sign-out"
           sx={{
-            bgcolor: adminColors.sidebarAvatarBg,
-            color: adminColors.sidebarAvatarText,
-            fontWeight: 700,
-            width: 30,
-            height: 30,
-            fontSize: 13,
+            justifyContent: 'flex-start',
+            color: adminColors.sidebarTextMuted,
+            '&:hover': {
+              bgcolor: adminColors.sidebarSelectedBg,
+              color: adminColors.sidebarSelectedText,
+            },
+            '&.Mui-focusVisible': {
+              outline: `2px solid ${adminColors.sidebarAccent}`,
+            },
           }}
         >
-          {(user?.email ?? 'A').charAt(0).toUpperCase()}
-        </Avatar>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography noWrap variant="subtitle2" sx={{ color: adminColors.sidebarText }}>
-            {user?.email ?? 'Signed in'}
-          </Typography>
-          <Typography sx={{ color: SIDEBAR_TEXT_MUTED, fontSize: 11.5 }}>
-            {role ?? 'Role pending'}
-          </Typography>
-        </Box>
+          Sign out
+        </Button>
       </Box>
     </Box>
   );
 }
 
+/**
+ * The admin shell: a navy navigation rail beside an ivory content area.
+ *
+ * Responsive via MUI's documented "responsive drawer" recipe --
+ * https://mui.com/material-ui/react-drawer/#responsive-drawer -- two
+ * Drawers whose visibility is controlled purely by each one's own
+ * `sx.display` breakpoint object (CSS media queries), not
+ * useMediaQuery()/window.matchMedia(). jsdom (this project's test
+ * environment) does not implement matchMedia, and using useMediaQuery
+ * would have needed a polyfill just to keep the full-app tests from
+ * crashing; the CSS-only approach produces the identical result: a
+ * permanent rail at the `md` breakpoint (900px) and up, a
+ * hamburger-triggered temporary drawer below it. The breakpoint is `md`
+ * rather than the old `sm` because a 264-point rail on a 600-900px tablet
+ * left the content a few hundred points -- narrower than the table it was
+ * there to show.
+ *
+ * Wraps every authenticated route (see App.tsx), so /login and the
+ * "Access denied" state never show it. A "Skip to main content" link is
+ * the first thing a keyboard reaches, so the rail's dozen links need not
+ * be tabbed through on every page.
+ */
 export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <Box sx={{ display: 'flex' }}>
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          left: -9999,
+          top: 8,
+          zIndex: (t) => t.zIndex.tooltip + 1,
+          bgcolor: adminColors.primary,
+          color: adminColors.onPrimary,
+          px: 2,
+          py: 1,
+          borderRadius: 1,
+          fontWeight: 600,
+          '&:focus': { left: 8 },
+        }}
+      >
+        Skip to main content
+      </Box>
+
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           zIndex: (t) => t.zIndex.drawer + 1,
-          display: { xs: 'block', sm: 'none' },
-          bgcolor: SIDEBAR_BG,
+          display: { xs: 'block', md: 'none' },
+          bgcolor: adminColors.sidebarBg,
+          borderBottom: `1px solid ${adminColors.sidebarBorder}`,
         }}
       >
         <Toolbar>
@@ -223,8 +301,19 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ ml: 2 }}>
-            {ADMIN_TITLE}
+          <Typography
+            component="p"
+            sx={{
+              ml: 1.5,
+              fontFamily: adminFonts.heading,
+              fontWeight: 600,
+              fontSize: '1.0625rem',
+            }}
+          >
+            {PRODUCT_NAME}{' '}
+            <Box component="span" sx={{ color: adminColors.sidebarAccent }}>
+              Admin
+            </Box>
           </Typography>
         </Toolbar>
       </AppBar>
@@ -237,25 +326,30 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, border: 'none' },
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            border: 'none',
+            bgcolor: adminColors.sidebarBg,
+          },
         }}
         data-testid="sidebar-temporary-drawer"
       >
         <SidebarContent onNavigate={() => setMobileOpen(false)} />
       </Drawer>
 
-      {/* `sm` breakpoint and up. */}
+      {/* `md` breakpoint and up. */}
       <Drawer
         variant="permanent"
         sx={{
-          display: { xs: 'none', sm: 'block' },
+          display: { xs: 'none', md: 'block' },
           width: DRAWER_WIDTH,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             border: 'none',
+            bgcolor: adminColors.sidebarBg,
           },
         }}
         data-testid="sidebar-permanent-drawer"
@@ -265,12 +359,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       <Box
         component="main"
+        id="main-content"
+        tabIndex={-1}
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          mt: { xs: 7, sm: 0 },
+          minWidth: 0,
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          mt: { xs: 7, md: 0 },
           minHeight: '100vh',
           bgcolor: 'background.default',
+          '&:focus': { outline: 'none' },
         }}
         data-testid="admin-layout-content"
       >
