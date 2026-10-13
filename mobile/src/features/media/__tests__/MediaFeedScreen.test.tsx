@@ -316,10 +316,14 @@ describe('what a post wears', () => {
     await waitFor(() => expect(screen.getByTestId('media-card-a')).toBeTruthy());
     await fireEvent.press(screen.getByTestId('media-like-a'));
     await waitFor(() => expect(screen.getByTestId('media-sign-in-notice')).toBeTruthy());
-    const border = (id: string) =>
-      (StyleSheet.flatten(screen.getByTestId(id).props.style) as { borderColor?: string })
-        .borderColor;
-    expect(border('media-sign-in-notice')).toBe(lightTokens.border);
+    // The neutral notice is the raised ground -- not a warning's cream or a failure's pink.
+    const ground = (id: string) =>
+      (
+        StyleSheet.flatten(screen.getByTestId(id).props.style) as {
+          backgroundColor?: string;
+        }
+      ).backgroundColor;
+    expect(ground('media-sign-in-notice')).toBe(lightTokens.surfaceRaised);
     expect(screen.getByTestId('media-sign-in-notice')).toHaveTextContent(
       translate('en', 'media.signInRequired')
     );

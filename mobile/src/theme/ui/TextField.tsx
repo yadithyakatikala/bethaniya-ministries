@@ -38,6 +38,10 @@ import { useTheme } from '../useTheme';
  *  * `toggle` puts a named "Show" / "Hide" text action inside the field
  *    for a password: the action is words (never an eye glyph alone) and
  *    reports whether the text is currently shown.
+ *  * `invalid` is for a field the error is ABOUT when the sentence lives
+ *    elsewhere -- the sign-in screen's notice above the form. It draws the
+ *    same outline and announces the same `invalid` state as `error`, without
+ *    repeating the sentence under the field.
  */
 export function TextField({
   label,
@@ -47,10 +51,13 @@ export function TextField({
   testID,
   style,
   toggle,
+  invalid = false,
   ...inputProps
 }: TextInputProps & {
   label: string;
   error?: string | null;
+  /** Outline and announce the field as invalid, with no sentence of its own. */
+  invalid?: boolean;
   helpText?: string;
   required?: boolean;
   testID?: string;
@@ -64,7 +71,8 @@ export function TextField({
   const { colors, radii, spacing, type, minTouchTarget } = useTheme();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = error
+  const flagged = Boolean(error) || invalid;
+  const borderColor = flagged
     ? colors.danger
     : focused
       ? colors.borderStrong
@@ -84,7 +92,7 @@ export function TextField({
           accessibilityLabel={inputProps.accessibilityLabel ?? label}
           accessibilityHint={helpText}
           accessibilityState={{ disabled: readOnly }}
-          aria-invalid={Boolean(error)}
+          aria-invalid={flagged}
           aria-required={required}
           placeholderTextColor={colors.inkSubtle}
           onFocus={(event) => {
@@ -106,7 +114,7 @@ export function TextField({
               paddingRight: toggle ? 88 : spacing.md,
               borderRadius: radii.control,
               borderColor,
-              borderWidth: focused || error ? 1.5 : 1,
+              borderWidth: focused || flagged ? 1.5 : 1,
               color: readOnly ? colors.disabledInk : colors.ink,
               backgroundColor: readOnly ? colors.disabledSurface : colors.surface,
             },

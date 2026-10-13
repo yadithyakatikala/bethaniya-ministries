@@ -90,10 +90,16 @@ a key cannot be accidentally dropped while editing.
 | `bible.page` | పేజీ | "పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings. |
 | `bible.moreSettings` | మరిన్ని అమరికలు | "మరిన్ని అమరికలు": opens the rest of the reading settings. `settings.title` uses "సెట్టింగ్‌లు" for Settings; decide whether this should use the same word. |
 | `onboarding.chapterSkip` | పరిచయాన్ని దాటవేయండి | Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions. |
+| `auth.show` | చూపించు | The small text action inside the password box ("చూపించు", "show"); it pairs with `auth.hide`. Check both read naturally as one-word buttons. |
+| `auth.hide` | దాచు | The same action once the password is showing ("దాచు", "hide"). Pairs with `auth.show`. |
+| `auth.passwordHint` | కనీసం {min} అక్షరాలు | Under the password box when creating an account: how short a password may be. "కనీసం {min} అక్షరాలు" ("at least {min} letters"). Keep {min} as it is. |
+| `dailyVerse.archiveError` | గత వచనాలు లోడ్ కాలేదు. | Said in place of the list of earlier verses when it could not be loaded. Keep it parallel to `dailyVerse.unavailable`. |
+| `legal.provisional` | తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు. | Says the Privacy Policy and Terms have not yet been reviewed by the church's counsel. It is a statement about a LEGAL text: check it is exact and not alarming. |
+| `legal.englishOnly` | ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది. | Added after `legal.provisional` under a Telugu interface, because the legal text itself is English only for now. Stop using it once a Telugu text has been approved. |
 
 ## Every string
 
-504 keys, grouped by screen area.
+513 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -430,6 +436,7 @@ a key cannot be accidentally dropped while editing.
 | `dailyVerse.loadError` | Could not load today’s verse. | నేటి వచనం లోడ్ చేయలేకపోయాము. |  |
 | `dailyVerse.imageLabel` | Illustration for today's verse | నేటి వచనానికి చిత్రం |  |
 | `dailyVerse.unavailable` | Today's verse could not be loaded. | నేటి వచనం లోడ్ కాలేదు. |  |
+| `dailyVerse.archiveError` | Earlier verses could not be loaded. | గత వచనాలు లోడ్ కాలేదు. | ⚠️ |
 | `dailyVerse.loading` | Loading today's verse | నేటి వచనం లోడ్ అవుతోంది |  |
 
 ### Notifications
@@ -453,7 +460,6 @@ a key cannot be accidentally dropped while editing.
 | `auth.email` | Email | ఇమెయిల్ |  |
 | `auth.emailPlaceholder` | you@example.com | you@example.com |  |
 | `auth.password` | Password | పాస్‌వర్డ్ |  |
-| `auth.passwordPlaceholder` | Password ({min}+ characters) | పాస్‌వర్డ్ ({min}+ అక్షరాలు) |  |
 | `auth.namePlaceholder` | Your name | మీ పేరు |  |
 | `auth.signIn` | Sign in | సైన్ ఇన్ | ⚠️ |
 | `auth.createAccount` | Create account | ఖాతా సృష్టించండి |  |
@@ -465,6 +471,9 @@ a key cannot be accidentally dropped while editing.
 | `auth.resetSent` | If an account exists for that email, a password reset link is on its way. | ఆ ఇమెయిల్‌కు ఖాతా ఉంటే, పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడుతుంది. |  |
 | `auth.continueWithGoogle` | Continue with Google | Googleతో కొనసాగించండి |  |
 | `auth.continueWithApple` | Continue with Apple | Appleతో కొనసాగించండి |  |
+| `auth.show` | Show | చూపించు | ⚠️ |
+| `auth.hide` | Hide | దాచు | ⚠️ |
+| `auth.passwordHint` | At least {min} characters | కనీసం {min} అక్షరాలు | ⚠️ |
 
 ### Profile
 
@@ -521,6 +530,13 @@ a key cannot be accidentally dropped while editing.
 | `settings.bibleLanguageHelp` | Changes the Bible text, book names and search. Does not change the app’s language. | బైబిల్ వచనం, పుస్తకాల పేర్లు, వెతుకుడును మారుస్తుంది. యాప్ భాషను మార్చదు. |  |
 | `settings.themeSystem` | System | సిస్టమ్ |  |
 | `settings.syncFailed` | Saved on this device. We could not sync it to your account just now. | ఈ పరికరంలో సేవ్ అయింది. ప్రస్తుతం దాన్ని మీ ఖాతాకు సింక్ చేయలేకపోయాం. |  |
+
+### legal
+
+| Key | English | Telugu | |
+| --- | --- | --- | --- |
+| `legal.provisional` | Provisional text. The church’s counsel has not reviewed it yet. | తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు. | ⚠️ |
+| `legal.englishOnly` | This text is in English only for now. | ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది. | ⚠️ |
 
 ### credits
 
@@ -639,6 +655,10 @@ a key cannot be accidentally dropped while editing.
 | `media.actionFailed` | That did not work. Please try again. | అది పని చేయలేదు. దయచేసి మళ్లీ ప్రయత్నించండి. |  |
 | `media.publishedOn` | Posted {date} | {date}న పోస్ట్ చేయబడింది |  |
 | `media.refresh` | Refresh | రిఫ్రెష్ చేయండి |  |
+| `media.openVideo` | Open video | వీడియో తెరవండి |  |
+| `media.videoLink` | This video plays outside the app. | ఈ వీడియో యాప్ బయట ప్లే అవుతుంది. |  |
+| `media.unavailable` | This post is no longer available. | ఈ పోస్ట్ ఇప్పుడు అందుబాటులో లేదు. |  |
+| `media.commentsError` | Comments could not be loaded. | వ్యాఖ్యలను లోడ్ చేయలేకపోయాం. |  |
 
 ### chat
 

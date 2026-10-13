@@ -50,13 +50,7 @@ import { PlanDayScreen } from '../features/plans/PlanDayScreen';
 import { PlanDoneScreen } from '../features/plans/PlanDoneScreen';
 import type { PublishedPlan } from '../services/firebase/plans';
 import type { PlanReading } from '../features/plans/planReading';
-import {
-  LegalScreen,
-  PRIVACY_POLICY_BODY,
-  PRIVACY_POLICY_TITLE,
-  TERMS_BODY,
-  TERMS_TITLE,
-} from '../features/legal/LegalScreen';
+import { LegalScreen } from '../features/legal/LegalScreen';
 import { TabBar, type TabRouteName } from './TabBar';
 import { useKeyboardVisible } from './useKeyboardVisible';
 import {
@@ -535,14 +529,19 @@ export function AppNavigator() {
             />
             <Stack.Screen
               name="PrivacyPolicy"
-              options={{ title: t('settings.privacyPolicy') }}
+              options={{ title: t('settings.privacyPolicy'), headerShown: false }}
             >
-              {() => (
-                <LegalScreen title={PRIVACY_POLICY_TITLE} body={PRIVACY_POLICY_BODY} />
+              {({ navigation }) => (
+                <LegalScreen kind="privacy" onBack={() => navigation.goBack()} />
               )}
             </Stack.Screen>
-            <Stack.Screen name="Terms" options={{ title: t('settings.terms') }}>
-              {() => <LegalScreen title={TERMS_TITLE} body={TERMS_BODY} />}
+            <Stack.Screen
+              name="Terms"
+              options={{ title: t('settings.terms'), headerShown: false }}
+            >
+              {({ navigation }) => (
+                <LegalScreen kind="terms" onBack={() => navigation.goBack()} />
+              )}
             </Stack.Screen>
           </Stack.Navigator>
         </View>

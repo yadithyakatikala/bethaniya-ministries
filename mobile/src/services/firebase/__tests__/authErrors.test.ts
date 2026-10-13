@@ -1,5 +1,6 @@
 import {
   CANCELLED_SIGN_IN_MESSAGE,
+  fieldAtFault,
   isUserCancellation,
   logAuthError,
   toFriendlyAuthMessage,
@@ -100,5 +101,64 @@ describe('logAuthError', () => {
     logAuthError('apple', { code: 'ERR_REQUEST_CANCELED' });
 
     expect(warnSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('fieldAtFault', () => {
+  it('points an address that is not an address, or is already registered, at the EMAIL field', () => {
+    expect(fieldAtFault({ code: 'auth/invalid-email' })).toBe('email');
+    expect(fieldAtFault({ code: 'auth/email-already-in-use' })).toBe('email');
+  });
+
+  it('points every wrong-credentials failure at the PASSWORD field -- the same one, so it never reveals whether an address is registered', () => {
+    for (const code of [
+      'auth/invalid-credential',
+      'auth/invalid-login-credentials',
+      'auth/user-not-found',
+      'auth/wrong-password',
+    ]) {
+      expect(fieldAtFault({ code })).toBe('password');
+    }
+  });
+
+  it('points a missing or too short password at the password field', () => {
+    expect(fieldAtFault({ code: 'auth/missing-password' })).toBe('password');
+    expect(fieldAtFault({ code: 'auth/weak-password' })).toBe('password');
+  });
+
+  it('points a failure about neither field at neither: offline, throttled, disabled, cancelled, unknown', () => {
+    for (const code of [
+      'auth/network-request-failed',
+      'auth/too-many-requests',
+      'auth/user-disabled',
+      'auth/popup-closed-by-user',
+      'auth/something-nobody-mapped',
+    ]) {
+      expect(fieldAtFault({ code })).toBeNull();
+    }
+  });
+
+  it('copes with anything that is not a coded error', () => {
+    expect(fieldAtFault(null)).toBeNull();
+    expect(fieldAtFault(undefined)).toBeNull();
+    expect(fieldAtFault('auth/invalid-email')).toBeNull();
+    expect(fieldAtFault(new Error('no code at all'))).toBeNull();
+    expect(fieldAtFault({ code: 42 })).toBeNull();
+  });
+
+  it('agrees with the friendly message table: every code it names has a message of its own', () => {
+    for (const code of [
+      'auth/invalid-email',
+      'auth/email-already-in-use',
+      'auth/missing-password',
+      'auth/weak-password',
+      'auth/invalid-credential',
+      'auth/invalid-login-credentials',
+      'auth/user-not-found',
+      'auth/wrong-password',
+    ]) {
+      expect(fieldAtFault({ code })).not.toBeNull();
+      expect(toFriendlyAuthMessage({ code })).not.toMatch(/^Something went wrong/);
+    }
   });
 });

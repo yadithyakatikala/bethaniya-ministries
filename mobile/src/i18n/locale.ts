@@ -69,6 +69,23 @@ export function formatLongDate(date: Date, appLanguage: BibleLanguage): string {
   );
 }
 
+/**
+ * A date with its month spelled out and the DAY FIRST in both languages --
+ * "14 October 2026" -- the way the approved suspension notice says when it
+ * ends. Built from the day, the month name and the year rather than one Intl
+ * pattern, for the reason `formatDayMonthShort` gives: en-US would put the
+ * month first.
+ */
+export function formatDayMonthYear(date: Date, appLanguage: BibleLanguage): string {
+  const locale = localeFor(appLanguage);
+  const options: Intl.DateTimeFormatOptions = { month: 'long' };
+  const month = safely(
+    () => date.toLocaleDateString(locale, options),
+    () => date.toLocaleDateString(undefined, options)
+  );
+  return `${date.getDate()} ${month} ${date.getFullYear()}`;
+}
+
 /** A compact date -- "18 Sep 2026". Used where space is tight. */
 export function formatShortDate(date: Date, appLanguage: BibleLanguage): string {
   const options: Intl.DateTimeFormatOptions = {
@@ -251,6 +268,24 @@ export function formatIsoDateString(
   const [year, month, day] = dateString.split('-').map(Number);
   if (!year || !month || !day) return dateString;
   return formatLongDate(new Date(year, month - 1, day), appLanguage);
+}
+
+/**
+ * A `YYYY-MM-DD` string as a row in a list says it -- "9 Oct", with the year
+ * added when it is not this one ("9 Oct 2025"), exactly as
+ * `formatDayMonthShort` does. The Verse screen's earlier verses.
+ *
+ * Returns the input unchanged if it is not that shape, so a malformed record
+ * shows its raw value rather than "NaN Invalid Date".
+ */
+export function formatIsoDayMonth(
+  dateString: string,
+  appLanguage: BibleLanguage,
+  now: Date = new Date()
+): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (!year || !month || !day) return dateString;
+  return formatDayMonthShort(new Date(year, month - 1, day), appLanguage, now);
 }
 
 /**

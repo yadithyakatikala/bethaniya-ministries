@@ -73,6 +73,22 @@ function findSvg(node: unknown): { props: Record<string, unknown> } | null {
   return null;
 }
 
+/** The `d` of every path an icon drew, in order: what makes one glyph differ from another. */
+function pathsOf(node: unknown): string[] {
+  const { type, props, children } = node as {
+    type: unknown;
+    props: { d?: string };
+    children?: unknown[];
+  };
+  const own = type === 'RNSVGPath' && typeof props.d === 'string' ? [props.d] : [];
+  return [
+    ...own,
+    ...(children ?? []).flatMap((child) =>
+      typeof child === 'string' ? [] : pathsOf(child)
+    ),
+  ];
+}
+
 function flat(node: { props: { style?: unknown } }) {
   return (StyleSheet.flatten(node.props.style) ?? {}) as Record<string, number | string>;
 }
@@ -457,6 +473,27 @@ describe('TextField, as the approved system draws it', () => {
       fontSize: 13,
       color: lightTokens.danger,
     });
+  });
+
+  it('outlines and announces a field as invalid with no sentence of its own, when the sentence lives elsewhere', async () => {
+    const { getByTestId, queryByTestId } = await renderThemed(
+      <>
+        <TextField label="Password" testID="flagged" invalid />
+        <TextField label="Email" testID="fine" />
+        <TextField label="Age" testID="told" error="Please enter a number." />
+      </>
+    );
+    // The same outline and the same announcement as an error...
+    expect(flat(getByTestId('flagged')).borderColor).toBe(lightTokens.danger);
+    expect(flat(getByTestId('flagged')).borderWidth).toBe(1.5);
+    expect(getByTestId('flagged').props['aria-invalid']).toBe(true);
+    expect(flat(getByTestId('told')).borderColor).toBe(lightTokens.danger);
+    // ...but it does not repeat a sentence under the field...
+    expect(queryByTestId('flagged-error')).toBeNull();
+    expect(getByTestId('told-error')).toBeTruthy();
+    // ...and a field that is fine is neither.
+    expect(flat(getByTestId('fine')).borderColor).toBe(lightTokens.border);
+    expect(getByTestId('fine').props['aria-invalid']).toBe(false);
   });
 
   it('names a Show / Hide action in words and reports whether the text is shown', async () => {
@@ -897,24 +934,52 @@ describe('Avatar and the first letter of a name', () => {
 });
 
 describe('NoticeBanner', () => {
-  it('has three tints, each with a border of its own colour and a live region', async () => {
+  it('has three tints, the words in the tone’s own colour, and a live region', async () => {
+    const { getByTestId } = await renderThemed(
+      <>
+        <NoticeBanner tone="neutral" message="One." testID="n" messageTestID="n-words" />
+        <NoticeBanner tone="warning" message="Two." testID="w" messageTestID="w-words" />
+        <NoticeBanner tone="danger" message="Three." testID="d" messageTestID="d-words" />
+      </>
+    );
+    expect(flat(getByTestId('w')).backgroundColor).toBe(lightTokens.warningTint);
+    expect(flat(getByTestId('d')).backgroundColor).toBe(lightTokens.dangerTint);
+    expect(flat(getByTestId('n')).backgroundColor).toBe(lightTokens.surfaceRaised);
+    // The approved notice has no outline: the tint, the mark and the words say what it is.
+    expect(flat(getByTestId('d')).borderWidth).toBeUndefined();
+    expect(flat(getByTestId('w-words')).color).toBe(lightTokens.warning);
+    expect(flat(getByTestId('d-words')).color).toBe(lightTokens.danger);
+    expect(flat(getByTestId('n-words')).color).toBe(lightTokens.ink);
+    expect(getByTestId('d').props.accessibilityLiveRegion).toBe('polite');
+  });
+
+  it('draws a mark before the words: an "i" for information, a triangle for a warning or an error', async () => {
     const { getByTestId } = await renderThemed(
       <>
         <NoticeBanner tone="neutral" message="One." testID="n" />
-        <NoticeBanner tone="warning" message="Two." testID="w" />
         <NoticeBanner tone="danger" message="Three." testID="d" />
       </>
     );
-    expect(flat(getByTestId('w'))).toMatchObject({
-      backgroundColor: lightTokens.warningTint,
-      borderColor: lightTokens.warning,
-    });
-    expect(flat(getByTestId('d'))).toMatchObject({
-      backgroundColor: lightTokens.dangerTint,
-      borderColor: lightTokens.danger,
-    });
-    expect(flat(getByTestId('n')).backgroundColor).toBe(lightTokens.surfaceRaised);
-    expect(getByTestId('d').props.accessibilityLiveRegion).toBe('polite');
+    const neutral = findSvg(getByTestId('n'));
+    const danger = findSvg(getByTestId('d'));
+    expect(neutral).toBeTruthy();
+    expect(danger).toBeTruthy();
+    expect(neutral!.props.width).toBe(20);
+    expect(danger!.props.stroke).toBe(lightTokens.danger);
+    // The two marks are different drawings, not one icon in two colours.
+    expect(pathsOf(getByTestId('n'))).not.toEqual(pathsOf(getByTestId('d')));
+    expect(pathsOf(getByTestId('n')).length).toBeGreaterThan(0);
+  });
+
+  it('names its sentence for a screen whose tests read the message itself', async () => {
+    const { getByTestId } = await renderThemed(
+      <NoticeBanner
+        tone="danger"
+        message="That did not work."
+        messageTestID="the-words"
+      />
+    );
+    expect(getByTestId('the-words').props.children).toBe('That did not work.');
   });
 
   it('offers its one action', async () => {

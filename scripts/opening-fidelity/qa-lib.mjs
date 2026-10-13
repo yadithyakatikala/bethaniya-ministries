@@ -113,10 +113,36 @@ export default api;
     'react-native-shim.tsx',
     `import * as React from 'react';
 import { View, Text as WebText } from ${JSON.stringify(path.join(nm, 'react-native-web'))};
-import { useQa } from './store';
+import { qa as qaStore, useQa } from './store';
 export * from ${JSON.stringify(path.join(nm, 'react-native-web'))};
 // react-native-web has no native node handles; a screen asks for one only to move a screen reader's focus.
 export const findNodeHandle = () => null;
+// react-native-web's Keyboard never announces anything. A phone's does, and a screen that gets out of the
+// keyboard's way (the tab bar, the sign-in portrait) listens: this announces what a scenario asks for with
+// qa.keyboard(height), so those screens can be looked at with the keyboard up.
+const keyboardListeners = new Map<string, Set<(event: any) => void>>();
+let keyboardWasUp = false;
+qaStore.subscribe(() => {
+  const height = qaStore.get().keyboard;
+  const up = height > 0;
+  if (up === keyboardWasUp) return;
+  keyboardWasUp = up;
+  const event = { endCoordinates: { height, screenY: 0, screenX: 0, width: 0 } };
+  for (const name of up ? ['keyboardWillShow', 'keyboardDidShow'] : ['keyboardWillHide', 'keyboardDidHide']) {
+    keyboardListeners.get(name)?.forEach((listener) => listener(event));
+  }
+});
+export const Keyboard = {
+  addListener(name: string, listener: (event: any) => void) {
+    if (!keyboardListeners.has(name)) keyboardListeners.set(name, new Set());
+    keyboardListeners.get(name)!.add(listener);
+    return { remove: () => void keyboardListeners.get(name)?.delete(listener) };
+  },
+  dismiss() {},
+  isVisible: () => keyboardWasUp,
+  metrics: () => undefined,
+  scheduleLayoutAnimation() {},
+};
 // Android's hardware back button does not exist in a browser.
 export const BackHandler = { addEventListener: () => ({ remove() {} }), exitApp() {}, removeEventListener() {} };
 export function KeyboardAvoidingView({ style, behavior: _b, children, ...rest }: any) {

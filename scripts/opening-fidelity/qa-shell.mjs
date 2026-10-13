@@ -56,11 +56,24 @@ import { PlanDayScreen } from ${T('features/plans/PlanDayScreen')};
 import { PlanDoneScreen } from ${T('features/plans/PlanDoneScreen')};
 import { SEED_PLANS } from ${T('features/plans/seedPlans')};
 import { TabBar } from ${T('navigation/TabBar')};
+import { LoadingScreen } from ${T('features/auth/LoadingScreen')};
+import { SignInScreen } from ${T('features/auth/SignInScreen')};
+import { SuspendedScreen } from ${T('features/account/SuspendedScreen')};
+import { DailyVerseScreen } from ${T('features/daily-verses/DailyVerseScreen')};
+import { LegalScreen } from ${T('features/legal/LegalScreen')};
 
 const Stack = createNativeStackNavigator();
 const ref = createNavigationContainerRef();
 const TABS = new Set(['Home', 'BibleBooks', 'PrayersHub', 'CommunityHub', 'You']);
-const OTHER = ['DailyVerse'];
+const OTHER: string[] = [];
+
+// The suspension notice is a state, not a route; a scenario hands it the suspension it wants to show.
+function SuspendedRoute({ route }: any) {
+  return <SuspendedScreen suspension={route.params?.suspension ?? null} />;
+}
+function LegalRoute({ route, navigation }: any) {
+  return <LegalScreen kind={route.name === 'Terms' ? 'terms' : 'privacy'} onBack={() => navigation.goBack()} />;
+}
 
 function Stub({ route }: any) {
   return (
@@ -114,6 +127,12 @@ function Root() {
             <Stack.Screen name="EventsList" component={EventsListScreen} />
             <Stack.Screen name="EventDetail" component={EventDetailScreen} initialParams={initial.name === 'EventDetail' ? initial.params : undefined} />
             <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} initialParams={initial.name === 'YouTubePlayer' ? initial.params : undefined} />
+            <Stack.Screen name="Loading" component={LoadingScreen} />
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="Suspended" component={SuspendedRoute} initialParams={initial.name === 'Suspended' ? initial.params : undefined} />
+            <Stack.Screen name="DailyVerse" component={DailyVerseScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={LegalRoute} />
+            <Stack.Screen name="Terms" component={LegalRoute} />
             {OTHER.map((name) => <Stack.Screen key={name} name={name} component={Stub} />)}
           </Stack.Navigator>
         </View>
@@ -135,7 +154,13 @@ g.__plan = (id: string) => { const p = SEED_PLANS.find((x) => x.id === id)!; ret
 g.__ready = true;
 `;
 
-const { html } = await buildQa({ name: 'qa-shell', entry });
+// A (made-up) Google web client id, so the sign-in screen offers "Continue with Google" as it does once the
+// church has set that provider up. Nothing is ever sent to Google.
+const { html } = await buildQa({
+  name: 'qa-shell',
+  entry,
+  env: { 'process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID': '"qa-web.apps.googleusercontent.com"' },
+});
 const browser = await launch();
 const problems = [];
 const hooks = { problems, shots: path.join(OUT, 'qa-shots') };
@@ -234,14 +259,21 @@ const seed = (d) => {
       docs['media/' + mediaId + '/comments/c' + String(i).padStart(2, '0')] = { text: c.text, authorUid: c.own ? 'qa-member' : 'other-' + i, authorName: c.authorName, createdAt: ts(now - (c.minAgo ?? (list.length - i) * 40) * 60_000) };
     });
   });
-  window.__fs.seed(docs);
-  window.__auth.signIn({
-    uid: 'qa-member',
-    displayName: d.name,
-    email: 'joshua@example.com',
-    emailVerified: !d.unverified,
-    providerData: [],
+  // The verses the church wrote for particular days: today's, and the earlier ones the Verse screen lists.
+  (d.dailyVerses ?? []).forEach((v, i) => {
+    docs['daily_verses/v' + i] = { reference: v.reference, text: v.text, imageUrl: v.imageUrl ?? null, date: v.date };
   });
+  window.__fs.seed(docs);
+  // The entry screens (loading, sign-in) are what a member sees BEFORE they are signed in.
+  if (!d.signedOut) {
+    window.__auth.signIn({
+      uid: 'qa-member',
+      displayName: d.name,
+      email: 'joshua@example.com',
+      emailVerified: !d.unverified,
+      providerData: [],
+    });
+  }
 };
 
 const PICTURES = { a: ['#CDBBA0', '#8F7C63'], b: ['#B9C2C4', '#6F8085'] };
@@ -480,6 +512,50 @@ const TE_HISTORY = history([
   ['నేటి పఠనం: కీర్తనలు 23', '‘కీర్తనలలో ఏడు రోజులు’లో 2వ రోజు.', new Date(NOW - 3.5 * 3_600_000).toISOString(), { data: { screen: 'PlansList' } }],
   ['బుధవారం ప్రార్థన కూడిక మార్పు', 'ఈ రాత్రి కూడిక సాయంత్రం 7:00కు మొదలవుతుంది.', new Date(NOW - 17.25 * 3_600_000).toISOString(), { readAt: '2026-10-10T12:00:00Z' }],
 ]);
+
+
+// The entry screens: before anyone is signed in, and the notice a suspended member sees instead of the app.
+const SIGNED_OUT = { name: 'Joshua', churchName: 'Maranatha', signedOut: true };
+const DARK_EN = { ...EN, theme_preference: 'dark' };
+const SUSPENDED_UNTIL = { kind: 'temporary', startedAt: null, expiresAt: { __date: Date.UTC(2026, 9, 14, 13, 0, 0) } };
+const SUSPENDED_FOREVER = { kind: 'permanent', startedAt: null, expiresAt: null };
+const SUSPENDED_DATA = { name: 'Joshua', churchName: 'Maranatha' };
+
+// The Verse of the Day screen: today's verse as the church wrote it, and the three it wrote on earlier days.
+const VERSE_TODAY = {
+  reference: 'John 14:27',
+  date: '2026-10-11',
+  text: 'Peace I leave with you. My peace I give to you; not as the world gives, give I to you. Don’t let your heart be troubled, neither let it be fearful.',
+};
+const VERSE_TODAY_TE = {
+  reference: 'యోహాను సువార్త 14:27',
+  date: '2026-10-11',
+  text: 'శాంతి మీకిచ్చి వెళ్తున్నాను. నా శాంతి మీకు ఇస్తున్నాను. లోకం ఇచ్చినట్టుగా కాదు. మీ హృదయం కలవరం చెందనివ్వకండి, భయపడకండి.',
+};
+const VERSES_EARLIER = [
+  { reference: 'John 3:16', date: '2026-10-09', text: 'For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.' },
+  { reference: 'Philippians 4:6–7', date: '2026-10-08', text: 'In nothing be anxious, but in everything, by prayer and petition with thanksgiving, let your requests be made known to God. And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.' },
+  { reference: 'Isaiah 41:10', date: '2026-10-06', text: 'Don’t you be afraid, for I am with you; don’t be dismayed, for I am your God; I will strengthen you; yes, I will help you; yes, I will uphold you with the right hand of my righteousness.' },
+];
+const VERSES_EARLIER_TE = [
+  { reference: 'యోహాను సువార్త 3:16', date: '2026-10-09', text: 'దేవుడు లోకాన్ని ఎంతో ప్రేమించాడు. అందుకే ఆయన తన ఏకైక కుమారుణ్ణి ఈ లోకానికి ఇచ్చాడు. తద్వారా ఆయనలో విశ్వాసం ఉంచే ప్రతి వాడూ నశించకుండా నిత్యజీవం పొందుతాడు.' },
+  { reference: 'ఫిలిప్పీయులకు 4:6–7', date: '2026-10-08', text: 'దేన్ని గూర్చీ చింతపడవద్దు. ప్రతి విషయంలోను ప్రార్థన విజ్ఞాపనలతో కృతజ్ఞతాపూర్వకంగా మీ విన్నపాలు దేవునికి తెలియజేయండి.' },
+  { reference: 'యెషయా గ్రంథము 41:10', date: '2026-10-06', text: 'నీకు తోడుగా ఉన్నాను, భయపడవద్దు. నేను నీ దేవుణ్ణి. దిగులు పడవద్దు. నేను నిన్ను బలపరుస్తాను.' },
+];
+// A day the church wrote no verse of its own: the screen shows the automated verse, exactly as Home does,
+// with Read chapter -- and below it the three the church wrote on earlier days.
+const VERSE_DATA = { name: 'Joshua', churchName: 'Maranatha', dailyVerses: VERSES_EARLIER };
+const VERSE_DATA_TE = { name: 'జాషువా', churchName: 'Maranatha', dailyVerses: VERSES_EARLIER_TE };
+// A day the church DID write one (typed text: shared and copied, never "read in context"), and one with a picture.
+const VERSE_DATA_OVERRIDE = { ...VERSE_DATA, dailyVerses: [VERSE_TODAY, ...VERSES_EARLIER] };
+const VERSE_DATA_PICTURE = { ...VERSE_DATA, dailyVerses: [{ ...VERSE_TODAY, imageUrl: 'https://example.org/qa-a.svg' }, ...VERSES_EARLIER] };
+
+/** Types an email and a password into the sign-in form. */
+const fillSignIn = async (qa, email = 'daniel@example.com', password = 'maranatha1') => {
+  await qa.type('email-input', email);
+  await qa.type('password-input', password);
+  await qa.advance(200);
+};
 
 const SCENARIOS = [
   // --- the bar, on Home
@@ -1140,6 +1216,162 @@ const SCENARIOS = [
       },
     }),
   },
+
+  // --- The entry screens: loading, sign-in, the suspension notice
+  { name: 'loading-light', storage: EN, data: SIGNED_OUT, route: route('Loading') },
+  { name: 'loading-dark', storage: DARK_EN, dark: true, data: SIGNED_OUT, route: route('Loading') },
+  { name: 'loading-te', storage: TE, data: SIGNED_OUT, route: route('Loading') },
+  { name: 'signin-light', storage: EN, data: SIGNED_OUT, route: route('SignIn') },
+  { name: 'signin-dark', storage: DARK_EN, dark: true, data: SIGNED_OUT, route: route('SignIn') },
+  { name: 'signin-te', storage: TE, data: SIGNED_OUT, route: route('SignIn') },
+  {
+    name: 'signin-filled',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => fillSignIn(qa),
+  },
+  {
+    name: 'signin-shown',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await fillSignIn(qa);
+      await qa.tap('password-input-toggle');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'signin-kb',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.type('email-input', 'daniel@example.com');
+      await qa.keyboard(300);
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'signin-kb-dark',
+    storage: DARK_EN,
+    dark: true,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.type('email-input', 'daniel@example.com');
+      await qa.keyboard(300);
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'signin-error',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await fillSignIn(qa, 'wrong@example.com', 'not-the-password');
+      await qa.tap('email-submit-button');
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'signin-error-dark',
+    storage: DARK_EN,
+    dark: true,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await fillSignIn(qa, 'wrong@example.com', 'not-the-password');
+      await qa.tap('email-submit-button');
+      await qa.advance(400);
+    },
+  },
+  {
+    name: 'signin-signup',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.tap('go-to-sign-up-link');
+      await qa.advance(200);
+      await qa.type('display-name-input', 'Daniel');
+      await fillSignIn(qa);
+    },
+  },
+  {
+    name: 'signin-signup-te',
+    storage: TE,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.tap('go-to-sign-up-link');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'signin-reset',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.tap('forgot-password-link');
+      await qa.advance(200);
+      await qa.type('email-input', 'daniel@example.com');
+      await qa.advance(200);
+    },
+  },
+  {
+    name: 'signin-reset-sent',
+    storage: EN,
+    data: SIGNED_OUT,
+    route: route('SignIn'),
+    steps: async (qa) => {
+      await qa.tap('forgot-password-link');
+      await qa.advance(200);
+      await qa.type('email-input', 'daniel@example.com');
+      await qa.tap('email-submit-button');
+      await qa.advance(400);
+    },
+  },
+  { name: 'suspended-until-light', storage: EN, data: SUSPENDED_DATA, route: route('Suspended', { suspension: SUSPENDED_UNTIL }) },
+  { name: 'suspended-until-dark', storage: DARK_EN, dark: true, data: SUSPENDED_DATA, route: route('Suspended', { suspension: SUSPENDED_UNTIL }) },
+  { name: 'suspended-until-te', storage: TE, data: { ...SUSPENDED_DATA, name: 'జాషువా' }, route: route('Suspended', { suspension: SUSPENDED_UNTIL }) },
+  {
+    name: 'suspended-forever-contact',
+    storage: EN,
+    data: { ...SUSPENDED_DATA, supportEmail: 'office@maranatha.example' },
+    route: route('Suspended', { suspension: SUSPENDED_FOREVER }),
+  },
+  {
+    name: 'suspended-forever-contact-dark',
+    storage: DARK_EN,
+    dark: true,
+    data: { ...SUSPENDED_DATA, supportEmail: 'office@maranatha.example' },
+    route: route('Suspended', { suspension: SUSPENDED_FOREVER }),
+  },
+  {
+    name: 'suspended-forever-contact-te',
+    storage: TE,
+    data: { ...SUSPENDED_DATA, name: 'జాషువా', supportEmail: 'office@maranatha.example' },
+    route: route('Suspended', { suspension: SUSPENDED_FOREVER }),
+  },
+  { name: 'suspended-forever', storage: EN, data: SUSPENDED_DATA, route: route('Suspended', { suspension: SUSPENDED_FOREVER }) },
+  // --- The Verse of the Day screen
+  { name: 'verse-picture-light', storage: EN, data: VERSE_DATA_PICTURE, route: route('DailyVerse') },
+  { name: 'verse-picture-dark', storage: DARK_EN, dark: true, data: VERSE_DATA_PICTURE, route: route('DailyVerse') },
+  { name: 'verse-light', storage: EN, data: VERSE_DATA, route: route('DailyVerse') },
+  { name: 'verse-dark', storage: DARK_EN, dark: true, data: VERSE_DATA, route: route('DailyVerse') },
+  { name: 'verse-te', storage: TE, data: VERSE_DATA_TE, route: route('DailyVerse') },
+  { name: 'verse-override-light', storage: EN, data: VERSE_DATA_OVERRIDE, route: route('DailyVerse') },
+  { name: 'verse-both', storage: { ...EN, bible_mode_preference: 'bilingual' }, data: VERSE_DATA, route: route('DailyVerse') },
+  { name: 'verse-nopast', storage: EN, data: { ...VERSE_DATA, dailyVerses: [] }, route: route('DailyVerse') },
+  // --- The legal pages
+  { name: 'legal-privacy-light', storage: EN, data: EN_DATA, route: route('PrivacyPolicy') },
+  { name: 'legal-privacy-dark', storage: DARK_EN, dark: true, data: EN_DATA, route: route('PrivacyPolicy') },
+  { name: 'legal-privacy-te', storage: TE, data: TE_DATA, route: route('PrivacyPolicy') },
+  { name: 'legal-terms-light', storage: EN, data: EN_DATA, route: route('Terms') },
 ];
 
 const results = [];

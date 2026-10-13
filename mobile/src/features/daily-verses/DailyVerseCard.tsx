@@ -38,13 +38,20 @@ import type { VotdBody, VotdContent, VotdReference } from './votdResolver';
  * is no network at all -- so it is effectively never empty. All of the
  * deciding is in ./votdResolver.ts; the sharing is ./votdSharing.ts's.
  *
- * TWO PROPS DECIDE WHAT IT OFFERS, so one component serves both screens:
+ * FOUR PROPS DECIDE WHAT IT OFFERS, so one component serves both screens:
  *   onSeeAll       Home passes it ("See all" opens the Verse screen); the
  *                  Verse screen does not, because it IS that screen.
  *   onReadChapter  opens the Bible at the verse's chapter. Offered only for
  *                  a verse whose place is known (`content.location`) -- an
  *                  administrator's override is typed text, and is shared
  *                  and copied but never "read in context".
+ *   label          the gold word over the rule. Home's is "Verse of the
+ *                  day"; the Verse screen, whose top bar already says that,
+ *                  says "Today".
+ *   imagePlacement where the church's picture goes, when it sent one. On
+ *                  Home ('behind', the default) the verse is set ON it, under
+ *                  a veil. On the Verse screen ('above') the picture is a
+ *                  16:9 block over the date and the verse is set on the page.
  *
  * ---------------------------------------------------------------------
  * WHICH TYPEFACE, AND WHY IT DEPENDS ON WHERE THE TEXT CAME FROM
@@ -73,9 +80,13 @@ import type { VotdBody, VotdContent, VotdReference } from './votdResolver';
 export function DailyVerseCard({
   onSeeAll,
   onReadChapter,
+  label,
+  imagePlacement = 'behind',
 }: {
   onSeeAll?: () => void;
   onReadChapter?: (location: VotdReference) => void;
+  label?: string;
+  imagePlacement?: 'behind' | 'above';
 } = {}) {
   const state = useVerseOfTheDay();
   const { t } = useTranslation();
@@ -111,6 +122,8 @@ export function DailyVerseCard({
       dateKey={state.dateKey}
       onSeeAll={onSeeAll}
       onReadChapter={onReadChapter}
+      label={label}
+      imagePlacement={imagePlacement}
     />
   );
 }
@@ -150,17 +163,25 @@ function VerseBody({
   dateKey,
   onSeeAll,
   onReadChapter,
+  label,
+  imagePlacement,
 }: {
   content: VotdContent;
   dateKey: string;
   onSeeAll?: () => void;
   onReadChapter?: (location: VotdReference) => void;
+  label?: string;
+  imagePlacement: 'behind' | 'above';
 }) {
   const { colors, radii, type } = useTheme();
   const { t, appLanguage } = useTranslation();
   const [notice, setNotice] = useState<string | null>(null);
 
-  const photo = content.imageUrl !== null;
+  // `photo` means "the verse is set ON a picture" -- white words, a veil.
+  // A picture ABOVE the verse leaves the verse on the page, in page ink.
+  const hasImage = content.imageUrl !== null;
+  const photo = hasImage && imagePlacement === 'behind';
+  const pictureAbove = hasImage && imagePlacement === 'above';
   // On a photograph every word is white (see the header); otherwise page ink.
   const ink = photo ? onPhoto.ink : colors.ink;
   const quietInk = photo ? onPhoto.ink : colors.inkMuted;
@@ -184,6 +205,8 @@ function VerseBody({
       testID="daily-verse-card"
       style={[
         styles.card,
+        // A picture above the verse sits further under the top bar than a date does.
+        pictureAbove && styles.cardWithPictureAbove,
         photo && {
           // Wider than the page's margins by 4 on each side, so the picture
           // reads as laid on the page rather than set inside it -- and 10
@@ -199,7 +222,7 @@ function VerseBody({
         },
       ]}
     >
-      {content.imageUrl ? (
+      {content.imageUrl && photo ? (
         <>
           <Image
             source={{ uri: content.imageUrl }}
@@ -218,17 +241,36 @@ function VerseBody({
           />
         </>
       ) : null}
+      {content.imageUrl && pictureAbove ? (
+        <Image
+          source={{ uri: content.imageUrl }}
+          style={[
+            styles.pictureAbove,
+            { borderRadius: radii.card, backgroundColor: colors.surfaceRaised },
+          ]}
+          resizeMode="cover"
+          testID="daily-verse-image"
+          accessibilityIgnoresInvertColors
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={t('dailyVerse.imageLabel')}
+        />
+      ) : null}
 
       <Text testID="daily-verse-date" style={[type.bodySmall, { color: quietInk }]}>
         {formatIsoWeekdayDate(dateKey, appLanguage)}
       </Text>
-      <SectionHeader
-        title={t('home.verseOfTheDay')}
-        tone={photo ? 'photo' : 'gold'}
-        actionLabel={onSeeAll ? t('common.seeAll') : undefined}
-        onAction={onSeeAll}
-        actionTestID="daily-verse-see-all"
-      />
+      {/* 44 high with or without "See all", so the label sits at the same
+          height on the Verse screen, which has none, as on Home. */}
+      <View style={styles.labelRow}>
+        <SectionHeader
+          title={label ?? t('home.verseOfTheDay')}
+          tone={photo ? 'photo' : 'gold'}
+          actionLabel={onSeeAll ? t('common.seeAll') : undefined}
+          onAction={onSeeAll}
+          actionTestID="daily-verse-see-all"
+        />
+      </View>
       <GoldRule tone={photo ? 'photo' : 'page'} />
 
       <View style={styles.verse}>
@@ -417,7 +459,11 @@ function VerseText({
 
 const styles = StyleSheet.create({
   card: { paddingTop: 16 },
-  labelRow: { justifyContent: 'center' },
+  // 22 here and the Verse screen's own 8 above the card: 30 under the top bar.
+  cardWithPictureAbove: { paddingTop: 22 },
+  // 16:9, over the date, with 18 between it and the date.
+  pictureAbove: { width: '100%', aspectRatio: 16 / 9, marginBottom: 18 },
+  labelRow: { minHeight: 44, justifyContent: 'center' },
   verse: { marginTop: 24 },
   pair: { gap: 10 },
   notice: { fontStyle: 'italic', marginTop: 12 },

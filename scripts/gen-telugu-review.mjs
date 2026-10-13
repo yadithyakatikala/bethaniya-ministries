@@ -68,6 +68,12 @@ const UNCERTAIN = {
   'bible.page': '"పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings.',
   'bible.moreSettings': '"మరిన్ని అమరికలు": opens the rest of the reading settings. `settings.title` uses "సెట్టింగ్‌లు" for Settings; decide whether this should use the same word.',
   'onboarding.chapterSkip': 'Read aloud by a screen reader on the introduction animation. Check it is clear that it skips the animation, not the questions.',
+  'auth.show': 'The small text action inside the password box ("చూపించు", "show"); it pairs with `auth.hide`. Check both read naturally as one-word buttons.',
+  'auth.hide': 'The same action once the password is showing ("దాచు", "hide"). Pairs with `auth.show`.',
+  'auth.passwordHint': 'Under the password box when creating an account: how short a password may be. "కనీసం {min} అక్షరాలు" ("at least {min} letters"). Keep {min} as it is.',
+  'dailyVerse.archiveError': 'Said in place of the list of earlier verses when it could not be loaded. Keep it parallel to `dailyVerse.unavailable`.',
+  'legal.provisional': 'Says the Privacy Policy and Terms have not yet been reviewed by the church\'s counsel. It is a statement about a LEGAL text: check it is exact and not alarming.',
+  'legal.englishOnly': 'Added after `legal.provisional` under a Telugu interface, because the legal text itself is English only for now. Stop using it once a Telugu text has been approved.',
 };
 
 const groups = {};

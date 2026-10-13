@@ -551,3 +551,110 @@ describe('a verse set on a photograph the church attached', () => {
     );
   });
 });
+
+describe('the label, and where the picture goes (what the Verse screen asks for)', () => {
+  function withPhoto() {
+    return ready({
+      source: 'override',
+      citation: null,
+      location: null,
+      imageUrl: 'https://example.org/verse.jpg',
+    });
+  }
+
+  it('names itself with the label it was given, not "Verse of the day" -- the top bar already says that', async () => {
+    mockState(ready());
+    const screen = await render(<DailyVerseCard label="Today" />);
+    const label = screen.getByText('Today');
+    expect(label.props.accessibilityRole).toBe('header');
+    expect(flat(label).color).toBe(lightTokens.accent);
+    expect(screen.queryByText('Verse of the day')).toBeNull();
+  });
+
+  it('keeps the label row 44 high even with no "See all", so the label sits level on both screens', async () => {
+    mockState(ready());
+    const screen = await render(<DailyVerseCard />);
+    // Nothing in the header itself asks for 44 here (it only does when it has an
+    // action), so the nearest ancestor that does is the card's own label row.
+    type Node = { props: { style?: unknown }; parent: Node | null };
+    let row: Node | null = screen.getByText('Verse of the day') as unknown as Node;
+    while (row && flat(row).minHeight === undefined) row = row.parent;
+    expect(row).not.toBeNull();
+    expect(flat(row as Node).minHeight).toBe(44);
+    expect(flat(row as Node).justifyContent).toBe('center');
+  });
+
+  it('sets the picture ABOVE the date, 16:9 and rounded, with the verse on the page in page ink', async () => {
+    mockState(withPhoto());
+    const screen = await render(<DailyVerseCard imagePlacement="above" />);
+    const picture = screen.getByTestId('daily-verse-image');
+    expect(flat(picture)).toMatchObject({
+      width: '100%',
+      aspectRatio: 16 / 9,
+      borderRadius: 16,
+    });
+    // Not laid behind the words: no veil, no absolute fill, and the card stays a plain page.
+    expect(flat(picture).position).toBeUndefined();
+    expect(screen.queryByTestId('daily-verse-veil')).toBeNull();
+    const card = flat(screen.getByTestId('daily-verse-card'));
+    expect(card.backgroundColor).toBeUndefined();
+    expect(card.overflow).toBeUndefined();
+    // The words are page ink, the reference is gold ink -- not the white of a verse on a photograph.
+    expect(flat(screen.getByTestId('daily-verse-text')).color).toBe(lightTokens.ink);
+    expect(flat(screen.getByTestId('daily-verse-reference')).color).toBe(
+      lightTokens.accent
+    );
+    // And the picture comes first: above the date.
+    const ids = (
+      (screen.toJSON() as { children: { props: { testID?: string } }[] }).children ?? []
+    ).map((child) => child.props.testID);
+    expect(ids.indexOf('daily-verse-image')).toBeLessThan(
+      ids.indexOf('daily-verse-date')
+    );
+  });
+
+  it('keeps the picture’s accessible label there too, and exempts it from colour inversion', async () => {
+    mockState(withPhoto());
+    const screen = await render(<DailyVerseCard imagePlacement="above" />);
+    const picture = screen.getByTestId('daily-verse-image');
+    expect(picture.props.accessibilityLabel).toBe("Illustration for today's verse");
+    expect(picture.props.accessibilityIgnoresInvertColors).toBe(true);
+  });
+
+  it('still offers "Read chapter" in white words on a page when the verse has a place', async () => {
+    mockState(
+      ready({
+        source: 'override',
+        citation: null,
+        imageUrl: 'https://example.org/verse.jpg',
+      })
+    );
+    const screen = await render(
+      <DailyVerseCard imagePlacement="above" onReadChapter={jest.fn()} />
+    );
+    // On a page it is the ordinary ink pill, not the white one made for a photograph.
+    expect(flat(screen.getByTestId('daily-verse-read')).backgroundColor).toBe(
+      lightTokens.primary
+    );
+  });
+
+  it('puts the picture BEHIND the words by default, as on Home', async () => {
+    mockState(withPhoto());
+    const screen = await render(<DailyVerseCard />);
+    expect(flat(screen.getByTestId('daily-verse-image'))).toMatchObject({
+      position: 'absolute',
+    });
+    expect(screen.getByTestId('daily-verse-veil')).toBeTruthy();
+  });
+
+  it('gives a verse with no picture the same card whichever placement is asked for', async () => {
+    mockState(ready());
+    const behind = await render(<DailyVerseCard imagePlacement="behind" />);
+    const behindCard = flat(behind.getByTestId('daily-verse-card'));
+    await cleanup();
+    mockState(ready());
+    const above = await render(<DailyVerseCard imagePlacement="above" />);
+    const aboveCard = flat(above.getByTestId('daily-verse-card'));
+    expect(aboveCard).toEqual(behindCard);
+  });
+});

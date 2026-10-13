@@ -5,16 +5,19 @@ import { brandGold } from '../tokens';
 import { useTheme } from '../useTheme';
 
 /**
- * Gold, kept thin: the three places the brand's metal appears as a LINE.
+ * Gold, kept thin: the places the brand's metal appears as a LINE.
  *
  * The design's rule is that gold is lines, small text and brand marks --
  * never a fill, a background or an icon colour. These are the lines:
  *
- *   GoldRule  a hairline under a section's label, fading out to the right
- *             ("the page's gold thread" above the Verse of the Day)
- *   GoldBar   a vertical bar standing beside a quoted block or the row that
- *             says where you left off (3 across; a Prophet Verse's is 2)
- *   GoldFill  the filled part of a 3-point progress line
+ *   GoldRule    a hairline under a section's label, fading out to the right
+ *               ("the page's gold thread" above the Verse of the Day)
+ *   GoldBar     a vertical bar standing beside a quoted block or the row that
+ *               says where you left off (3 across; a Prophet Verse's is 2)
+ *   GoldFill    the filled part of a 3-point progress line
+ *   GoldRibbon  the tab bar's marker over the selected tab
+ *   GoldThread  the short line under the portrait on the loading screen,
+ *               fading out at BOTH ends
  *
  * They are the same five-stop metal the opening writes the name in, drawn
  * as a gradient by react-native-svg (already bundled), so there is no
@@ -209,6 +212,46 @@ export function GoldRibbon({ testID }: { testID?: string }) {
             { offset: 0, color: gold.base },
             { offset: 0.5, color: gold.high },
             { offset: 1, color: gold.base },
+          ]}
+        />
+        <Rect x="0" y="0" width="100" height="1" fill={`url(#${id})`} />
+      </Svg>
+    </View>
+  );
+}
+
+/**
+ * A short line that fades out at both ends and is brightest in the middle:
+ * the loading screen's, under the portrait (132 across, 2 down).
+ */
+export function GoldThread({
+  width = 132,
+  height = 2,
+  testID,
+}: {
+  width?: number;
+  height?: number;
+  testID?: string;
+}) {
+  const { gold } = useTheme();
+  const id = gradientId('gt', useId());
+  return (
+    <View
+      testID={testID}
+      style={{ width, height }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg width="100%" height="100%" viewBox="0 0 100 1" preserveAspectRatio="none">
+        <Gradient
+          id={id}
+          direction="horizontal"
+          stops={[
+            { offset: 0, color: gold.base, opacity: 0 },
+            { offset: 0.22, color: gold.base },
+            { offset: 0.5, color: gold.high },
+            { offset: 0.78, color: gold.base },
+            { offset: 1, color: gold.base, opacity: 0 },
           ]}
         />
         <Rect x="0" y="0" width="100" height="1" fill={`url(#${id})`} />

@@ -4,12 +4,12 @@ import { cleanup, render, waitFor } from '@testing-library/react-native';
 import { AuthProvider } from '../../context/AuthContext';
 import { PreferencesProvider } from '../../context/PreferencesContext';
 import { brandGold } from '../tokens';
-import { GoldBar, GoldFill, GoldRibbon, GoldRule } from '../ui/GoldLine';
+import { GoldBar, GoldFill, GoldRibbon, GoldRule, GoldThread } from '../ui/GoldLine';
 
 jest.mock('../../services/firebase/app');
 
 /**
- * Gold, kept thin: the three places the brand's metal appears as a LINE.
+ * Gold, kept thin: the places the brand's metal appears as a LINE.
  *
  * The rule the design set is that gold is lines, small text and brand marks
  * -- never a fill, a background or an icon colour. What is worth pinning is
@@ -231,5 +231,50 @@ describe('GoldRibbon', () => {
       .map((host) => host.props?.name);
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
+  });
+});
+
+describe('GoldThread', () => {
+  it('is 132 by 2, the loading screen’s line under the portrait', async () => {
+    const view = await draw(<GoldThread testID="thread" />);
+    const style = view.getByTestId('thread', { includeHiddenElements: true }).props.style;
+    expect(style).toMatchObject({ width: 132, height: 2 });
+  });
+
+  it('takes any size it is asked for', async () => {
+    const view = await draw(<GoldThread width={200} height={3} testID="thread" />);
+    const style = view.getByTestId('thread', { includeHiddenElements: true }).props.style;
+    expect(style).toMatchObject({ width: 200, height: 3 });
+  });
+
+  it('fades out at BOTH ends and is brightest in the middle, in the daytime metal', async () => {
+    const view = await draw(<GoldThread />);
+    const stops = stopsOf(view.toJSON());
+    expect(stops.map((stop) => stop.offset)).toEqual([0, 0.22, 0.5, 0.78, 1]);
+    expect(stops.map((stop) => stop.hex)).toEqual([
+      brandGold.light.base,
+      brandGold.light.base,
+      brandGold.light.high,
+      brandGold.light.base,
+      brandGold.light.base,
+    ]);
+    // The rule fades to the right; the thread fades at both ends.
+    expect(stops[0].alpha).toBe(0);
+    expect(stops[4].alpha).toBe(0);
+    expect(stops.slice(1, 4).every((stop) => stop.alpha === 1)).toBe(true);
+  });
+
+  it('takes the night metal at night', async () => {
+    const view = await draw(<GoldThread />, 'dark');
+    await waitFor(() =>
+      expect(stopsOf(view.toJSON())[2].hex).toBe(brandGold.dark.high.toUpperCase())
+    );
+  });
+
+  it('is decorative: it says nothing to a screen reader', async () => {
+    const view = await draw(<GoldThread testID="thread" />);
+    const thread = view.getByTestId('thread', { includeHiddenElements: true });
+    expect(thread.props.accessibilityElementsHidden).toBe(true);
+    expect(thread.props.importantForAccessibility).toBe('no-hide-descendants');
   });
 });

@@ -238,6 +238,8 @@ export function onAuthStateChanged(_auth: unknown, next: Listener) {
 }
 export async function signOut() { current = null; emit(); }
 export async function signInWithEmailAndPassword(_a: unknown, email: string) {
+  // A scenario that wants the sign-in screen's error banner types this address.
+  if (email === 'wrong@example.com') throw Object.assign(new Error('wrong credentials'), { code: 'auth/invalid-credential' });
   current = { uid: 'qa-member', email, displayName: 'Ruth Anand', phoneNumber: null, emailVerified: true,
     getIdToken: async () => 'token', reload: async () => {} };
   emit();

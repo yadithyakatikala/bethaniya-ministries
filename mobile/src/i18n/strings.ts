@@ -238,7 +238,6 @@ export interface Strings {
   'auth.email': string;
   'auth.emailPlaceholder': string;
   'auth.password': string;
-  'auth.passwordPlaceholder': string;
   'auth.namePlaceholder': string;
   'auth.signIn': string;
   'auth.createAccount': string;
@@ -250,6 +249,9 @@ export interface Strings {
   'auth.resetSent': string;
   'auth.continueWithGoogle': string;
   'auth.continueWithApple': string;
+  'auth.show': string;
+  'auth.hide': string;
+  'auth.passwordHint': string;
 
   // --- Profile ---
   'profile.title': string;
@@ -275,6 +277,8 @@ export interface Strings {
   'settings.about': string;
   'settings.privacyPolicy': string;
   'settings.terms': string;
+  'legal.provisional': string;
+  'legal.englishOnly': string;
   'settings.logOut': string;
   'settings.account': string;
   'settings.contactChurch': string;
@@ -450,6 +454,7 @@ export interface Strings {
    * wrong: with automation there is always a verse to show.
    */
   'dailyVerse.unavailable': string;
+  'dailyVerse.archiveError': string;
   'dailyVerse.loading': string;
   /** The Prophet Verse is a SEPARATE content system, with its own
    *  section heading below the Verse of the Day. */
@@ -875,7 +880,6 @@ const en: Strings = {
   'auth.email': 'Email',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'Password',
-  'auth.passwordPlaceholder': 'Password ({min}+ characters)',
   'auth.namePlaceholder': 'Your name',
   'auth.signIn': 'Sign in',
   'auth.createAccount': 'Create account',
@@ -888,6 +892,9 @@ const en: Strings = {
     'If an account exists for that email, a password reset link is on its way.',
   'auth.continueWithGoogle': 'Continue with Google',
   'auth.continueWithApple': 'Continue with Apple',
+  'auth.show': 'Show',
+  'auth.hide': 'Hide',
+  'auth.passwordHint': 'At least {min} characters',
 
   'profile.title': 'Profile',
   'profile.displayName': 'Name',
@@ -911,6 +918,8 @@ const en: Strings = {
   'settings.about': 'About',
   'settings.privacyPolicy': 'Privacy policy',
   'settings.terms': 'Terms of service',
+  'legal.provisional': 'Provisional text. The church’s counsel has not reviewed it yet.',
+  'legal.englishOnly': 'This text is in English only for now.',
   'settings.logOut': 'Log Out',
   'settings.account': 'Account',
   'settings.contactChurch': 'Contact the church',
@@ -1064,6 +1073,7 @@ const en: Strings = {
   // --- M5 ---
   'dailyVerse.imageLabel': "Illustration for today's verse",
   'dailyVerse.unavailable': "Today's verse could not be loaded.",
+  'dailyVerse.archiveError': 'Earlier verses could not be loaded.',
   'dailyVerse.loading': "Loading today's verse",
   // "of the Day" is load-bearing: this block sits directly under the
   // Verse of the Day, and a tester could not tell the two apart.
@@ -1457,7 +1467,6 @@ const te: Strings = {
   'auth.email': 'ఇమెయిల్',
   'auth.emailPlaceholder': 'you@example.com',
   'auth.password': 'పాస్‌వర్డ్',
-  'auth.passwordPlaceholder': 'పాస్‌వర్డ్ ({min}+ అక్షరాలు)',
   'auth.namePlaceholder': 'మీ పేరు',
   'auth.signIn': 'సైన్ ఇన్',
   'auth.createAccount': 'ఖాతా సృష్టించండి',
@@ -1469,6 +1478,9 @@ const te: Strings = {
   'auth.resetSent': 'ఆ ఇమెయిల్‌కు ఖాతా ఉంటే, పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడుతుంది.',
   'auth.continueWithGoogle': 'Googleతో కొనసాగించండి',
   'auth.continueWithApple': 'Appleతో కొనసాగించండి',
+  'auth.show': 'చూపించు',
+  'auth.hide': 'దాచు',
+  'auth.passwordHint': 'కనీసం {min} అక్షరాలు',
 
   'profile.title': 'ప్రొఫైల్',
   'profile.displayName': 'పేరు',
@@ -1492,6 +1504,8 @@ const te: Strings = {
   'settings.about': 'గురించి',
   'settings.privacyPolicy': 'గోప్యతా విధానం',
   'settings.terms': 'సేవా నిబంధనలు',
+  'legal.provisional': 'తాత్కాలిక పాఠం. సంఘ న్యాయ సలహాదారు ఇంకా పరిశీలించలేదు.',
+  'legal.englishOnly': 'ఈ పాఠం ప్రస్తుతానికి ఇంగ్లీషులో మాత్రమే ఉంది.',
   'settings.logOut': 'లాగ్ అవుట్',
   'settings.account': 'ఖాతా',
   'settings.contactChurch': 'చర్చిని సంప్రదించండి',
@@ -1646,6 +1660,7 @@ const te: Strings = {
   // --- M5 ---
   'dailyVerse.imageLabel': 'నేటి వచనానికి చిత్రం',
   'dailyVerse.unavailable': 'నేటి వచనం లోడ్ కాలేదు.',
+  'dailyVerse.archiveError': 'గత వచనాలు లోడ్ కాలేదు.',
   'dailyVerse.loading': 'నేటి వచనం లోడ్ అవుతోంది',
   'prophetVerse.title': 'ఈ రోజు ప్రవక్త వచనం',
   'prophetVerse.imageLabel': 'ఈ ప్రవక్త వచనానికి చిత్రం',

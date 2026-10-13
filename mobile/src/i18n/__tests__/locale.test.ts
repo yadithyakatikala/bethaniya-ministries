@@ -1,8 +1,10 @@
 import {
   formatDateTime,
   formatDayMonthShort,
+  formatDayMonthYear,
   formatEventWhen,
   formatIsoDateString,
+  formatIsoDayMonth,
   formatLongDate,
   formatMonthShort,
   formatNotificationWhen,
@@ -150,6 +152,51 @@ describe('formatIsoDateString', () => {
     // fix it, not a word that looks like a bug in the app.
     expect(formatIsoDateString('not-a-date', 'en')).toBe('not-a-date');
     expect(formatIsoDateString('', 'te')).toBe('');
+  });
+});
+
+describe('formatDayMonthYear', () => {
+  it('is the day, the month spelled out and the year -- day first, where en-US would say month first', () => {
+    expect(formatDayMonthYear(new Date(2026, 9, 14, 18, 30), 'en')).toBe(
+      '14 October 2026'
+    );
+    expect(formatDayMonthYear(new Date(2027, 0, 1, 12, 0), 'en')).toBe('1 January 2027');
+  });
+
+  it('puts the day before the month in Telugu too, and the year last', () => {
+    const text = formatDayMonthYear(new Date(2026, 9, 14, 18, 30), 'te');
+    expect(text.startsWith('14 ')).toBe(true);
+    expect(text.endsWith(' 2026')).toBe(true);
+    if (formatsDatesInTelugu()) expect(text).toMatch(/[ఀ-౿]/u);
+  });
+
+  it('never throws and is never empty, whatever the engine supports', () => {
+    for (const language of ['en', 'te'] as const) {
+      expect(formatDayMonthYear(SAMPLE, language).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('formatIsoDayMonth', () => {
+  const NOW = new Date(2026, 9, 12, 12, 0);
+
+  it('is a stored date as a list row says it: the day, the short month, and the year only when it is not this one', () => {
+    expect(formatIsoDayMonth('2026-10-09', 'en', NOW)).toBe('9 Oct');
+    expect(formatIsoDayMonth('2025-12-31', 'en', NOW)).toBe('31 Dec 2025');
+  });
+
+  it('reads the first of a month as that day, not the day before', () => {
+    // The key names a CALENDAR day and is built as that day in the phone's own zone (like
+    // formatIsoWeekdayDate's), not as UTC midnight, which would slide to 30 September west of
+    // Greenwich. These tests run in UTC, where the two agree, so this pins the edge itself
+    // rather than the zone; the construction is what keeps it true on a phone.
+    expect(formatIsoDayMonth('2026-10-01', 'en', NOW)).toBe('1 Oct');
+    expect(formatIsoDayMonth('2026-01-01', 'en', new Date(2026, 5, 1))).toBe('1 Jan');
+  });
+
+  it('returns a malformed value unchanged rather than rendering "NaN Invalid Date"', () => {
+    expect(formatIsoDayMonth('not-a-date', 'en', NOW)).toBe('not-a-date');
+    expect(formatIsoDayMonth('', 'te', NOW)).toBe('');
   });
 });
 

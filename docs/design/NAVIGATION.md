@@ -76,6 +76,11 @@ post and the saved list; see `MEDIA.md`. The tab bar steps out of
 the way while the keyboard is up (`navigation/useKeyboardVisible.ts`), as the design
 shows for the chat's message box.
 
+The Verse of the Day (`DailyVerse`, from "See all" on Home's verse) and the Privacy policy
+and Terms (`PrivacyPolicy`, `Terms`, from Settings) are pushed with their own top bar too; see
+`AUTH_AND_INFO.md`. **Loading, sign-in and the suspension notice are not routes at all** -- they
+are states `App.tsx` chooses between, so no tab bar and no Back gesture sits behind them.
+
 `AnnouncementDetail` and `CommunityPostDetail` are **one screen**
 (`features/updates/UpdateDetail.tsx`) labelled for what it is; `SavedVerses`
 (`features/you/SavedVersesScreen.tsx`) lists notes, highlights or bookmarks, each

@@ -61,10 +61,11 @@ export default function App() {
       <AuthProvider>
         <PreferencesProvider>
           {/* M4. Inside PreferencesProvider because the reader reads both
-              (its Light/Dark/System control drives the theme preference
-              there), and above the navigator because the reader screen
-              and its settings sheet are separate components that must
-              see the same values. */}
+              (its Page control sets the app's theme preference there for
+              Light and Dark; Sepia is the reader's own page and is kept on
+              the phone only), and above the navigator because the reader
+              screen and its settings sheet are separate components that
+              must see the same values. */}
           <ReadingPreferencesProvider>
             <FontGate>
               <AuthGate />

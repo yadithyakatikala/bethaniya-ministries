@@ -82,6 +82,12 @@ const PAIRS: { name: string; fg: keyof ThemeColors; bg: keyof ThemeColors }[] = 
   { name: 'accent text on a raised panel', fg: 'accent', bg: 'surfaceRaised' },
   // ui/ErrorState.tsx.
   { name: 'error state message', fg: 'ink', bg: 'dangerTint' },
+  // ui/NoticeBanner.tsx -- the words of a warning and of an error are in the tone's
+  // own colour on its tint, and so is the suspension notice's "Until ..." line and the
+  // legal pages' "provisional text" line.
+  { name: 'NoticeBanner warning words', fg: 'warning', bg: 'warningTint' },
+  { name: 'NoticeBanner error words', fg: 'danger', bg: 'dangerTint' },
+  { name: 'NoticeBanner neutral words', fg: 'ink', bg: 'surfaceRaised' },
   { name: 'primary link on surface', fg: 'primary', bg: 'surface' },
   // Solid status fills, for the places a status is the whole control.
   { name: 'solid success label', fg: 'onSuccess', bg: 'success' },

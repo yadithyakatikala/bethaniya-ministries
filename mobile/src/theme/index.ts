@@ -39,7 +39,7 @@ export type {
   BrandGold,
 } from './tokens';
 export { Card } from './ui/Card';
-export { GoldRule, GoldBar, GoldFill, GoldRibbon } from './ui/GoldLine';
+export { GoldRule, GoldBar, GoldFill, GoldRibbon, GoldThread } from './ui/GoldLine';
 export { AppButton } from './ui/AppButton';
 export { IconButton } from './ui/IconButton';
 export { Icon } from './ui/Icon';
