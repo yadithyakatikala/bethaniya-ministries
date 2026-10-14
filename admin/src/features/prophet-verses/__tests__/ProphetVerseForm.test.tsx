@@ -1,12 +1,38 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ProphetVerseForm } from '../ProphetVerseForm';
 import * as service from '../../../services/firebase/prophetVerses';
 import type { ProphetVerseRecord } from '../../../services/firebase/prophetVerses';
+import { useAuthStore } from '../../../store/authStore';
+import {
+  MISSING,
+  READY,
+  UPLOADED_IMAGE,
+} from '../../../components/media/__tests__/helpers';
 
 vi.mock('../../../services/firebase/prophetVerses');
+vi.mock('../../../services/media/cloudinaryConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryConfig')>()),
+  getCloudinaryConfig: vi.fn(),
+}));
+vi.mock('../../../services/media/cloudinaryUpload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryUpload')>()),
+  uploadToCloudinary: vi.fn(),
+}));
+vi.mock('../../../services/firebase/mediaAssets', () => ({
+  createMediaAsset: vi.fn(),
+  assetFromUpload: vi.fn((uploaded, details) => ({ uploaded, details })),
+  subscribeToMediaAssets: vi.fn(() => vi.fn()),
+}));
+
+import { getCloudinaryConfig } from '../../../services/media/cloudinaryConfig';
+import { uploadToCloudinary } from '../../../services/media/cloudinaryUpload';
+import {
+  createMediaAsset,
+  subscribeToMediaAssets,
+} from '../../../services/firebase/mediaAssets';
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -37,6 +63,27 @@ function record(partial: Partial<ProphetVerseRecord> = {}): ProphetVerseRecord {
     updatedAt: null,
     ...partial,
   };
+}
+
+// Uploading is NOT set up by default, which leaves the web-address box open
+// -- the way these forms were used before uploads existed. Tests of the
+// upload itself switch to READY.
+beforeEach(() => {
+  vi.mocked(getCloudinaryConfig).mockReturnValue(MISSING);
+  vi.mocked(subscribeToMediaAssets).mockReturnValue(vi.fn());
+  vi.mocked(createMediaAsset).mockResolvedValue('asset-1');
+  vi.mocked(uploadToCloudinary).mockReset();
+  useAuthStore.setState({
+    user: { uid: 'admin-1', displayName: 'Admin One', email: 'a@x.org' } as never,
+  });
+  URL.createObjectURL = vi.fn(() => 'blob:local-preview');
+  URL.revokeObjectURL = vi.fn();
+});
+
+/** Types an address into the image field and applies it. */
+async function useImageAddress(address: string) {
+  await userEvent.type(screen.getByTestId('prophet-verse-image-url-input'), address);
+  await userEvent.click(screen.getByTestId('prophet-verse-image-url-apply'));
 }
 
 afterEach(() => {
@@ -77,18 +124,17 @@ describe('creating', () => {
     expect(service.createProphetVerse).not.toHaveBeenCalled();
   });
 
-  it('refuses an image address the phone could not load', async () => {
+  it('refuses to take an image address the phone could not load, and says why', async () => {
     renderForm({ mode: 'create' });
-    await userEvent.type(screen.getByTestId('prophet-verse-title-input'), 'A new word');
-    await userEvent.type(
-      screen.getByTestId('prophet-verse-reference-input'),
-      'Isaiah 43:19'
-    );
-    await userEvent.type(screen.getByTestId('prophet-verse-text-input'), 'Behold.');
-    await userEvent.type(
-      screen.getByTestId('prophet-verse-image-url-input'),
-      'http://example.org/a.jpg'
-    );
+    await useImageAddress('http://example.org/a.jpg');
+
+    expect(screen.getByText(/must start with https/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('prophet-verse-image-address')).not.toBeInTheDocument();
+  });
+
+  it('still refuses to save a stored address the phone could not load', async () => {
+    // An old record can carry an address the field would not take today.
+    renderForm({ mode: 'edit', verse: record({ imageUrl: 'http://example.org/a.jpg' }) });
     await userEvent.click(screen.getByTestId('prophet-verse-form-submit'));
 
     await waitFor(() =>
@@ -96,13 +142,44 @@ describe('creating', () => {
         screen.getByText('Image address must be a full https:// web address.')
       ).toBeInTheDocument()
     );
-    expect(service.createProphetVerse).not.toHaveBeenCalled();
+    expect(service.updateProphetVerse).not.toHaveBeenCalled();
   });
 
-  it('offers no file upload at all -- there is no Storage bucket on this plan', () => {
+  it('saves the address of an uploaded picture', async () => {
+    vi.mocked(getCloudinaryConfig).mockReturnValue(READY);
+    vi.mocked(uploadToCloudinary).mockResolvedValue(UPLOADED_IMAGE);
+    vi.mocked(service.createProphetVerse).mockResolvedValue('new-id');
     renderForm({ mode: 'create' });
-    expect(document.querySelector('input[type="file"]')).toBeNull();
-    expect(screen.getByText(/There is no upload/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByTestId('prophet-verse-title-input'), 'A new word');
+    await userEvent.type(
+      screen.getByTestId('prophet-verse-reference-input'),
+      'Isaiah 43:19'
+    );
+    await userEvent.type(screen.getByTestId('prophet-verse-text-input'), 'Behold.');
+    await userEvent.upload(
+      screen.getByTestId('prophet-verse-image-input'),
+      new File(['x'], 'verse.png', { type: 'image/png' })
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('prophet-verse-preview-image')).toHaveAttribute(
+        'src',
+        UPLOADED_IMAGE.url
+      )
+    );
+    await userEvent.click(screen.getByTestId('prophet-verse-form-submit'));
+
+    await waitFor(() => expect(service.createProphetVerse).toHaveBeenCalled());
+    expect(vi.mocked(service.createProphetVerse).mock.calls[0]![0]).toMatchObject({
+      imageUrl: UPLOADED_IMAGE.url,
+    });
+  });
+
+  it('explains that picture uploading is not set up, and offers the address box instead', () => {
+    renderForm({ mode: 'create' });
+    expect(screen.getByTestId('prophet-verse-image-setup')).toBeInTheDocument();
+    expect(screen.queryByTestId('prophet-verse-image-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('prophet-verse-image-url-input')).toBeInTheDocument();
   });
 
   it('says when a save failed rather than pretending it worked', async () => {
@@ -176,25 +253,18 @@ describe('the preview', () => {
     expect(screen.getByTestId('prophet-verse-preview-text')).toHaveTextContent('Behold.');
   });
 
-  it('shows nothing where an image would be until the address is usable', async () => {
+  it('shows nothing where an image would be until an address has been taken', async () => {
     renderForm({ mode: 'create' });
     expect(screen.queryByTestId('prophet-verse-preview-image')).not.toBeInTheDocument();
 
-    await userEvent.type(
-      screen.getByTestId('prophet-verse-image-url-input'),
-      'https://ex'
-    );
-    // Still a valid https url in the making -- shown, because "https://ex"
-    // parses. The half-typed states that do NOT parse show nothing.
-    await userEvent.clear(screen.getByTestId('prophet-verse-image-url-input'));
-    await userEvent.type(screen.getByTestId('prophet-verse-image-url-input'), 'htt');
-    expect(screen.queryByTestId('prophet-verse-preview-image')).not.toBeInTheDocument();
-
-    await userEvent.clear(screen.getByTestId('prophet-verse-image-url-input'));
+    // Typed but not applied: nothing yet.
     await userEvent.type(
       screen.getByTestId('prophet-verse-image-url-input'),
       'https://example.org/a.jpg'
     );
+    expect(screen.queryByTestId('prophet-verse-preview-image')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('prophet-verse-image-url-apply'));
     expect(screen.getByTestId('prophet-verse-preview-image')).toHaveAttribute(
       'src',
       'https://example.org/a.jpg'
@@ -203,10 +273,7 @@ describe('the preview', () => {
 
   it('leaves the image out of the accessibility tree -- the words carry the meaning', async () => {
     renderForm({ mode: 'create' });
-    await userEvent.type(
-      screen.getByTestId('prophet-verse-image-url-input'),
-      'https://example.org/a.jpg'
-    );
+    await useImageAddress('https://example.org/a.jpg');
     expect(screen.getByTestId('prophet-verse-preview-image')).toHaveAttribute('alt', '');
   });
 });

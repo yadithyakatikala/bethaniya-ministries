@@ -7,7 +7,6 @@ import App from './App';
 vi.mock('./services/firebase/app', () => ({
   auth: {},
   db: {},
-  storage: {},
   functions: {},
   usingFirebaseEmulators: true,
 }));
@@ -34,12 +33,6 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   serverTimestamp: vi.fn(),
   Timestamp: class MockTimestamp {},
-}));
-
-vi.mock('firebase/storage', () => ({
-  ref: vi.fn(),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
 }));
 
 /**

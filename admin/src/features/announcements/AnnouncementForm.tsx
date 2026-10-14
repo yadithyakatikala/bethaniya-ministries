@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Button, TextField } from '@mui/material';
 import {
   createAnnouncement,
   updateAnnouncement,
-  uploadAnnouncementImage,
 } from '../../services/firebase/announcements';
 import {
   hasValidationErrors,
@@ -12,7 +11,10 @@ import {
   validateAnnouncementInput,
 } from './validation';
 import type { Announcement } from '../../types';
-import { describeSaveFailure } from '../../services/firebase/storageErrors';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
 
 interface AnnouncementFormProps {
   mode: 'create' | 'edit';
@@ -27,36 +29,22 @@ interface AnnouncementFormProps {
  * toggle is a separate list-page action (AnnouncementsListPage.tsx), not
  * part of this form -- a new announcement always starts unpublished, per
  * createAnnouncement()'s own contract.
+ *
+ * The image is chosen, uploaded and previewed by <ImageField>, which hands
+ * back the https address to store. Nothing about the picture happens at
+ * Save time any more: by then it is just a string, like the title.
  */
 export function AnnouncementForm({ mode, announcement }: AnnouncementFormProps) {
   const navigate = useNavigate();
   const [title, setTitle] = useState(announcement?.title ?? '');
   const [content, setContent] = useState(announcement?.content ?? '');
-  const [imageUrl] = useState<string | null>(announcement?.imageUrl ?? null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(announcement?.imageUrl ?? null);
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; content?: string }>(
     {}
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setImageFile(null);
-      setImageError(null);
-      return;
-    }
-    const error = validateAnnouncementImage(file);
-    if (error) {
-      setImageError(error);
-      setImageFile(null);
-      return;
-    }
-    setImageError(null);
-    setImageFile(file);
-  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -64,47 +52,33 @@ export function AnnouncementForm({ mode, announcement }: AnnouncementFormProps) 
 
     const errors = validateAnnouncementInput({ title, content });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || imageError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     setSubmitting(true);
     try {
-      let resolvedImageUrl = imageUrl;
-      if (imageFile) {
-        resolvedImageUrl = await uploadAnnouncementImage(imageFile);
-      }
-
       if (mode === 'create') {
-        await createAnnouncement({ title, content, imageUrl: resolvedImageUrl });
+        await createAnnouncement({ title, content, imageUrl });
       } else if (announcement) {
-        await updateAnnouncement(announcement.id, {
-          title,
-          content,
-          imageUrl: resolvedImageUrl,
-        });
+        await updateAnnouncement(announcement.id, { title, content, imageUrl });
       }
       navigate('/announcements');
-    } catch (error) {
-      // A missing Cloud Storage bucket is permanent on this project, and
-      // the upload throws BEFORE the Firestore write -- so "saving failed,
-      // please try again" was wrong about what failed and invited a retry
-      // that cannot succeed. The image is optional, so clearing the
-      // selection lets the very next Save go through without one. See
-      // ../../services/firebase/storageErrors.ts.
-      const failure = describeSaveFailure(error);
-      if (failure.clearSelectedImage) {setImageFile(null);}
-      setSubmitError(failure.message);
+    } catch {
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Announcement' : 'Edit Announcement'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Announcement' : 'Edit Announcement'}
+        breadcrumbs={[
+          { label: 'Announcements', to: '/announcements' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="announcement-form-error">
             {submitError}
@@ -134,49 +108,33 @@ export function AnnouncementForm({ mode, announcement }: AnnouncementFormProps) 
           slotProps={{ htmlInput: { 'data-testid': 'announcement-content-input' } }}
         />
 
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Typography variant="body2" gutterBottom>
-            Image (optional)
-          </Typography>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            data-testid="announcement-image-input"
-          />
-          {imageError ? (
-            <Typography
-              variant="body2"
-              color="error"
-              data-testid="announcement-image-error"
-            >
-              {imageError}
-            </Typography>
-          ) : null}
-          {imageUrl && !imageFile ? (
-            <Typography variant="body2" color="text.secondary">
-              Current image is set. Choose a new file to replace it.
-            </Typography>
-          ) : null}
-        </Box>
+        <ImageField
+          label="Image (optional)"
+          value={imageUrl}
+          onChange={setImageUrl}
+          category="poster"
+          testIdPrefix="announcement-image"
+          validateFile={validateAnnouncementImage}
+          onBusyChange={setUploading}
+        />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="announcement-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/announcements')}
-          data-testid="announcement-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting || uploading}
+            data-testid="announcement-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button
+            onClick={() => navigate('/announcements')}
+            data-testid="announcement-form-cancel"
+          >
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

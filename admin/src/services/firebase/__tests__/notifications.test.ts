@@ -13,7 +13,7 @@ const { mockCallable, MockTimestamp } = vi.hoisted(() => {
   return { mockCallable: vi.fn(), MockTimestamp };
 });
 
-vi.mock('../app', () => ({ db: {}, storage: {}, functions: {} }));
+vi.mock('../app', () => ({ db: {}, functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => mockCallable) }));
 
 vi.mock('firebase/firestore', () => ({
@@ -26,19 +26,11 @@ vi.mock('firebase/firestore', () => ({
   getCountFromServer: vi.fn(),
 }));
 
-vi.mock('firebase/storage', () => ({
-  ref: vi.fn((_storage, path) => ({ path })),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
-}));
-
 import { getCountFromServer, onSnapshot, type FirestoreError } from 'firebase/firestore';
-import { getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
   estimateRecipientCount,
   sendNotification,
   subscribeToNotificationLog,
-  uploadNotificationImage,
 } from '../notifications';
 
 describe('notifications service', () => {
@@ -147,23 +139,6 @@ describe('notifications service', () => {
       subscribeToNotificationLog(onNext, onError);
 
       expect(onError).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe('uploadNotificationImage', () => {
-    it('uploads the file and returns its download URL', async () => {
-      vi.mocked(uploadBytes).mockResolvedValue(undefined as never);
-      vi.mocked(getDownloadURL).mockResolvedValue('https://example.com/uploaded.jpg');
-      const file = new File(['a'], 'banner.jpg', { type: 'image/jpeg' });
-
-      const url = await uploadNotificationImage(file);
-
-      expect(uploadBytes).toHaveBeenCalledWith(
-        expect.objectContaining({ path: expect.stringContaining('banner.jpg') }),
-        file,
-        { contentType: 'image/jpeg' }
-      );
-      expect(url).toBe('https://example.com/uploaded.jpg');
     });
   });
 });

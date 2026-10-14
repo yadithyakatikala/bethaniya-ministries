@@ -5,10 +5,11 @@
  * firestore.rules' isValidPlan()/isValidPlanDay() exactly.
  */
 
+import { validateUploadFile } from '../../services/media/uploadRules';
+
 export const PLAN_TITLE_MAX_LENGTH = 200;
 export const PLAN_DESCRIPTION_MAX_LENGTH = 2000;
 export const PLAN_CATEGORY_MAX_LENGTH = 100;
-export const PLAN_COVER_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export interface PlanValidationInput {
   title: string;
@@ -49,14 +50,15 @@ export function validatePlanInput(input: PlanValidationInput): PlanValidationErr
   return errors;
 }
 
+/**
+ * Whether this file may be uploaded as a plan cover. It is the shared image
+ * rule (../../services/media/uploadRules.ts) -- the same formats and
+ * 5 MB ceiling for every picture -- so a mistake is caught in the browser
+ * before an upload starts. A courtesy only: the limits that really apply
+ * are set on the Cloudinary upload preset (docs/admin/MEDIA_UPLOADS.md).
+ */
 export function validatePlanCoverImage(file: File): string | null {
-  if (!file.type.startsWith('image/')) {
-    return 'Please choose an image file.';
-  }
-  if (file.size >= PLAN_COVER_IMAGE_MAX_BYTES) {
-    return 'Image must be smaller than 5 MB.';
-  }
-  return null;
+  return validateUploadFile(file, 'image');
 }
 
 export const PLAN_DAY_TITLE_MAX_LENGTH = 200;

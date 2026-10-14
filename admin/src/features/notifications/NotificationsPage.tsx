@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Alert,
   Box,
@@ -12,7 +12,6 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
-  Paper,
   Radio,
   RadioGroup,
   Table,
@@ -29,12 +28,7 @@ import {
   estimateRecipientCount,
   sendNotification,
   subscribeToNotificationLog,
-  uploadNotificationImage,
 } from '../../services/firebase/notifications';
-import {
-  IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
-  isStorageUnavailable,
-} from '../../services/firebase/storageErrors';
 import {
   hasValidationErrors,
   validateNotificationImage,
@@ -44,6 +38,8 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
 import type { NotificationLogEntry, NotificationRecipientGroup } from '../../types';
 
 /**
@@ -64,19 +60,18 @@ import type { NotificationLogEntry, NotificationRecipientGroup } from '../../typ
  * exactly (host/content_admin/super_admin may send; a member sees an
  * "unauthorized" message instead of the composer -- UI convenience only,
  * the real boundary is the callable's own server-side role check). The
- * optional image field is additionally hidden for a Host caller: storage.
- * rules' content/{imageType}/{fileName} write rule is
- * isContentAdminOrAbove(), which does NOT include host, so a Host who
- * tried to attach an image would hit a Storage permission error on
- * upload -- hiding the control avoids ever presenting that dead end,
- * matching the RBAC table's "Client-side: Admin UI hides disallowed
- * actions" principle. This is a pre-existing rule this page reuses
- * unchanged, not something loosened for notifications.
+ * optional image field is additionally hidden for a Host caller, as it
+ * has always been: attaching an image is a content-admin task (the media
+ * library an upload is recorded in is writable by content admins and
+ * above only, and firestore.rules' users/{userId} read rule excludes
+ * host in the same way), so a Host would be offered a control that half
+ * works. That is the RBAC table's "Client-side: Admin UI hides disallowed
+ * actions" principle, unchanged. The image itself is uploaded to
+ * Cloudinary by <ImageField>, not to Firebase Storage.
  *
  * Confirmation dialog recipient count: a Host caller cannot list /users
  * directly (firestore.rules' users/{userId} read rule is isOwner(userId)
- * || isContentAdminOrAbove(), which -- like the Storage rule above --
- * excludes host), so estimateRecipientCount() can only ever return a
+ * || isContentAdminOrAbove(), which excludes host), so estimateRecipientCount() can only ever return a
  * number for Content Admin/Super Admin; for a Host it resolves to null,
  * and the dialog below says so plainly instead of showing a wrong or
  * stuck count. Either way, the actual, authoritative recipient count is
@@ -100,7 +95,7 @@ function canSendNotifications(role: string | null): boolean {
   return role === 'host' || role === 'content_admin' || role === 'super_admin';
 }
 
-/** Mirrors storage.rules' content/{imageType} write rule (isContentAdminOrAbove()) -- see header comment above. */
+/** Content admins and above only, as the image field has always been -- see header comment above. */
 function canAttachImage(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }
@@ -123,8 +118,8 @@ export function NotificationsPage() {
   const [message, setMessage] = useState('');
   const [recipientGroup, setRecipientGroup] =
     useState<NotificationRecipientGroup>('all_members');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; message?: string }>(
     {}
   );
@@ -150,23 +145,6 @@ export function NotificationsPage() {
     return unsubscribe;
   }, []);
 
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setImageFile(null);
-      setImageError(null);
-      return;
-    }
-    const error = validateNotificationImage(file);
-    if (error) {
-      setImageError(error);
-      setImageFile(null);
-      return;
-    }
-    setImageError(null);
-    setImageFile(file);
-  }
-
   async function handleOpenConfirm(event: FormEvent) {
     event.preventDefault();
     setSubmitError(null);
@@ -174,7 +152,7 @@ export function NotificationsPage() {
 
     const errors = validateNotificationInput({ title, message });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || imageError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     setConfirmOpen(true);
     setRecipientPreviewLoading(true);
@@ -187,14 +165,10 @@ export function NotificationsPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      let resolvedImageUrl: string | null = null;
-      if (imageFile) {
-        resolvedImageUrl = await uploadNotificationImage(imageFile);
-      }
       const { recipientCount } = await sendNotification({
         title: title.trim(),
         message: message.trim(),
-        imageUrl: resolvedImageUrl,
+        imageUrl,
         recipientGroup,
       });
       setSuccessMessage(
@@ -205,23 +179,14 @@ export function NotificationsPage() {
       );
       setTitle('');
       setMessage('');
-      setImageFile(null);
+      setImageUrl(null);
       setRecipientGroup('all_members');
       setConfirmOpen(false);
     } catch (error) {
-      // Three distinguishable outcomes, checked in the order they can
-      // actually occur. The optional image upload runs FIRST, so a missing
-      // Cloud Storage bucket aborts before anything is sent -- reporting
-      // that as a send failure would be wrong about what happened. Both
-      // Storage and Functions failures here are permanent on this project,
-      // so neither offers a retry; a genuine transient failure still does.
-      if (isStorageUnavailable(error)) {
-        // The image is optional, so clearing it lets the next Send go
-        // through without one -- see
-        // ../../services/firebase/storageErrors.ts.
-        setImageFile(null);
-        setSubmitError(IMAGE_UPLOAD_UNAVAILABLE_MESSAGE);
-      } else if (error instanceof CloudFunctionsUnavailableError) {
+      // Two distinguishable outcomes. A missing Cloud Function is permanent
+      // on this project, so it offers no retry; a genuine transient failure
+      // still does.
+      if (error instanceof CloudFunctionsUnavailableError) {
         setSubmitError(
           'Sending is unavailable: this Firebase project is on the free Spark plan, and ' +
             'server-side notification sending requires a deployed Cloud Function, which ' +
@@ -238,21 +203,24 @@ export function NotificationsPage() {
 
   if (!canSend) {
     return (
-      <Box sx={{ p: 4 }} data-testid="notifications-page">
+      <PageContainer testId="notifications-page">
         <Typography color="text.secondary" data-testid="notifications-unauthorized">
           You are not authorized to send notifications.
         </Typography>
-      </Box>
+      </PageContainer>
     );
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="notifications-page">
-      <AdminPageHeader title="Notifications" />
+    <PageContainer testId="notifications-page">
+      <AdminPageHeader
+        title="Notifications"
+        subtitle="Compose a notification, then review everything that has been sent."
+      />
 
       <Alert
         severity="info"
-        sx={{ mb: 3, maxWidth: 640 }}
+        sx={{ mb: 3, maxWidth: 680 }}
         data-testid="notification-no-push-disclosure"
       >
         Sending here validates the request, computes the real recipient count, and records
@@ -261,107 +229,94 @@ export function NotificationsPage() {
         there is nothing for a real send to reach.
       </Alert>
 
-      <Paper
-        sx={{ p: 4, maxWidth: 640, mb: 4 }}
-        component="form"
-        onSubmit={(e) => void handleOpenConfirm(e)}
-      >
-        {submitError ? (
-          <Alert severity="error" sx={{ mb: 2 }} data-testid="notification-form-error">
-            {submitError}
-          </Alert>
-        ) : null}
-        {successMessage ? (
-          <Alert
-            severity="success"
-            sx={{ mb: 2 }}
-            data-testid="notification-form-success"
-          >
-            {successMessage}
-          </Alert>
-        ) : null}
+      <Box sx={{ maxWidth: 680, mb: 5 }}>
+        <FormCard onSubmit={(e) => void handleOpenConfirm(e)}>
+          {submitError ? (
+            <Alert severity="error" sx={{ mb: 2 }} data-testid="notification-form-error">
+              {submitError}
+            </Alert>
+          ) : null}
+          {successMessage ? (
+            <Alert
+              severity="success"
+              sx={{ mb: 2 }}
+              data-testid="notification-form-success"
+            >
+              {successMessage}
+            </Alert>
+          ) : null}
 
-        <TextField
-          label="Title"
-          fullWidth
-          margin="normal"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          error={Boolean(fieldErrors.title)}
-          helperText={fieldErrors.title}
-          slotProps={{ htmlInput: { 'data-testid': 'notification-title-input' } }}
-        />
-        <TextField
-          label="Message"
-          fullWidth
-          multiline
-          minRows={3}
-          margin="normal"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          error={Boolean(fieldErrors.message)}
-          helperText={fieldErrors.message}
-          slotProps={{ htmlInput: { 'data-testid': 'notification-message-input' } }}
-        />
+          <TextField
+            label="Title"
+            fullWidth
+            margin="normal"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            error={Boolean(fieldErrors.title)}
+            helperText={fieldErrors.title}
+            slotProps={{ htmlInput: { 'data-testid': 'notification-title-input' } }}
+          />
+          <TextField
+            label="Message"
+            fullWidth
+            multiline
+            minRows={3}
+            margin="normal"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            error={Boolean(fieldErrors.message)}
+            helperText={fieldErrors.message}
+            slotProps={{ htmlInput: { 'data-testid': 'notification-message-input' } }}
+          />
 
-        <FormControl sx={{ mt: 2, display: 'block' }}>
-          <Typography variant="body2" gutterBottom>
-            Recipients
-          </Typography>
-          <RadioGroup
-            value={recipientGroup}
-            onChange={(e) =>
-              setRecipientGroup(e.target.value as NotificationRecipientGroup)
-            }
-          >
-            <FormControlLabel
-              value="all_members"
-              control={<Radio data-testid="recipient-all-members" />}
-              label="All Members"
-            />
-            <FormControlLabel
-              value="admins_only"
-              control={<Radio data-testid="recipient-admins-only" />}
-              label="Admins Only"
-            />
-          </RadioGroup>
-        </FormControl>
-
-        {canImage ? (
-          <Box sx={{ mt: 2, mb: 1 }}>
+          <FormControl sx={{ mt: 2, display: 'block' }}>
             <Typography variant="body2" gutterBottom>
-              Image (optional)
+              Recipients
             </Typography>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              data-testid="notification-image-input"
+            <RadioGroup
+              value={recipientGroup}
+              onChange={(e) =>
+                setRecipientGroup(e.target.value as NotificationRecipientGroup)
+              }
+            >
+              <FormControlLabel
+                value="all_members"
+                control={<Radio data-testid="recipient-all-members" />}
+                label="All Members"
+              />
+              <FormControlLabel
+                value="admins_only"
+                control={<Radio data-testid="recipient-admins-only" />}
+                label="Admins Only"
+              />
+            </RadioGroup>
+          </FormControl>
+
+          {canImage ? (
+            <ImageField
+              label="Image (optional)"
+              value={imageUrl}
+              onChange={setImageUrl}
+              category="general"
+              testIdPrefix="notification-image"
+              validateFile={validateNotificationImage}
+              onBusyChange={setUploading}
             />
-            {imageError ? (
-              <Typography
-                variant="body2"
-                color="error"
-                data-testid="notification-image-error"
-              >
-                {imageError}
-              </Typography>
-            ) : null}
-          </Box>
-        ) : null}
+          ) : null}
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="notification-form-submit"
-        >
-          Send
-        </Button>
-      </Paper>
+          <Button
+            type="submit"
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={submitting || uploading}
+            data-testid="notification-form-submit"
+          >
+            Send
+          </Button>
+        </FormCard>
+      </Box>
 
-      <Typography variant="h6" component="h2" gutterBottom>
+      <Typography variant="h5" component="h2" gutterBottom>
         Notification Log
       </Typography>
 
@@ -474,6 +429,6 @@ export function NotificationsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

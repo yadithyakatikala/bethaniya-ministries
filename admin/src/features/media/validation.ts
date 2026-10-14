@@ -9,9 +9,10 @@
  * =====================================================================
  * THE MEDIA URL IS THE WHOLE POINT OF THIS FILE
  * =====================================================================
- * Nothing is uploaded anywhere -- this project has no Cloud Storage
- * bucket (see ../../services/firebase/media.ts) -- so a media post is a
- * link, and the link is the entire attack surface.
+ * Whatever the form does to obtain it -- upload a picture to Cloudinary,
+ * pick one from the library, paste a YouTube address -- a media post
+ * stores a LINK (see ../../services/firebase/media.ts), and the link is
+ * the entire attack surface. Every route in is checked here.
  *
  * The rules, and why each one:
  *  * HTTPS ONLY, as an allowlist of one rather than a list of banned

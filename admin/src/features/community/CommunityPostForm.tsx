@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Button, TextField } from '@mui/material';
 import {
   createCommunityPost,
   updateCommunityPost,
-  uploadCommunityPostImage,
 } from '../../services/firebase/communityPosts';
 import {
   hasValidationErrors,
@@ -12,7 +11,10 @@ import {
   validateCommunityPostInput,
 } from './validation';
 import type { CommunityPost } from '../../types';
-import { describeSaveFailure } from '../../services/firebase/storageErrors';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
 
 interface CommunityPostFormProps {
   mode: 'create' | 'edit';
@@ -30,31 +32,13 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
   const navigate = useNavigate();
   const [title, setTitle] = useState(post?.title ?? '');
   const [content, setContent] = useState(post?.content ?? '');
-  const [imageUrl] = useState<string | null>(post?.imageUrl ?? null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(post?.imageUrl ?? null);
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; content?: string }>(
     {}
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setImageFile(null);
-      setImageError(null);
-      return;
-    }
-    const error = validateCommunityPostImage(file);
-    if (error) {
-      setImageError(error);
-      setImageFile(null);
-      return;
-    }
-    setImageError(null);
-    setImageFile(file);
-  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -62,47 +46,33 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
 
     const errors = validateCommunityPostInput({ title, content });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || imageError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     setSubmitting(true);
     try {
-      let resolvedImageUrl = imageUrl;
-      if (imageFile) {
-        resolvedImageUrl = await uploadCommunityPostImage(imageFile);
-      }
-
       if (mode === 'create') {
-        await createCommunityPost({ title, content, imageUrl: resolvedImageUrl });
+        await createCommunityPost({ title, content, imageUrl });
       } else if (post) {
-        await updateCommunityPost(post.id, {
-          title,
-          content,
-          imageUrl: resolvedImageUrl,
-        });
+        await updateCommunityPost(post.id, { title, content, imageUrl });
       }
       navigate('/community');
-    } catch (error) {
-      // A missing Cloud Storage bucket is permanent on this project, and
-      // the upload throws BEFORE the Firestore write -- so "saving failed,
-      // please try again" was wrong about what failed and invited a retry
-      // that cannot succeed. The image is optional, so clearing the
-      // selection lets the very next Save go through without one. See
-      // ../../services/firebase/storageErrors.ts.
-      const failure = describeSaveFailure(error);
-      if (failure.clearSelectedImage) {setImageFile(null);}
-      setSubmitError(failure.message);
+    } catch {
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Community Post' : 'Edit Community Post'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Community Post' : 'Edit Community Post'}
+        breadcrumbs={[
+          { label: 'Community', to: '/community' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="community-post-form-error">
             {submitError}
@@ -132,49 +102,33 @@ export function CommunityPostForm({ mode, post }: CommunityPostFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'community-post-content-input' } }}
         />
 
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Typography variant="body2" gutterBottom>
-            Image (optional)
-          </Typography>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            data-testid="community-post-image-input"
-          />
-          {imageError ? (
-            <Typography
-              variant="body2"
-              color="error"
-              data-testid="community-post-image-error"
-            >
-              {imageError}
-            </Typography>
-          ) : null}
-          {imageUrl && !imageFile ? (
-            <Typography variant="body2" color="text.secondary">
-              Current image is set. Choose a new file to replace it.
-            </Typography>
-          ) : null}
-        </Box>
+        <ImageField
+          label="Image (optional)"
+          value={imageUrl}
+          onChange={setImageUrl}
+          category="general"
+          testIdPrefix="community-post-image"
+          validateFile={validateCommunityPostImage}
+          onBusyChange={setUploading}
+        />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="community-post-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/community')}
-          data-testid="community-post-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting || uploading}
+            data-testid="community-post-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button
+            onClick={() => navigate('/community')}
+            data-testid="community-post-form-cancel"
+          >
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

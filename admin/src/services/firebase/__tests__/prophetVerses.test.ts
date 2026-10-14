@@ -16,7 +16,7 @@ const { mockLogAdminAction, MockTimestamp } = vi.hoisted(() => {
   return { mockLogAdminAction: vi.fn(), MockTimestamp };
 });
 
-vi.mock('../app', () => ({ db: {}, storage: {} }));
+vi.mock('../app', () => ({ db: {} }));
 vi.mock('../auditLog', () => ({ logAdminAction: mockLogAdminAction }));
 
 vi.mock('firebase/firestore', () => ({

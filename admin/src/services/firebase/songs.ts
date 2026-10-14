@@ -1,14 +1,15 @@
 /**
- * Firestore + Storage data layer for admin song management (Day 6).
+ * Firestore data layer for admin song management (Day 6).
  * Mirrors ./announcements.ts's shape and reasoning exactly (see that
  * module's header comment for the full audit-log/authorization-boundary
  * rationale, which applies identically here) -- songs has the same
  * published/unpublished shape announcements does (see types/index.ts's
  * Song doc comment), unlike daily_verses.
  *
- * `audioUrl` is stored as-is (an external URL -- see types/index.ts).
- * `coverUrl` is a Storage download URL, uploaded via uploadSongCoverImage
- * below, same pattern as announcements'/daily-verses' image upload.
+ * `audioUrl` and `coverUrl` are stored as-is: https addresses (see
+ * types/index.ts). The form's <AudioField> and <ImageField> obtain them --
+ * by uploading to Cloudinary, picking from the media library, or pasting a
+ * link -- before Save; this module only stores them.
  */
 import {
   type FirestoreError,
@@ -24,8 +25,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from './app';
+import { db } from './app';
 import { logAdminAction } from './auditLog';
 import type { Song, SongFormInput } from '../../types';
 
@@ -131,22 +131,4 @@ export async function setSongPublished(
     documentId: id,
     changeSummary: `${published ? 'Published' : 'Unpublished'} song "${title}"`,
   });
-}
-
-/**
- * Uploads a song cover image to Storage and returns its download URL.
- *
- * Works fully against the local Storage emulator today, at ₹0 -- same
- * documented Blaze-gated production limitation as
- * ./announcements.ts's uploadAnnouncementImage(): creating/deploying the
- * default Storage bucket requires the Blaze plan, which this project
- * deliberately does not attach. Nothing here needs to change once Blaze is
- * attached -- only the emulator toggle does. Song *audio* has no
- * equivalent upload function -- see types/index.ts's Song doc comment.
- */
-export async function uploadSongCoverImage(file: File): Promise<string> {
-  const path = `content/songs/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }

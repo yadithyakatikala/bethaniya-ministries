@@ -32,7 +32,7 @@ import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
 import type { Announcement } from '../../types';
 
-/** Matches firestore.rules'/storage.rules' isContentAdminOrAbove() -- Host can read all announcements but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md. Gating these buttons is a UX convenience only; the rules are the real boundary. */
+/** Matches firestore.rules' isContentAdminOrAbove() -- Host can read all announcements but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md. Gating these buttons is a UX convenience only; the rules are the real boundary. */
 function canManageAnnouncements(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }

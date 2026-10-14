@@ -2,9 +2,9 @@
  * Client-side song input validation, mirroring
  * ../announcements/validation.ts's and ../daily-verses/validation.ts's
  * shape and reasoning: this is a UX convenience only. Server-enforced
- * authority is firestore.rules' isValidSong() for the text fields, and
- * storage.rules' existing content/{imageType}/{fileName} rule (5 MB cap +
- * image/* type, unchanged) for the cover image.
+ * authority is firestore.rules' isValidSong() for the text fields. The
+ * cover image and the song itself are uploaded to Cloudinary by
+ * <ImageField> / <AudioField> (docs/admin/MEDIA_UPLOADS.md).
  *
  * `audioUrl` is checked for a plausible http(s) URL shape only -- this
  * project doesn't fetch or validate that the URL actually resolves to
@@ -13,13 +13,13 @@
  * handles an invalid/unavailable URL without crashing).
  */
 
+import { validateUploadFile } from '../../services/media/uploadRules';
+
 export const SONG_TITLE_MAX_LENGTH = 200;
 export const SONG_ARTIST_MAX_LENGTH = 200;
 export const SONG_CATEGORY_MAX_LENGTH = 100;
 export const SONG_LYRICS_MAX_LENGTH = 10000;
 export const SONG_AUDIO_URL_MAX_LENGTH = 2000;
-/** Matches storage.rules' content/{imageType}/{fileName} write rule's cap. */
-export const SONG_COVER_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 const HTTP_URL_PATTERN = /^https?:\/\/.+/i;
 
@@ -88,16 +88,12 @@ export function hasValidationErrors(errors: SongValidationErrors): boolean {
 }
 
 /**
- * Validates a cover image file before upload -- type and size only
- * (matching storage.rules' own checks), so a rejection is obvious
- * immediately rather than after a slow upload fails server-side.
+ * Whether this file may be uploaded as a song cover. It is the shared image
+ * rule (../../services/media/uploadRules.ts) -- the same formats and
+ * 5 MB ceiling for every picture -- so a mistake is caught in the browser
+ * before an upload starts. A courtesy only: the limits that really apply
+ * are set on the Cloudinary upload preset (docs/admin/MEDIA_UPLOADS.md).
  */
 export function validateSongCoverImage(file: File): string | null {
-  if (!file.type.startsWith('image/')) {
-    return 'Please choose an image file.';
-  }
-  if (file.size >= SONG_COVER_IMAGE_MAX_BYTES) {
-    return 'Image must be smaller than 5 MB.';
-  }
-  return null;
+  return validateUploadFile(file, 'image');
 }

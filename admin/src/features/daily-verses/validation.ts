@@ -1,17 +1,16 @@
 /**
  * Client-side daily-verse input validation, mirroring
  * ../announcements/validation.ts's shape and reasoning: this is a UX
- * convenience only. Server-enforced authority is storage.rules' existing
- * content/{imageType}/{fileName} rule for images (5 MB cap + image/* type,
- * unchanged from Day 4); daily_verses itself has no field-level Firestore
- * rules validation as of Day 5 -- see services/firebase/dailyVerses.ts's
- * header comment for why.
+ * convenience only. Images are uploaded to Cloudinary by <ImageField>
+ * (docs/admin/MEDIA_UPLOADS.md); daily_verses itself has no field-level
+ * Firestore rules validation as of Day 5 -- see
+ * services/firebase/dailyVerses.ts's header comment for why.
  */
+
+import { validateUploadFile } from '../../services/media/uploadRules';
 
 export const DAILY_VERSE_REFERENCE_MAX_LENGTH = 200;
 export const DAILY_VERSE_TEXT_MAX_LENGTH = 5000;
-/** Matches storage.rules' content/{imageType}/{fileName} write rule's cap. */
-export const DAILY_VERSE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 /** YYYY-MM-DD, matching <input type="date">'s native value format. */
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -62,16 +61,12 @@ export function hasValidationErrors(errors: DailyVerseValidationErrors): boolean
 }
 
 /**
- * Validates an image file before upload -- type and size only (matching
- * storage.rules' own checks), so a rejection is obvious immediately rather
- * than after a slow upload fails server-side.
+ * Whether this file may be uploaded as a daily-verse image. It is the shared image
+ * rule (../../services/media/uploadRules.ts) -- the same formats and
+ * 5 MB ceiling for every picture -- so a mistake is caught in the browser
+ * before an upload starts. A courtesy only: the limits that really apply
+ * are set on the Cloudinary upload preset (docs/admin/MEDIA_UPLOADS.md).
  */
 export function validateDailyVerseImage(file: File): string | null {
-  if (!file.type.startsWith('image/')) {
-    return 'Please choose an image file.';
-  }
-  if (file.size >= DAILY_VERSE_IMAGE_MAX_BYTES) {
-    return 'Image must be smaller than 5 MB.';
-  }
-  return null;
+  return validateUploadFile(file, 'image');
 }

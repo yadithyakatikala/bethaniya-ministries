@@ -1,11 +1,17 @@
 /**
- * Firestore + Storage data layer for admin announcement management (Day 4).
+ * Firestore data layer for admin announcement management (Day 4).
  *
  * Every write here is followed by a logAdminAction call (Day 3's audit-log
  * callable, wired in via ./auditLog -- see that module's doc for why a
  * failed audit-log call never blocks the content write). The actual
- * authorization boundary is firestore.rules'/storage.rules' role checks,
- * not anything in this file -- see SECURITY.md's "Day 4" section.
+ * authorization boundary is firestore.rules' role checks, not anything in
+ * this file -- see SECURITY.md's "Day 4" section.
+ *
+ * `imageUrl` is an https address. The form's <ImageField> obtains it (by
+ * uploading to Cloudinary, picking from the media library, or pasting a
+ * link) before Save; this module only stores it. There is no upload
+ * function here: Firebase Storage needs the Blaze plan, which this
+ * project does not attach.
  */
 import {
   type FirestoreError,
@@ -21,8 +27,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from './app';
+import { db } from './app';
 import { logAdminAction } from './auditLog';
 import type { Announcement, AnnouncementFormInput } from '../../types';
 
@@ -122,21 +127,4 @@ export async function setAnnouncementPublished(
     documentId: id,
     changeSummary: `${published ? 'Published' : 'Unpublished'} announcement "${title}"`,
   });
-}
-
-/**
- * Uploads an announcement image to Storage and returns its download URL.
- *
- * Works fully against the local Storage emulator today, at ₹0 -- see
- * SECURITY.md's "Day 4" section for why real (production) upload is
- * blocked: creating/deploying the default Storage bucket requires the
- * Blaze plan (ENVIRONMENT.md's "Blaze-gated" section), which this project
- * deliberately does not attach. Nothing in this function needs to change
- * once Blaze is attached -- only the emulator toggle does.
- */
-export async function uploadAnnouncementImage(file: File): Promise<string> {
-  const path = `content/announcements/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }

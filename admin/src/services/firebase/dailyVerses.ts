@@ -1,5 +1,5 @@
 /**
- * Firestore + Storage data layer for admin daily-verse management (Day 5).
+ * Firestore data layer for admin daily-verse management (Day 5).
  * Mirrors ./announcements.ts's shape and reasoning exactly (see that
  * module's header comment for the full audit-log/authorization-boundary
  * rationale, which applies identically here).
@@ -31,8 +31,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from './app';
+import { db } from './app';
 import { logAdminAction } from './auditLog';
 import type { DailyVerse, DailyVerseFormInput } from '../../types';
 
@@ -116,21 +115,4 @@ export async function deleteDailyVerse(id: string, reference: string): Promise<v
     documentId: id,
     changeSummary: `Deleted daily verse "${reference}"`,
   });
-}
-
-/**
- * Uploads a daily-verse image to Storage and returns its download URL.
- *
- * Works fully against the local Storage emulator today, at ₹0 -- same
- * documented Blaze-gated production limitation as
- * ./announcements.ts's uploadAnnouncementImage(): creating/deploying the
- * default Storage bucket requires the Blaze plan, which this project
- * deliberately does not attach. Nothing here needs to change once Blaze is
- * attached -- only the emulator toggle does.
- */
-export async function uploadDailyVerseImage(file: File): Promise<string> {
-  const path = `content/daily_verses/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }

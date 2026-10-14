@@ -3,15 +3,22 @@
  * Firebase Emulator Suite for development.
  *
  * Day 1 deferred this deliberately (see the "Day 1 note" in ./config.ts).
- * Now that the app actually needs to talk to Auth/Firestore/Storage, this
+ * Now that the app actually needs to talk to Auth/Firestore/Functions, this
  * module creates the real SDK instances.
+ *
+ * THERE IS NO FIREBASE STORAGE CLIENT HERE. Cloud Storage on this project
+ * would need the Blaze plan, which is intentionally not attached, so no
+ * admin screen uploads to it. Pictures and songs are uploaded to
+ * Cloudinary instead (see ../media/cloudinaryUpload.ts and
+ * docs/admin/MEDIA_UPLOADS.md) and only their https addresses are saved
+ * in Firestore.
  *
  * Local development uses the Firebase Emulator Suite exclusively (see
  * firebase.json's `emulators` block and ENVIRONMENT.md "Developing without
  * Blaze"): the dev Firebase project (bethaniya-ministries-dev-58588) stays
- * on the free Spark plan, and Cloud Storage / Cloud Functions on that
- * project require the Blaze plan, which is intentionally not attached.
- * Auth, Firestore, and Storage emulators run entirely on this machine and
+ * on the free Spark plan, and Cloud Functions on that project require the
+ * Blaze plan, which is intentionally not attached.
+ * The Auth and Firestore emulators run entirely on this machine and
  * never touch the real backend, regardless of the real project's billing
  * plan or whether .env.local has been filled in at all -- so this module
  * falls back to safe placeholder config values when real ones are absent,
@@ -23,7 +30,7 @@
  *
  * Toggle: VITE_USE_FIREBASE_EMULATORS (default: "true"). Set to "false"
  * only once this app is meant to talk to a real Firebase backend, which
- * requires real values in .env.local and, for Storage/Functions, a
+ * requires real values in .env.local and, for Functions, a
  * Blaze-upgraded project.
  */
 
@@ -34,11 +41,6 @@ import {
   connectFirestoreEmulator,
   getFirestore,
 } from 'firebase/firestore';
-import {
-  type FirebaseStorage,
-  connectStorageEmulator,
-  getStorage,
-} from 'firebase/storage';
 import {
   type Functions,
   connectFunctionsEmulator,
@@ -90,7 +92,6 @@ const existingApp = getApps()[0];
 export const firebaseApp: FirebaseApp = existingApp ?? initializeApp(config);
 export const auth: Auth = getAuth(firebaseApp);
 export const db: Firestore = getFirestore(firebaseApp);
-export const storage: FirebaseStorage = getStorage(firebaseApp);
 // Day 4: needed to call the logAdminAction callable (Day 3) from real admin
 // actions -- see services/firebase/auditLog.ts. Not used before Day 4.
 export const functions: Functions = getFunctions(firebaseApp);
@@ -98,7 +99,6 @@ export const functions: Functions = getFunctions(firebaseApp);
 if (useEmulators && !existingApp) {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
-  connectStorageEmulator(storage, 'localhost', 9199);
   connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 

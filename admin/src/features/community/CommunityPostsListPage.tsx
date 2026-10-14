@@ -32,7 +32,7 @@ import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
 import type { CommunityPost } from '../../types';
 
-/** Matches firestore.rules'/storage.rules' isContentAdminOrAbove() -- Host can read all posts but not write any. Gating these buttons is a UX convenience only; the rules are the real boundary. */
+/** Matches firestore.rules' isContentAdminOrAbove() -- Host can read all posts but not write any. Gating these buttons is a UX convenience only; the rules are the real boundary. */
 function canManageCommunityPosts(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }

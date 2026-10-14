@@ -1,18 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
-import {
-  createPlan,
-  updatePlan,
-  uploadPlanCoverImage,
-} from '../../services/firebase/plans';
+import { Alert, Button, TextField } from '@mui/material';
+import { createPlan, updatePlan } from '../../services/firebase/plans';
 import {
   hasValidationErrors,
   validatePlanCoverImage,
   validatePlanInput,
 } from './validation';
 import type { Plan } from '../../types';
-import { describeSaveFailure } from '../../services/firebase/storageErrors';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
 
 interface PlanFormProps {
   mode: 'create' | 'edit';
@@ -34,9 +33,10 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
   const [description, setDescription] = useState(plan?.description ?? '');
   const [category, setCategory] = useState(plan?.category ?? '');
   const [order, setOrder] = useState(String(plan?.order ?? 0));
-  const [coverImageUrl] = useState<string | null>(plan?.coverImageUrl ?? null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(
+    plan?.coverImageUrl ?? null
+  );
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     title?: string;
     description?: string;
@@ -45,47 +45,25 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setImageFile(null);
-      setImageError(null);
-      return;
-    }
-    const error = validatePlanCoverImage(file);
-    if (error) {
-      setImageError(error);
-      setImageFile(null);
-      return;
-    }
-    setImageError(null);
-    setImageFile(file);
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitError(null);
 
     const errors = validatePlanInput({ title, description, category });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || imageError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     const parsedOrder = Number.parseInt(order, 10);
     const resolvedOrder = Number.isFinite(parsedOrder) ? parsedOrder : 0;
 
     setSubmitting(true);
     try {
-      let resolvedCoverImageUrl = coverImageUrl;
-      if (imageFile) {
-        resolvedCoverImageUrl = await uploadPlanCoverImage(imageFile);
-      }
-
       if (mode === 'create') {
         await createPlan({
           title,
           description,
           category,
-          coverImageUrl: resolvedCoverImageUrl,
+          coverImageUrl,
           order: resolvedOrder,
         });
       } else if (plan) {
@@ -93,33 +71,28 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
           title,
           description,
           category,
-          coverImageUrl: resolvedCoverImageUrl,
+          coverImageUrl,
           order: resolvedOrder,
         });
       }
       navigate('/plans');
-    } catch (error) {
-      // A missing Cloud Storage bucket is permanent on this project, and
-      // the upload throws BEFORE the Firestore write -- so "saving failed,
-      // please try again" was wrong about what failed and invited a retry
-      // that cannot succeed. The image is optional, so clearing the
-      // selection lets the very next Save go through without one. See
-      // ../../services/firebase/storageErrors.ts.
-      const failure = describeSaveFailure(error);
-      if (failure.clearSelectedImage) {setImageFile(null);}
-      setSubmitError(failure.message);
+    } catch {
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Reading Plan' : 'Edit Reading Plan'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Reading Plan' : 'Edit Reading Plan'}
+        breadcrumbs={[
+          { label: 'Reading Plans', to: '/plans' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="plan-form-error">
             {submitError}
@@ -168,49 +141,30 @@ export function PlanForm({ mode, plan }: PlanFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'plan-order-input' } }}
         />
 
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Typography variant="body2" gutterBottom>
-            Cover image (optional)
-          </Typography>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            data-testid="plan-cover-image-input"
-          />
-          {imageError ? (
-            <Typography
-              variant="body2"
-              color="error"
-              data-testid="plan-cover-image-error"
-            >
-              {imageError}
-            </Typography>
-          ) : null}
-          {coverImageUrl && !imageFile ? (
-            <Typography variant="body2" color="text.secondary">
-              Current cover image is set. Choose a new file to replace it.
-            </Typography>
-          ) : null}
-        </Box>
+        <ImageField
+          label="Cover image (optional)"
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+          category="cover"
+          testIdPrefix="plan-cover-image"
+          validateFile={validatePlanCoverImage}
+          onBusyChange={setUploading}
+        />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="plan-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/plans')}
-          data-testid="plan-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting || uploading}
+            data-testid="plan-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button onClick={() => navigate('/plans')} data-testid="plan-form-cancel">
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

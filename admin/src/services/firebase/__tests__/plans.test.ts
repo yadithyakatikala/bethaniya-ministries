@@ -13,7 +13,7 @@ const { mockLogAdminAction, MockTimestamp } = vi.hoisted(() => {
   return { mockLogAdminAction: vi.fn(), MockTimestamp };
 });
 
-vi.mock('../app', () => ({ db: {}, storage: {} }));
+vi.mock('../app', () => ({ db: {} }));
 vi.mock('../auditLog', () => ({ logAdminAction: mockLogAdminAction }));
 
 vi.mock('firebase/firestore', () => ({
@@ -28,12 +28,6 @@ vi.mock('firebase/firestore', () => ({
   orderBy: vi.fn(),
   query: vi.fn((c) => c),
   serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
-}));
-
-vi.mock('firebase/storage', () => ({
-  ref: vi.fn((_storage, path) => ({ path })),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
 }));
 
 import { addDoc, deleteDoc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';

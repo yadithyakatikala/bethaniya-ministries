@@ -27,7 +27,7 @@ export interface Announcement {
   id: string;
   title: string;
   content: string;
-  /** Storage download URL, or null until an image is uploaded/if none is set. */
+  /** https address of the image, or null if none is set. */
   imageUrl: string | null;
   /** Controls visibility to members -- see firestore.rules' announcements read rule. */
   published: boolean;
@@ -67,7 +67,7 @@ export interface DailyVerse {
    * own Day 5 plan already treats "auto-fill if available, else placeholder"
    * as a fallback, not a requirement. */
   text: string;
-  /** Storage download URL, or null until an image is uploaded/if none is set. */
+  /** https address of the image, or null if none is set. */
   imageUrl: string | null;
   date: string;
   createdAt: Date | null;
@@ -89,19 +89,18 @@ export interface DailyVerseFormInput {
  * the same shape as Announcement, and firestore.rules' existing songs
  * rule already reflects that.
  *
- * `audioUrl` is always an external URL -- per storage.rules' own comment
- * ("no audio files in Storage; song audio is referenced by external URL")
- * this project deliberately does not upload or store audio in Firebase
- * Storage. It must be a direct link to a playable audio file or stream
+ * `audioUrl` is always an https address -- this project stores no audio in
+ * Firebase (Cloud Storage needs the Blaze plan). The admin form's
+ * <AudioField> uploads a file to Cloudinary, or takes a pasted link, and
+ * saves the address here. It must be a direct link to a playable audio file or stream
  * (e.g. .mp3/.m4a/.wav, or an HLS .m3u8 URL) -- expo-audio (the mobile
  * player, see mobile/src/features/songs/AudioPlayer.tsx) hands this URI
  * straight to the platform's native media player, which does not resolve
  * third-party webpages such as a YouTube watch page or a Spotify track
  * page into playable audio, so those are not valid values here even
  * though the spec's own sample-data note mentions them loosely.
- * `coverUrl` is the one Storage-backed field here, uploaded the same way
- * Announcement's/DailyVerse's imageUrl are (see
- * services/firebase/songs.ts's uploadSongCoverImage).
+ * `coverUrl` is likewise an https address, chosen in the form's
+ * <ImageField> like Announcement's/DailyVerse's imageUrl.
  */
 export interface Song {
   id: string;
@@ -110,7 +109,7 @@ export interface Song {
   category: string;
   lyrics: string;
   audioUrl: string;
-  /** Storage download URL, or null until a cover is uploaded/if none is set. */
+  /** https address of the cover image, or null if none is set. */
   coverUrl: string | null;
   /** Controls visibility to members -- see firestore.rules' songs read rule. */
   published: boolean;
@@ -179,7 +178,7 @@ export interface NotificationLogEntry {
   id: string;
   title: string;
   message: string;
-  /** Storage download URL, or null if no image was attached. */
+  /** https address of the image, or null if no image was attached. */
   imageUrl: string | null;
   recipientGroup: NotificationRecipientGroup;
   recipientCount: number;
@@ -354,7 +353,7 @@ export interface CommunityPost {
   id: string;
   title: string;
   content: string;
-  /** Storage download URL, or null until an image is uploaded/if none is set. */
+  /** https address of the image, or null if none is set. */
   imageUrl: string | null;
   /** Controls visibility to members -- see firestore.rules' community read rule. */
   published: boolean;
@@ -384,7 +383,7 @@ export interface Plan {
   title: string;
   description: string;
   category: string;
-  /** Storage download URL, or null until a cover is uploaded/if none is set. */
+  /** https address of the cover image, or null if none is set. */
   coverImageUrl: string | null;
   dayCount: number;
   order: number;

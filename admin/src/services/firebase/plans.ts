@@ -1,5 +1,5 @@
 /**
- * Firestore + Storage data layer for admin reading-plan management -- a
+ * Firestore data layer for admin reading-plan management -- a
  * new V1 feature added per explicit owner decision (see
  * ../../types/index.ts's Plan doc comment for provenance).
  *
@@ -30,8 +30,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from './app';
+import { db } from './app';
 import { logAdminAction } from './auditLog';
 import type { Plan, PlanDay, PlanDayFormInput, PlanFormInput } from '../../types';
 
@@ -155,14 +154,6 @@ export async function setPlanPublished(
     documentId: id,
     changeSummary: `${published ? 'Published' : 'Unpublished'} plan "${title}"`,
   });
-}
-
-/** Uploads a plan cover image to Storage. Same emulator-only-until-Blaze limitation as ./announcements.ts's uploadAnnouncementImage. */
-export async function uploadPlanCoverImage(file: File): Promise<string> {
-  const path = `content/plans/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }
 
 // ---- Plan days (subcollection) --------------------------------------------
