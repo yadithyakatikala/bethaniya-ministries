@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ProphetVerseForm } from '../ProphetVerseForm';
@@ -112,6 +112,42 @@ describe('creating', () => {
       published: false,
     });
     expect(navigate).toHaveBeenCalledWith('/prophet-verses');
+  });
+
+  it('fills the reference from the Bible, and saves it', async () => {
+    vi.mocked(service.createProphetVerse).mockResolvedValue('new-id');
+    renderForm({ mode: 'create' });
+
+    await userEvent.type(screen.getByTestId('prophet-verse-title-input'), 'A new word');
+    await userEvent.click(screen.getByTestId('prophet-verse-reference-input-choose'));
+    const dialog = screen.getByRole('dialog', { name: 'Choose a passage' });
+    await userEvent.click(within(dialog).getByRole('combobox', { name: /book/i }));
+    await userEvent.click(screen.getByRole('option', { name: 'Isaiah' }));
+    await userEvent.type(
+      within(dialog).getByTestId('prophet-verse-reference-input-picker-chapter'),
+      '43'
+    );
+    await userEvent.type(
+      within(dialog).getByTestId('prophet-verse-reference-input-picker-from'),
+      '19'
+    );
+    await userEvent.click(
+      within(dialog).getByTestId('prophet-verse-reference-input-picker-add')
+    );
+    expect(screen.getByTestId('prophet-verse-reference-input')).toHaveValue(
+      'Isaiah 43:19'
+    );
+    // The live preview reads the same value the field now holds.
+    expect(screen.getByTestId('prophet-verse-preview-reference')).toHaveTextContent(
+      'Isaiah 43:19'
+    );
+
+    await userEvent.type(screen.getByTestId('prophet-verse-text-input'), 'Behold.');
+    await userEvent.click(screen.getByTestId('prophet-verse-form-submit'));
+    await waitFor(() => expect(service.createProphetVerse).toHaveBeenCalled());
+    expect(vi.mocked(service.createProphetVerse).mock.calls[0]![0]).toMatchObject({
+      reference: 'Isaiah 43:19',
+    });
   });
 
   it('refuses to save without the words it would show', async () => {

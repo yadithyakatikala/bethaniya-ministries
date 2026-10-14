@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Chip, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { VOTD_TIMEZONE } from '../../../services/firebase/votd';
+import { SectionCard, ToneChip, type Tone } from '../../../components/ui';
+import { adminFonts } from '../../../theme/tokens';
 import { indiaDateKey, isDateKey } from '../votdDate';
 import {
   VOTD_SOURCE_LABELS,
@@ -29,16 +31,48 @@ import type { DailyVerse } from '../../../types';
  */
 const SOURCE_LABEL = VOTD_SOURCE_LABELS;
 
+/** A day set by hand is the strongest, the church's own list the brand gold, the built-in year the quietest. */
+const SOURCE_TONE: Record<VotdDaySource, Tone> = {
+  override: 'navy',
+  pool: 'gold',
+  year: 'outlined',
+};
+
 function SourceChip({ source }: { source: VotdDaySource }) {
   return (
-    <Chip
-      label={SOURCE_LABEL[source]}
-      size="small"
-      color={source === 'override' ? 'primary' : source === 'pool' ? 'success' : 'default'}
-      variant={source === 'year' ? 'outlined' : 'filled'}
-      sx={{ alignSelf: 'flex-start' }}
-      data-testid={`votd-source-${source}`}
-    />
+    <Box sx={{ alignSelf: 'flex-start' }}>
+      <ToneChip
+        tone={SOURCE_TONE[source]}
+        label={SOURCE_LABEL[source]}
+        testId={`votd-source-${source}`}
+      />
+    </Box>
+  );
+}
+
+/** The verse reference as a heading-sized line, in the serif the rest of the admin uses for titles. */
+function Reference({
+  children,
+  size,
+  testId,
+}: {
+  children: string;
+  size: 'large' | 'medium';
+  testId: string;
+}) {
+  return (
+    <Typography
+      component="p"
+      sx={{
+        fontFamily: adminFonts.heading,
+        fontWeight: 600,
+        lineHeight: 1.25,
+        fontSize: size === 'large' ? '1.75rem' : '1.375rem',
+      }}
+      data-testid={testId}
+    >
+      {children}
+    </Typography>
   );
 }
 
@@ -75,27 +109,30 @@ export function TodayPanel({
     [today, config, pool, overrideByDate]
   );
   const chosen = useMemo(
-    () => (isDateKey(dateKey) ? resolveVotdDay(dateKey, config, pool, overrideByDate) : null),
+    () =>
+      isDateKey(dateKey) ? resolveVotdDay(dateKey, config, pool, overrideByDate) : null,
     [dateKey, config, pool, overrideByDate]
   );
 
   return (
     <Stack spacing={3} data-testid="votd-today-panel">
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-          Today
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 14, mb: 2 }}>
-          {today} &middot; the day changes at midnight {VOTD_TIMEZONE.replace('_', ' ')}.
-        </Typography>
-
+      <SectionCard
+        title="Today"
+        accent
+        description={
+          <>
+            {today} &middot; the day changes at midnight {VOTD_TIMEZONE.replace('_', ' ')}
+            .
+          </>
+        }
+      >
         {todayDay ? (
           <Stack spacing={1}>
             <SourceChip source={todayDay.source} />
-            <Typography sx={{ fontSize: 24 }} data-testid="votd-today-reference">
+            <Reference size="large" testId="votd-today-reference">
               {todayDay.reference}
-            </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+            </Reference>
+            <Typography color="text.secondary" variant="body2">
               {explain(todayDay, config, prepared.length)}
             </Typography>
           </Stack>
@@ -105,22 +142,19 @@ export function TodayPanel({
           </Alert>
         )}
 
-        <Typography color="text.secondary" sx={{ fontSize: 13, mt: 2 }}>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 2 }}>
           {/* The one number a church actually asks for. */}
           {cycle.using === 'pool'
             ? `A verse comes round again after ${cycle.days} days — one for each verse your church has added.`
             : `A verse comes round again after ${cycle.days} days.`}
         </Typography>
-      </Paper>
+      </SectionCard>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }} data-testid="votd-preview-panel">
-        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-          Any other day
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 14, mb: 2 }}>
-          Exactly what the app will show, worked out with the same rules the app uses.
-        </Typography>
-
+      <SectionCard
+        title="Any other day"
+        description="Exactly what the app will show, worked out with the same rules the app uses."
+        testId="votd-preview-panel"
+      >
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={2}
@@ -153,10 +187,10 @@ export function TodayPanel({
           ) : (
             <Stack spacing={1}>
               <SourceChip source={chosen.source} />
-              <Typography sx={{ fontSize: 18 }} data-testid="votd-preview-reference">
+              <Reference size="medium" testId="votd-preview-reference">
                 {chosen.reference}
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+              </Reference>
+              <Typography color="text.secondary" variant="body2">
                 {explain(chosen, config, prepared.length)}
               </Typography>
               {chosen.source !== 'override' ? (
@@ -176,7 +210,7 @@ export function TodayPanel({
             </Stack>
           )}
         </Box>
-      </Paper>
+      </SectionCard>
     </Stack>
   );
 }

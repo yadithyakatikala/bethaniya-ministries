@@ -10,7 +10,7 @@ import EventNoteOutlined from '@mui/icons-material/EventNoteOutlined';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { adminColors, adminRadii } from '../../theme/tokens';
 import { DAY_LIMITS, dayHasErrors, type DayDraft } from './planDays';
-import { checkPassageList } from './passages';
+import { checkPassageList } from '../scripture/passages';
 
 /**
  * The plan's days, in order. A day's number is its place in this list --

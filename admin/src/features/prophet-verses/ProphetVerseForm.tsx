@@ -18,6 +18,8 @@ import { useNow } from './useNow';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { DateTimeField, FormActions, FormCard, PageContainer } from '../../components/ui';
 import { ImageField } from '../../components/media';
+import { adminColors, adminRadii } from '../../theme/tokens';
+import { ScriptureReferenceField } from '../scripture/ScriptureReferenceField';
 
 /**
  * Create / edit a Prophet Verse, with a live preview of what a member
@@ -149,15 +151,13 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-title-input' } }}
         />
 
-        <TextField
+        <ScriptureReferenceField
           label="Scripture reference"
-          fullWidth
-          margin="normal"
           value={reference}
-          onChange={(event) => setReference(event.target.value)}
+          onChange={setReference}
           error={Boolean(errors.reference)}
-          helperText={errors.reference ?? 'For example, Isaiah 43:19.'}
-          slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-reference-input' } }}
+          helperText={errors.reference ?? 'For example, Isaiah 43:19. Type it, or choose it from the Bible.'}
+          testId="prophet-verse-reference-input"
         />
 
         <TextField
@@ -280,7 +280,15 @@ export function ProphetVersePreview({
       <Typography variant="overline" color="text.secondary">
         Preview
       </Typography>
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3, mt: 1 }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: `${adminRadii.card}px`,
+          p: { xs: 2, sm: 2.5 },
+          mt: 1,
+          borderColor: adminColors.border,
+        }}
+      >
         {showImage ? (
           <Box
             component="img"
@@ -291,7 +299,7 @@ export function ProphetVersePreview({
               width: '100%',
               aspectRatio: '3 / 2',
               objectFit: 'cover',
-              borderRadius: 2,
+              borderRadius: `${adminRadii.control}px`,
               mb: 2,
               display: 'block',
             }}
@@ -305,8 +313,8 @@ export function ProphetVersePreview({
         </Typography>
         {reference.trim() ? (
           <Typography
-            color="primary"
-            sx={{ fontSize: 14, mb: 1 }}
+            variant="body2"
+            sx={{ color: adminColors.accent, fontWeight: 600, mb: 1 }}
             data-testid="prophet-verse-preview-reference"
           >
             {reference.trim()}
@@ -321,7 +329,8 @@ export function ProphetVersePreview({
         {attribution.trim() ? (
           <Typography
             color="text.secondary"
-            sx={{ fontSize: 13, mt: 1.5 }}
+            variant="body2"
+            sx={{ mt: 1.5 }}
             data-testid="prophet-verse-preview-attribution"
           >
             {attribution.trim()}

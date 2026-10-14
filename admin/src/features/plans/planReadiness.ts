@@ -15,7 +15,7 @@
  * description and a day; the rest is the dashboard's care for the people
  * reading it.
  */
-import { checkPassageList } from './passages';
+import { checkPassageList } from '../scripture/passages';
 import { DAY_LIMITS, dayHasReaderText, validateDay, type DayDraft } from './planDays';
 import {
   hasDetailErrors,

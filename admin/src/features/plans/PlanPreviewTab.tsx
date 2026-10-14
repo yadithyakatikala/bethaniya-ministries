@@ -3,7 +3,7 @@ import { Alert, Box, MenuItem, TextField, Typography } from '@mui/material';
 import BookOutlined from '@mui/icons-material/BookOutlined';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import { adminColors, adminRadii, adminFonts } from '../../theme/tokens';
-import { checkPassageList } from './passages';
+import { checkPassageList } from '../scripture/passages';
 import { languageLabel, type PlanDetailsForm } from './planDetails';
 import type { DayDraft } from './planDays';
 

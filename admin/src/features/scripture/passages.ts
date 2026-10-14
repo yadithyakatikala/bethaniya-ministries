@@ -40,6 +40,9 @@
  */
 import { BIBLE_STRUCTURE, verseCountFor } from '../daily-verses/bibleStructure';
 
+/** The two languages the app prints book names in. */
+export type ScriptureLanguage = 'en' | 'te';
+
 /** Where one passage starts and ends, and how it should be written. */
 export interface Passage {
   bookId: string;

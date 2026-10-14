@@ -99,7 +99,7 @@ describe('parsePlanReference', () => {
  * THE CROSS-PACKAGE GUARD.
  *
  * The admin dashboard validates a plan day's reading with its own parser
- * (admin/src/features/plans/passages.ts) and stores a canonical string; this
+ * (admin/src/features/scripture/passages.ts) and stores a canonical string; this
  * app opens the Bible from that string. The packages share no code, so a
  * reading the dashboard accepts but this app cannot open would be a Read
  * button that silently does nothing -- and neither suite alone could notice.

@@ -12,3 +12,6 @@ export { localTimeZoneName } from './timeZone';
 export { FormCard, FormSection, FormActions } from './FormCard';
 export { TableSkeleton } from './TableSkeleton';
 export { formatDate, formatDateTime, NO_DATE } from './formatDate';
+export { SectionCard } from './SectionCard';
+export { ToneChip } from './ToneChip';
+export type { Tone } from './ToneChip';

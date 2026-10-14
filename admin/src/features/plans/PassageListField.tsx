@@ -4,8 +4,8 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import MenuBookOutlined from '@mui/icons-material/MenuBookOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import type { PlanLanguage } from '../../types';
-import { checkPassageList, parsePassage } from './passages';
-import { PassagePicker } from './PassagePicker';
+import { checkPassageList, parsePassage } from '../scripture/passages';
+import { PassagePicker } from '../scripture/PassagePicker';
 
 /**
  * The passages of one day: one box per passage, each checked as it is typed

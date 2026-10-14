@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import { theme } from '../../../theme/theme';
 import { AdminPageHeader } from '../../AdminPageHeader';
 import { AdminEmptyState } from '../../AdminEmptyState';
@@ -14,12 +15,15 @@ import {
   FormCard,
   FormSection,
   PageContainer,
+  SectionCard,
   StatusChip,
   TableSkeleton,
   ToastProvider,
+  ToneChip,
   useToast,
   STATUS_LABELS,
   type PublicationStatus,
+  type Tone,
 } from '..';
 
 function renderThemed(ui: React.ReactElement) {
@@ -72,6 +76,105 @@ describe('StatusChip', () => {
     );
     expect(screen.getByTestId('c')).toHaveTextContent('Scheduled · Sun 9:00');
     expect(screen.getByTestId('c')).toHaveAttribute('data-status', 'scheduled');
+  });
+});
+
+describe('ToneChip', () => {
+  const tones: Tone[] = [
+    'neutral',
+    'navy',
+    'navyTint',
+    'gold',
+    'success',
+    'warning',
+    'danger',
+    'info',
+    'archived',
+    'outlined',
+  ];
+
+  it.each(tones)('says its word in the %s tone', (tone) => {
+    renderThemed(<ToneChip tone={tone} label="In rotation" testId="chip" />);
+    expect(screen.getByTestId('chip')).toHaveTextContent('In rotation');
+    expect(screen.getByTestId('chip')).toHaveAttribute('data-tone', tone);
+  });
+
+  it('gives every tone its own look, so choosing one is a real choice', () => {
+    const looks = new Set<string>();
+    for (const tone of tones) {
+      const { unmount } = renderThemed(<ToneChip tone={tone} label="x" testId="chip" />);
+      const style = getComputedStyle(screen.getByTestId('chip'));
+      looks.add(`${style.color}|${style.backgroundColor}`);
+      unmount();
+    }
+    expect(looks.size).toBe(tones.length);
+  });
+
+  it('hides its icon from a screen reader so the word is heard once, and passes data attributes on', () => {
+    renderThemed(
+      <ToneChip
+        tone="warning"
+        label="Open"
+        Icon={CheckCircleOutlined}
+        testId="chip"
+        data={{ status: 'open' }}
+      />
+    );
+    expect(screen.getByTestId('chip').querySelector('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
+    expect(screen.getByTestId('chip')).toHaveAttribute('data-status', 'open');
+  });
+});
+
+describe('SectionCard', () => {
+  it('is a labelled region named by its heading', () => {
+    renderThemed(
+      <SectionCard title="Today" testId="card">
+        <p>Philippians 3:14</p>
+      </SectionCard>
+    );
+    const region = screen.getByRole('region', { name: 'Today' });
+    expect(region).toBe(screen.getByTestId('card'));
+    expect(screen.getByRole('heading', { level: 2, name: 'Today' })).toBeInTheDocument();
+    expect(region).toHaveTextContent('Philippians 3:14');
+  });
+
+  it('works without a test id, and two cards on one page keep their own names', () => {
+    renderThemed(
+      <>
+        <SectionCard title="One" />
+        <SectionCard title="Two" />
+      </>
+    );
+    expect(screen.getByRole('region', { name: 'One' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Two' })).toBeInTheDocument();
+  });
+
+  it('puts a sentence under the heading, a link and an action beside it', () => {
+    renderThemed(
+      <SectionCard
+        title="Reading plans"
+        description="Every plan, by status."
+        link={{ to: '/plans', label: 'All plans' }}
+        action={<button type="button">Refresh</button>}
+      />
+    );
+    expect(screen.getByText('Every plan, by status.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All plans' })).toHaveAttribute('href', '/plans');
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+  });
+
+  it('marks the one card that answers the page\'s question with a gold bar, and no other', () => {
+    renderThemed(
+      <>
+        <SectionCard title="Plain" testId="plain" />
+        <SectionCard title="Showing now" testId="accented" accent />
+      </>
+    );
+    expect(getComputedStyle(screen.getByTestId('accented')).borderLeftWidth).toBe('4px');
+    expect(getComputedStyle(screen.getByTestId('plain')).borderLeftWidth).not.toBe('4px');
   });
 });
 

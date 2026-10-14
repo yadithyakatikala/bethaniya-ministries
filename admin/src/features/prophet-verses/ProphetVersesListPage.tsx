@@ -2,15 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
+  Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   IconButton,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -35,11 +34,13 @@ import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
 import {
   PageContainer,
+  SectionCard,
   StatusChip,
   TableSkeleton,
+  ToneChip,
   formatDateTime,
 } from '../../components/ui';
-import { adminColors, adminFonts, adminRadii } from '../../theme/tokens';
+import { adminFonts } from '../../theme/tokens';
 import { currentProphetVerseId, stateOf } from './state';
 import { useNow } from './useNow';
 
@@ -169,60 +170,50 @@ export function ProphetVersesListPage() {
 
       {/* THE ANSWER FIRST. Only one shows at a time, and which one is
           not obvious from a list of dates. */}
-      <Paper
-        variant="outlined"
-        sx={{
-          borderRadius: `${adminRadii.card}px`,
-          p: { xs: 2.5, sm: 3 },
-          mb: 3,
-          borderLeft: `4px solid ${adminColors.goldBase}`,
-        }}
-        data-testid="prophet-verse-now-panel"
-      >
-        <Typography variant="h5" component="h2" sx={{ mb: 1 }}>
-          On the home screen now
-        </Typography>
-        {!verses ? (
-          <Typography color="text.secondary" variant="body2">
-            Checking&hellip;
-          </Typography>
-        ) : current ? (
-          <>
+      <Box sx={{ mb: 3 }}>
+        <SectionCard title="On the home screen now" accent testId="prophet-verse-now-panel">
+          {!verses ? (
+            <Typography color="text.secondary" variant="body2">
+              Checking&hellip;
+            </Typography>
+          ) : current ? (
+            <>
+              <Typography
+                sx={{
+                  fontFamily: adminFonts.heading,
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  overflowWrap: 'anywhere',
+                }}
+                data-testid="prophet-verse-now-title"
+              >
+                {current.title}
+              </Typography>
+              <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+                {current.reference} &middot; showing since{' '}
+                {formatDateTime(current.publishAt)}
+              </Typography>
+            </>
+          ) : (
             <Typography
-              sx={{
-                fontFamily: adminFonts.heading,
-                fontSize: '1.25rem',
-                fontWeight: 600,
-                lineHeight: 1.3,
-                overflowWrap: 'break-word',
-              }}
-              data-testid="prophet-verse-now-title"
+              color="text.secondary"
+              variant="body2"
+              data-testid="prophet-verse-now-none"
             >
-              {current.title}
+              Nothing. The app simply leaves this section out until something is
+              published and due &mdash; members are not shown an empty box.
             </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-              {current.reference} &middot; showing since{' '}
-              {formatDateTime(current.publishAt)}
+          )}
+          {scheduledCount > 0 ? (
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 1.5 }}>
+              {scheduledCount === 1
+                ? '1 more is scheduled and will take over when its time comes.'
+                : `${scheduledCount} more are scheduled; the latest one due takes over.`}
             </Typography>
-          </>
-        ) : (
-          <Typography
-            color="text.secondary"
-            variant="body2"
-            data-testid="prophet-verse-now-none"
-          >
-            Nothing. The app simply leaves this section out until something is published
-            and due &mdash; members are not shown an empty box.
-          </Typography>
-        )}
-        {scheduledCount > 0 ? (
-          <Typography color="text.secondary" variant="body2" sx={{ mt: 1.5 }}>
-            {scheduledCount === 1
-              ? '1 more is scheduled and will take over when its time comes.'
-              : `${scheduledCount} more are scheduled; the latest one due takes over.`}
-          </Typography>
-        ) : null}
-      </Paper>
+          ) : null}
+        </SectionCard>
+      </Box>
 
       {error ? (
         <Alert severity="error" data-testid="prophet-verses-error">
@@ -286,13 +277,13 @@ export function ProphetVersesListPage() {
                         />
                         {verse.id === currentId ? (
                           <Tooltip title="Only one prophet verse shows at a time: the most recently scheduled one that is due.">
-                            <Chip
-                              size="small"
-                              color="primary"
-                              label="Showing now"
-                              sx={{ ml: 1 }}
-                              data-testid={`prophet-verse-current-${verse.id}`}
-                            />
+                            <Box component="span" sx={{ ml: 1, display: 'inline-block' }}>
+                              <ToneChip
+                                tone="navy"
+                                label="Showing now"
+                                testId={`prophet-verse-current-${verse.id}`}
+                              />
+                            </Box>
                           </Tooltip>
                         ) : null}
                       </TableCell>

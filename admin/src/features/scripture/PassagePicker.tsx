@@ -8,20 +8,29 @@ import {
   DialogTitle,
   MenuItem,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import type { PlanLanguage } from '../../types';
 import { BIBLE_STRUCTURE } from '../daily-verses/bibleStructure';
-import { parsePassage } from './passages';
+import { parsePassage, type ScriptureLanguage } from './passages';
 
 /**
  * Choose a passage instead of typing it: a book, a chapter, and optionally
  * a first and last verse. The result is checked by the same parser as typed
- * text, so what the picker offers to add is always a reading that exists
- * and that the app can open.
+ * text, so what the picker offers is always a reading that exists and that
+ * the app can open.
  *
- * A Telugu plan lists the books by their Telugu names, so the reference it
- * writes keeps them.
+ * It knows nothing about what the passage is FOR. A reading-plan day, a
+ * Verse of the Day and a Prophet verse all use it, and each keeps what comes
+ * back in its own shape; the picker only ever hands back a written
+ * reference. That is what lets three features share it without sharing a
+ * model.
+ *
+ * `language` fixes the language of the book names -- a Telugu plan lists the
+ * books in Telugu and the reference it writes keeps them. Where the caller
+ * has no language of its own (a verse typed by a pastor), leave it out and
+ * the dialog offers the choice.
  */
 export function PassagePicker({
   open,
@@ -29,21 +38,28 @@ export function PassagePicker({
   onClose,
   onPick,
   testIdPrefix,
+  title = 'Choose a passage',
+  confirmLabel = 'Add passage',
 }: {
   open: boolean;
-  language: PlanLanguage;
+  language?: ScriptureLanguage;
   onClose: () => void;
   /** Receives the passage in its canonical written form. */
   onPick: (passage: string) => void;
   testIdPrefix: string;
+  title?: string;
+  /** The label of the button that takes the passage. */
+  confirmLabel?: string;
 }) {
+  const [chosenLanguage, setChosenLanguage] = useState<ScriptureLanguage>('en');
+  const bookLanguage = language ?? chosenLanguage;
   const [bookId, setBookId] = useState('');
   const [chapter, setChapter] = useState('');
   const [fromVerse, setFromVerse] = useState('');
   const [toVerse, setToVerse] = useState('');
 
   const book = BIBLE_STRUCTURE.find((entry) => entry.id === bookId);
-  const bookName = book ? (language === 'te' ? book.nameTe : book.name) : '';
+  const bookName = book ? (bookLanguage === 'te' ? book.nameTe : book.name) : '';
 
   const result = useMemo(() => {
     if (!book) return null;
@@ -88,12 +104,35 @@ export function PassagePicker({
       maxWidth="xs"
       aria-labelledby={`${testIdPrefix}-title`}
     >
-      <DialogTitle id={`${testIdPrefix}-title`}>Choose a passage</DialogTitle>
+      <DialogTitle id={`${testIdPrefix}-title`}>{title}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Pick a book and chapter. Add verses to read part of a chapter, or leave them
           empty for the whole chapter.
         </Typography>
+        {language === undefined ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5 }}>
+            <Typography variant="body2" id={`${testIdPrefix}-language-label`}>
+              Book names in
+            </Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={chosenLanguage}
+              aria-labelledby={`${testIdPrefix}-language-label`}
+              onChange={(_event, next: ScriptureLanguage | null) => {
+                if (next) setChosenLanguage(next);
+              }}
+            >
+              <ToggleButton value="en" data-testid={`${testIdPrefix}-language-en`}>
+                English
+              </ToggleButton>
+              <ToggleButton value="te" data-testid={`${testIdPrefix}-language-te`}>
+                తెలుగు
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        ) : null}
         <TextField
           select
           label="Book"
@@ -110,7 +149,7 @@ export function PassagePicker({
         >
           {BIBLE_STRUCTURE.map((entry) => (
             <MenuItem key={entry.id} value={entry.id}>
-              {language === 'te' ? entry.nameTe : entry.name}
+              {bookLanguage === 'te' ? entry.nameTe : entry.name}
             </MenuItem>
           ))}
         </TextField>
@@ -192,7 +231,7 @@ export function PassagePicker({
           onClick={add}
           data-testid={`${testIdPrefix}-add`}
         >
-          Add passage
+          {confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

@@ -12,6 +12,7 @@ import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { FormActions, FormCard, PageContainer } from '../../components/ui';
 import { ImageField } from '../../components/media';
+import { ScriptureReferenceField } from '../scripture/ScriptureReferenceField';
 
 interface DailyVerseFormProps {
   mode: 'create' | 'edit';
@@ -28,10 +29,12 @@ interface DailyVerseFormProps {
  * types the verse text directly, matching the spec's own documented
  * fallback ("else placeholder").
  *
- * The reference field is a plain text input, not a picker -- no Bible
- * source exists yet to populate a reference picker from either, and the
- * spec's Day 5 "Work" list doesn't require one beyond "selector" in the
- * loose sense of "the field where you enter the reference".
+ * The reference stays a text field, so anything already saved there stays
+ * editable as written. Beside it is a "Choose from the Bible" button that
+ * fills it with a reference checked against the 66 books and the real verse
+ * count of every chapter (../scripture/ScriptureReferenceField.tsx). The
+ * verse TEXT is still typed by hand: there is no Bible source in the admin
+ * to fill it from.
  */
 export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
   const navigate = useNavigate();
@@ -94,16 +97,14 @@ export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
           </Alert>
         ) : null}
 
-        <TextField
+        <ScriptureReferenceField
           label="Scripture Reference"
           placeholder="e.g. John 3:16"
-          fullWidth
-          margin="normal"
           value={reference}
-          onChange={(e) => setReference(e.target.value)}
+          onChange={setReference}
           error={Boolean(fieldErrors.reference)}
           helperText={fieldErrors.reference}
-          slotProps={{ htmlInput: { 'data-testid': 'daily-verse-reference-input' } }}
+          testId="daily-verse-reference-input"
         />
         <TextField
           label="Verse Text"

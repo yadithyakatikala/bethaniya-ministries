@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Chip,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -14,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { AdminTableCard } from '../../../components/AdminTableCard';
+import { SectionCard, ToneChip } from '../../../components/ui';
 import { indiaDateKey } from '../votdDate';
 import { prepareVersePool, type VersePoolEntry, type VotdConfig } from '../votdSelection';
 import { resolveVotdSchedule, votdCycle, type VotdDaySource } from '../votdStatus';
@@ -87,19 +86,18 @@ export function SchedulePanel({
 
   return (
     <Stack spacing={2} data-testid="votd-schedule-panel">
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-          The {cycle.days}-day schedule
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-          {cycle.using === 'year'
+      <SectionCard
+        title={`The ${cycle.days}-day schedule`}
+        description={
+          cycle.using === 'year'
             ? 'The app carries a year of 365 verses and works out each day’s verse from the date. Nothing has to be created for a day, ever — not by you and not by anyone else.'
-            : `Your church’s ${cycle.days} verses, in the order they will come up. Each one appears once before any of them repeats, so the cycle lasts ${cycle.days} days.`}
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 13, mt: 1 }}>
+            : `Your church’s ${cycle.days} verses, in the order they will come up. Each one appears once before any of them repeats, so the cycle lasts ${cycle.days} days.`
+        }
+      >
+        <Typography color="text.secondary" variant="body2">
           Starting today, {today}. A day set by hand appears here too, in its place.
         </Typography>
-      </Paper>
+      </SectionCard>
 
       <AdminTableCard>
         <TableContainer>
@@ -120,12 +118,10 @@ export function SchedulePanel({
                   <TableCell>{day.reference}</TableCell>
                   <TableCell>
                     {/* Named, never a colour alone. */}
-                    <Chip
-                      size="small"
-                      variant={day.source === 'override' ? 'filled' : 'outlined'}
-                      color={day.source === 'override' ? 'primary' : 'default'}
+                    <ToneChip
+                      tone={day.source === 'override' ? 'navy' : 'outlined'}
                       label={SOURCE_LABEL[day.source]}
-                      data-testid={`votd-schedule-source-${day.dateKey}`}
+                      testId={`votd-schedule-source-${day.dateKey}`}
                     />
                   </TableCell>
                 </TableRow>
@@ -144,7 +140,7 @@ export function SchedulePanel({
             Show more days
           </Button>
         ) : null}
-        <Typography color="text.secondary" sx={{ fontSize: 13, mt: 0.5 }}>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
           Showing {schedule.length} days
           {days >= MAX_DAYS ? ' — a full year.' : '.'}
           {schedule.length >= cycle.days

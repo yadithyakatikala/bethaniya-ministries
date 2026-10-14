@@ -14,7 +14,7 @@
  * have completed.)
  */
 import type { PlanDay } from '../../types';
-import { checkPassageList, splitPassages } from './passages';
+import { checkPassageList, splitPassages } from '../scripture/passages';
 
 /** Mirrors firestore.rules' isValidPlanDay(), and the longest plan the editor offers. */
 export const DAY_LIMITS = {

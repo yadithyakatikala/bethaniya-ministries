@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, Link, Paper, Skeleton, Typography } from '@mui/material';
+import { Box, Button, Paper, Skeleton, Typography } from '@mui/material';
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
 import { adminColors, adminFonts, adminRadii } from '../../theme/tokens';
 import {
@@ -11,63 +10,6 @@ import {
   type QuickAction,
   type Tile,
 } from './dashboardModel';
-
-/**
- * A titled block of the dashboard: a white card on the ivory ground, a
- * serif heading, and optionally one link to where the whole list lives.
- */
-export function Panel({
-  title,
-  testId,
-  link,
-  children,
-}: {
-  title: string;
-  testId: string;
-  /** Where "see all" goes. */
-  link?: { to: string; label: string };
-  children: ReactNode;
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      component="section"
-      aria-labelledby={`${testId}-title`}
-      data-testid={testId}
-      sx={{
-        p: { xs: 2, sm: 2.5 },
-        borderRadius: `${adminRadii.card}px`,
-        bgcolor: adminColors.surface,
-        borderColor: adminColors.border,
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 2,
-          mb: 1.5,
-        }}
-      >
-        <Typography id={`${testId}-title`} variant="h5" component="h2">
-          {title}
-        </Typography>
-        {link ? (
-          <Link
-            component={RouterLink}
-            to={link.to}
-            underline="hover"
-            sx={{ fontSize: '0.875rem', fontWeight: 500, whiteSpace: 'nowrap' }}
-          >
-            {link.label}
-          </Link>
-        ) : null}
-      </Box>
-      {children}
-    </Paper>
-  );
-}
 
 /** A figure that is a count of real documents, linked to the page that holds them. */
 export function StatTile({ tile }: { tile: Tile }) {

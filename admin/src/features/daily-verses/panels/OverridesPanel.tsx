@@ -2,31 +2,28 @@ import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
-  Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   IconButton,
-  Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import { deleteDailyVerse } from '../../../services/firebase/dailyVerses';
 import { useAuthStore } from '../../../store/authStore';
 import { AdminEmptyState } from '../../../components/AdminEmptyState';
 import { AdminTableCard } from '../../../components/AdminTableCard';
+import { SectionCard, TableSkeleton } from '../../../components/ui';
 import type { DailyVerse } from '../../../types';
 
 /**
@@ -85,38 +82,25 @@ export function OverridesPanel({
   }
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{ borderRadius: 3, p: 3 }}
-      data-testid="daily-verses-list-page"
-    >
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1.5, mb: 2 }}
-      >
-        <Box>
-          <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-            Days you set by hand
-          </Typography>
-          <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-            For a Sunday with a particular verse, or a verse in your own words. A day set
-            here is what the church sees on that day, whatever the rotation would have
-            chosen. Every other day looks after itself.
-          </Typography>
-        </Box>
-        {canManage ? (
+    <SectionCard
+      title="Days you set by hand"
+      testId="daily-verses-list-page"
+      description="For a Sunday with a particular verse, or a verse in your own words. A day set here is what the church sees on that day, whatever the rotation would have chosen. Every other day looks after itself."
+      action={
+        canManage ? (
           <Button
             variant="contained"
             component={RouterLink}
             to="/daily-verses/new"
+            startIcon={<AddOutlined />}
             sx={{ flexShrink: 0 }}
             data-testid="new-daily-verse-button"
           >
             Set a day by hand
           </Button>
-        ) : null}
-      </Stack>
-
+        ) : undefined
+      }
+    >
       {error ? (
         <Alert severity="error" data-testid="daily-verses-error">
           {error}
@@ -124,14 +108,13 @@ export function OverridesPanel({
       ) : null}
 
       {!verses && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="daily-verses-loading" />
-        </Box>
+        <TableSkeleton rows={3} testId="daily-verses-loading" label="Loading daily verses" />
       ) : null}
 
       {verses && verses.length === 0 ? (
         <AdminEmptyState
-          message="No days set by hand. The app is choosing every day on its own, which is how it is meant to work."
+          title="No days set by hand"
+          message="The app is choosing every day on its own, which is how it is meant to work."
           testId="daily-verses-empty"
         />
       ) : null}
@@ -160,7 +143,7 @@ export function OverridesPanel({
                           aria-label="Edit"
                           data-testid={`edit-daily-verse-${verse.id}`}
                         >
-                          <EditIcon fontSize="small" />
+                          <EditOutlined fontSize="small" />
                         </IconButton>
                         <IconButton
                           aria-label="Delete"
@@ -168,7 +151,7 @@ export function OverridesPanel({
                           disabled={busyId === verse.id}
                           data-testid={`delete-daily-verse-${verse.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -200,6 +183,6 @@ export function OverridesPanel({
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </SectionCard>
   );
 }

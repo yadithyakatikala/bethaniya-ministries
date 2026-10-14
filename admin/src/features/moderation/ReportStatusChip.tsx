@@ -1,10 +1,9 @@
 import type { ComponentType } from 'react';
-import { Chip } from '@mui/material';
 import type { SvgIconProps } from '@mui/material/SvgIcon';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import DoNotDisturbOnOutlined from '@mui/icons-material/DoNotDisturbOnOutlined';
 import FlagOutlined from '@mui/icons-material/FlagOutlined';
-import { adminColors } from '../../theme/tokens';
+import { ToneChip, type Tone } from '../../components/ui';
 import type { ReportStatus } from '../../services/firebase/reports';
 
 /**
@@ -19,26 +18,11 @@ import type { ReportStatus } from '../../services/firebase/reports';
  */
 const REPORT_STATUS: Record<
   ReportStatus,
-  { label: string; fg: string; bg: string; Icon: ComponentType<SvgIconProps> }
+  { label: string; tone: Tone; Icon: ComponentType<SvgIconProps> }
 > = {
-  open: {
-    label: 'Open',
-    fg: adminColors.warning,
-    bg: adminColors.warningTint,
-    Icon: FlagOutlined,
-  },
-  resolved: {
-    label: 'Resolved',
-    fg: adminColors.success,
-    bg: adminColors.successTint,
-    Icon: CheckCircleOutlined,
-  },
-  dismissed: {
-    label: 'Dismissed',
-    fg: adminColors.archived,
-    bg: adminColors.archivedTint,
-    Icon: DoNotDisturbOnOutlined,
-  },
+  open: { label: 'Open', tone: 'warning', Icon: FlagOutlined },
+  resolved: { label: 'Resolved', tone: 'success', Icon: CheckCircleOutlined },
+  dismissed: { label: 'Dismissed', tone: 'archived', Icon: DoNotDisturbOnOutlined },
 };
 
 export function ReportStatusChip({
@@ -48,15 +32,10 @@ export function ReportStatusChip({
   status: ReportStatus;
   testId?: string;
 }) {
-  const { label, fg, bg, Icon } = REPORT_STATUS[status] ?? REPORT_STATUS.open;
+  // A report written by hand can carry any status string; an unknown one is
+  // shown as open, which is the safe reading (it still asks for a decision).
+  const { label, tone, Icon } = REPORT_STATUS[status] ?? REPORT_STATUS.open;
   return (
-    <Chip
-      size="small"
-      data-testid={testId}
-      data-status={status}
-      icon={<Icon aria-hidden fontSize="small" />}
-      label={label}
-      sx={{ bgcolor: bg, color: fg, '& .MuiChip-icon': { color: fg, fontSize: 16 } }}
-    />
+    <ToneChip tone={tone} label={label} Icon={Icon} testId={testId} data={{ status }} />
   );
 }

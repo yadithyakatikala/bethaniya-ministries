@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { DailyVerseForm } from '../DailyVerseForm';
@@ -86,6 +86,53 @@ describe('DailyVerseForm', () => {
         imageUrl: null,
         date: '2026-09-07',
       })
+    );
+  });
+
+  it('fills the reference from the Bible when a passage is chosen, and saves what was chosen', async () => {
+    vi.mocked(dailyVersesService.createDailyVerse).mockResolvedValue('new-id');
+    renderForm({ mode: 'create' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByTestId('daily-verse-reference-input-choose'));
+    const dialog = screen.getByRole('dialog', { name: 'Choose a passage' });
+    await user.click(within(dialog).getByRole('combobox', { name: /book/i }));
+    await user.click(screen.getByRole('option', { name: 'John' }));
+    await user.type(within(dialog).getByTestId('daily-verse-reference-input-picker-chapter'), '3');
+    await user.type(within(dialog).getByTestId('daily-verse-reference-input-picker-from'), '16');
+    await user.click(within(dialog).getByTestId('daily-verse-reference-input-picker-add'));
+    expect(screen.getByTestId('daily-verse-reference-input')).toHaveValue('John 3:16');
+
+    await user.type(screen.getByTestId('daily-verse-text-input'), 'For God so loved...');
+    fireEvent.change(screen.getByTestId('daily-verse-date-input'), {
+      target: { value: '2026-09-07' },
+    });
+    await user.click(screen.getByTestId('daily-verse-form-submit'));
+    await waitFor(() =>
+      expect(dailyVersesService.createDailyVerse).toHaveBeenCalledWith({
+        reference: 'John 3:16',
+        text: 'For God so loved...',
+        imageUrl: null,
+        date: '2026-09-07',
+      })
+    );
+  });
+
+  it('still takes a reference typed in any form, exactly as before', async () => {
+    vi.mocked(dailyVersesService.createDailyVerse).mockResolvedValue('new-id');
+    renderForm({ mode: 'create' });
+    const user = userEvent.setup();
+    // Not a reference the picker would write -- and not one the form refuses.
+    await user.type(screen.getByTestId('daily-verse-reference-input'), 'Jn 3:16 (NIV)');
+    await user.type(screen.getByTestId('daily-verse-text-input'), 'Text');
+    fireEvent.change(screen.getByTestId('daily-verse-date-input'), {
+      target: { value: '2026-09-07' },
+    });
+    await user.click(screen.getByTestId('daily-verse-form-submit'));
+    await waitFor(() =>
+      expect(dailyVersesService.createDailyVerse).toHaveBeenCalledWith(
+        expect.objectContaining({ reference: 'Jn 3:16 (NIV)' })
+      )
     );
   });
 

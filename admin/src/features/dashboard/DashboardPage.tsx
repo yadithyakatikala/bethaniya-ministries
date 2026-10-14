@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Alert, Box, Button, Chip, Typography } from '@mui/material';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
-import { PageContainer } from '../../components/ui';
+import { PageContainer, SectionCard } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { ROLE_LABELS, type UserRole } from '../../types';
 import { adminColors, adminFonts, adminRadii } from '../../theme/tokens';
@@ -14,13 +14,7 @@ import {
 } from '../daily-verses/votdStatus';
 import { currentProphetVerseId } from '../prophet-verses/state';
 import { useNow } from '../prophet-verses/useNow';
-import {
-  ItemList,
-  Panel,
-  PanelSkeleton,
-  QuickActionList,
-  StatTile,
-} from './DashboardSections';
+import { ItemList, PanelSkeleton, QuickActionList, StatTile } from './DashboardSections';
 import {
   buildItems,
   buildTiles,
@@ -217,7 +211,7 @@ export function DashboardPage() {
         }}
       >
         <Box sx={{ display: 'grid', gap: 3, minWidth: 0 }}>
-          <Panel title="Needs attention" testId="dashboard-attention">
+          <SectionCard title="Needs attention" testId="dashboard-attention">
             {loaded ? (
               <ItemList
                 items={attention}
@@ -231,9 +225,9 @@ export function DashboardPage() {
             ) : (
               <PanelSkeleton label="Loading drafts" />
             )}
-          </Panel>
+          </SectionCard>
 
-          <Panel title="Coming up" testId="dashboard-upcoming">
+          <SectionCard title="Coming up" testId="dashboard-upcoming">
             {loaded ? (
               <ItemList
                 items={upcoming}
@@ -247,9 +241,9 @@ export function DashboardPage() {
             ) : (
               <PanelSkeleton label="Loading scheduled items" />
             )}
-          </Panel>
+          </SectionCard>
 
-          <Panel title="Recently updated" testId="dashboard-recent">
+          <SectionCard title="Recently updated" testId="dashboard-recent">
             {loaded ? (
               <ItemList
                 items={recent}
@@ -263,17 +257,17 @@ export function DashboardPage() {
             ) : (
               <PanelSkeleton label="Loading published items" />
             )}
-          </Panel>
+          </SectionCard>
         </Box>
 
         <Box sx={{ display: 'grid', gap: 3, minWidth: 0 }}>
           {actions.length > 0 ? (
-            <Panel title="Quick actions" testId="dashboard-quick-actions">
+            <SectionCard title="Quick actions" testId="dashboard-quick-actions">
               <QuickActionList actions={actions} />
-            </Panel>
+            </SectionCard>
           ) : null}
 
-          <Panel
+          <SectionCard
             title="Today’s verse"
             testId="dashboard-verse"
             link={{ to: '/daily-verses', label: 'Open' }}
@@ -306,9 +300,9 @@ export function DashboardPage() {
             ) : (
               <PanelSkeleton label="Loading today’s verse" />
             )}
-          </Panel>
+          </SectionCard>
 
-          <Panel
+          <SectionCard
             title="Prophet verse"
             testId="dashboard-prophet"
             link={{ to: '/prophet-verses', label: 'Open' }}
@@ -336,9 +330,9 @@ export function DashboardPage() {
                 No Prophet verse is showing.
               </Typography>
             )}
-          </Panel>
+          </SectionCard>
 
-          <Panel
+          <SectionCard
             title="Reading plans"
             testId="dashboard-plans"
             link={{ to: '/plans', label: 'All plans' }}
@@ -366,9 +360,9 @@ export function DashboardPage() {
                 />
               </>
             )}
-          </Panel>
+          </SectionCard>
 
-          <Panel
+          <SectionCard
             title="Last notification"
             testId="dashboard-notification"
             link={{ to: '/notifications', label: 'Notifications' }}
@@ -399,7 +393,7 @@ export function DashboardPage() {
                 No notifications sent yet.
               </Typography>
             )}
-          </Panel>
+          </SectionCard>
         </Box>
       </Box>
     </PageContainer>
