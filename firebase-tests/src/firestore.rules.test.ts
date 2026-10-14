@@ -1846,6 +1846,21 @@ describe('firestore.rules', () => {
         expect(result.docs.map((d) => d.id)).toEqual(['live', 'legacy']);
       });
 
+      it('returns the published plans with no ordering, so a plan that has no `order` is not lost', async () => {
+        // This is the library query the phone runs: it sorts for itself, because
+        // asking Firestore to order by a field leaves out every document without it
+        // (a plan from before the manager, or one the starter-plan script wrote).
+        await seedLibrary();
+        await seed(async (db) => {
+          const { order: _order, ...withoutOrder } = LEGACY_PUBLISHED;
+          await db.doc('plans/unordered').set(withoutOrder);
+        });
+        const result = await assertSucceeds(
+          dbFor('member-1').collection('plans').where('published', '==', true).get()
+        );
+        expect(result.docs.map((d) => d.id).sort()).toEqual(['legacy', 'live', 'unordered']);
+      });
+
       it('returns the scheduled plans whose time has come, and only those', async () => {
         await seedLibrary();
         const bound = new Date(Date.now() - 60 * 1000);

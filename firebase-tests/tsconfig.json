@@ -9,5 +9,13 @@
     "resolveJsonModule": true,
     "types": ["jest", "node"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // plans-end-to-end.test.ts loads the admin site's and the phone's own service
+  // modules, and the type graph behind them reaches their app.ts files, which
+  // are written for Vite (import.meta.env) and React Native (a persistence
+  // export only its build has) and cannot be type-checked under this
+  // package's Node settings. At run time those two files are replaced (jest.mock),
+  // and ts-jest still type-checks the test file itself when it runs; only the
+  // whole-program `npm run typecheck` leaves it out.
+  "exclude": ["src/plans-end-to-end.test.ts"]
 }

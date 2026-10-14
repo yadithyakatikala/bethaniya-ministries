@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * contracts: the plan document goes last, days go in batches no bigger than
  * the rule-lookup budget allows, a failed create cleans up after itself, and
  * a stale editor is refused before anything is written. The same flows run
- * against the real rules in firebase-tests/src/plans-service.emulator.test.ts.
+ * against the real rules, and are read back by the phone's own service, in
+ * firebase-tests/src/plans-end-to-end.test.ts.
  */
 const h = vi.hoisted(() => {
   class MockTimestamp {
