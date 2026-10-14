@@ -26,6 +26,7 @@ import { subscribeToProphetVerses } from '../../../services/firebase/prophetVers
 import { subscribeToOpenReportCount } from '../../../services/firebase/reports';
 import { subscribeToSongs } from '../../../services/firebase/songs';
 import {
+  subscribeToActiveVersePool,
   subscribeToVersePool,
   subscribeToVotdConfig,
 } from '../../../services/firebase/votd';
@@ -144,6 +145,7 @@ function allEmpty() {
   feed(subscribeToProphetVerses, []);
   feed(subscribeToDailyVerses, []);
   feed(subscribeToVersePool, []);
+  feed(subscribeToActiveVersePool, []);
   feed(subscribeToVotdConfig, {
     enabled: true,
     seed: 'x',
@@ -438,6 +440,49 @@ describe('who sees what', () => {
     expect(screen.queryByTestId('dashboard-tile-reports')).not.toBeInTheDocument();
     // The queue is not even asked for.
     expect(subscribeToOpenReportCount).not.toHaveBeenCalled();
+  });
+
+  describe('for a host, who may not read everything', () => {
+    // firestore.rules refuses a host the photo and video posts, the Prophet
+    // verses, the whole verse pool and the moderation queue. Asking anyway
+    // gave the page four "permission denied" answers and a banner telling a
+    // host to check their connection.
+    it('does not ask for what the rules refuse, so there is no false alarm', () => {
+      renderDashboard('host');
+      expect(subscribeToMedia).not.toHaveBeenCalled();
+      expect(subscribeToProphetVerses).not.toHaveBeenCalled();
+      expect(subscribeToVersePool).not.toHaveBeenCalled();
+      expect(subscribeToOpenReportCount).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('dashboard-read-errors')).not.toBeInTheDocument();
+    });
+
+    it('reads the verse pool the way a member\'s phone does, and still names today\'s verse', () => {
+      renderDashboard('host');
+      expect(subscribeToActiveVersePool).toHaveBeenCalled();
+      expect(screen.getByTestId('dashboard-verse-reference')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-verse-source')).toBeInTheDocument();
+    });
+
+    it('does not show a Prophet verse panel that could only ever say "none"', () => {
+      renderDashboard('host');
+      expect(screen.queryByTestId('dashboard-prophet')).not.toBeInTheDocument();
+    });
+
+    it('is not left on a loading state by the sources it does not read', () => {
+      renderDashboard('host');
+      expect(screen.queryByRole('status', { name: 'Loading drafts' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('for a content administrator', () => {
+    it('reads everything, the whole verse pool included', () => {
+      renderDashboard('content_admin');
+      expect(subscribeToMedia).toHaveBeenCalled();
+      expect(subscribeToProphetVerses).toHaveBeenCalled();
+      expect(subscribeToVersePool).toHaveBeenCalled();
+      expect(subscribeToActiveVersePool).not.toHaveBeenCalled();
+      expect(screen.getByTestId('dashboard-prophet')).toBeInTheDocument();
+    });
   });
 
   it('offers no shortcuts to someone with no role to act in', () => {

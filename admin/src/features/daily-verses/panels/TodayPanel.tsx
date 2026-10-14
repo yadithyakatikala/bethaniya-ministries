@@ -93,10 +93,13 @@ export function TodayPanel({
   config,
   pool,
   overrideByDate,
+  canManage,
 }: {
   config: VotdConfig;
   pool: VersePoolEntry[];
   overrideByDate: Map<string, DailyVerse>;
+  /** Whether this role may set a day by hand (a content admin and above). */
+  canManage: boolean;
 }) {
   const today = indiaDateKey();
   const [dateKey, setDateKey] = useState(today);
@@ -193,7 +196,7 @@ export function TodayPanel({
               <Typography color="text.secondary" variant="body2">
                 {explain(chosen, config, prepared.length)}
               </Typography>
-              {chosen.source !== 'override' ? (
+              {canManage && chosen.source !== 'override' ? (
                 <Box>
                   {/* The intentional manual override, offered where the
                       question comes up rather than on a page of its own. */}

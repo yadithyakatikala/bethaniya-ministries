@@ -11,6 +11,7 @@ import { subscribeToProphetVerses } from '../../services/firebase/prophetVerses'
 import { subscribeToOpenReportCount } from '../../services/firebase/reports';
 import { subscribeToSongs } from '../../services/firebase/songs';
 import {
+  subscribeToActiveVersePool,
   subscribeToVersePool,
   subscribeToVotdConfig,
   type VersePoolEntryDocument,
@@ -90,22 +91,28 @@ export interface DashboardData {
  * pages themselves use (so no new query shape, and nothing here that a
  * page's own list would disagree with).
  *
- * The reports count is opened only for roles that may read the queue
- * (firestore.rules); for anyone else the dashboard simply has no such figure.
+ * ROLES. firestore.rules lets only a content administrator and above read
+ * every photo/video post, every Prophet verse, the whole Verse of the Day pool
+ * and the moderation queue. A host is refused all four, so the dashboard does
+ * not ask: it would only collect four "permission denied" answers and warn the
+ * host that their connection is bad. For a host those sources are empty (and
+ * the Prophet panel is not shown); the verse pool is read the way a member's
+ * phone reads it (active entries only), which gives the same verse.
  */
 export function useDashboardData(role: string | null): DashboardData {
+  const fullAccess = canCreateContent(role);
   const announcements = useLive(subscribeToAnnouncements);
   const songs = useLive(subscribeToSongs);
   const events = useLive(subscribeToEvents);
   const community = useLive(subscribeToCommunityPosts);
   const plans = useLive(subscribeToPlans);
-  const media = useLive(subscribeToMedia);
-  const prophet = useLive(subscribeToProphetVerses);
+  const media = useLive(fullAccess ? subscribeToMedia : null);
+  const prophet = useLive(fullAccess ? subscribeToProphetVerses : null);
   const config = useLive(subscribeToVotdConfig);
-  const pool = useLive(subscribeToVersePool);
+  const pool = useLive(fullAccess ? subscribeToVersePool : subscribeToActiveVersePool);
   const overrides = useLive(subscribeToDailyVerses);
   const notifications = useLive(subscribeToNotificationLog);
-  const reports = useLive(canCreateContent(role) ? subscribeToOpenReportCount : null);
+  const reports = useLive(fullAccess ? subscribeToOpenReportCount : null);
 
   const sources = useMemo<DashboardSources>(
     () => ({
@@ -114,10 +121,12 @@ export function useDashboardData(role: string | null): DashboardData {
       events: settled(events),
       community: settled(community),
       plans: settled(plans),
-      media: settled(media),
-      prophet: settled(prophet),
+      // A role that may not read these has none to show, which is not the
+      // same as "still loading".
+      media: fullAccess ? settled(media) : [],
+      prophet: fullAccess ? settled(prophet) : [],
     }),
-    [announcements, songs, events, community, plans, media, prophet]
+    [announcements, songs, events, community, plans, media, prophet, fullAccess]
   );
 
   const failed: FailedRead[] = [];
@@ -142,7 +151,7 @@ export function useDashboardData(role: string | null): DashboardData {
           : undefined
         : (notifications.value[0] ?? null),
     // A failed read stays a dash (and is listed in `failed`): it is not "none".
-    openReports: canCreateContent(role) ? reports.value : undefined,
+    openReports: fullAccess ? reports.value : undefined,
     failed,
   };
 }

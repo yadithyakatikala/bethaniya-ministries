@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { PageContainer } from '../../components/ui';
 import {
+  subscribeToActiveVersePool,
   subscribeToVersePool,
   subscribeToVotdConfig,
   type VersePoolEntryDocument,
@@ -93,7 +94,12 @@ export function VerseOfTheDayPage() {
       },
       () => setError('Could not load the Verse of the Day settings.')
     );
-    const unsubscribePool = subscribeToVersePool(
+    // Only a content admin may read the whole pool, deactivated entries
+    // included; everyone else is shown the active ones -- the same ones the
+    // phones use -- so the page works for a host instead of failing on a read
+    // the rules refuse.
+    const openPool = canManage ? subscribeToVersePool : subscribeToActiveVersePool;
+    const unsubscribePool = openPool(
       (next) => setPool(next),
       () => setError('Could not load your church’s verses.')
     );
@@ -111,7 +117,7 @@ export function VerseOfTheDayPage() {
       unsubscribePool();
       unsubscribeOverrides();
     };
-  }, []);
+  }, [canManage]);
 
   const overrideByDate = useMemo(
     () => indexOverridesByDate(overrides ?? []),
@@ -151,7 +157,12 @@ export function VerseOfTheDayPage() {
       ) : (
         <>
           {tab === 'today' ? (
-            <TodayPanel config={config} pool={pool} overrideByDate={overrideByDate} />
+            <TodayPanel
+              config={config}
+              pool={pool}
+              overrideByDate={overrideByDate}
+              canManage={canManage}
+            />
           ) : null}
 
           {tab === 'schedule' ? (

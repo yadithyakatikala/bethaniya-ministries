@@ -302,35 +302,38 @@ export function DashboardPage() {
             )}
           </SectionCard>
 
-          <SectionCard
-            title="Prophet verse"
-            testId="dashboard-prophet"
-            link={{ to: '/prophet-verses', label: 'Open' }}
-          >
-            {prophetShowing === undefined ? (
-              <PanelSkeleton label="Loading the Prophet verse" />
-            ) : prophetShowing ? (
-              <Box>
-                <Typography
-                  component="p"
-                  sx={{
-                    fontFamily: adminFonts.heading,
-                    fontSize: '1.125rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {prophetShowing.title.trim() || prophetShowing.reference}
-                </Typography>
+          {/* A host cannot read Prophet verses (firestore.rules), so the panel would only ever say "none" -- which would be false. */}
+          {canOpen ? (
+            <SectionCard
+              title="Prophet verse"
+              testId="dashboard-prophet"
+              link={{ to: '/prophet-verses', label: 'Open' }}
+            >
+              {prophetShowing === undefined ? (
+                <PanelSkeleton label="Loading the Prophet verse" />
+              ) : prophetShowing ? (
+                <Box>
+                  <Typography
+                    component="p"
+                    sx={{
+                      fontFamily: adminFonts.heading,
+                      fontSize: '1.125rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {prophetShowing.title.trim() || prophetShowing.reference}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: adminColors.inkMuted }}>
+                    Showing now · {prophetShowing.reference}
+                  </Typography>
+                </Box>
+              ) : (
                 <Typography variant="body2" sx={{ color: adminColors.inkMuted }}>
-                  Showing now · {prophetShowing.reference}
+                  No Prophet verse is showing.
                 </Typography>
-              </Box>
-            ) : (
-              <Typography variant="body2" sx={{ color: adminColors.inkMuted }}>
-                No Prophet verse is showing.
-              </Typography>
-            )}
-          </SectionCard>
+              )}
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             title="Reading plans"
