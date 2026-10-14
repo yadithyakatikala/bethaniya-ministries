@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { blankDay, type DayDraft } from '../planDays';
 import { emptyDetails, type PlanDetailsForm } from '../planDetails';
-import { blockingIssues, canSaveDraft, isReady, planReadiness } from '../planReadiness';
+import {
+  blockingIssues,
+  canSaveDraft,
+  isReady,
+  liveSaveProblem,
+  planReadiness,
+} from '../planReadiness';
 
 function details(overrides: Partial<PlanDetailsForm> = {}): PlanDetailsForm {
   return {
@@ -162,5 +168,63 @@ describe('what stops a draft being saved', () => {
   it('refuses more days than the editor allows', () => {
     const many = Array.from({ length: 367 }, (_, n) => day(String(n)));
     expect(canSaveDraft(details(), many)).toBe(false);
+  });
+
+  // firestore.rules refuses a day whose text is over these limits. The days are
+  // written BEFORE the plan, so a save that was allowed to start would be
+  // refused part-way through, after some days had already been written.
+  it.each([
+    ['a devotional over 5,000 characters', { devotional: 'd'.repeat(5001) }],
+    ['a reflection question over 1,000', { reflectionQuestion: 'q'.repeat(1001) }],
+    ['a prayer over 1,000', { prayerPrompt: 'p'.repeat(1001) }],
+    ['an application over 2,000', { application: 'a'.repeat(2001) }],
+    ['notes over 3,000', { notes: 'n'.repeat(3001) }],
+  ])('refuses a day with %s, before any day is written', (_name, overrides) => {
+    expect(canSaveDraft(details(), [day('1'), day('2', overrides)])).toBe(false);
+  });
+
+  it('accepts text right at each limit', () => {
+    expect(
+      canSaveDraft(details(), [
+        day('1', {
+          devotional: 'd'.repeat(5000),
+          reflectionQuestion: 'q'.repeat(1000),
+          prayerPrompt: 'p'.repeat(1000),
+          application: 'a'.repeat(2000),
+          notes: 'n'.repeat(3000),
+        }),
+      ])
+    ).toBe(true);
+  });
+});
+
+describe('what a plan that members can already see must keep', () => {
+  // The rules refuse a plan that is published or scheduled without a
+  // description and a day. The editor must say so BEFORE it writes anything:
+  // it writes the days first, so removing the last day and pressing Save would
+  // delete the day and only then be refused, leaving a live plan with no days.
+  it('has nothing to complain about when it has a description and a day', () => {
+    expect(liveSaveProblem(details(), [day('1')])).toBeNull();
+  });
+
+  it('needs its description', () => {
+    expect(liveSaveProblem(details({ description: '  ' }), [day('1')])).toMatchObject({
+      id: 'description',
+      tab: 'details',
+    });
+  });
+
+  it('needs at least one day', () => {
+    expect(liveSaveProblem(details(), [])).toMatchObject({ id: 'no-days', tab: 'days' });
+  });
+
+  it('names the description first when both are missing', () => {
+    expect(liveSaveProblem(details({ description: '' }), [])?.id).toBe('description');
+  });
+
+  it('leaves everything else to the checks every save already has', () => {
+    // A missing title or a day with no passage is canSaveDraft's business.
+    expect(liveSaveProblem(details({ title: '' }), [day('1')])).toBeNull();
+    expect(liveSaveProblem(details(), [day('1', { passages: [''] })])).toBeNull();
   });
 });

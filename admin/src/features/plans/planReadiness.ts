@@ -16,7 +16,13 @@
  * reading it.
  */
 import { checkPassageList } from '../scripture/passages';
-import { DAY_LIMITS, dayHasReaderText, validateDay, type DayDraft } from './planDays';
+import {
+  DAY_LIMITS,
+  dayHasErrors,
+  dayHasReaderText,
+  validateDay,
+  type DayDraft,
+} from './planDays';
 import {
   hasDetailErrors,
   validatePlanDetails,
@@ -177,10 +183,38 @@ export function canSaveDraft(
 ): boolean {
   if (hasDetailErrors(validatePlanDetails(details))) return false;
   if (days.length > DAY_LIMITS.maxDays) return false;
-  // A saved day needs a title and a passage: rules refuse a day without
-  // them, so a draft cannot be saved with a day that has neither.
-  return days.every((day) => {
-    const errors = validateDay(day);
-    return !errors.title && !errors.passages;
-  });
+  // Every day must be one firestore.rules will accept: a title, a real
+  // passage, and each optional text within its limit. The days are written
+  // BEFORE the plan, so a day the rules would refuse has to be caught here --
+  // found part-way through a save, it would leave the earlier days written
+  // and the administrator with a message that says only "try again".
+  return days.every((day) => !dayHasErrors(day));
+}
+
+/**
+ * Why a plan that members can already see (published, or scheduled) cannot be
+ * saved as it stands, or null.
+ *
+ * firestore.rules refuse a live plan that has no description or no day. The
+ * editor writes the DAYS first and the plan document last, so a save that
+ * removed the last day of a live plan would delete that day and only then be
+ * refused, leaving members a live plan with nothing in it. This is the check
+ * that stops such a save before anything is written. A draft or an archived
+ * plan is not held to it: nobody can see those, and they may be saved
+ * half-built.
+ *
+ * Only the two things the rules insist on are looked at here. Everything
+ * else belongs to `canSaveDraft`, which applies to every save.
+ */
+export function liveSaveProblem(
+  details: PlanDetailsForm,
+  days: readonly DayDraft[]
+): ReadinessIssue | null {
+  return (
+    planReadiness(details, days).find(
+      (issue) =>
+        issue.severity === 'error' &&
+        (issue.id === 'description' || issue.id === 'no-days')
+    ) ?? null
+  );
 }

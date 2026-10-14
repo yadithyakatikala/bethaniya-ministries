@@ -724,6 +724,166 @@ describe('publishing', () => {
   });
 });
 
+/**
+ * A save writes the DAYS first and the plan last, and the rules refuse a plan
+ * that members can see unless it has a description and a day. So a save that
+ * removed the last day of a live plan would delete the day, THEN be refused,
+ * and leave members a live plan with nothing in it. The editor therefore has
+ * to stop that save before it writes anything.
+ */
+describe('saving a plan that members can already see', () => {
+  const LIVE = { status: 'published', published: true } as const;
+  const FUTURE = {
+    status: 'scheduled',
+    published: false,
+    publishAt: new Date('2099-01-01T09:30:00Z'),
+  } as const;
+
+  async function deleteEveryDay(user: ReturnType<typeof userEvent.setup>) {
+    for (const row of [1, 2]) {
+      await user.click(screen.getByTestId('plan-day-delete-1'));
+      await user.click(await screen.findByTestId('plan-day-delete-confirm'));
+      await waitFor(() =>
+        expect(screen.queryByTestId(`plan-day-row-${3 - row}`)).not.toBeInTheDocument()
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    }
+    expect(screen.getByTestId('plan-days-empty')).toBeInTheDocument();
+  }
+
+  it.each([
+    ['published', LIVE],
+    ['scheduled', FUTURE],
+  ])(
+    'will not start a save that would leave a %s plan with no days, and writes nothing',
+    async (_name, plan) => {
+      const user = userEvent.setup();
+      seedPlan(plan);
+      await openPlan(`/plans/${ID}/edit?tab=days`);
+      await deleteEveryDay(user);
+
+      await user.click(screen.getByTestId('plan-save'));
+
+      expect(savePlan).not.toHaveBeenCalled();
+      const message = screen.getByTestId('plan-save-error');
+      expect(message).toHaveTextContent('Add at least one day');
+      expect(message).toHaveTextContent(
+        'A published or scheduled plan has to keep both a description and a day'
+      );
+      expect(message).toHaveTextContent('unpublish it (or cancel its schedule) first');
+      // Nothing was removed, and the work is still on the page to be fixed.
+      expect(store.get(ID)!.days).toHaveLength(2);
+      expect(state()).toHaveTextContent('Unsaved changes');
+    }
+  );
+
+  it.each([
+    ['published', LIVE],
+    ['scheduled', FUTURE],
+  ])(
+    'will not save a %s plan whose description has been cleared',
+    async (_name, plan) => {
+      const user = userEvent.setup();
+      seedPlan(plan);
+      await openPlan();
+      fireEvent.change(screen.getByTestId('plan-description'), {
+        target: { value: '  ' },
+      });
+
+      await user.click(screen.getByTestId('plan-save'));
+
+      expect(savePlan).not.toHaveBeenCalled();
+      expect(screen.getByTestId('plan-save-error')).toHaveTextContent(
+        'Write a short description'
+      );
+      // And it takes the administrator to the place to fix it.
+      expect(location()).toHaveTextContent('tab=details');
+    }
+  );
+
+  it('still saves a live plan that keeps its description and a day', async () => {
+    const user = userEvent.setup();
+    seedPlan(LIVE);
+    await openPlan(`/plans/${ID}/edit?tab=days`);
+    await user.click(screen.getByTestId('plan-day-delete-1'));
+    await user.click(await screen.findByTestId('plan-day-delete-confirm'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('plan-day-row-2')).not.toBeInTheDocument()
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByTestId('plan-save'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+    expect(savePlan.mock.calls[0]![0].days).toHaveLength(1);
+    expect(screen.queryByTestId('plan-save-error')).not.toBeInTheDocument();
+  });
+
+  it('lets a draft be emptied and saved -- only a plan members can see is held to this', async () => {
+    const user = userEvent.setup();
+    seedPlan({ status: 'draft', published: false });
+    await openPlan(`/plans/${ID}/edit?tab=days`);
+    await deleteEveryDay(user);
+    await user.click(screen.getByTestId('plan-tab-details'));
+    fireEvent.change(screen.getByTestId('plan-description'), { target: { value: '' } });
+
+    await user.click(screen.getByTestId('plan-save'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+    expect(savePlan.mock.calls[0]![0].days).toEqual([]);
+    expect(savePlan.mock.calls[0]![0].details.description).toBe('');
+  });
+
+  it('lets an archived plan be emptied and saved too', async () => {
+    const user = userEvent.setup();
+    seedPlan({ status: 'archived', published: false });
+    await openPlan(`/plans/${ID}/edit?tab=days`);
+    await deleteEveryDay(user);
+
+    await user.click(screen.getByTestId('plan-save'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('a day with more text than the rules allow', () => {
+  it('is stopped in the editor, with the problem marked, before any day is written', async () => {
+    const user = userEvent.setup();
+    seedPlan();
+    await openPlan(`/plans/${ID}/edit?tab=days`);
+    await user.click(screen.getByTestId('plan-day-open-2'));
+    const drawer = await screen.findByRole('dialog', { name: /Day 2/ });
+    fireEvent.change(within(drawer).getByTestId('day-devotional'), {
+      target: { value: 'd'.repeat(5001) },
+    });
+    await user.click(within(drawer).getByTestId('day-drawer-done'));
+
+    await user.click(screen.getByTestId('plan-save'));
+
+    expect(savePlan).not.toHaveBeenCalled();
+    expect(screen.getByTestId('plan-save-error')).toHaveTextContent(
+      'Some things need fixing before this can be saved.'
+    );
+    expect(screen.getByTestId('plan-day-problem-2')).toBeInTheDocument();
+  });
+
+  it('saves once the text is back within the limit', async () => {
+    const user = userEvent.setup();
+    seedPlan();
+    await openPlan(`/plans/${ID}/edit?tab=days`);
+    await user.click(screen.getByTestId('plan-day-open-2'));
+    const drawer = await screen.findByRole('dialog', { name: /Day 2/ });
+    fireEvent.change(within(drawer).getByTestId('day-devotional'), {
+      target: { value: 'd'.repeat(5000) },
+    });
+    await user.click(within(drawer).getByTestId('day-drawer-done'));
+
+    await user.click(screen.getByTestId('plan-save'));
+
+    await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
+  });
+});
+
 describe('taking a plan back', () => {
   it('unpublishes after a confirmation that says what members will lose, and what they keep', async () => {
     const user = userEvent.setup();

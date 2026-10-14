@@ -41,8 +41,14 @@ import {
   validatePlanId,
   type PlanDetailsForm,
 } from './planDetails';
-import { canSaveDraft, planReadiness, type ReadinessIssue } from './planReadiness';
 import {
+  canSaveDraft,
+  liveSaveProblem,
+  planReadiness,
+  type ReadinessIssue,
+} from './planReadiness';
+import {
+  isGoingLive,
   isVisibleToMembers,
   planStatusOf,
   statusLabelFor,
@@ -203,6 +209,20 @@ export function PlanEditor({
       setSaveError(
         'Some things need fixing before this can be saved. They are marked on the Details and Days tabs.'
       );
+      return false;
+    }
+    // A plan that is, or will be, published or scheduled must keep a
+    // description and a day. The days are written before the plan, so this has
+    // to be refused here: refused by the rules it would be too late, with the
+    // last day already deleted. See liveSaveProblem().
+    const liveProblem = (change === null ? live : isGoingLive(change))
+      ? liveSaveProblem(state.details, state.days)
+      : null;
+    if (liveProblem) {
+      setSaveError(
+        `${liveProblem.message} A published or scheduled plan has to keep both a description and a day. To empty it out, unpublish it (or cancel its schedule) first.`
+      );
+      setTab(liveProblem.tab);
       return false;
     }
     setSaving(true);
