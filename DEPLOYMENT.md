@@ -81,6 +81,11 @@ The index takes a few minutes to build; scheduled plans appear to phones after
 it is ready. Test against the emulators first (see `firebase-tests/README.md`).
 Nothing in this change needs Cloud Functions or the paid plan.
 
+After deploying, do the **"Scheduled plan arrives"** check in
+[QA_CHECKLIST.md](./QA_CHECKLIST.md) on a real phone, including the case where
+the app stays open across the scheduled time. It is the one behaviour of this
+change that has only ever been tested against the local emulator.
+
 ## Admin dashboard
 
 `firebase.json` is configured for Firebase Hosting (`public: "admin/dist"`),

@@ -195,9 +195,11 @@ preset name — both visible in the site's code — can send a file to it.
 
 ### What a stranger could do
 
-- Upload files of the **types and sizes your preset allows**, filling your free
-  storage and using up your monthly allowance (storage and delivery are counted
-  together, in "credits").
+- Upload files of the **types your preset allows**, up to your Cloudinary plan's
+  own file-size limits, filling your free storage and using up your monthly
+  allowance (storage and delivery are counted together, in "credits"). A preset
+  limits *what kind* of file; check in the Console whether your account offers
+  any further size limit, because the site's 5 MB / 25 MB are not one.
 - Make a mess in your Cloudinary account.
 
 ### What a stranger could not do
@@ -290,6 +292,28 @@ if you want it in the library.
 
 Cloudinary's Admin API is deliberately not used. Anything that lists, renames or
 deletes remote files needs the secret.
+
+### What has been tested — and what has not
+
+| What | How it is tested | Real Cloudinary? |
+| --- | --- | --- |
+| The upload request (the two form fields, the address it posts to, progress, timeouts, the reply check, each error message) | `cloudinaryUpload.test.ts` runs the **real** upload code against a **pretend** browser request (a fake `XMLHttpRequest`) that is told what Cloudinary "replies" | **No** |
+| The upload buttons, progress bar, preview and errors in every form | Screen tests that **replace** the upload function altogether | **No** |
+| The settings guard (what it accepts, what it refuses, that it never prints a value) | Unit tests over many variable names | Not applicable |
+| The library records the site writes, and who may read or write them | `firebase-tests/src/media-assets-end-to-end.test.ts` and the `media_assets` cases in `firestore.rules.test.ts`: the **real** record builders and the **real** security rules, in the Firebase emulator | **No** — the "uploads" are records a successful upload would produce, including odd ones |
+
+**No test in this project has ever contacted Cloudinary.** No Cloudinary account
+exists for it, and the automated tests never need one. So:
+
+- The first **real** upload is a manual check — section 2, step 7. Do it once
+  before relying on uploads, with a small picture and a short song.
+- Cloudinary's real replies may differ from the ones the tests use in small ways.
+  The code is written not to depend on that: it checks only the address, the
+  file's id and the kind of file, and it leaves out any detail (size, width,
+  duration, name) that the library record cannot hold rather than failing to
+  record a file that uploaded fine.
+- Nothing here proves your preset is set up safely. That is a settings page in
+  Cloudinary's Console, and only you can check it (section 5).
 
 The numbers in section 3 (5 MB, 25 MB) are this site's own. They sit well under
 Cloudinary's free-plan ceilings **as published when they were chosen** (10 MB

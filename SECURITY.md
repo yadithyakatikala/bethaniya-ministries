@@ -1108,4 +1108,27 @@ scheduled-plan clock boundary, the `status`/`published` lock, the closed
 `media_assets` shape and an immutable file identity), and
 `firebase-tests/src/plans-end-to-end.test.ts` publishes a plan through the admin
 site's real data layer and reads it back through the phone's, under the committed
-rules, with no mocks.
+rules, with no mocks. `firebase-tests/src/media-assets-end-to-end.test.ts` does the
+same for the media library: the admin site's real record builders and writer
+against the committed rules, for each way a record is made, and for who is turned
+away. **Cloudinary itself has never been contacted by any test** (no account
+exists); the upload code is tested against a fake `XMLHttpRequest`.
+
+### Final review: known gaps and recommendations
+
+A line-by-line review of this branch (rules, uploads, plans) found the items
+below. Those marked **Fixed** were corrected on the branch, each with a test that
+fails without the fix; the rest are listed so none of them is a surprise. Nothing
+here is a security regression against `main` unless it says so.
+
+| # | What | Severity | Status |
+| --- | --- | --- | --- |
+| 1 | **A scheduled plan on a phone that stays connected across the scheduled moment.** The rules judge the schedule by the server's clock (verified). In the emulator that clock is fixed when a *connection* opens, so such a phone does not see the plan until it reconnects (reopening the app does it). Whether the live database behaves the same is **unknown**. | Medium, unverified | Open. Real-phone check added to `QA_CHECKLIST.md` and `DEPLOYMENT.md`; if it shows the problem, decide then (no safe free-plan fix exists in the app alone). |
+| 2 | **No Content-Security-Policy or other security headers** (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) on the admin site. Pre-dates this branch. | Low | Open. Needs a header block in `firebase.json` tested in a real browser against Firebase sign-in before it is deployed, so it was not added blind. |
+| 3 | **`plans.coverImageUrl` is only "a string" in the rules** (no `https://`, no length limit), unlike `media`, `media_assets` and verse images. Pre-dates this branch. The admin site only ever stores an `https://` address and the phone passes it to an image view that cannot run script. | Low | Open. Tightening it is a rules change that could refuse an old document, so it is left for a decision. |
+| 4 | **An old published plan with no days** (possible before the manager) can no longer be edited in place; it can still be read, unpublished, archived, or fixed by adding a day. | Low, intended | Documented and tested (`firestore.rules.test.ts`). |
+| 5 | **The unsigned upload endpoint** (above). | Medium, accepted by design | Unchanged: cannot be removed without a server. |
+| 6 | **A pasted link written as `HTTPS://…` or containing a space** passed the form but was refused by the rules on Save. | Low | **Fixed** (`features/media/validation.ts`, tested). |
+| 7 | **The settings guard missed some secret-like names** (`VITE_CLOUDINARY_KEY`, `…_SIGNATURE`, `…_PASSWORD`, any `VITE_…SECRET…` not containing "cloudinary"). | Low | **Fixed** (`services/media/cloudinaryConfig.ts`, tested). |
+| 8 | **A library record built from an upload could be refused by the rules** if Cloudinary reported a value outside the record's limits (audio as 0 × 0 pixels, a very long name). The file was stored; only the record failed. | Low | **Fixed** (`services/firebase/mediaAssets.ts`, tested against the real rules). |
+| 9 | **The plan editor let a save begin that the rules would refuse part-way:** removing the last day of a *live* plan deleted the day, then the plan write was refused, leaving members a live plan with no days; an over-long day text failed the same way with a vague message. | Medium | **Fixed** (`features/plans/PlanEditor.tsx`, `planReadiness.ts`, tested). |

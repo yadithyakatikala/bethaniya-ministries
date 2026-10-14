@@ -114,6 +114,20 @@ If something is missing, the dialog lists it and each item takes you to the
 place to fix it. It also gives **warnings** that never block: no cover picture,
 or a day that is only a passage.
 
+The same two things must stay true **after** a plan is live. A published or
+scheduled plan cannot be saved without a description or without a day: if you
+clear the description, or delete the last day, **Save changes** says so and
+writes nothing. If you really mean to empty a plan, **Unpublish** it first (or
+**Cancel schedule**, for a scheduled one) — it becomes a draft, and a draft may be
+saved half-built. (Without this check, the
+site would delete the last day first and only then find that the plan may not be
+saved, leaving members a live plan with nothing in it.)
+
+A day's text must also be within its limit before anything is saved (a
+devotional is up to 5,000 characters, a reflection question or prayer 1,000, an
+application 2,000, notes 3,000). The Days tab marks the day and the box shows
+the count.
+
 ### Changing a plan members are already reading
 
 Members' progress is saved **by day number**. If you move or delete a day in a
@@ -139,9 +153,18 @@ same database the admin site writes to.
 
 1. You publish (or the schedule arrives).
 2. The app's **Bible → Plans** list shows the plan on its next refresh — at
-   once for a published plan; within about five minutes of the scheduled time
-   for a scheduled one (the app checks every five minutes while open, and when
-   it is opened).
+   once for a published plan. A **scheduled** plan appears when the app next
+   asks for plans whose time has come — it asks for those that came due at least
+   a minute earlier, so a phone whose clock runs a little fast is not refused:
+   whenever the app is opened, and then every five minutes while it stays open.
+   If a phone has had the app open
+   since *before* the scheduled time and the plan still has not appeared ten
+   minutes after it, closing and reopening the app brings it in.
+   (That last point is what the local test setup showed: there, a connection is
+   judged by the time it was opened, so a phone already connected when the time
+   passed needs a new connection. It has **not yet been checked on a real phone
+   against the live database** — see "Scheduled plan arrives" in
+   [QA_CHECKLIST.md](../../QA_CHECKLIST.md).)
 3. Opening it shows your title, description, cover, language, time estimate and
    day count; each day shows the passage with a **Read** button, then whichever
    of devotional, reflection question, application and prayer you filled in.
@@ -203,6 +226,10 @@ Nothing is deployed without your say-so.
   your changes — the site will not overwrite theirs.
 - **A day's passage is marked red.** Read the sentence beside it; it says what
   to change.
+- **"A published or scheduled plan has to keep both a description and a day."**
+  You tried to save a live plan with its description cleared or its last day
+  deleted. Put the description or a day back — or **Unpublish** the plan first
+  (**Cancel schedule**, if it is scheduled) if you mean to empty it.
 - **The plan is Published but a phone does not show it.** Check the phone is
   online, that the rules and index have been deployed, and wait a moment; then
   see the troubleshooting list in [QA_CHECKLIST.md](../../QA_CHECKLIST.md).

@@ -229,8 +229,19 @@ pointed at the same Firebase project as the admin site.
 - **Draft never appears.** A plan saved as a draft, an archived plan, and a
   plan scheduled for later are absent from the list, however long you wait.
 - **Scheduled plan arrives.** Schedule a plan two or three minutes ahead. It is
-  absent before that time; within about five minutes after it (the app checks
-  every five minutes while the Plans list is open) it appears.
+  absent before that time. Check **both** of these on a real phone:
+  1. *App opened after the time* (closed, or opened fresh): the plan is in the
+     list within about a minute of the time. (The app asks for plans that came
+     due at least a minute earlier, so that a phone whose clock runs a little
+     fast is not refused.)
+  2. *App left open the whole time* (this is the one that matters, and the only
+     scheduling behaviour that has **not** been checked against the live
+     database): the app asks again every five minutes, so the plan should
+     appear within about ten minutes after the time. If it does not, close and
+     reopen the app — it should appear then. **A phone that needs the reopen is
+     a finding to report**: in the local test setup the server's clock for a
+     connection is fixed when the connection opens, and nobody has yet seen
+     whether the live database does the same.
 - **Unpublish and republish keep progress.** Start a plan and finish a day;
   unpublish it in admin (it disappears for new readers); publish it again — the
   member's finished day is still marked.
