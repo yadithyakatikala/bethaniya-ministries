@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
   AppBar,
   Avatar,
@@ -15,10 +15,12 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { PRODUCT_NAME } from '../theme/brand';
 import { adminColors, adminFonts, adminLayout } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
+import { useUnsavedChanges } from '../store/unsavedChangesStore';
+import { ConfirmDialog } from './ui';
 import { ROLE_LABELS } from '../types';
 import { NAV_GROUPS, isNavItemActive } from './navigation';
 
@@ -255,9 +257,48 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
  */
 export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const unsavedMessage = useUnsavedChanges((state) => state.message);
+  const clearUnsaved = useUnsavedChanges((state) => state.set);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  // A page holding unsaved work (the reading-plan editor) publishes that
+  // through the unsaved-changes store. While it does, following ANY in-app
+  // link to another page -- the navigation rail, a breadcrumb, a "back"
+  // link -- asks first. This runs in the capture phase, before the router's
+  // own click handler, and only steps in for a plain left-click on a link to
+  // another page of this app; a modified click (new tab) loses nothing here,
+  // and a link to another site is covered by the browser's own prompt
+  // (useUnsavedChangesGuard).
+  function interceptLeavingClick(event: MouseEvent<HTMLElement>) {
+    if (!unsavedMessage || event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest('a[href]');
+    if (!anchor || anchor.hasAttribute('download')) return;
+    const targetAttr = anchor.getAttribute('target');
+    if (targetAttr && targetAttr !== '_self') return;
+    const href = anchor.getAttribute('href') ?? '';
+    // A link within the page ("Skip to main content") goes nowhere.
+    if (href.startsWith('#')) return;
+    let url: URL;
+    try {
+      url = new URL(href, window.location.href);
+    } catch {
+      return;
+    }
+    if (url.origin !== window.location.origin || url.pathname === location.pathname) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    setPendingPath(`${url.pathname}${url.search}${url.hash}`);
+  }
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }} onClickCapture={interceptLeavingClick}>
       <Box
         component="a"
         href="#main-content"
@@ -371,6 +412,26 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       >
         {children}
       </Box>
+
+      <ConfirmDialog
+        open={pendingPath !== null}
+        title="Leave without saving?"
+        confirmLabel="Leave"
+        cancelLabel="Stay here"
+        destructive
+        onCancel={() => setPendingPath(null)}
+        onConfirm={() => {
+          const target = pendingPath;
+          setPendingPath(null);
+          setMobileOpen(false);
+          clearUnsaved(null);
+          if (target) navigate(target);
+        }}
+        confirmTestId="leave-confirm"
+        cancelTestId="leave-stay"
+      >
+        {unsavedMessage ?? 'You have changes that have not been saved.'}
+      </ConfirmDialog>
     </Box>
   );
 }

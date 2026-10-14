@@ -11,11 +11,12 @@ import { CommunityPostsListPage } from './features/community/CommunityPostsListP
 import { CommunityPostForm } from './features/community/CommunityPostForm';
 import { EditCommunityPostPage } from './features/community/EditCommunityPostPage';
 import { PlansListPage } from './features/plans/PlansListPage';
-import { PlanForm } from './features/plans/PlanForm';
-import { EditPlanPage } from './features/plans/EditPlanPage';
-import { PlanDaysPage } from './features/plans/PlanDaysPage';
-import { PlanDayForm } from './features/plans/PlanDayForm';
-import { EditPlanDayPage } from './features/plans/EditPlanDayPage';
+import {
+  LegacyDaysRedirect,
+  LegacyEditDayRedirect,
+  LegacyNewDayRedirect,
+  PlanEditorPage,
+} from './features/plans/PlanEditorPage';
 import { VerseOfTheDayPage } from './features/daily-verses/VerseOfTheDayPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
@@ -174,7 +175,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanForm mode="create" />
+                  <PlanEditorPage mode="create" />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -184,7 +185,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <EditPlanPage />
+                  <PlanEditorPage mode="edit" />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -194,7 +195,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanDaysPage />
+                  <LegacyDaysRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -204,7 +205,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanDayForm mode="create" />
+                  <LegacyNewDayRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -214,7 +215,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <EditPlanDayPage />
+                  <LegacyEditDayRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }

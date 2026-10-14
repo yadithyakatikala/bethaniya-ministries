@@ -28,13 +28,11 @@ import type { ReactElement } from 'react';
 
 import { AnnouncementForm } from '../../../features/announcements/AnnouncementForm';
 import { SongForm } from '../../../features/songs/SongForm';
-import { PlanForm } from '../../../features/plans/PlanForm';
 import { CommunityPostForm } from '../../../features/community/CommunityPostForm';
 import { DailyVerseForm } from '../../../features/daily-verses/DailyVerseForm';
 
 import * as announcementsService from '../../../services/firebase/announcements';
 import * as songsService from '../../../services/firebase/songs';
-import * as plansService from '../../../services/firebase/plans';
 import * as communityService from '../../../services/firebase/communityPosts';
 import * as dailyVersesService from '../../../services/firebase/dailyVerses';
 import { useAuthStore } from '../../../store/authStore';
@@ -43,7 +41,6 @@ import { MISSING, READY, UPLOADED_AUDIO, UPLOADED_IMAGE, deferred } from './help
 
 vi.mock('../../../services/firebase/announcements');
 vi.mock('../../../services/firebase/songs');
-vi.mock('../../../services/firebase/plans');
 vi.mock('../../../services/firebase/communityPosts');
 vi.mock('../../../services/firebase/dailyVerses');
 vi.mock('../../../services/media/cloudinaryConfig', async (importOriginal) => ({
@@ -119,19 +116,6 @@ const FORMS: FormCase[] = [
     submit: 'daily-verse-form-submit',
     create: () => vi.mocked(dailyVersesService.createDailyVerse),
     key: 'imageUrl',
-  },
-  {
-    name: 'reading plans',
-    element: <PlanForm mode="create" />,
-    fill: async (user) => {
-      await user.type(screen.getByTestId('plan-title-input'), 'Psalms');
-      await user.type(screen.getByTestId('plan-description-input'), 'A week of psalms.');
-      await user.type(screen.getByTestId('plan-category-input'), 'Devotional');
-    },
-    prefix: 'plan-cover-image',
-    submit: 'plan-form-submit',
-    create: () => vi.mocked(plansService.createPlan),
-    key: 'coverImageUrl',
   },
   {
     name: 'song covers',

@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { Link, MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import { theme } from '../../theme/theme';
 import { AdminLayout } from '../AdminLayout';
 import { NAV_GROUPS, isNavItemActive } from '../navigation';
 import { useAuthStore } from '../../store/authStore';
+import { useUnsavedChanges } from '../../store/unsavedChangesStore';
 
 function renderLayout(initialPath = '/') {
   return render(
@@ -25,6 +26,7 @@ beforeEach(() => {
     user: { uid: 'u1', email: 'pastor@example.org' } as never,
     role: 'content_admin',
   });
+  useUnsavedChanges.setState({ message: null });
 });
 
 describe('AdminLayout', () => {
@@ -173,5 +175,175 @@ describe('isNavItemActive', () => {
     expect(isNavItemActive('/media', '/media-library')).toBe(false);
     expect(isNavItemActive('/media-library', '/media')).toBe(false);
     expect(isNavItemActive('/songs', '/songsheet')).toBe(false);
+  });
+});
+
+describe('AdminLayout: leaving a page that holds unsaved work', () => {
+  const MESSAGE = 'This reading plan has changes that have not been saved.';
+
+  function Where() {
+    const { pathname, search } = useLocation();
+    return <output data-testid="where">{`${pathname}${search}`}</output>;
+  }
+
+  /** The layout around a page with the kinds of link a real page has. */
+  function renderEditorPage() {
+    return render(
+      <ThemeProvider theme={theme}>
+        <MemoryRouter initialEntries={['/plans/p/edit']}>
+          <AdminLayout>
+            <Link to="/plans" data-testid="breadcrumb">
+              Reading Plans
+            </Link>
+            <Link to="/plans/p/edit?tab=days" data-testid="same-page-link">
+              Days
+            </Link>
+            <a
+              href="https://example.org/elsewhere"
+              data-testid="external-link"
+              onClick={(event) => event.preventDefault()}
+            >
+              Elsewhere
+            </a>
+            <a
+              href="/songs"
+              target="_blank"
+              data-testid="new-tab-link"
+              onClick={(event) => event.preventDefault()}
+            >
+              Songs in a new tab
+            </a>
+          </AdminLayout>
+          <Where />
+        </MemoryRouter>
+      </ThemeProvider>
+    );
+  }
+
+  const where = () => screen.getByTestId('where');
+  const leaveDialog = () => screen.queryByRole('dialog', { name: 'Leave without saving?' });
+
+  it('lets a rail link through at once when there is nothing unsaved', async () => {
+    const user = userEvent.setup();
+    renderEditorPage();
+    await user.click(screen.getAllByTestId('sidebar-songs-link')[0]!);
+    await waitFor(() => expect(where()).toHaveTextContent('/songs'));
+    expect(leaveDialog()).not.toBeInTheDocument();
+  });
+
+  it('asks first when a rail link would leave unsaved work, and does not go yet', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getAllByTestId('sidebar-songs-link')[0]!);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+    expect(dialog).toHaveTextContent(MESSAGE);
+    expect(where()).toHaveTextContent('/plans/p/edit');
+  });
+
+  it('asks about a link inside the page too, such as the breadcrumb', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByTestId('breadcrumb'));
+    expect(await screen.findByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
+    expect(where()).toHaveTextContent('/plans/p/edit');
+  });
+
+  it('asks about a link in the narrow-screen drawer as well', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getAllByTestId('sidebar-songs-link')[1]!);
+    expect(await screen.findByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
+  });
+
+  it('stays put, and keeps the warning, when told to stay', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByTestId('breadcrumb'));
+    await user.click(await screen.findByTestId('leave-stay'));
+    await waitFor(() => expect(leaveDialog()).not.toBeInTheDocument());
+    expect(where()).toHaveTextContent('/plans/p/edit');
+    expect(useUnsavedChanges.getState().message).toBe(MESSAGE);
+  });
+
+  it('goes where the link pointed, and drops the warning, when told to leave', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getAllByTestId('sidebar-songs-link')[0]!);
+    await user.click(await screen.findByTestId('leave-confirm'));
+    await waitFor(() => expect(where()).toHaveTextContent('/songs'));
+    expect(useUnsavedChanges.getState().message).toBeNull();
+    await waitFor(() => expect(leaveDialog()).not.toBeInTheDocument());
+  });
+
+  it('keeps the query string of the link it let through', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    render(
+      <ThemeProvider theme={theme}>
+        <MemoryRouter initialEntries={['/plans/p/edit']}>
+          <AdminLayout>
+            <Link to="/plans/q/edit?tab=days" data-testid="other-plan">
+              Other plan
+            </Link>
+          </AdminLayout>
+          <Where />
+        </MemoryRouter>
+      </ThemeProvider>
+    );
+    await user.click(screen.getByTestId('other-plan'));
+    await user.click(await screen.findByTestId('leave-confirm'));
+    await waitFor(() => expect(where()).toHaveTextContent('/plans/q/edit?tab=days'));
+  });
+
+  it('does not ask about a link to the page already open', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByTestId('same-page-link'));
+    await waitFor(() => expect(where()).toHaveTextContent('/plans/p/edit?tab=days'));
+    expect(leaveDialog()).not.toBeInTheDocument();
+  });
+
+  it('does not ask about the skip link', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByText('Skip to main content'));
+    expect(leaveDialog()).not.toBeInTheDocument();
+  });
+
+  it('leaves links to other sites and to new tabs to the browser', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByTestId('external-link'));
+    await user.click(screen.getByTestId('new-tab-link'));
+    expect(leaveDialog()).not.toBeInTheDocument();
+    expect(where()).toHaveTextContent('/plans/p/edit');
+  });
+
+  it('does not stand in the way of a modified click, which opens a new tab', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.keyboard('{Control>}');
+    await user.click(screen.getByTestId('breadcrumb'));
+    await user.keyboard('{/Control}');
+    expect(leaveDialog()).not.toBeInTheDocument();
+    expect(where()).toHaveTextContent('/plans/p/edit');
+  });
+
+  it('is not triggered by a click that is not on a link', async () => {
+    const user = userEvent.setup();
+    useUnsavedChanges.setState({ message: MESSAGE });
+    renderEditorPage();
+    await user.click(screen.getByTestId('admin-layout-content'));
+    expect(leaveDialog()).not.toBeInTheDocument();
   });
 });

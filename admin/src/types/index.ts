@@ -369,45 +369,78 @@ export interface CommunityPostFormInput {
 }
 
 /**
+ * The four states a reading plan can be in.
+ *
+ *   draft       being written; members cannot see it
+ *   scheduled   finished, and opens to members at `publishAt`
+ *   published   live now
+ *   archived    retired; hidden, but kept (and restorable)
+ *
+ * A plan written before the reading-plan manager existed carries no
+ * `status`, only `published`; services/firebase/plans.ts reads that as
+ * published or draft. firestore.rules locks `status` and `published`
+ * together, because members' devices ask for `published == true`.
+ */
+export type PlanStatus = 'draft' | 'scheduled' | 'published' | 'archived';
+
+/** The languages the app is available in. */
+export type PlanLanguage = 'en' | 'te';
+
+/**
  * A Bible reading plan document at /plans/{id} -- a new V1 feature (see
- * CommunityPost's doc comment above for provenance). `dayCount` is
- * derived server-side from the real /plans/{id}/days subcollection (see
+ * CommunityPost's doc comment above for provenance).
+ *
+ * `id` is the plan's unique, human-readable identifier (for example
+ * "seven-days-in-the-psalms"), chosen when the plan is created and never
+ * changed: it is the key members' saved progress is stored under.
+ *
+ * `dayCount` is derived from the real /plans/{id}/days subcollection (see
  * services/firebase/plans.ts) rather than accepted as free-typed admin
  * input, so it can never drift from the actual number of days created.
  * `order` controls display order in the mobile library (ascending,
- * lower first) -- there's no drag-and-drop reordering UI in V1, admins
- * set it as a plain number field.
+ * lower first).
+ *
+ * The fields from `subtitle` down to `createdBy` were added by the
+ * reading-plan manager and are all optional in Firestore, so a plan
+ * written earlier still loads: they read as '' / null.
  */
 export interface Plan {
   id: string;
   title: string;
+  subtitle: string;
   description: string;
   category: string;
   /** https address of the cover image, or null if none is set. */
   coverImageUrl: string | null;
+  /** null for a plan written before the field existed. */
+  language: PlanLanguage | null;
+  /** Estimated minutes a day takes, or null if not given. */
+  estimatedMinutes: number | null;
+  author: string;
   dayCount: number;
   order: number;
-  /** Controls visibility to members -- see firestore.rules' plans read rule. */
+  /** What members' devices ask for -- see firestore.rules' plans read rule. Always agrees with `status`. */
   published: boolean;
+  /** As stored; null on a plan written before the manager. Use planStatusOf() to read it. */
+  status: PlanStatus | null;
+  /** When a scheduled plan opens to members. */
+  publishAt: Date | null;
+  /** When the plan was first published. */
+  publishedAt: Date | null;
+  createdBy: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
 
-/** Fields the admin plan form actually collects -- id/dayCount/createdAt/updatedAt/published are set elsewhere (see services/firebase/plans.ts). */
-export interface PlanFormInput {
-  title: string;
-  description: string;
-  category: string;
-  coverImageUrl: string | null;
-  order: number;
-}
-
 /**
- * A single day within a reading plan, at /plans/{planId}/days/{id}. A
- * subcollection (rather than an array field on the plan document) so an
- * admin can add/edit/delete one day without rewriting the entire plan
- * document -- see firestore.rules' isValidPlanDay() for the
- * server-enforced shape.
+ * A single day within a reading plan, at /plans/{id}/days/{id}. A
+ * subcollection (rather than an array field on the plan document) so a
+ * plan can have a year of days without hitting the 1 MB document limit --
+ * see firestore.rules' isValidPlanDay() for the server-enforced shape.
+ *
+ * `scriptureReference` names one or more passages separated by "; "
+ * ("Psalm 23; John 10:11-18"); the app opens the first. Every text field
+ * except the title and the passage is optional.
  */
 export interface PlanDay {
   id: string;
@@ -415,17 +448,14 @@ export interface PlanDay {
   title: string;
   scriptureReference: string;
   devotional: string;
-  /** Optional prompt shown alongside the day's reading -- '' if none set. */
+  /** A question to think about after reading -- '' if none. */
+  reflectionQuestion: string;
+  /** A prompt for prayer -- '' if none. */
   prayerPrompt: string;
+  /** A way to put the reading into practice -- '' if none. */
+  application: string;
+  /** Background for the reader, shown in the app -- '' if none. */
+  notes: string;
   createdAt: Date | null;
   updatedAt: Date | null;
-}
-
-/** Fields the admin plan-day form actually collects -- id/createdAt/updatedAt are set elsewhere (see services/firebase/plans.ts). */
-export interface PlanDayFormInput {
-  dayNumber: number;
-  title: string;
-  scriptureReference: string;
-  devotional: string;
-  prayerPrompt: string;
 }
