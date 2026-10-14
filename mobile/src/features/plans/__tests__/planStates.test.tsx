@@ -13,6 +13,7 @@ import {
 import { PlanDetailScreen } from '../PlanDetailScreen';
 import { PlanDayScreen } from '../PlanDayScreen';
 import { translate } from '../../../i18n';
+import { makeDay, makePlan } from '../../../testing/planFixtures';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
@@ -27,23 +28,13 @@ jest.mock('../../../services/firebase/plans');
  * false, and that offered nothing to do about it. See the error handlers
  * in ../PlanDetailScreen.tsx and ../PlanDayScreen.tsx.
  */
-const PLAN: PublishedPlan = {
-  id: 'plan-1',
-  title: '7 Days in Psalms',
-  description: 'A week of psalms.',
-  category: 'Devotional',
-  coverImageUrl: null,
-  dayCount: 7,
-};
+const PLAN: PublishedPlan = makePlan({ id: 'plan-1', title: '7 Days in Psalms' });
 
-const DAY_ONE: PublishedPlanDay = {
-  id: 'day-1',
-  dayNumber: 1,
+const DAY_ONE: PublishedPlanDay = makeDay({
   title: 'Psalm 1',
-  scriptureReference: 'Psalm 1:1-6',
   devotional: 'Blessed is the one...',
   prayerPrompt: 'Ask for a rooted heart.',
-};
+});
 
 function mockSignedIn() {
   (onAuthStateChanged as jest.Mock).mockImplementation((_auth, onNext) => {

@@ -6,25 +6,25 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { AuthProvider } from '../../../context/AuthContext';
 import { PreferencesProvider } from '../../../context/PreferencesContext';
 import {
+  getBundledPlan,
   subscribeToAllPlanProgress,
   subscribeToPublishedPlans,
   type PlanProgress,
   type PublishedPlan,
 } from '../../../services/firebase/plans';
 import { PlansView } from '../PlansView';
+import { makePlan } from '../../../testing/planFixtures';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
 
-const plan = (id: string, overrides: Partial<PublishedPlan> = {}): PublishedPlan => ({
-  id,
-  title: `Plan ${id}`,
-  description: `All about ${id}. And a second sentence.`,
-  category: 'Devotional',
-  coverImageUrl: null,
-  dayCount: 7,
-  ...overrides,
-});
+const plan = (id: string, overrides: Partial<PublishedPlan> = {}): PublishedPlan =>
+  makePlan({
+    id,
+    title: `Plan ${id}`,
+    description: `All about ${id}. And a second sentence.`,
+    ...overrides,
+  });
 
 const progress = (overrides: Partial<PlanProgress> = {}): PlanProgress => ({
   startedAt: null,
@@ -224,6 +224,136 @@ describe('the language of a plan', () => {
     const { getByTestId } = await renderView();
     await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
     expect(getByTestId('plan-a')).not.toHaveTextContent(/English/);
+  });
+});
+
+describe('what the church wrote about a plan', () => {
+  it('shows the church’s short line, in place of the first sentence of the description', async () => {
+    library([plan('luke', { subtitle: 'Follow Jesus from Galilee to Jerusalem' })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-luke')).toHaveTextContent(
+      /Follow Jesus from Galilee to Jerusalem/
+    );
+    expect(getByTestId('plan-luke')).not.toHaveTextContent(/All about luke/);
+  });
+
+  it('says how long a day takes, when the church said', async () => {
+    library([plan('luke', { dayCount: 30, estimatedMinutes: 10 })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-luke')).toHaveTextContent(
+      /Devotional · 30 days · 10 min a day/
+    );
+  });
+
+  it('says nothing about minutes when the church did not', async () => {
+    library([plan('luke')]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-luke')).not.toHaveTextContent(/min a day/);
+  });
+});
+
+describe('the language the church named for a plan', () => {
+  it('names Telugu on a plan in Telugu, in an English app', async () => {
+    library([plan('te', { title: 'కీర్తనలలో ఏడు రోజులు', language: 'te' })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-te')).toHaveTextContent(/· Telugu/);
+  });
+
+  it('names nothing on a plan in the language of the app', async () => {
+    library([plan('en', { language: 'en' })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-en')).not.toHaveTextContent(/English|Telugu/);
+  });
+
+  it('names English on a plan the church wrote in English, in a Telugu app', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    library([plan('en', { language: 'en' })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-en')).toHaveTextContent(/ఇంగ్లీష్/);
+  });
+
+  it('believes the church over the look of the title', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    // An English-looking title on a plan the church says is Telugu.
+    library([plan('te', { title: 'Psalms', language: 'te' })]);
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-te')).not.toHaveTextContent(/ఇంగ్లీష్/);
+  });
+});
+
+describe('a starter plan the member had already begun', () => {
+  const starter = plan('seven-days-in-the-psalms', {
+    title: 'Seven Days in the Psalms',
+    language: 'en',
+  });
+
+  beforeEach(() => {
+    (getBundledPlan as jest.Mock).mockImplementation((id: string) =>
+      id === starter.id ? starter : undefined
+    );
+  });
+
+  afterEach(() => {
+    (getBundledPlan as jest.Mock).mockReset();
+  });
+
+  it('stays under My plans after the church publishes plans of its own', async () => {
+    // The library has stepped aside for the church's plan; the member's place in
+    // the starter plan has not gone anywhere.
+    library([plan('church-plan')]);
+    started({ [starter.id]: progress({ currentDay: 3, completedDays: [1, 2] }) });
+    const { getByTestId, queryByTestId } = await renderView();
+    await waitFor(() => expect(getByTestId(`plan-${starter.id}`)).toBeTruthy());
+    expect(getByTestId(`plan-${starter.id}`)).toHaveTextContent(/Day 3 of 7 · 29%/);
+    expect(queryByTestId('plan-church-plan')).toBeNull();
+  });
+
+  it('stays under Completed when it was finished', async () => {
+    library([plan('church-plan')]);
+    started({
+      [starter.id]: progress({ currentDay: 8, completedDays: [1, 2, 3, 4, 5, 6, 7] }),
+    });
+    const { getByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-completed'));
+    expect(getByTestId(`plan-${starter.id}`)).toBeTruthy();
+    expect(getByTestId(`plan-${starter.id}-done`)).toBeTruthy();
+  });
+
+  it('is not offered under Find plans to a member who never began it', async () => {
+    library([plan('church-plan')]);
+    const { getByTestId, queryByTestId } = await renderView();
+    await fireEvent.press(await waitForTestId(getByTestId, 'plans-chip-find'));
+    expect(getByTestId('plan-church-plan')).toBeTruthy();
+    expect(queryByTestId(`plan-${starter.id}`)).toBeNull();
+  });
+
+  it('appears once when the church has published a plan with the same id', async () => {
+    library([plan(starter.id, { title: 'The church’s own wording' })]);
+    started({ [starter.id]: progress({ currentDay: 2, completedDays: [1] }) });
+    const { getAllByTestId, getByTestId } = await renderView();
+    await waitFor(() => expect(getByTestId(`plan-${starter.id}`)).toBeTruthy());
+    expect(getAllByTestId(`plan-${starter.id}`)).toHaveLength(1);
+    expect(getByTestId(`plan-${starter.id}`)).toHaveTextContent(
+      /The church’s own wording/
+    );
+  });
+
+  it('is not made up for progress on a plan that is not a starter plan', async () => {
+    library([plan('church-plan')]);
+    started({
+      'a-plan-since-unpublished': progress({ currentDay: 2, completedDays: [1] }),
+    });
+    const { getByTestId, queryByTestId } = await renderView();
+    await waitFor(() => expect(getByTestId('plans-chip-my')).toBeTruthy());
+    expect(queryByTestId('plan-a-plan-since-unpublished')).toBeNull();
+    expect(getByTestId('plans-none-started')).toBeTruthy();
   });
 });
 

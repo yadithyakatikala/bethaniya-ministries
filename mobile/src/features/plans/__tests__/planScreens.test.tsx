@@ -17,6 +17,7 @@ import {
 import { PlanDetailScreen } from '../PlanDetailScreen';
 import { PlanDayScreen } from '../PlanDayScreen';
 import { PlanDoneScreen } from '../PlanDoneScreen';
+import { makeDay, makePlan } from '../../../testing/planFixtures';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
@@ -29,23 +30,21 @@ jest.mock('../../../services/firebase/plans');
  * and today's steps lead somewhere real, and that marking the last day done
  * ends on the finish screen and nowhere else.
  */
-const PLAN: PublishedPlan = {
-  id: 'psalms',
-  title: 'Seven Days in the Psalms',
+const PLAN: PublishedPlan = makePlan({
   description: 'A week of psalms. Read one a day, and pray as you go.',
-  category: 'Devotional',
-  coverImageUrl: null,
   dayCount: 3,
-};
+});
 
-const days: PublishedPlanDay[] = [1, 2, 3].map((n) => ({
-  id: `day-${n}`,
-  dayNumber: n,
-  title: `Title ${n}`,
-  scriptureReference: n === 2 ? 'Psalm 23' : `Psalm ${n}:1-6`,
-  devotional: `Devotional ${n}, first.\n\nDevotional ${n}, second.`,
-  prayerPrompt: `Prompt ${n}`,
-}));
+const days: PublishedPlanDay[] = [1, 2, 3].map((n) =>
+  makeDay({
+    id: `day-${n}`,
+    dayNumber: n,
+    title: `Title ${n}`,
+    scriptureReference: n === 2 ? 'Psalm 23' : `Psalm ${n}:1-6`,
+    devotional: `Devotional ${n}, first.\n\nDevotional ${n}, second.`,
+    prayerPrompt: `Prompt ${n}`,
+  })
+);
 
 const progress = (overrides: Partial<PlanProgress> = {}): PlanProgress => ({
   startedAt: null,
@@ -469,5 +468,239 @@ describe('the finish', () => {
     const { getByRole, navigation } = await renderDone();
     await fireEvent.press(getByRole('button', { name: 'Close' }));
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the optional parts of a day', () => {
+  beforeEach(() => withProgress(progress({ currentDay: 2, completedDays: [1] })));
+
+  const full = (n: number) =>
+    makeDay({
+      id: `day-${n}`,
+      dayNumber: n,
+      title: `Title ${n}`,
+      scriptureReference: 'Psalm 23',
+      devotional: 'Rest in him.',
+      reflectionQuestion: 'Where has he led you?',
+      application: 'Call a friend this week.',
+      prayerPrompt: 'Thank him.',
+      notes: 'A psalm of David.',
+    });
+
+  it('shows each part the church wrote, in the order the admin site’s Preview lays them out', async () => {
+    withDays([full(1), full(2), full(3)]);
+    const { getByTestId, getAllByTestId } = await renderDay(2);
+    await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
+    expect(getByTestId('plan-day-question')).toHaveTextContent('Where has he led you?');
+    expect(getByTestId('plan-day-application')).toHaveTextContent(
+      'Call a friend this week.'
+    );
+    expect(getByTestId('plan-day-prayer')).toHaveTextContent('Thank him.');
+    expect(getByTestId('plan-day-notes')).toHaveTextContent('A psalm of David.');
+    // Reflect, Think about it, Put it into practice, Prayer, Notes.
+    expect(
+      getAllByTestId(/^plan-day-(reflection|question|application|prayer|notes)$/).map(
+        (part) => part.props.testID
+      )
+    ).toEqual([
+      'plan-day-reflection',
+      'plan-day-question',
+      'plan-day-application',
+      'plan-day-prayer',
+      'plan-day-notes',
+    ]);
+  });
+
+  it('names each part with a heading', async () => {
+    withDays([full(1), full(2), full(3)]);
+    const { getByText, getAllByRole } = await renderDay(2);
+    await waitFor(() => expect(getByText('Think about it')).toBeTruthy());
+    expect(getByText('Put it into practice')).toBeTruthy();
+    expect(getByText('Notes')).toBeTruthy();
+    const headings = getAllByRole('header').map((heading) => heading.props.children);
+    expect(headings).toEqual(
+      expect.arrayContaining([
+        'Reflect',
+        'Think about it',
+        'Put it into practice',
+        'Notes',
+      ])
+    );
+  });
+
+  it('shows only the reading for a day that is nothing else', async () => {
+    withDays([
+      makeDay({
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Just a reading',
+        scriptureReference: 'Psalm 23',
+      }),
+    ]);
+    const { getByTestId, queryByTestId, queryByText } = await renderDay(2);
+    await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
+    expect(getByTestId('plan-day-read')).toHaveTextContent(/Read · Psalm 23/);
+    for (const part of ['reflection', 'question', 'application', 'prayer', 'notes']) {
+      expect(queryByTestId(`plan-day-${part}`)).toBeNull();
+    }
+    for (const heading of [
+      'Reflect',
+      'Think about it',
+      'Put it into practice',
+      'Prayer Prompt',
+      'Notes',
+    ]) {
+      expect(queryByText(heading)).toBeNull();
+    }
+    // And it can still be completed.
+    expect(getByTestId('plan-day-mark-complete')).toHaveTextContent('Mark Complete');
+  });
+
+  it('shows only what is there when the church wrote some of the parts', async () => {
+    withDays([
+      makeDay({
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Some',
+        reflectionQuestion: 'A question?',
+        notes: 'A note.',
+      }),
+    ]);
+    const { getByTestId, queryByTestId } = await renderDay(2);
+    await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
+    expect(getByTestId('plan-day-question')).toBeTruthy();
+    expect(getByTestId('plan-day-notes')).toBeTruthy();
+    expect(queryByTestId('plan-day-reflection')).toBeNull();
+    expect(queryByTestId('plan-day-application')).toBeNull();
+    expect(queryByTestId('plan-day-prayer')).toBeNull();
+  });
+
+  it('treats text that is only spaces and blank lines as nothing', async () => {
+    withDays([
+      makeDay({
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Blank',
+        devotional: '  \n\n  ',
+        reflectionQuestion: '   ',
+        application: '\n',
+        prayerPrompt: '',
+        notes: ' ',
+      }),
+    ]);
+    const { getByTestId, queryByTestId } = await renderDay(2);
+    await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
+    for (const part of ['reflection', 'question', 'application', 'prayer', 'notes']) {
+      expect(queryByTestId(`plan-day-${part}`)).toBeNull();
+    }
+  });
+
+  it('shows a day from before the plan manager, with only a devotional and a prayer, exactly as it did', async () => {
+    withDays([
+      makeDay({
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Old day',
+        devotional: 'Old words.',
+        prayerPrompt: 'Old prayer.',
+      }),
+    ]);
+    const { getByText, getByTestId, queryByTestId } = await renderDay(2);
+    await waitFor(() => expect(getByTestId('plan-day-screen')).toBeTruthy());
+    expect(getByText('Old words.')).toBeTruthy();
+    expect(getByTestId('plan-day-prayer')).toHaveTextContent('Old prayer.');
+    expect(queryByTestId('plan-day-question')).toBeNull();
+    expect(queryByTestId('plan-day-notes')).toBeNull();
+  });
+
+  it('keeps a paragraph break the church typed in the devotional', async () => {
+    withDays([
+      makeDay({
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Two',
+        devotional: 'First.\n\nSecond.',
+      }),
+    ]);
+    const { getByText } = await renderDay(2);
+    await waitFor(() => expect(getByText('First.')).toBeTruthy());
+    expect(getByText('Second.')).toBeTruthy();
+  });
+
+  it('labels the parts in Telugu in a Telugu app', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    try {
+      withDays([full(1), full(2), full(3)]);
+      const { getByText } = await renderDay(2);
+      await waitFor(() => expect(getByText('ఆలోచించండి')).toBeTruthy());
+      expect(getByText('ఆచరణలో పెట్టండి')).toBeTruthy();
+      expect(getByText('గమనికలు')).toBeTruthy();
+    } finally {
+      await AsyncStorage.removeItem('app_language_preference');
+    }
+  });
+});
+
+describe('what the church says about a plan', () => {
+  const described = makePlan({
+    id: 'psalms',
+    title: 'Seven Days in the Psalms',
+    subtitle: 'Rest for the weary',
+    description: 'A week of psalms. Read one a day.',
+    dayCount: 3,
+    estimatedMinutes: 12,
+    author: 'Pastor Samuel',
+    language: 'en',
+  });
+
+  it('shows the short line, the minutes a day and who wrote it', async () => {
+    const { getByTestId, getByText } = await renderDetail(described);
+    await waitFor(() => expect(getByTestId('plan-days-list')).toBeTruthy());
+    expect(getByTestId('plan-detail-subtitle')).toHaveTextContent('Rest for the weary');
+    expect(getByText(/Devotional · 3 days · 12 min a day/)).toBeTruthy();
+    expect(getByTestId('plan-detail-author')).toHaveTextContent('by Pastor Samuel');
+  });
+
+  it('shows none of them for a plan that has none, and nothing odd in their place', async () => {
+    const { getByTestId, queryByTestId, getByText } = await renderDetail(
+      makePlan({ id: 'psalms', title: 'Seven Days in the Psalms', dayCount: 3 })
+    );
+    await waitFor(() => expect(getByTestId('plan-days-list')).toBeTruthy());
+    expect(queryByTestId('plan-detail-subtitle')).toBeNull();
+    expect(queryByTestId('plan-detail-author')).toBeNull();
+    expect(getByText(/^Devotional · 3 days$/)).toBeTruthy();
+  });
+
+  it('still shows them once the plan is started', async () => {
+    withProgress(progress({ currentDay: 2, completedDays: [1] }));
+    const { getByTestId } = await renderDetail(described);
+    await waitFor(() => expect(getByTestId('plan-detail-progress')).toBeTruthy());
+    expect(getByTestId('plan-detail-subtitle')).toHaveTextContent('Rest for the weary');
+    expect(getByTestId('plan-detail-author')).toHaveTextContent('by Pastor Samuel');
+  });
+
+  it('names Telugu on a plan written in Telugu, in an English app', async () => {
+    const { getByText } = await renderDetail(
+      makePlan({ id: 'te', title: 'కీర్తనలలో ఏడు రోజులు', dayCount: 3, language: 'te' })
+    );
+    await waitFor(() => expect(getByText(/Devotional · 3 days · Telugu/)).toBeTruthy());
+  });
+
+  it('names English on a plan the church wrote in English, in a Telugu app', async () => {
+    await AsyncStorage.setItem('app_language_preference', 'te');
+    try {
+      const { getByText } = await renderDetail(described);
+      await waitFor(() => expect(getByText(/ఇంగ్లీష్/)).toBeTruthy());
+    } finally {
+      await AsyncStorage.removeItem('app_language_preference');
+    }
+  });
+
+  it('names nothing when the plan is in the language of the app', async () => {
+    const { getByText, queryByText } = await renderDetail(described);
+    await waitFor(() =>
+      expect(getByText(/Devotional · 3 days · 12 min a day$/)).toBeTruthy()
+    );
+    expect(queryByText(/Telugu|English/)).toBeNull();
   });
 });

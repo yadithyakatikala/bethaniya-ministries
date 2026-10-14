@@ -6,17 +6,17 @@ import {
   isPlanCompleted,
   percentComplete,
   planIsEnglishInTeluguApp,
+  planOtherLanguage,
+  withStartedBundledPlans,
 } from '../planGroups';
 import type { PlanProgress, PublishedPlan } from '../../../services/firebase/plans';
+import { makePlan } from '../../../testing/planFixtures';
+import { SEED_PLANS } from '../seedPlans';
 
-const plan = (id: string, dayCount = 7): PublishedPlan => ({
-  id,
-  title: id,
-  description: '',
-  category: 'Devotional',
-  coverImageUrl: null,
-  dayCount,
-});
+jest.mock('../../../services/firebase/app');
+
+const plan = (id: string, dayCount = 7): PublishedPlan =>
+  makePlan({ id, title: id, description: '', dayCount });
 
 const progress = (overrides: Partial<PlanProgress> = {}): PlanProgress => ({
   startedAt: null,
@@ -145,5 +145,92 @@ describe('planIsEnglishInTeluguApp', () => {
   it('is never true in an English app, whatever the title', () => {
     expect(planIsEnglishInTeluguApp('Seven Days in the Psalms', 'en')).toBe(false);
     expect(planIsEnglishInTeluguApp('కీర్తనలలో ఏడు రోజులు', 'en')).toBe(false);
+  });
+});
+
+describe('planOtherLanguage', () => {
+  it('says nothing when the plan is in the language the member reads the app in', () => {
+    expect(planOtherLanguage({ title: 'Psalms', language: 'en' }, 'en')).toBeNull();
+    expect(planOtherLanguage({ title: 'కీర్తనలు', language: 'te' }, 'te')).toBeNull();
+  });
+
+  it('names the plan’s language when the church said it is the other one', () => {
+    expect(planOtherLanguage({ title: 'Psalms', language: 'en' }, 'te')).toBe('en');
+    expect(planOtherLanguage({ title: 'కీర్తనలు', language: 'te' }, 'en')).toBe('te');
+  });
+
+  it('trusts the language the church named over what the title looks like', () => {
+    // An English title on a plan the church says is Telugu (a transliterated name,
+    // say) is not "English".
+    expect(planOtherLanguage({ title: 'Psalms', language: 'te' }, 'te')).toBeNull();
+    expect(planOtherLanguage({ title: 'కీర్తనలు', language: 'en' }, 'en')).toBeNull();
+  });
+
+  it('reads a plan with no language the way it always has: English in a Telugu app', () => {
+    expect(
+      planOtherLanguage({ title: 'Seven Days in the Psalms', language: null }, 'te')
+    ).toBe('en');
+    expect(
+      planOtherLanguage({ title: 'కీర్తనలలో ఏడు రోజులు', language: null }, 'te')
+    ).toBeNull();
+    expect(
+      planOtherLanguage({ title: 'Seven Days in the Psalms', language: null }, 'en')
+    ).toBeNull();
+  });
+});
+
+describe('withStartedBundledPlans', () => {
+  const starter = SEED_PLANS[0]!;
+  const church = plan('church-plan');
+
+  it('keeps a starter plan the member has begun when the church’s own plans have replaced it', () => {
+    const result = withStartedBundledPlans([church], { [starter.id]: progress() });
+    expect(result.map((p) => p.id)).toEqual(['church-plan', starter.id]);
+    expect(result[1]!.title).toBe(starter.plan.title);
+  });
+
+  it('puts it where the member’s progress says: My plans while it is under way, Completed when done', () => {
+    const under = groupPlans(
+      withStartedBundledPlans([church], {
+        [starter.id]: progress({ completedDays: [1] }),
+      }),
+      { [starter.id]: progress({ completedDays: [1] }) }
+    );
+    expect(under.my.map((p) => p.id)).toEqual([starter.id]);
+    expect(under.find.map((p) => p.id)).toEqual(['church-plan']);
+
+    const all = Array.from({ length: starter.plan.dayCount }, (_, i) => i + 1);
+    const done = groupPlans(
+      withStartedBundledPlans([church], {
+        [starter.id]: progress({ completedDays: all }),
+      }),
+      { [starter.id]: progress({ completedDays: all }) }
+    );
+    expect(done.completed.map((p) => p.id)).toEqual([starter.id]);
+  });
+
+  it('never offers a starter plan to someone who has not begun it', () => {
+    const result = withStartedBundledPlans([church], {});
+    expect(result.map((p) => p.id)).toEqual(['church-plan']);
+    expect(groupPlans(result, {}).find.map((p) => p.id)).toEqual(['church-plan']);
+  });
+
+  it('lists it once when the library already has it', () => {
+    const listed = plan(starter.id);
+    const result = withStartedBundledPlans([listed], { [starter.id]: progress() });
+    expect(result).toEqual([listed]);
+  });
+
+  it('has nothing to add for progress on a plan that is not a starter plan', () => {
+    // A plan the church has since unpublished: its progress is kept, but it is not
+    // brought back from anywhere.
+    const result = withStartedBundledPlans([church], { 'unpublished-plan': progress() });
+    expect(result.map((p) => p.id)).toEqual(['church-plan']);
+  });
+
+  it('does not change the list it was given', () => {
+    const library = [church];
+    withStartedBundledPlans(library, { [starter.id]: progress() });
+    expect(library).toHaveLength(1);
   });
 });

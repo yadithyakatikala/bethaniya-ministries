@@ -44,6 +44,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlanDay'>;
  * tick, and it no longer presses) and a link offers "Next: day 3 · Title".
  * Marking the LAST day complete opens the Plan complete screen.
  *
+ * THE OPTIONAL PARTS. The church writes a day's devotional, reflection question,
+ * application, prayer and notes in the admin site, and may leave any of them out.
+ * Each appears only if there is something in it -- a day that is only a reading
+ * shows just the reading -- in the order Read, Reflect, **Think about it**, **Put it
+ * into practice**, Pray, Notes. The admin site's Preview tab lays a day out in the
+ * same order, so what the church checks is what members get.
+ *
  * A failure to read the days is not "this day could not be found": that blamed
  * the content for a connection problem and offered no way out. It says it could
  * not load, with Try again.
@@ -175,9 +182,10 @@ export function PlanDayScreen({ route, navigation }: Props) {
     );
   }
 
-  const paragraphs = day.devotional
-    .split(/\n{2,}/)
-    .filter((paragraph) => paragraph.trim().length > 0);
+  const paragraphs = paragraphsOf(day.devotional);
+  const question = day.reflectionQuestion.trim();
+  const application = day.application.trim();
+  const notes = day.notes.trim();
 
   return screen(
     <View style={styles.screen} testID="plan-day-screen">
@@ -260,6 +268,58 @@ export function PlanDayScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
+        {question ? (
+          <View style={styles.section}>
+            <Text
+              accessibilityRole="header"
+              style={[type.overline, styles.sectionLabel, { color: colors.inkMuted }]}
+            >
+              {t('plans.question')}
+            </Text>
+            <Text
+              testID="plan-day-question"
+              style={[
+                contentTextStyle(question, {
+                  size: 17,
+                  line: 28,
+                  teSize: 17,
+                  teLine: 32,
+                  fallback: appLanguage,
+                }),
+                { color: colors.ink },
+              ]}
+            >
+              {question}
+            </Text>
+          </View>
+        ) : null}
+
+        {application ? (
+          <View style={styles.section}>
+            <Text
+              accessibilityRole="header"
+              style={[type.overline, styles.sectionLabel, { color: colors.inkMuted }]}
+            >
+              {t('plans.application')}
+            </Text>
+            <Text
+              testID="plan-day-application"
+              style={[
+                contentTextStyle(application, {
+                  size: 17,
+                  line: 28,
+                  teSize: 17,
+                  teLine: 32,
+                  fallback: appLanguage,
+                }),
+                { color: colors.ink },
+              ]}
+            >
+              {application}
+            </Text>
+          </View>
+        ) : null}
+
         {day.prayerPrompt ? (
           <View style={styles.section}>
             <Text
@@ -286,6 +346,32 @@ export function PlanDayScreen({ route, navigation }: Props) {
                 {day.prayerPrompt}
               </Text>
             </View>
+          </View>
+        ) : null}
+
+        {notes ? (
+          <View style={styles.section}>
+            <Text
+              accessibilityRole="header"
+              style={[type.overline, styles.sectionLabel, { color: colors.inkMuted }]}
+            >
+              {t('plans.notes')}
+            </Text>
+            <Text
+              testID="plan-day-notes"
+              style={[
+                contentTextStyle(notes, {
+                  size: 15,
+                  line: 24,
+                  teSize: 15,
+                  teLine: 28,
+                  fallback: appLanguage,
+                }),
+                { color: colors.inkMuted },
+              ]}
+            >
+              {notes}
+            </Text>
           </View>
         ) : null}
       </ScrollView>
@@ -343,6 +429,11 @@ export function PlanDayScreen({ route, navigation }: Props) {
       </BottomBar>
     </View>
   );
+}
+
+/** Paragraphs of a day's text: a blank line starts a new one. */
+function paragraphsOf(text: string): string[] {
+  return text.split(/\n{2,}/).filter((paragraph) => paragraph.trim().length > 0);
 }
 
 const styles = StyleSheet.create({
