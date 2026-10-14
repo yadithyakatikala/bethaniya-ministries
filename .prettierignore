@@ -20,3 +20,10 @@ admin/src/features/daily-verses/bibleStructure.ts
 # not hand-authored source; the admin package reads this exact file so the
 # two implementations cannot drift apart.
 mobile/src/features/daily-verses/__tests__/votd-vectors.json
+
+# Golden vectors for reading a Scripture reference, replayed by BOTH the
+# admin checker (admin/src/features/scripture/__tests__/passages.test.ts) and
+# the phone's reader (mobile/src/features/plans/__tests__/planReference.test.ts)
+# so a reference one accepts is one the other opens at the same place. One
+# vector per line is how a reviewer reads them; Prettier would explode each.
+mobile/src/features/plans/__tests__/plan-reference-vectors.json

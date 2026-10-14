@@ -205,9 +205,18 @@ describe('PlanStatusBar', () => {
       const user = userEvent.setup();
       setup({ isNew: true });
       await openMenu(user);
-      expect(screen.getByTestId('plan-menu-archive')).toHaveAttribute('aria-disabled', 'true');
-      expect(screen.getByTestId('plan-menu-duplicate')).toHaveAttribute('aria-disabled', 'true');
-      expect(screen.getByTestId('plan-menu-delete')).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.getByTestId('plan-menu-archive')).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+      expect(screen.getByTestId('plan-menu-duplicate')).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+      expect(screen.getByTestId('plan-menu-delete')).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
     });
 
     it('will not copy a plan with unsaved changes, and says why', async () => {
@@ -229,7 +238,13 @@ describe('PlanStatusBar', () => {
       expect(screen.getByTestId('plan-read-only-note')).toHaveTextContent(
         'only a content administrator can change it'
       );
-      for (const id of ['plan-save', 'plan-publish', 'plan-unpublish', 'plan-more', 'plan-restore']) {
+      for (const id of [
+        'plan-save',
+        'plan-publish',
+        'plan-unpublish',
+        'plan-more',
+        'plan-restore',
+      ]) {
         expect(screen.queryByTestId(id)).not.toBeInTheDocument();
       }
     });

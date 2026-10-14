@@ -222,7 +222,10 @@ export function PlanDetailsTab({
                 helperText={errors.category ?? 'Choose one or type your own.'}
                 slotProps={{
                   ...params.slotProps,
-                  htmlInput: { ...params.slotProps.htmlInput, 'data-testid': 'plan-category' },
+                  htmlInput: {
+                    ...params.slotProps.htmlInput,
+                    'data-testid': 'plan-category',
+                  },
                 }}
               />
             )}

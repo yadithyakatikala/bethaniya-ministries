@@ -109,20 +109,26 @@ describe('the reading-plan routes', () => {
     signInAs('content_admin');
     open('/plans');
     expect(await screen.findByTestId('plans-list-page')).toBeInTheDocument();
-    expect(await screen.findByTestId('plan-row-seven-days-in-the-psalms')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('plan-row-seven-days-in-the-psalms')
+    ).toBeInTheDocument();
   });
 
   it('shows a new, empty editor at /plans/new', async () => {
     signInAs('content_admin');
     open('/plans/new');
     expect(await screen.findByTestId('plan-editor-page')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'New Reading Plan' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'New Reading Plan' })
+    ).toBeInTheDocument();
   });
 
   it('shows the plan in the editor at /plans/:id/edit', async () => {
     signInAs('content_admin');
     open('/plans/seven-days-in-the-psalms/edit');
-    expect(await screen.findByTestId('plan-title')).toHaveValue('Seven Days in the Psalms');
+    expect(await screen.findByTestId('plan-title')).toHaveValue(
+      'Seven Days in the Psalms'
+    );
   });
 
   it('keeps the plan section lit in the navigation while editing', async () => {

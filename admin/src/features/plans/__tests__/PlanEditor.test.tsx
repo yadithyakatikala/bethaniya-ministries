@@ -70,7 +70,10 @@ const loadPlanForEditing = vi.mocked(plans.loadPlanForEditing);
 
 const ID = 'seven-days-in-the-psalms';
 
-function renderAt(path: string, role: 'content_admin' | 'super_admin' | 'host' = 'content_admin') {
+function renderAt(
+  path: string,
+  role: 'content_admin' | 'super_admin' | 'host' = 'content_admin'
+) {
   useAuthStore.setState({ user: { uid: 'admin-1', email: 'a@x.org' } as never, role });
   return renderPlans(
     <Routes>
@@ -83,7 +86,10 @@ function renderAt(path: string, role: 'content_admin' | 'super_admin' | 'host' =
 }
 
 /** Opens an existing plan and waits for the editor. */
-async function openPlan(path = `/plans/${ID}/edit`, role?: Parameters<typeof renderAt>[1]) {
+async function openPlan(
+  path = `/plans/${ID}/edit`,
+  role?: Parameters<typeof renderAt>[1]
+) {
   const view = renderAt(path, role);
   await screen.findByTestId('plan-status-bar');
   return view;
@@ -140,7 +146,9 @@ describe('creating a plan', () => {
   it('starts empty and unsaved, and the ID follows the title', async () => {
     const user = userEvent.setup();
     renderAt('/plans/new');
-    expect(screen.getByRole('heading', { level: 1, name: 'New Reading Plan' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'New Reading Plan' })
+    ).toBeInTheDocument();
     expect(state()).toHaveTextContent('Not saved yet');
     expect(chip()).toHaveTextContent('Draft');
     await enter(user, screen.getByTestId('plan-title'), 'Seven Days in the Psalms');
@@ -197,15 +205,23 @@ describe('creating a plan', () => {
     await addFirstDay(user);
     await user.click(screen.getByTestId('plan-save'));
 
-    await waitFor(() => expect(location()).toHaveTextContent(`/plans/${ID}/edit?tab=days`));
+    await waitFor(() =>
+      expect(location()).toHaveTextContent(`/plans/${ID}/edit?tab=days`)
+    );
     expect(await screen.findByText('Plan saved.')).toBeInTheDocument();
     await screen.findByTestId('plan-status-bar');
     expect(state()).toHaveTextContent('All changes saved');
     expect(chip()).toHaveTextContent('Draft');
-    expect(screen.getByRole('heading', { level: 1, name: 'Seven Days in the Psalms' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Seven Days in the Psalms' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Days (1)' })).toBeInTheDocument();
     // What is stored is what is shown, never published by saving.
-    expect(store.get(ID)!.plan).toMatchObject({ status: 'draft', published: false, dayCount: 1 });
+    expect(store.get(ID)!.plan).toMatchObject({
+      status: 'draft',
+      published: false,
+      dayCount: 1,
+    });
   });
 
   it('will not save a plan that is missing what a draft needs, and says what', async () => {
@@ -275,7 +291,9 @@ describe('creating a plan', () => {
 
     savePlan.mockRejectedValueOnce(new Error('network down'));
     await user.click(screen.getByTestId('plan-save'));
-    expect(await screen.findByTestId('plan-save-error')).toHaveTextContent(SAVE_RETRY_MESSAGE);
+    expect(await screen.findByTestId('plan-save-error')).toHaveTextContent(
+      SAVE_RETRY_MESSAGE
+    );
     expect(location()).toHaveTextContent('/plans/new');
     await user.click(screen.getByTestId('plan-tab-details'));
     expect(screen.getByTestId('plan-title')).toHaveValue('Seven Days in the Psalms');
@@ -298,7 +316,9 @@ describe('creating a plan', () => {
     savePlan.mockReturnValueOnce(pending.promise);
     await user.click(screen.getByTestId('plan-save'));
 
-    await waitFor(() => expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'true'));
+    await waitFor(() =>
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'true')
+    );
     expect(screen.getByRole('tabpanel')).toHaveAttribute('inert');
     expect(screen.getByTestId('plan-save')).toBeDisabled();
     expect(state()).toHaveTextContent('Not saved yet');
@@ -333,10 +353,16 @@ describe('the pieces of the editor', () => {
     const user = userEvent.setup();
     seedPlan();
     await openPlan();
-    fireEvent.change(screen.getByTestId('plan-title'), { target: { value: 'A brand new title' } });
+    fireEvent.change(screen.getByTestId('plan-title'), {
+      target: { value: 'A brand new title' },
+    });
     await user.click(screen.getByTestId('plan-tab-preview'));
-    expect(screen.getByTestId('plan-preview-title')).toHaveTextContent('A brand new title');
-    expect(screen.getByTestId('plan-preview-day-title')).toHaveTextContent('The Lord is my shepherd');
+    expect(screen.getByTestId('plan-preview-title')).toHaveTextContent(
+      'A brand new title'
+    );
+    expect(screen.getByTestId('plan-preview-day-title')).toHaveTextContent(
+      'The Lord is my shepherd'
+    );
   });
 
   it('shows the days with their readings and counts them in the tab', async () => {
@@ -354,8 +380,12 @@ describe('the pieces of the editor', () => {
       await openPlan(`/plans/${ID}/edit?tab=days`);
       expect(state()).toHaveTextContent('All changes saved');
       await user.click(screen.getByTestId('plan-day-up-2'));
-      expect(screen.getByTestId('plan-day-title-1')).toHaveTextContent('Out of the depths');
-      expect(screen.getByTestId('plan-day-title-2')).toHaveTextContent('The Lord is my shepherd');
+      expect(screen.getByTestId('plan-day-title-1')).toHaveTextContent(
+        'Out of the depths'
+      );
+      expect(screen.getByTestId('plan-day-title-2')).toHaveTextContent(
+        'The Lord is my shepherd'
+      );
       expect(state()).toHaveTextContent('Unsaved changes');
     });
 
@@ -366,7 +396,10 @@ describe('the pieces of the editor', () => {
       await user.click(screen.getByTestId('plan-day-up-2'));
       await user.click(screen.getByTestId('plan-save'));
       await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
-      expect(savePlan.mock.calls[0]![0].days.map((d) => d.id)).toEqual(['day-2', 'day-1']);
+      expect(savePlan.mock.calls[0]![0].days.map((d) => d.id)).toEqual([
+        'day-2',
+        'day-1',
+      ]);
       await waitFor(() => expect(state()).toHaveTextContent('All changes saved'));
       expect(store.get(ID)!.days.map((d) => [d.id, d.dayNumber])).toEqual([
         ['day-2', 1],
@@ -384,8 +417,12 @@ describe('the pieces of the editor', () => {
       // Nothing is removed until it is confirmed.
       expect(screen.getByTestId('plan-day-row-2')).toBeInTheDocument();
       await user.click(screen.getByTestId('plan-day-delete-confirm'));
-      await waitFor(() => expect(screen.queryByTestId('plan-day-row-2')).not.toBeInTheDocument());
-      expect(screen.getByTestId('plan-day-title-1')).toHaveTextContent('Out of the depths');
+      await waitFor(() =>
+        expect(screen.queryByTestId('plan-day-row-2')).not.toBeInTheDocument()
+      );
+      expect(screen.getByTestId('plan-day-title-1')).toHaveTextContent(
+        'Out of the depths'
+      );
       expect(state()).toHaveTextContent('Unsaved changes');
     });
 
@@ -406,9 +443,9 @@ describe('the pieces of the editor', () => {
       await openPlan(`/plans/${ID}/edit?tab=days`);
       expect(screen.getByTestId('plan-days-live-warning')).toBeInTheDocument();
       await user.click(screen.getByTestId('plan-day-delete-1'));
-      expect(await screen.findByRole('dialog', { name: 'Delete day 1?' })).toHaveTextContent(
-        'which changes which day members have finished'
-      );
+      expect(
+        await screen.findByRole('dialog', { name: 'Delete day 1?' })
+      ).toHaveTextContent('which changes which day members have finished');
     });
 
     it('duplicates a day straight after the original and opens the copy', async () => {
@@ -460,9 +497,13 @@ describe('the pieces of the editor', () => {
     it('starts a new day when the address asks for one', async () => {
       seedPlan();
       await openPlan(`/plans/${ID}/edit?tab=days&newDay=1`);
-      expect(await screen.findByRole('dialog', { name: /Day 3 of 3/ })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: /Day 3 of 3/ })
+      ).toBeInTheDocument();
       // The page behind an open drawer is hidden from assistive technology.
-      expect(screen.getByRole('tab', { name: 'Days (3)', hidden: true })).toBeInTheDocument();
+      expect(
+        screen.getByRole('tab', { name: 'Days (3)', hidden: true })
+      ).toBeInTheDocument();
     });
 
     it('does not start a new day for someone who cannot change the plan', async () => {
@@ -494,10 +535,14 @@ describe('publishing', () => {
       planId: ID,
       status: { to: 'published' },
     });
-    expect(await screen.findByText('Published. Members can see the plan now.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Published. Members can see the plan now.')
+    ).toBeInTheDocument();
     await waitFor(() => expect(chip()).toHaveTextContent('Published'));
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Publish this plan?' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Publish this plan?' })
+      ).not.toBeInTheDocument()
     );
     // The action offered now is the opposite one.
     expect(screen.queryByTestId('plan-publish')).not.toBeInTheDocument();
@@ -522,7 +567,9 @@ describe('publishing', () => {
     seedPlan({ description: '' }, []);
     await openPlan();
     await user.click(screen.getByTestId('plan-publish'));
-    const dialog = await screen.findByRole('dialog', { name: 'Not ready to publish yet' });
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Not ready to publish yet',
+    });
     expect(dialog).toHaveTextContent('Write a short description');
     expect(dialog).toHaveTextContent('Add at least one day');
     expect(within(dialog).queryByTestId('publish-confirm')).not.toBeInTheDocument();
@@ -530,7 +577,9 @@ describe('publishing', () => {
     await user.click(within(dialog).getByTestId('publish-fix-no-days'));
     await waitFor(() => expect(location()).toHaveTextContent('tab=days'));
     expect(screen.getByTestId('plan-days-empty')).toBeInTheDocument();
-    expect(screen.getByTestId('plan-issue-summary')).toHaveTextContent('2 things need attention');
+    expect(screen.getByTestId('plan-issue-summary')).toHaveTextContent(
+      '2 things need attention'
+    );
     expect(savePlan).not.toHaveBeenCalled();
   });
 
@@ -542,7 +591,9 @@ describe('publishing', () => {
     ]);
     await openPlan();
     await user.click(screen.getByTestId('plan-publish'));
-    const dialog = await screen.findByRole('dialog', { name: 'Not ready to publish yet' });
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Not ready to publish yet',
+    });
     expect(dialog).toHaveTextContent('Day 2 ("Broken")');
     await user.click(within(dialog).getByTestId('publish-fix-saved-day-2-passages'));
     const drawer = await screen.findByRole('dialog', { name: /Day 2/ });
@@ -554,7 +605,9 @@ describe('publishing', () => {
     seedPlan({ coverImageUrl: null });
     await openPlan();
     await user.click(screen.getByTestId('plan-publish'));
-    expect(await screen.findByTestId('publish-warnings')).toHaveTextContent('There is no cover image');
+    expect(await screen.findByTestId('publish-warnings')).toHaveTextContent(
+      'There is no cover image'
+    );
     expect(screen.getByTestId('publish-confirm')).toBeEnabled();
   });
 
@@ -565,8 +618,12 @@ describe('publishing', () => {
     savePlan.mockRejectedValueOnce(new Error('offline'));
     await user.click(screen.getByTestId('plan-publish'));
     await user.click(await screen.findByTestId('publish-confirm'));
-    expect(await screen.findByTestId('publish-error')).toHaveTextContent(SAVE_RETRY_MESSAGE);
-    expect(screen.getByRole('dialog', { name: 'Publish this plan?' })).toBeInTheDocument();
+    expect(await screen.findByTestId('publish-error')).toHaveTextContent(
+      SAVE_RETRY_MESSAGE
+    );
+    expect(
+      screen.getByRole('dialog', { name: 'Publish this plan?' })
+    ).toBeInTheDocument();
     expect(chip()).toHaveTextContent('Draft');
   });
 
@@ -585,7 +642,9 @@ describe('publishing', () => {
     const user = userEvent.setup();
     renderAt('/plans/new');
     await enter(user, screen.getByTestId('plan-title'), 'Seven Days in the Psalms');
-    fireEvent.change(screen.getByTestId('plan-description'), { target: { value: 'A week.' } });
+    fireEvent.change(screen.getByTestId('plan-description'), {
+      target: { value: 'A week.' },
+    });
     await user.click(screen.getByTestId('plan-tab-days'));
     await user.click(screen.getByRole('button', { name: 'Add the first day' }));
     const drawer = await screen.findByRole('dialog', { name: /Day 1/ });
@@ -611,7 +670,9 @@ describe('publishing', () => {
       await openPlan();
       await chooseFromMenu(user, 'plan-menu-schedule');
       const dialog = await screen.findByRole('dialog', { name: 'Schedule this plan?' });
-      const when = within(dialog).getByTestId('publish-schedule-time') as HTMLInputElement;
+      const when = within(dialog).getByTestId(
+        'publish-schedule-time'
+      ) as HTMLInputElement;
       // Tomorrow at 06:00 by default.
       expect(when.value).toMatch(/T06:00$/);
       fireEvent.change(when, { target: { value: '2099-01-01T09:30' } });
@@ -620,15 +681,26 @@ describe('publishing', () => {
       await waitFor(() => expect(savePlan).toHaveBeenCalledTimes(1));
       const status = savePlan.mock.calls[0]![0].status;
       expect(status?.to).toBe('scheduled');
-      expect(status?.to === 'scheduled' && status.publishAt).toEqual(new Date(2099, 0, 1, 9, 30));
-      expect(await screen.findByText(/Scheduled\. The plan will appear/)).toBeInTheDocument();
+      expect(status?.to === 'scheduled' && status.publishAt).toEqual(
+        new Date(2099, 0, 1, 9, 30)
+      );
+      expect(
+        await screen.findByText(/Scheduled\. The plan will appear/)
+      ).toBeInTheDocument();
       await waitFor(() => expect(chip()).toHaveTextContent(/Scheduled · 1 Jan 2099/));
-      expect(store.get(ID)!.plan).toMatchObject({ status: 'scheduled', published: false });
+      expect(store.get(ID)!.plan).toMatchObject({
+        status: 'scheduled',
+        published: false,
+      });
     });
 
     it('lets a scheduled plan be published now or have its schedule cancelled', async () => {
       const user = userEvent.setup();
-      seedPlan({ status: 'scheduled', published: false, publishAt: new Date('2099-01-01T09:30:00Z') });
+      seedPlan({
+        status: 'scheduled',
+        published: false,
+        publishAt: new Date('2099-01-01T09:30:00Z'),
+      });
       await openPlan();
       expect(screen.getByTestId('plan-publish')).toHaveTextContent('Publish now…');
 
@@ -640,7 +712,11 @@ describe('publishing', () => {
     });
 
     it('treats a scheduled plan whose time has come as published', async () => {
-      seedPlan({ status: 'scheduled', published: false, publishAt: new Date('2020-01-01T00:00:00Z') });
+      seedPlan({
+        status: 'scheduled',
+        published: false,
+        publishAt: new Date('2020-01-01T00:00:00Z'),
+      });
       await openPlan();
       expect(chip()).toHaveTextContent('Published');
       expect(screen.getByTestId('plan-unpublish')).toBeInTheDocument();
@@ -662,7 +738,9 @@ describe('taking a plan back', () => {
     await waitFor(() => expect(setPlanStatus).toHaveBeenCalledTimes(1));
     expect(setPlanStatus.mock.calls[0]![0]).toMatchObject({ id: ID });
     expect(setPlanStatus.mock.calls[0]![1]).toEqual({ to: 'draft' });
-    expect(await screen.findByText('Unpublished. Members can no longer see the plan.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Unpublished. Members can no longer see the plan.')
+    ).toBeInTheDocument();
     await waitFor(() => expect(chip()).toHaveTextContent('Draft'));
     expect(screen.getByTestId('plan-publish')).toBeInTheDocument();
     expect(store.get(ID)!.plan).toMatchObject({ status: 'draft', published: false });
@@ -673,13 +751,17 @@ describe('taking a plan back', () => {
     seedPlan({ status: 'published', published: true });
     await openPlan();
     await chooseFromMenu(user, 'plan-menu-archive');
-    expect(await screen.findByRole('dialog', { name: 'Archive this plan?' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: 'Archive this plan?' })
+    ).toBeInTheDocument();
     await user.click(screen.getByTestId('plan-status-confirm'));
     await waitFor(() => expect(chip()).toHaveTextContent('Archived'));
     expect(setPlanStatus.mock.calls[0]![1]).toEqual({ to: 'archived' });
 
     await user.click(screen.getByTestId('plan-restore'));
-    expect(await screen.findByRole('dialog', { name: 'Restore this plan as a draft?' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: 'Restore this plan as a draft?' })
+    ).toBeInTheDocument();
     await user.click(screen.getByTestId('plan-status-confirm'));
     await waitFor(() => expect(chip()).toHaveTextContent('Draft'));
     expect(setPlanStatus.mock.calls[1]![1]).toEqual({ to: 'draft' });
@@ -715,15 +797,21 @@ describe('deleting and duplicating', () => {
     await openPlan();
     await chooseFromMenu(user, 'plan-menu-delete');
     const dialog = await screen.findByRole('dialog', { name: 'Delete this plan?' });
-    expect(dialog).toHaveTextContent('“Seven Days in the Psalms” and its 2 days will be deleted for good.');
+    expect(dialog).toHaveTextContent(
+      '“Seven Days in the Psalms” and its 2 days will be deleted for good.'
+    );
     expect(dialog).toHaveTextContent('archive it instead');
     expect(deletePlan).not.toHaveBeenCalled();
 
     await user.click(within(dialog).getByTestId('plan-delete-confirm'));
-    await waitFor(() => expect(deletePlan).toHaveBeenCalledWith(ID, 'Seven Days in the Psalms'));
+    await waitFor(() =>
+      expect(deletePlan).toHaveBeenCalledWith(ID, 'Seven Days in the Psalms')
+    );
     await waitFor(() => expect(location()).toHaveTextContent(/^\/plans$/));
     expect(screen.getByTestId('plans-list-stub')).toBeInTheDocument();
-    expect(await screen.findByText('Deleted "Seven Days in the Psalms".')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Deleted "Seven Days in the Psalms".')
+    ).toBeInTheDocument();
     expect(store.has(ID)).toBe(false);
   });
 
@@ -734,7 +822,9 @@ describe('deleting and duplicating', () => {
     deletePlan.mockResolvedValueOnce({ leftoverDays: 3 });
     await chooseFromMenu(user, 'plan-menu-delete');
     await user.click(await screen.findByTestId('plan-delete-confirm'));
-    expect(await screen.findByText(/3 of its days could not be removed/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/3 of its days could not be removed/)
+    ).toBeInTheDocument();
   });
 
   it('stays on the plan, with the reason, when the delete fails', async () => {
@@ -771,7 +861,9 @@ describe('deleting and duplicating', () => {
     await waitFor(() => expect(location()).toHaveTextContent('/plans/psalms-again/edit'));
     // The copy is a draft, even though the original is live.
     await waitFor(() => expect(chip()).toHaveTextContent('Draft'));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Psalms, Again' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Psalms, Again' })
+    ).toBeInTheDocument();
   });
 
   it('finds a free ID when the obvious one is taken', async () => {
@@ -793,7 +885,9 @@ describe('deleting and duplicating', () => {
     seedPlan();
     await openPlan();
     await chooseFromMenu(user, 'plan-menu-duplicate');
-    fireEvent.change(await screen.findByTestId('plan-duplicate-title'), { target: { value: '  ' } });
+    fireEvent.change(await screen.findByTestId('plan-duplicate-title'), {
+      target: { value: '  ' },
+    });
     await user.click(screen.getByTestId('plan-duplicate-confirm'));
     expect(duplicatePlan).not.toHaveBeenCalled();
   });
@@ -808,7 +902,9 @@ describe('when something else has happened to the plan', () => {
     savePlan.mockRejectedValueOnce(new plans.PlanConflictError(ID));
     await user.click(screen.getByTestId('plan-save'));
     const alert = await screen.findByTestId('plan-conflict');
-    expect(alert).toHaveTextContent('Someone else saved this plan while you were editing it.');
+    expect(alert).toHaveTextContent(
+      'Someone else saved this plan while you were editing it.'
+    );
     expect(within(alert).getByRole('button', { name: 'Reload' })).toBeInTheDocument();
     // What the administrator typed is still on screen.
     expect(screen.getByTestId('plan-title')).toHaveValue('Mine');
@@ -853,7 +949,10 @@ describe('a cover that is still uploading', () => {
     fireEvent.change(screen.getByTestId('plan-title'), { target: { value: 'Retitled' } });
     expect(screen.getByTestId('plan-save')).toBeEnabled();
 
-    await user.upload(screen.getByTestId('plan-cover-input'), fileOf('cover.jpg', 'image/jpeg'));
+    await user.upload(
+      screen.getByTestId('plan-cover-input'),
+      fileOf('cover.jpg', 'image/jpeg')
+    );
     await waitFor(() => expect(state()).toHaveTextContent('Uploading…'));
     expect(screen.getByTestId('plan-save')).toBeDisabled();
     expect(screen.getByTestId('plan-publish')).toBeDisabled();
@@ -869,20 +968,31 @@ describe('a cover that is still uploading', () => {
 });
 
 describe('who can change a plan', () => {
-  it.each(['content_admin', 'super_admin'] as const)('lets a %s edit and publish', async (role) => {
-    seedPlan();
-    await openPlan(`/plans/${ID}/edit`, role);
-    expect(screen.getByTestId('plan-publish')).toBeInTheDocument();
-    expect(screen.queryByTestId('plan-read-only-note')).not.toBeInTheDocument();
-    expect(screen.getByTestId('plan-title')).toBeEnabled();
-  });
+  it.each(['content_admin', 'super_admin'] as const)(
+    'lets a %s edit and publish',
+    async (role) => {
+      seedPlan();
+      await openPlan(`/plans/${ID}/edit`, role);
+      expect(screen.getByTestId('plan-publish')).toBeInTheDocument();
+      expect(screen.queryByTestId('plan-read-only-note')).not.toBeInTheDocument();
+      expect(screen.getByTestId('plan-title')).toBeEnabled();
+    }
+  );
 
   it('lets a host read a plan and nothing else', async () => {
     const user = userEvent.setup();
     seedPlan();
     await openPlan(`/plans/${ID}/edit?tab=days`, 'host');
     expect(screen.getByTestId('plan-read-only-note')).toBeInTheDocument();
-    for (const id of ['plan-save', 'plan-publish', 'plan-unpublish', 'plan-more', 'plan-add-day', 'plan-day-delete-1', 'plan-day-up-2']) {
+    for (const id of [
+      'plan-save',
+      'plan-publish',
+      'plan-unpublish',
+      'plan-more',
+      'plan-add-day',
+      'plan-day-delete-1',
+      'plan-day-up-2',
+    ]) {
       expect(screen.queryByTestId(id)).not.toBeInTheDocument();
     }
     // They can still open a day and read it.
@@ -895,7 +1005,7 @@ describe('who can change a plan', () => {
     expect(savePlan).not.toHaveBeenCalled();
   });
 
-  it('never marks a host\'s look at the plan as unsaved work', async () => {
+  it("never marks a host's look at the plan as unsaved work", async () => {
     seedPlan();
     await openPlan(`/plans/${ID}/edit`, 'host');
     expect(useUnsavedChanges.getState().message).toBeNull();
@@ -911,7 +1021,9 @@ describe('unsaved work', () => {
 
     fireEvent.change(screen.getByTestId('plan-title'), { target: { value: 'Changed' } });
     await waitFor(() =>
-      expect(useUnsavedChanges.getState().message).toMatch(/changes that have not been saved/)
+      expect(useUnsavedChanges.getState().message).toMatch(
+        /changes that have not been saved/
+      )
     );
 
     await user.click(screen.getByTestId('plan-save'));

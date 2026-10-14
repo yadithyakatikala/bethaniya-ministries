@@ -174,13 +174,22 @@ describe('PlanDaysTab', () => {
   it('lets a read-only reader look at days and nothing else', () => {
     setup({ readOnly: true });
     expect(screen.getByRole('button', { name: 'View day 1' })).toBeInTheDocument();
-    for (const id of ['plan-add-day', 'plan-add-seven-days', 'plan-day-up-2', 'plan-day-down-2', 'plan-day-duplicate-2', 'plan-day-delete-2']) {
+    for (const id of [
+      'plan-add-day',
+      'plan-add-seven-days',
+      'plan-day-up-2',
+      'plan-day-down-2',
+      'plan-day-duplicate-2',
+      'plan-day-delete-2',
+    ]) {
       expect(screen.queryByTestId(id)).not.toBeInTheDocument();
     }
   });
 
   it('offers no way to add a first day to a read-only reader', () => {
     setup({ days: [], readOnly: true });
-    expect(screen.queryByRole('button', { name: /Add the first day/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Add the first day/ })
+    ).not.toBeInTheDocument();
   });
 });

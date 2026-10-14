@@ -49,7 +49,12 @@ function renderList(role: Role = 'content_admin') {
 
 /** One plan in each state an administrator meets. */
 function seedLibrary() {
-  seedPlan({ id: 'seven-days', title: 'Seven Days in the Psalms', status: 'draft', order: 1 });
+  seedPlan({
+    id: 'seven-days',
+    title: 'Seven Days in the Psalms',
+    status: 'draft',
+    order: 1,
+  });
   seedPlan({
     id: 'gospel-of-john',
     title: 'Gospel of John',
@@ -125,7 +130,9 @@ describe('before there is anything to show', () => {
     expect(screen.getByTestId('plans-empty')).toHaveTextContent(
       'No reading plans have been created yet.'
     );
-    expect(screen.queryByRole('link', { name: 'Create the first plan' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Create the first plan' })
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId('new-plan-button')).not.toBeInTheDocument();
   });
 
@@ -185,7 +192,9 @@ describe('the list', () => {
     seedPlan({ id: 'bare', title: 'Bare', coverImageUrl: null, order: 7 });
     renderList();
     expect(within(row('bare')).queryByRole('img')).not.toBeInTheDocument();
-    expect(within(row('seven-days')).getByRole('presentation', { hidden: true })).toBeInTheDocument();
+    expect(
+      within(row('seven-days')).getByRole('presentation', { hidden: true })
+    ).toBeInTheDocument();
   });
 
   it('lists plans in library order', () => {
@@ -206,7 +215,9 @@ describe('the list', () => {
     const user = userEvent.setup();
     renderList();
     await user.click(screen.getByTestId('edit-plan-gospel-of-john'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/plans/gospel-of-john/edit');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/plans/gospel-of-john/edit'
+    );
   });
 
   it('starts a new plan', async () => {
@@ -221,16 +232,25 @@ describe('the list', () => {
       renderList();
       expect(screen.getByTestId('plans-filter-all')).toHaveTextContent('All · 5');
       expect(screen.getByTestId('plans-filter-draft')).toHaveTextContent('Drafts · 1');
-      expect(screen.getByTestId('plans-filter-published')).toHaveTextContent('Published · 2');
-      expect(screen.getByTestId('plans-filter-scheduled')).toHaveTextContent('Scheduled · 1');
-      expect(screen.getByTestId('plans-filter-archived')).toHaveTextContent('Archived · 1');
+      expect(screen.getByTestId('plans-filter-published')).toHaveTextContent(
+        'Published · 2'
+      );
+      expect(screen.getByTestId('plans-filter-scheduled')).toHaveTextContent(
+        'Scheduled · 1'
+      );
+      expect(screen.getByTestId('plans-filter-archived')).toHaveTextContent(
+        'Archived · 1'
+      );
     });
 
     it('shows only the plans in the chosen status', async () => {
       const user = userEvent.setup();
       renderList();
       await user.click(screen.getByTestId('plans-filter-published'));
-      expect(screen.getByTestId('plans-filter-published')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('plans-filter-published')).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
       expect(screen.getAllByTestId(/^plan-row-/)).toHaveLength(2);
       expect(screen.queryByTestId('plan-row-seven-days')).not.toBeInTheDocument();
       expect(screen.getByTestId('plan-row-old-plan')).toBeInTheDocument();
@@ -261,7 +281,9 @@ describe('the list', () => {
       const user = userEvent.setup();
       renderList();
       await user.type(screen.getByTestId('plans-search'), 'zzzz');
-      expect(screen.getByTestId('plans-no-results')).toHaveTextContent('No plans match what you chose.');
+      expect(screen.getByTestId('plans-no-results')).toHaveTextContent(
+        'No plans match what you chose.'
+      );
       await user.click(screen.getByRole('button', { name: 'Clear filters' }));
       expect(screen.getAllByTestId(/^plan-row-/)).toHaveLength(5);
       expect(screen.getByTestId('plans-search')).toHaveValue('');
@@ -280,7 +302,9 @@ describe('the list', () => {
   describe('the quick actions follow the status', () => {
     const labels = async (user: ReturnType<typeof userEvent.setup>, id: string) => {
       await openActions(user, id);
-      const names = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
+      const names = (await screen.findAllByRole('menuitem')).map(
+        (item) => item.textContent
+      );
       await user.keyboard('{Escape}');
       await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
       return names;
@@ -345,7 +369,9 @@ describe('the list', () => {
       await waitFor(() => expect(setPlanStatus).toHaveBeenCalledTimes(1));
       expect(setPlanStatus.mock.calls[0]![0]).toMatchObject({ id: 'seven-days' });
       expect(setPlanStatus.mock.calls[0]![1]).toEqual({ to: 'published' });
-      expect(await screen.findByText('Published. Members can see the plan now.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Published. Members can see the plan now.')
+      ).toBeInTheDocument();
       // The list follows the change.
       await waitFor(() => expect(statusOf('seven-days')).toHaveTextContent('Published'));
     });
@@ -360,7 +386,9 @@ describe('the list', () => {
       await openActions(user, 'rough');
       await user.click(screen.getByTestId('plan-action-publish-rough'));
 
-      const dialog = await screen.findByRole('dialog', { name: 'Not ready to publish yet' });
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Not ready to publish yet',
+      });
       expect(dialog).toHaveTextContent('Write a short description');
       expect(dialog).toHaveTextContent('Day 2: Give this day a title.');
       expect(within(dialog).queryByTestId('publish-confirm')).not.toBeInTheDocument();
@@ -397,8 +425,12 @@ describe('the list', () => {
       await waitFor(() => expect(setPlanStatus).toHaveBeenCalledTimes(1));
       const change = setPlanStatus.mock.calls[0]![1];
       expect(change.to).toBe('scheduled');
-      expect(change.to === 'scheduled' && change.publishAt).toEqual(new Date(2099, 2, 4, 7, 15));
-      await waitFor(() => expect(statusOf('seven-days')).toHaveTextContent(/Scheduled · 4 Mar 2099/));
+      expect(change.to === 'scheduled' && change.publishAt).toEqual(
+        new Date(2099, 2, 4, 7, 15)
+      );
+      await waitFor(() =>
+        expect(statusOf('seven-days')).toHaveTextContent(/Scheduled · 4 Mar 2099/)
+      );
     });
 
     it('says the plan has gone if it was deleted since the list loaded', async () => {
@@ -417,7 +449,9 @@ describe('the list', () => {
       loadPlanForEditing.mockRejectedValueOnce(new Error('offline'));
       await openActions(user, 'seven-days');
       await user.click(screen.getByTestId('plan-action-publish-seven-days'));
-      expect(await screen.findByText('Could not check the plan. Please try again.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Could not check the plan. Please try again.')
+      ).toBeInTheDocument();
     });
 
     it('stays open with the reason when publishing fails', async () => {
@@ -427,7 +461,9 @@ describe('the list', () => {
       await openActions(user, 'seven-days');
       await user.click(screen.getByTestId('plan-action-publish-seven-days'));
       await user.click(await screen.findByTestId('publish-confirm'));
-      expect(await screen.findByTestId('publish-error')).toHaveTextContent(SAVE_RETRY_MESSAGE);
+      expect(await screen.findByTestId('publish-error')).toHaveTextContent(
+        SAVE_RETRY_MESSAGE
+      );
       expect(statusOf('seven-days')).toHaveTextContent('Draft');
     });
   });
@@ -447,7 +483,9 @@ describe('the list', () => {
       await waitFor(() => expect(setPlanStatus).toHaveBeenCalledTimes(1));
       expect(setPlanStatus.mock.calls[0]![1]).toEqual({ to: 'draft' });
       await waitFor(() => expect(statusOf('gospel-of-john')).toHaveTextContent('Draft'));
-      expect(await screen.findByText('Unpublished. Members can no longer see the plan.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Unpublished. Members can no longer see the plan.')
+      ).toBeInTheDocument();
     });
 
     it('archives, and restores as a draft', async () => {
@@ -456,12 +494,16 @@ describe('the list', () => {
       await openActions(user, 'gospel-of-john');
       await user.click(screen.getByTestId('plan-action-archive-gospel-of-john'));
       await user.click(await screen.findByTestId('plan-confirm-status'));
-      await waitFor(() => expect(statusOf('gospel-of-john')).toHaveTextContent('Archived'));
+      await waitFor(() =>
+        expect(statusOf('gospel-of-john')).toHaveTextContent('Archived')
+      );
       expect(setPlanStatus.mock.calls[0]![1]).toEqual({ to: 'archived' });
 
       await openActions(user, 'lent');
       await user.click(screen.getByTestId('plan-action-restore-lent'));
-      expect(await screen.findByRole('dialog', { name: 'Restore this plan as a draft?' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Restore this plan as a draft?' })
+      ).toBeInTheDocument();
       await user.click(screen.getByTestId('plan-confirm-status'));
       await waitFor(() => expect(statusOf('lent')).toHaveTextContent('Draft'));
     });
@@ -496,7 +538,9 @@ describe('the list', () => {
       await openActions(user, 'seven-days');
       await user.click(screen.getByTestId('plan-action-delete-seven-days'));
       const dialog = await screen.findByRole('dialog', { name: 'Delete this plan?' });
-      expect(dialog).toHaveTextContent('“Seven Days in the Psalms” and its 2 days will be deleted for good.');
+      expect(dialog).toHaveTextContent(
+        '“Seven Days in the Psalms” and its 2 days will be deleted for good.'
+      );
       expect(dialog).toHaveTextContent('archive it instead');
       expect(deletePlan).not.toHaveBeenCalled();
 
@@ -504,9 +548,13 @@ describe('the list', () => {
       await waitFor(() =>
         expect(deletePlan).toHaveBeenCalledWith('seven-days', 'Seven Days in the Psalms')
       );
-      await waitFor(() => expect(screen.queryByTestId('plan-row-seven-days')).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByTestId('plan-row-seven-days')).not.toBeInTheDocument()
+      );
       expect(store.has('seven-days')).toBe(false);
-      expect(await screen.findByText('Deleted "Seven Days in the Psalms".')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Deleted "Seven Days in the Psalms".')
+      ).toBeInTheDocument();
     });
 
     it('says how many days could not be removed', async () => {
@@ -516,7 +564,9 @@ describe('the list', () => {
       await openActions(user, 'seven-days');
       await user.click(screen.getByTestId('plan-action-delete-seven-days'));
       await user.click(await screen.findByTestId('confirm-delete-button'));
-      expect(await screen.findByText(/2 of its days could not be removed/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/2 of its days could not be removed/)
+      ).toBeInTheDocument();
     });
 
     it('keeps the plan and says why when it cannot be deleted', async () => {
@@ -553,7 +603,10 @@ describe('the list', () => {
       await waitFor(() =>
         expect(screen.getByTestId('location')).toHaveTextContent('/plans/john-again/edit')
       );
-      expect(store.get('john-again')!.plan).toMatchObject({ status: 'draft', published: false });
+      expect(store.get('john-again')!.plan).toMatchObject({
+        status: 'draft',
+        published: false,
+      });
     });
 
     it('will not copy without a title', async () => {
@@ -561,7 +614,9 @@ describe('the list', () => {
       renderList();
       await openActions(user, 'gospel-of-john');
       await user.click(screen.getByTestId('plan-action-duplicate-gospel-of-john'));
-      fireEvent.change(await screen.findByTestId('plan-copy-title'), { target: { value: ' ' } });
+      fireEvent.change(await screen.findByTestId('plan-copy-title'), {
+        target: { value: ' ' },
+      });
       await user.click(screen.getByTestId('plan-confirm-duplicate'));
       expect(duplicatePlan).not.toHaveBeenCalled();
     });

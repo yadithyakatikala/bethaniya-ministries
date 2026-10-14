@@ -89,7 +89,9 @@ describe('PlanDetailsTab', () => {
     expect(screen.getByTestId('plan-minutes')).toHaveValue(12);
     expect(screen.getByTestId('plan-author')).toHaveValue('Pastor Samuel');
     expect(screen.getByTestId('plan-order')).toHaveValue(3);
-    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveTextContent('Telugu');
+    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveTextContent(
+      'Telugu'
+    );
   });
 
   it.each([
@@ -116,7 +118,7 @@ describe('PlanDetailsTab', () => {
     expect(onChange).toHaveBeenCalledWith('language', 'te');
   });
 
-  it('accepts a category of the administrator\'s own', () => {
+  it("accepts a category of the administrator's own", () => {
     const { onChange } = setup({ details: { ...DETAILS, category: '' } });
     fireEvent.change(screen.getByTestId('plan-category'), { target: { value: 'Lent' } });
     expect(onChange).toHaveBeenLastCalledWith('category', 'Lent');
@@ -137,7 +139,9 @@ describe('PlanDetailsTab', () => {
       fireEvent.change(screen.getByTestId('plan-id'), { target: { value: 'my-plan' } });
       expect(onChangePlanId).toHaveBeenCalledWith('my-plan');
       expect(screen.getByTestId('plan-id')).not.toHaveAttribute('readonly');
-      expect(screen.getByText(/It cannot be changed after the plan is saved/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/It cannot be changed after the plan is saved/)
+      ).toBeInTheDocument();
     });
 
     it('is shown, read-only, with a copy button once the plan exists', () => {
@@ -200,14 +204,22 @@ describe('PlanDetailsTab', () => {
 
     it('asks for a description only after a save is attempted', () => {
       setup({ details: { ...DETAILS, description: '' } });
-      expect(screen.getByTestId('plan-description')).not.toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByTestId('plan-description')).not.toHaveAttribute(
+        'aria-invalid',
+        'true'
+      );
     });
 
     it('asks for a description once a save has been attempted', () => {
       setup({ details: { ...DETAILS, description: '' }, showErrors: true });
-      expect(screen.getByTestId('plan-description')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByTestId('plan-description')).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      );
       expect(
-        screen.getByText('Write a short description. It is what members read before they start.')
+        screen.getByText(
+          'Write a short description. It is what members read before they start.'
+        )
       ).toBeInTheDocument();
     });
 
@@ -218,21 +230,36 @@ describe('PlanDetailsTab', () => {
 
     it('rejects minutes that are not a whole number in range', () => {
       setup({ details: { ...DETAILS, estimatedMinutes: '999' } });
-      expect(screen.getByText(/whole number of minutes from 1 to 240/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/whole number of minutes from 1 to 240/)
+      ).toBeInTheDocument();
     });
 
     it('rejects a display order that is not a whole number', () => {
       setup({ details: { ...DETAILS, order: '1.5' } });
-      expect(screen.getByText('Use a whole number. Lower numbers appear first.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Use a whole number. Lower numbers appear first.')
+      ).toBeInTheDocument();
     });
   });
 
   it('can be looked at but not changed by a reader without permission', () => {
     setup({ readOnly: true, mode: 'edit' });
-    for (const id of ['plan-title', 'plan-subtitle', 'plan-description', 'plan-category', 'plan-minutes', 'plan-author', 'plan-order']) {
+    for (const id of [
+      'plan-title',
+      'plan-subtitle',
+      'plan-description',
+      'plan-category',
+      'plan-minutes',
+      'plan-author',
+      'plan-order',
+    ]) {
       expect(screen.getByTestId(id)).toBeDisabled();
     }
-    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     expect(screen.queryByTestId('plan-cover-upload-button')).toBeDisabled();
   });
 

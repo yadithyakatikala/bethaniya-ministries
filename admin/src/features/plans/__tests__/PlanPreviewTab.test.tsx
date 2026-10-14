@@ -23,9 +23,7 @@ function day(key: string, overrides: Partial<DayDraft> = {}): DayDraft {
   return { ...blankDay(key), title: key, passages: ['Psalm 23'], ...overrides };
 }
 
-function setup(
-  props: Partial<React.ComponentProps<typeof PlanPreviewTab>> = {}
-) {
+function setup(props: Partial<React.ComponentProps<typeof PlanPreviewTab>> = {}) {
   return render(
     <ThemeProvider theme={theme}>
       <PlanPreviewTab
@@ -65,7 +63,9 @@ describe('PlanPreviewTab', () => {
       expect(card).toHaveTextContent('Rest for the weary');
       expect(card).toHaveTextContent('A week of psalms.');
       expect(card).toHaveTextContent('Devotional');
-      expect(card).toHaveTextContent('3 days · about 10 min a day · Telugu · by Pastor Samuel');
+      expect(card).toHaveTextContent(
+        '3 days · about 10 min a day · Telugu · by Pastor Samuel'
+      );
       expect(screen.getByTestId('plan-preview-cover')).toHaveAttribute(
         'src',
         DETAILS.coverImageUrl!
@@ -84,7 +84,9 @@ describe('PlanPreviewTab', () => {
 
     it('shows a placeholder where there is no cover, rather than a broken picture', () => {
       setup({ details: { ...DETAILS, coverImageUrl: null } });
-      expect(screen.getByTestId('plan-preview-no-cover')).toHaveTextContent('No cover image');
+      expect(screen.getByTestId('plan-preview-no-cover')).toHaveTextContent(
+        'No cover image'
+      );
       expect(screen.queryByTestId('plan-preview-cover')).not.toBeInTheDocument();
     });
 
@@ -135,9 +137,13 @@ describe('PlanPreviewTab', () => {
       expect(screen.getByTestId('plan-preview-question')).toHaveTextContent(
         'Where has he led you?'
       );
-      expect(screen.getByTestId('plan-preview-application')).toHaveTextContent('Call a friend.');
+      expect(screen.getByTestId('plan-preview-application')).toHaveTextContent(
+        'Call a friend.'
+      );
       expect(screen.getByTestId('plan-preview-prayer')).toHaveTextContent('Thank him.');
-      expect(screen.getByTestId('plan-preview-notes')).toHaveTextContent('A psalm of David.');
+      expect(screen.getByTestId('plan-preview-notes')).toHaveTextContent(
+        'A psalm of David.'
+      );
     });
 
     it('leaves out a section with nothing in it, so a bare day still looks right', () => {
@@ -162,8 +168,12 @@ describe('PlanPreviewTab', () => {
 
     it('shows a day with no reading or title honestly', () => {
       setup({ days: [blankDay('x')] });
-      expect(screen.getByTestId('plan-preview-reference')).toHaveTextContent('No reading yet');
-      expect(screen.getByTestId('plan-preview-day-title')).toHaveTextContent('Untitled day');
+      expect(screen.getByTestId('plan-preview-reference')).toHaveTextContent(
+        'No reading yet'
+      );
+      expect(screen.getByTestId('plan-preview-day-title')).toHaveTextContent(
+        'Untitled day'
+      );
     });
 
     it('asks for a day when there are none', () => {
@@ -177,7 +187,10 @@ describe('PlanPreviewTab', () => {
     it('previews whichever day is chosen', async () => {
       const user = userEvent.setup();
       setup({
-        days: [day('First', { devotional: 'One.' }), day('Second', { devotional: 'Two.' })],
+        days: [
+          day('First', { devotional: 'One.' }),
+          day('Second', { devotional: 'Two.' }),
+        ],
       });
       expect(screen.getByTestId('plan-preview-day-title')).toHaveTextContent('First');
       await user.click(screen.getByRole('combobox', { name: 'Day' }));

@@ -25,7 +25,9 @@ export function matchesSearch(asset: MediaAsset, search: string): boolean {
 const SHORT_ADDRESS_MAX = 60;
 
 function clip(text: string): string {
-  return text.length > SHORT_ADDRESS_MAX ? `${text.slice(0, SHORT_ADDRESS_MAX - 1)}…` : text;
+  return text.length > SHORT_ADDRESS_MAX
+    ? `${text.slice(0, SHORT_ADDRESS_MAX - 1)}…`
+    : text;
 }
 
 /**
@@ -38,7 +40,9 @@ export function shortAddress(url: string): string {
   try {
     const parsed = new URL(url);
     const last = parsed.pathname.split('/').filter(Boolean).pop() ?? '';
-    return clip(last && parsed.hostname ? `${parsed.hostname} › ${last}` : parsed.hostname || url);
+    return clip(
+      last && parsed.hostname ? `${parsed.hostname} › ${last}` : parsed.hostname || url
+    );
   } catch {
     return clip(url);
   }

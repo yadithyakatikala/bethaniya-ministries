@@ -85,8 +85,13 @@ describe('opening a plan', () => {
   it('says plainly when there is no such plan, and links back to the list', async () => {
     renderAt('/plans/no-such-plan/edit');
     const alert = await screen.findByTestId('plan-editor-missing');
-    expect(alert).toHaveTextContent('There is no reading plan with the ID “no-such-plan”.');
-    expect(screen.getByRole('link', { name: 'Back to plans' })).toHaveAttribute('href', '/plans');
+    expect(alert).toHaveTextContent(
+      'There is no reading plan with the ID “no-such-plan”.'
+    );
+    expect(screen.getByRole('link', { name: 'Back to plans' })).toHaveAttribute(
+      'href',
+      '/plans'
+    );
     expect(screen.queryByTestId('plan-status-bar')).not.toBeInTheDocument();
   });
 
@@ -122,7 +127,9 @@ describe('opening a plan', () => {
     // It is live, and says so.
     expect(screen.getByTestId('plan-status-chip')).toHaveTextContent('Published');
     // Read as English, the language the app starts in.
-    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveTextContent('English');
+    expect(screen.getByRole('combobox', { name: /Language/ })).toHaveTextContent(
+      'English'
+    );
     expect(screen.getByTestId('plan-author')).toHaveValue('');
   });
 
@@ -133,7 +140,9 @@ describe('opening a plan', () => {
     expect(await screen.findByTestId('plan-title')).toHaveValue('First plan');
     first.unmount();
     renderAt('/plans/second-plan/edit');
-    await waitFor(() => expect(screen.getByTestId('plan-title')).toHaveValue('Second plan'));
+    await waitFor(() =>
+      expect(screen.getByTestId('plan-title')).toHaveValue('Second plan')
+    );
   });
 });
 
@@ -156,7 +165,9 @@ describe('the addresses of the old one-day-at-a-time pages', () => {
     seedPlan();
     renderAt('/plans/seven-days-in-the-psalms/days');
     await waitFor(() =>
-      expect(location()).toHaveTextContent('/plans/seven-days-in-the-psalms/edit?tab=days')
+      expect(location()).toHaveTextContent(
+        '/plans/seven-days-in-the-psalms/edit?tab=days'
+      )
     );
     expect(await screen.findByTestId('plan-days-tab')).toBeInTheDocument();
   });
@@ -165,7 +176,9 @@ describe('the addresses of the old one-day-at-a-time pages', () => {
     seedPlan();
     renderAt('/plans/seven-days-in-the-psalms/days/new');
     await waitFor(() =>
-      expect(location()).toHaveTextContent('/plans/seven-days-in-the-psalms/edit?tab=days&newDay=1')
+      expect(location()).toHaveTextContent(
+        '/plans/seven-days-in-the-psalms/edit?tab=days&newDay=1'
+      )
     );
     expect(await screen.findByRole('dialog', { name: /Day 3 of 3/ })).toBeInTheDocument();
   });
@@ -174,7 +187,9 @@ describe('the addresses of the old one-day-at-a-time pages', () => {
     seedPlan();
     renderAt('/plans/seven-days-in-the-psalms/days/day-2/edit');
     await waitFor(() =>
-      expect(location()).toHaveTextContent('/plans/seven-days-in-the-psalms/edit?tab=days&day=day-2')
+      expect(location()).toHaveTextContent(
+        '/plans/seven-days-in-the-psalms/edit?tab=days&day=day-2'
+      )
     );
     expect(await screen.findByRole('dialog', { name: /Day 2 of 2/ })).toBeInTheDocument();
     expect(screen.getByTestId('day-title')).toHaveValue('Out of the depths');

@@ -456,7 +456,7 @@ describe('who sees what', () => {
       expect(screen.queryByTestId('dashboard-read-errors')).not.toBeInTheDocument();
     });
 
-    it('reads the verse pool the way a member\'s phone does, and still names today\'s verse', () => {
+    it("reads the verse pool the way a member's phone does, and still names today's verse", () => {
       renderDashboard('host');
       expect(subscribeToActiveVersePool).toHaveBeenCalled();
       expect(screen.getByTestId('dashboard-verse-reference')).toBeInTheDocument();
@@ -470,7 +470,9 @@ describe('who sees what', () => {
 
     it('is not left on a loading state by the sources it does not read', () => {
       renderDashboard('host');
-      expect(screen.queryByRole('status', { name: 'Loading drafts' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('status', { name: 'Loading drafts' })
+      ).not.toBeInTheDocument();
     });
   });
 

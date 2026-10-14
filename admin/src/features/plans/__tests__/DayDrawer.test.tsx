@@ -15,9 +15,7 @@ function day(overrides: Partial<DayDraft> = {}): DayDraft {
   };
 }
 
-function setup(
-  props: Partial<React.ComponentProps<typeof DayDrawer>> = {}
-): {
+function setup(props: Partial<React.ComponentProps<typeof DayDrawer>> = {}): {
   onChange: ReturnType<typeof vi.fn>;
   onClose: ReturnType<typeof vi.fn>;
   onPrevious: ReturnType<typeof vi.fn>;
@@ -146,7 +144,10 @@ describe('DayDrawer', () => {
       expect(
         screen.getByText('The reflection question must be 1,000 characters or fewer.')
       ).toBeInTheDocument();
-      expect(screen.getByTestId('day-reflection')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByTestId('day-reflection')).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      );
     });
 
     it('counts characters against each limit', () => {

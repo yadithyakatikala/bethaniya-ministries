@@ -74,7 +74,12 @@ export function seedPlan(
   const dayDocs = (
     days ?? [
       { id: 'day-1', dayNumber: 1, title: 'The Lord is my shepherd' },
-      { id: 'day-2', dayNumber: 2, title: 'Out of the depths', scriptureReference: 'Psalm 130' },
+      {
+        id: 'day-2',
+        dayNumber: 2,
+        title: 'Out of the depths',
+        scriptureReference: 'Psalm 130',
+      },
     ]
   ).map((day, index) => makeDay({ dayNumber: index + 1, ...day }));
   const loaded: LoadedPlan = {
@@ -133,7 +138,9 @@ export function installFakePlans(m: MockedPlans): void {
         published: fields.published,
         publishAt: fields.publishAt,
         publishedAt:
-          fields.status === 'published' ? (existing?.plan.publishedAt ?? now) : (existing?.plan.publishedAt ?? null),
+          fields.status === 'published'
+            ? (existing?.plan.publishedAt ?? now)
+            : (existing?.plan.publishedAt ?? null),
         createdBy: existing?.plan.createdBy ?? input.uid,
         createdAt: existing?.plan.createdAt ?? now,
         updatedAt: now,
@@ -187,13 +194,17 @@ export function installFakePlans(m: MockedPlans): void {
         createdAt: now,
         updatedAt: now,
       },
-      days: source.days.map((day, index) => ({ ...day, id: `${newId}-copy-${index + 1}` })),
+      days: source.days.map((day, index) => ({
+        ...day,
+        id: `${newId}-copy-${index + 1}`,
+      })),
     });
     notifyAll();
   });
 
   m.subscribeToPlans.mockImplementation((onNext) => {
-    const push = () => onNext([...store.values()].map((loaded) => copy(loaded.plan)).sort(comparePlans));
+    const push = () =>
+      onNext([...store.values()].map((loaded) => copy(loaded.plan)).sort(comparePlans));
     listeners.add(push);
     push();
     return () => {

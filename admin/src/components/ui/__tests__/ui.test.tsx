@@ -162,11 +162,14 @@ describe('SectionCard', () => {
       />
     );
     expect(screen.getByText('Every plan, by status.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'All plans' })).toHaveAttribute('href', '/plans');
+    expect(screen.getByRole('link', { name: 'All plans' })).toHaveAttribute(
+      'href',
+      '/plans'
+    );
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });
 
-  it('marks the one card that answers the page\'s question with a gold bar, and no other', () => {
+  it("marks the one card that answers the page's question with a gold bar, and no other", () => {
     renderThemed(
       <>
         <SectionCard title="Plain" testId="plain" />

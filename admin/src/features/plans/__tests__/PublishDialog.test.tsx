@@ -54,7 +54,9 @@ describe('PublishDialog', () => {
   describe('publishing a plan that is ready', () => {
     it('says what is about to happen', () => {
       setup();
-      expect(screen.getByRole('dialog', { name: 'Publish this plan?' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('dialog', { name: 'Publish this plan?' })
+      ).toBeInTheDocument();
       expect(screen.getByTestId('publish-summary')).toHaveTextContent(
         'Seven Days in the Psalms (7 days) will appear in the plan library for every member as soon as you publish it.'
       );
@@ -122,11 +124,14 @@ describe('PublishDialog', () => {
 
   describe('scheduling', () => {
     const open = () => setup({ mode: 'schedule' });
-    const timeInput = () => screen.getByTestId('publish-schedule-time') as HTMLInputElement;
+    const timeInput = () =>
+      screen.getByTestId('publish-schedule-time') as HTMLInputElement;
 
     it('suggests tomorrow at six in the morning', () => {
       open();
-      expect(screen.getByRole('dialog', { name: 'Schedule this plan?' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('dialog', { name: 'Schedule this plan?' })
+      ).toBeInTheDocument();
       expect(timeInput().value).toBe(defaultScheduleValue(NOW));
       expect(timeInput().value).toBe('2026-10-15T06:00');
     });
@@ -180,7 +185,9 @@ describe('PublishDialog', () => {
 
     it('still lists what is missing instead of offering a time', () => {
       setup({ mode: 'schedule', issues: [NO_DAYS] });
-      expect(screen.getByRole('dialog', { name: 'Not ready to schedule yet' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('dialog', { name: 'Not ready to schedule yet' })
+      ).toBeInTheDocument();
       expect(screen.queryByTestId('publish-schedule-time')).not.toBeInTheDocument();
     });
   });
@@ -195,7 +202,9 @@ describe('PublishDialog', () => {
 
     it('shows why it failed, in the dialog', () => {
       setup({ error: 'Could not save. Try again.' });
-      expect(screen.getByTestId('publish-error')).toHaveTextContent('Could not save. Try again.');
+      expect(screen.getByTestId('publish-error')).toHaveTextContent(
+        'Could not save. Try again.'
+      );
     });
   });
 
