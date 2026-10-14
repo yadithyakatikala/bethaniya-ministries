@@ -31,9 +31,8 @@
  *    grant exactly as narrow as firestore.rules intends.
  *
  * No image upload here -- event cover images are explicitly out of scope
- * for Day 7 (see storage.rules' content/{imageType}/{fileName} rule,
- * which anticipates an `events` image type that this app deliberately
- * does not use yet).
+ * for Day 7 (storage.rules anticipates an `events` image type that this
+ * app deliberately does not use).
  */
 import {
   type FirestoreError,

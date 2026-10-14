@@ -3,14 +3,16 @@
  * from `daily_verses`, with its own collection, page and permissions.
  *
  * ---------------------------------------------------------------------
- * NO IMAGE UPLOADS
+ * NO IMAGE UPLOADS IN THIS FILE
  * ---------------------------------------------------------------------
  * There is no `uploadProphetVerseImage()` here, and there must not be.
  * Firebase Cloud Storage requires the Blaze plan, which this project
- * deliberately does not attach, so the optional image is an EXTERNAL
- * https url -- the same decision ./songs.ts documents for song audio.
- * Nothing on a server fetches that url; the member's own device loads it,
- * exactly as it already does for an announcement image.
+ * deliberately does not attach, so the optional image is stored as an
+ * https ADDRESS: the form's <ImageField> uploads the picture to
+ * Cloudinary, or takes one from the media library or a pasted link, and
+ * hands this module the address -- the same arrangement ./songs.ts
+ * documents. Nothing on a server fetches that url; the member's own
+ * device loads it, exactly as it already does for an announcement image.
  *
  * ---------------------------------------------------------------------
  * publishAt IS A TIMESTAMP

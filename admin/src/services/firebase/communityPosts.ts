@@ -1,5 +1,5 @@
 /**
- * Firestore + Storage data layer for admin community-post management -- a
+ * Firestore data layer for admin community-post management -- a
  * new V1 feature added per explicit owner decision (see
  * ../../types/index.ts's CommunityPost doc comment for provenance).
  * Mirrors ./announcements.ts's shape and reasoning exactly (see that
@@ -20,8 +20,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from './app';
+import { db } from './app';
 import { logAdminAction } from './auditLog';
 import type { CommunityPost, CommunityPostFormInput } from '../../types';
 
@@ -119,17 +118,4 @@ export async function setCommunityPostPublished(
     documentId: id,
     changeSummary: `${published ? 'Published' : 'Unpublished'} community post "${title}"`,
   });
-}
-
-/**
- * Uploads a community-post image to Storage and returns its download URL.
- * Same emulator-only-until-Blaze limitation as
- * ./announcements.ts's uploadAnnouncementImage -- see that function's doc
- * comment.
- */
-export async function uploadCommunityPostImage(file: File): Promise<string> {
-  const path = `content/community/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }

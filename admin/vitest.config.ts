@@ -15,6 +15,13 @@ export default mergeConfig(
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       globals: true,
+      // Each form test types into several Material UI fields through
+      // user-event, which renders after every keystroke. On a small or busy
+      // machine (a four-core CI runner running the whole suite in parallel)
+      // the slowest take longer than vitest's five-second default and fail
+      // for time, not for a wrong answer. Twenty seconds is room for that
+      // without hiding a test that has genuinely hung.
+      testTimeout: 20_000,
       // Day 15: "test coverage report" -- only collected when `npm run
       // test:coverage` passes --coverage (the default `npm test` stays
       // fast/uninstrumented for everyday use). text+html for local

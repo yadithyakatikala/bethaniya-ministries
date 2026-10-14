@@ -1,16 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Divider,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Divider, MenuItem, TextField } from '@mui/material';
 import {
   createMediaPost,
   updateMediaPost,
@@ -23,27 +13,36 @@ import { useNow } from '../prophet-verses/useNow';
 import {
   hasMediaValidationErrors,
   mediaUrlProblem,
+  MEDIA_URL_MESSAGES,
   validateMediaInput,
   type MediaValidationErrors,
 } from './validation';
 import { MediaPreview } from './MediaPreview';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { DateTimeField, FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField, VideoLinkField } from '../../components/media';
 
 /**
  * Create / edit a media post, with a live preview of what a member sees.
  *
  * =====================================================================
- * THE LINK FIELD IS NOT AN UPLOAD, AND SAYS SO
+ * PICTURES ARE UPLOADED; VIDEO IS A LINK
  * =====================================================================
- * There is no file picker here and there must not be. This project has
- * no Cloud Storage bucket (see ../../services/firebase/media.ts), so an
- * upload control would be a button that always fails. The field takes an
- * https web ADDRESS of something already online -- the same decision song
- * audio and the Prophet Verse image already made -- and the helper text
- * says that plainly, so nobody goes looking for the upload button.
+ * An image post uses <ImageField>: upload a picture (to Cloudinary, with
+ * progress and a preview), choose one already in the media library, or
+ * paste the https address of one that is already online. Nothing goes to
+ * Firebase -- this project has no Cloud Storage bucket -- and the post
+ * stores only the resulting https address, exactly as before.
  *
- * The address is validated as it is typed, with a sentence that names
- * the actual problem: an administrator who pastes a link they are sure
- * is fine needs to be told it is http rather than "invalid".
+ * A VIDEO post uses <VideoLinkField> and is never uploaded: a sermon is
+ * far too large for a free media account, and YouTube already does the
+ * hard parts. The field tidies a pasted YouTube address and shows its
+ * thumbnail.
+ *
+ * Either way the address is checked against the same rules the server
+ * and the phone apply (./validation.ts), with a sentence that names the
+ * actual problem: an administrator who pastes a link they are sure is
+ * fine needs to be told it is http rather than "invalid".
  *
  * =====================================================================
  * PUBLISHING IS NOT PART OF THIS FORM
@@ -87,6 +86,7 @@ export function MediaForm({ mode, post }: MediaFormProps) {
   const [errors, setErrors] = useState<MediaValidationErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -100,7 +100,7 @@ export function MediaForm({ mode, post }: MediaFormProps) {
       publishAt,
     });
     setErrors(next);
-    if (hasMediaValidationErrors(next)) return;
+    if (hasMediaValidationErrors(next) || uploading) return;
 
     const parsedPublishAt = parsePublishAt(publishAt);
     if (!parsedPublishAt) {
@@ -149,18 +149,19 @@ export function MediaForm({ mode, post }: MediaFormProps) {
 
   // Live, so a bad paste is caught before Save rather than after it.
   const liveUrlProblem = mediaUrl.trim().length > 0 ? mediaUrlProblem(mediaUrl) : null;
+  const addressError =
+    errors.mediaUrl ?? (liveUrlProblem ? MEDIA_URL_MESSAGES[liveUrlProblem] : undefined);
 
   return (
-    <Box sx={{ p: 4, maxWidth: 720 }} data-testid="media-form-page">
-      <Paper
-        sx={{ p: 4 }}
-        component="form"
-        onSubmit={(event) => void handleSubmit(event)}
-      >
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New media post' : 'Edit media post'}
-        </Typography>
-
+    <PageContainer width="narrow" testId="media-form-page">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New media post' : 'Edit media post'}
+        breadcrumbs={[
+          { label: 'Media', to: '/media' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={(event) => void handleSubmit(event)}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="media-form-error">
             {submitError}
@@ -184,21 +185,25 @@ export function MediaForm({ mode, post }: MediaFormProps) {
           ))}
         </TextField>
 
-        <TextField
-          label="Media address"
-          fullWidth
-          margin="normal"
-          value={mediaUrl}
-          onChange={(event) => setMediaUrl(event.target.value)}
-          error={Boolean(errors.mediaUrl ?? liveUrlProblem)}
-          helperText={
-            errors.mediaUrl ??
-            (liveUrlProblem
-              ? 'This address cannot be used — see the message after you save.'
-              : 'A full https:// address of an image or video already on the web. There is no upload: the app loads this address directly.')
-          }
-          slotProps={{ htmlInput: { 'data-testid': 'media-url-input' } }}
-        />
+        {type === 'image' ? (
+          <ImageField
+            label="Picture"
+            value={mediaUrl.trim() ? mediaUrl : null}
+            onChange={(url) => setMediaUrl(url ?? '')}
+            category="general"
+            testIdPrefix="media-image"
+            error={addressError}
+            onBusyChange={setUploading}
+          />
+        ) : (
+          <VideoLinkField
+            label="Video"
+            value={mediaUrl}
+            onChange={setMediaUrl}
+            testIdPrefix="media-video"
+            error={addressError}
+          />
+        )}
 
         <TextField
           label="Caption"
@@ -237,13 +242,10 @@ export function MediaForm({ mode, post }: MediaFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'media-verse-text-input' } }}
         />
 
-        <TextField
+        <DateTimeField
           label="Show from"
-          type="datetime-local"
-          fullWidth
-          margin="normal"
           value={publishAt}
-          onChange={(event) => setPublishAt(event.target.value)}
+          onChange={setPublishAt}
           error={Boolean(errors.publishAt)}
           helperText={
             errors.publishAt ??
@@ -251,10 +253,7 @@ export function MediaForm({ mode, post }: MediaFormProps) {
               ? 'Scheduled: once published, members will see it from this moment.'
               : 'Members will see it as soon as it is published.')
           }
-          slotProps={{
-            inputLabel: { shrink: true },
-            htmlInput: { 'data-testid': 'media-publish-at-input' },
-          }}
+          testId="media-publish-at-input"
         />
 
         {mode === 'create' ? (
@@ -272,11 +271,11 @@ export function MediaForm({ mode, post }: MediaFormProps) {
           verseText={verseText}
         />
 
-        <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+        <FormActions>
           <Button
             type="submit"
             variant="contained"
-            disabled={submitting}
+            disabled={submitting || uploading}
             data-testid="media-form-submit"
           >
             {submitting ? 'Saving…' : 'Save'}
@@ -288,8 +287,8 @@ export function MediaForm({ mode, post }: MediaFormProps) {
           >
             Cancel
           </Button>
-        </Stack>
-      </Paper>
-    </Box>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

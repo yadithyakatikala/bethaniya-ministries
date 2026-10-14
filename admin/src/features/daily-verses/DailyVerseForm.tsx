@@ -1,18 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
-import {
-  createDailyVerse,
-  updateDailyVerse,
-  uploadDailyVerseImage,
-} from '../../services/firebase/dailyVerses';
+import { Alert, Button, TextField } from '@mui/material';
+import { createDailyVerse, updateDailyVerse } from '../../services/firebase/dailyVerses';
 import {
   hasValidationErrors,
   validateDailyVerseImage,
   validateDailyVerseInput,
 } from './validation';
 import type { DailyVerse } from '../../types';
-import { describeSaveFailure } from '../../services/firebase/storageErrors';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
+import { ScriptureReferenceField } from '../scripture/ScriptureReferenceField';
 
 interface DailyVerseFormProps {
   mode: 'create' | 'edit';
@@ -29,10 +29,12 @@ interface DailyVerseFormProps {
  * types the verse text directly, matching the spec's own documented
  * fallback ("else placeholder").
  *
- * The reference field is a plain text input, not a picker -- no Bible
- * source exists yet to populate a reference picker from either, and the
- * spec's Day 5 "Work" list doesn't require one beyond "selector" in the
- * loose sense of "the field where you enter the reference".
+ * The reference stays a text field, so anything already saved there stays
+ * editable as written. Beside it is a "Choose from the Bible" button that
+ * fills it with a reference checked against the 66 books and the real verse
+ * count of every chapter (../scripture/ScriptureReferenceField.tsx). The
+ * verse TEXT is still typed by hand: there is no Bible source in the admin
+ * to fill it from.
  */
 export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
   const navigate = useNavigate();
@@ -46,9 +48,8 @@ export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
   const [date, setDate] = useState(
     verse?.date ?? (mode === 'create' ? (searchParams.get('date') ?? '') : '')
   );
-  const [imageUrl] = useState<string | null>(verse?.imageUrl ?? null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(verse?.imageUrl ?? null);
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     reference?: string;
     text?: string;
@@ -57,87 +58,53 @@ export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setImageFile(null);
-      setImageError(null);
-      return;
-    }
-    const error = validateDailyVerseImage(file);
-    if (error) {
-      setImageError(error);
-      setImageFile(null);
-      return;
-    }
-    setImageError(null);
-    setImageFile(file);
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitError(null);
 
     const errors = validateDailyVerseInput({ reference, text, date });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || imageError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     setSubmitting(true);
     try {
-      let resolvedImageUrl = imageUrl;
-      if (imageFile) {
-        resolvedImageUrl = await uploadDailyVerseImage(imageFile);
-      }
-
       if (mode === 'create') {
-        await createDailyVerse({ reference, text, imageUrl: resolvedImageUrl, date });
+        await createDailyVerse({ reference, text, imageUrl, date });
       } else if (verse) {
-        await updateDailyVerse(verse.id, {
-          reference,
-          text,
-          imageUrl: resolvedImageUrl,
-          date,
-        });
+        await updateDailyVerse(verse.id, { reference, text, imageUrl, date });
       }
       navigate('/daily-verses');
-    } catch (error) {
-      // A missing Cloud Storage bucket is permanent on this project, and
-      // the upload throws BEFORE the Firestore write -- so "saving failed,
-      // please try again" was wrong about what failed and invited a retry
-      // that cannot succeed. The image is optional, so clearing the
-      // selection lets the very next Save go through without one. See
-      // ../../services/firebase/storageErrors.ts.
-      const failure = describeSaveFailure(error);
-      if (failure.clearSelectedImage) {setImageFile(null);}
-      setSubmitError(failure.message);
+    } catch {
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Daily Verse' : 'Edit Daily Verse'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Daily Verse' : 'Edit Daily Verse'}
+        breadcrumbs={[
+          { label: 'Daily Verses', to: '/daily-verses' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="daily-verse-form-error">
             {submitError}
           </Alert>
         ) : null}
 
-        <TextField
+        <ScriptureReferenceField
           label="Scripture Reference"
           placeholder="e.g. John 3:16"
-          fullWidth
-          margin="normal"
           value={reference}
-          onChange={(e) => setReference(e.target.value)}
+          onChange={setReference}
           error={Boolean(fieldErrors.reference)}
           helperText={fieldErrors.reference}
-          slotProps={{ htmlInput: { 'data-testid': 'daily-verse-reference-input' } }}
+          testId="daily-verse-reference-input"
         />
         <TextField
           label="Verse Text"
@@ -166,49 +133,33 @@ export function DailyVerseForm({ mode, verse }: DailyVerseFormProps) {
           }}
         />
 
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Typography variant="body2" gutterBottom>
-            Image (optional)
-          </Typography>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            data-testid="daily-verse-image-input"
-          />
-          {imageError ? (
-            <Typography
-              variant="body2"
-              color="error"
-              data-testid="daily-verse-image-error"
-            >
-              {imageError}
-            </Typography>
-          ) : null}
-          {imageUrl && !imageFile ? (
-            <Typography variant="body2" color="text.secondary">
-              Current image is set. Choose a new file to replace it.
-            </Typography>
-          ) : null}
-        </Box>
+        <ImageField
+          label="Image (optional)"
+          value={imageUrl}
+          onChange={setImageUrl}
+          category="poster"
+          testIdPrefix="daily-verse-image"
+          validateFile={validateDailyVerseImage}
+          onBusyChange={setUploading}
+        />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="daily-verse-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/daily-verses')}
-          data-testid="daily-verse-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting || uploading}
+            data-testid="daily-verse-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button
+            onClick={() => navigate('/daily-verses')}
+            data-testid="daily-verse-form-cancel"
+          >
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

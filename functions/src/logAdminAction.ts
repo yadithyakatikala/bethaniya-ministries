@@ -86,6 +86,7 @@ export const AUDIT_COLLECTIONS = [
   'plans',
   'verse_pool',
   'prophet_verses',
+  'media_assets',
 ] as const;
 export type AuditCollection = (typeof AUDIT_COLLECTIONS)[number];
 

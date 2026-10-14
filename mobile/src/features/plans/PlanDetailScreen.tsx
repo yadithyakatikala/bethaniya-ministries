@@ -28,7 +28,7 @@ import {
   firstSentence,
   isPlanCompleted,
   percentComplete,
-  planIsEnglishInTeluguApp,
+  planOtherLanguage,
 } from './planGroups';
 import { planReadingFor } from './planReading';
 import { parsePlanReference } from './planReference';
@@ -101,11 +101,14 @@ export function PlanDetailScreen({ route, navigation }: Props) {
   const reading = today ? parsePlanReference(today.scriptureReference) : null;
   const dayCount = plan.dayCount || days?.length || 0;
   const length = `${plan.dayCount} ${t(plan.dayCount === 1 ? 'plans.day' : 'plans.days')}`;
+  // The language is named only when it is not the one the member reads the app in.
+  const otherLanguage = planOtherLanguage(plan, appLanguage);
   const kicker = [
     plan.category,
     length,
-    planIsEnglishInTeluguApp(plan.title, appLanguage)
-      ? t('settings.languageEnglish')
+    plan.estimatedMinutes ? t('plans.minutesPerDay', { n: plan.estimatedMinutes }) : '',
+    otherLanguage
+      ? t(otherLanguage === 'te' ? 'settings.languageTelugu' : 'settings.languageEnglish')
       : '',
   ]
     .filter(Boolean)
@@ -175,6 +178,28 @@ export function PlanDetailScreen({ route, navigation }: Props) {
         >
           {plan.title}
         </Text>
+
+        {plan.subtitle ? (
+          <Text
+            testID="plan-detail-subtitle"
+            style={[
+              type.body,
+              styles.subtitle,
+              appLanguage === 'te' && styles.descriptionTe,
+              { color: colors.inkMuted },
+            ]}
+          >
+            {plan.subtitle}
+          </Text>
+        ) : null}
+        {plan.author ? (
+          <Text
+            testID="plan-detail-author"
+            style={[type.caption, styles.author, { color: colors.inkMuted }]}
+          >
+            {t('plans.byAuthor', { author: plan.author })}
+          </Text>
+        ) : null}
 
         {progress ? (
           <View style={styles.progress}>
@@ -360,6 +385,8 @@ const styles = StyleSheet.create({
   cover: { width: '100%', aspectRatio: 16 / 9, marginTop: 4 },
   kicker: { marginTop: 20 },
   title: { marginTop: 4 },
+  subtitle: { marginTop: 6 },
+  author: { marginTop: 6 },
   description: { marginTop: 8 },
   descriptionTe: { lineHeight: 28 },
   progress: { marginTop: 14 },

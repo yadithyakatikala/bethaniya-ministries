@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
-  Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,9 +15,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteAnnouncement,
   setAnnouncementPublished,
@@ -30,9 +29,10 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { PageContainer, StatusChip, TableSkeleton } from '../../components/ui';
 import type { Announcement } from '../../types';
 
-/** Matches firestore.rules'/storage.rules' isContentAdminOrAbove() -- Host can read all announcements but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md. Gating these buttons is a UX convenience only; the rules are the real boundary. */
+/** Matches firestore.rules' isContentAdminOrAbove() -- Host can read all announcements but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md. Gating these buttons is a UX convenience only; the rules are the real boundary. */
 function canManageAnnouncements(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }
@@ -90,15 +90,17 @@ export function AnnouncementsListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="announcements-list-page">
+    <PageContainer testId="announcements-list-page">
       <AdminPageHeader
         title="Announcements"
+        subtitle="News for the whole congregation. A draft stays hidden from members until you publish it."
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/announcements/new"
+              startIcon={<AddOutlined />}
               data-testid="new-announcement-button"
             >
               New Announcement
@@ -114,13 +116,19 @@ export function AnnouncementsListPage() {
       ) : null}
 
       {!announcements && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="announcements-loading" />
-        </Box>
+        <TableSkeleton testId="announcements-loading" label="Loading announcements" />
       ) : null}
 
       {announcements && announcements.length === 0 ? (
-        <AdminEmptyState message="No announcements yet." testId="announcements-empty" />
+        <AdminEmptyState
+          testId="announcements-empty"
+          title="No announcements yet"
+          message={
+            canManage
+              ? 'Write the first one and publish it when it is ready. Members see it in the app straight away.'
+              : 'Nothing has been announced yet.'
+          }
+        />
       ) : null}
 
       {announcements && announcements.length > 0 ? (
@@ -140,13 +148,13 @@ export function AnnouncementsListPage() {
                     key={announcement.id}
                     data-testid={`announcement-row-${announcement.id}`}
                   >
-                    <TableCell>{announcement.title}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={announcement.published ? 'Published' : 'Draft'}
-                        color={announcement.published ? 'success' : 'default'}
-                        size="small"
-                      />
+                      <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                        {announcement.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <StatusChip status={announcement.published ? 'published' : 'draft'} />
                     </TableCell>
                     {canManage ? (
                       <TableCell align="right">
@@ -164,7 +172,7 @@ export function AnnouncementsListPage() {
                           aria-label="Edit"
                           data-testid={`edit-announcement-${announcement.id}`}
                         >
-                          <EditIcon fontSize="small" />
+                          <EditOutlined fontSize="small" />
                         </IconButton>
                         <IconButton
                           aria-label="Delete"
@@ -172,7 +180,7 @@ export function AnnouncementsListPage() {
                           disabled={busyId === announcement.id}
                           data-testid={`delete-announcement-${announcement.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -204,6 +212,6 @@ export function AnnouncementsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

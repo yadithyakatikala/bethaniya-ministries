@@ -1,7 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Button, TextField } from '@mui/material';
 import { createEvent, updateEvent } from '../../services/firebase/events';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import {
+  DateTimeField,
+  FormActions,
+  FormCard,
+  PageContainer,
+} from '../../components/ui';
 import { hasValidationErrors, validateEventInput } from './validation';
 import type { Event } from '../../types';
 
@@ -61,19 +69,22 @@ export function EventForm({ mode, event }: EventFormProps) {
       }
       navigate('/events');
     } catch {
-      setSubmitError('Something went wrong while saving. Please try again.');
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Event' : 'Edit Event'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Event' : 'Edit Event'}
+        breadcrumbs={[
+          { label: 'Events', to: '/events' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="event-form-error">
             {submitError}
@@ -112,38 +123,29 @@ export function EventForm({ mode, event }: EventFormProps) {
           helperText={fieldErrors.description}
           slotProps={{ htmlInput: { 'data-testid': 'event-description-input' } }}
         />
-        <TextField
+        <DateTimeField
           label="Starts At"
-          type="datetime-local"
-          fullWidth
-          margin="normal"
           value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
+          onChange={setStartsAt}
           error={Boolean(fieldErrors.startsAt)}
           helperText={fieldErrors.startsAt}
-          slotProps={{
-            inputLabel: { shrink: true },
-            htmlInput: { 'data-testid': 'event-starts-at-input' },
-          }}
+          testId="event-starts-at-input"
         />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="event-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/events')}
-          data-testid="event-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting}
+            data-testid="event-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button onClick={() => navigate('/events')} data-testid="event-form-cancel">
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

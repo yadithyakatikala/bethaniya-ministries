@@ -4,16 +4,12 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   IconButton,
-  Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -23,8 +19,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteProphetVerse,
   setProphetVersePublished,
@@ -35,6 +32,15 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import {
+  PageContainer,
+  SectionCard,
+  StatusChip,
+  TableSkeleton,
+  ToneChip,
+  formatDateTime,
+} from '../../components/ui';
+import { adminFonts } from '../../theme/tokens';
 import { currentProphetVerseId, stateOf } from './state';
 import { useNow } from './useNow';
 
@@ -81,17 +87,6 @@ import { useNow } from './useNow';
  */
 function canManageProphetVerses(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
-}
-
-function formatWhen(date: Date | null): string {
-  if (!date) return '—';
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 export function ProphetVersesListPage() {
@@ -150,15 +145,21 @@ export function ProphetVersesListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="prophet-verses-list-page">
+    <PageContainer testId="prophet-verses-list-page">
       <AdminPageHeader
         title="Prophet Verse of the Day"
+        subtitle={
+          // Said once, plainly, because the two features sit next to each
+          // other on the home screen and share most of their name.
+          'A word your church writes and publishes. This is not the Verse of the Day — that one the app chooses by itself from scripture, and it is managed on its own page. Nothing here happens automatically: a prophet verse appears when you publish it, and stays until another one is due.'
+        }
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/prophet-verses/new"
+              startIcon={<AddOutlined />}
               data-testid="new-prophet-verse-button"
             >
               New Prophet Verse
@@ -167,52 +168,52 @@ export function ProphetVersesListPage() {
         }
       />
 
-      <Typography color="text.secondary" sx={{ fontSize: 14, mt: -2, mb: 3 }}>
-        {/* Said once, plainly, because the two features sit next to each
-            other on the home screen and share most of their name. */}
-        A word your church writes and publishes. This is not the Verse of the Day &mdash;
-        that one the app chooses by itself from scripture, and it is managed on its own
-        page. Nothing here happens automatically: a prophet verse appears when you
-        publish it, and stays until another one is due.
-      </Typography>
-
       {/* THE ANSWER FIRST. Only one shows at a time, and which one is
           not obvious from a list of dates. */}
-      <Paper
-        variant="outlined"
-        sx={{ borderRadius: 3, p: 3, mb: 3 }}
-        data-testid="prophet-verse-now-panel"
-      >
-        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-          On the home screen now
-        </Typography>
-        {!verses ? (
-          <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-            Checking&hellip;
-          </Typography>
-        ) : current ? (
-          <Stack spacing={0.5}>
-            <Typography sx={{ fontSize: 20 }} data-testid="prophet-verse-now-title">
-              {current.title}
+      <Box sx={{ mb: 3 }}>
+        <SectionCard title="On the home screen now" accent testId="prophet-verse-now-panel">
+          {!verses ? (
+            <Typography color="text.secondary" variant="body2">
+              Checking&hellip;
             </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-              {current.reference} &middot; showing since {formatWhen(current.publishAt)}
+          ) : current ? (
+            <>
+              <Typography
+                sx={{
+                  fontFamily: adminFonts.heading,
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  overflowWrap: 'anywhere',
+                }}
+                data-testid="prophet-verse-now-title"
+              >
+                {current.title}
+              </Typography>
+              <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+                {current.reference} &middot; showing since{' '}
+                {formatDateTime(current.publishAt)}
+              </Typography>
+            </>
+          ) : (
+            <Typography
+              color="text.secondary"
+              variant="body2"
+              data-testid="prophet-verse-now-none"
+            >
+              Nothing. The app simply leaves this section out until something is
+              published and due &mdash; members are not shown an empty box.
             </Typography>
-          </Stack>
-        ) : (
-          <Typography color="text.secondary" sx={{ fontSize: 14 }} data-testid="prophet-verse-now-none">
-            Nothing. The app simply leaves this section out until something is published
-            and due &mdash; members are not shown an empty box.
-          </Typography>
-        )}
-        {scheduledCount > 0 ? (
-          <Typography color="text.secondary" sx={{ fontSize: 13, mt: 1.5 }}>
-            {scheduledCount === 1
-              ? '1 more is scheduled and will take over when its time comes.'
-              : `${scheduledCount} more are scheduled; the latest one due takes over.`}
-          </Typography>
-        ) : null}
-      </Paper>
+          )}
+          {scheduledCount > 0 ? (
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 1.5 }}>
+              {scheduledCount === 1
+                ? '1 more is scheduled and will take over when its time comes.'
+                : `${scheduledCount} more are scheduled; the latest one due takes over.`}
+            </Typography>
+          ) : null}
+        </SectionCard>
+      </Box>
 
       {error ? (
         <Alert severity="error" data-testid="prophet-verses-error">
@@ -226,14 +227,13 @@ export function ProphetVersesListPage() {
       ) : null}
 
       {!verses && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="prophet-verses-loading" />
-        </Box>
+        <TableSkeleton testId="prophet-verses-loading" label="Loading prophet verses" />
       ) : null}
 
       {verses && verses.length === 0 ? (
         <AdminEmptyState
-          message="No prophet verses yet. Until there is one, the app simply does not show that section."
+          title="No prophet verses yet"
+          message="Until there is one, the app simply does not show that section."
           testId="prophet-verses-empty"
         />
       ) : null}
@@ -259,34 +259,31 @@ export function ProphetVersesListPage() {
                       key={verse.id}
                       data-testid={`prophet-verse-row-${verse.id}`}
                     >
-                      <TableCell>{verse.title}</TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                          {verse.title}
+                        </Typography>
+                      </TableCell>
                       <TableCell>{verse.reference}</TableCell>
-                      <TableCell>{formatWhen(verse.publishAt)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {formatDateTime(verse.publishAt)}
+                      </TableCell>
                       <TableCell>
                         {/* Named, not coloured: "scheduled" and "draft" look
                             identical to a member, so the words have to carry it. */}
-                        <Chip
-                          size="small"
-                          variant={state === 'showing' ? 'filled' : 'outlined'}
-                          color={state === 'showing' ? 'success' : 'default'}
-                          label={
-                            state === 'draft'
-                              ? 'Draft'
-                              : state === 'scheduled'
-                                ? 'Scheduled'
-                                : 'Published'
-                          }
-                          data-testid={`prophet-verse-state-${verse.id}`}
+                        <StatusChip
+                          status={state === 'showing' ? 'published' : state}
+                          testId={`prophet-verse-state-${verse.id}`}
                         />
                         {verse.id === currentId ? (
                           <Tooltip title="Only one prophet verse shows at a time: the most recently scheduled one that is due.">
-                            <Chip
-                              size="small"
-                              color="primary"
-                              label="Showing now"
-                              sx={{ ml: 1 }}
-                              data-testid={`prophet-verse-current-${verse.id}`}
-                            />
+                            <Box component="span" sx={{ ml: 1, display: 'inline-block' }}>
+                              <ToneChip
+                                tone="navy"
+                                label="Showing now"
+                                testId={`prophet-verse-current-${verse.id}`}
+                              />
+                            </Box>
                           </Tooltip>
                         ) : null}
                       </TableCell>
@@ -306,7 +303,7 @@ export function ProphetVersesListPage() {
                             aria-label={`Edit ${verse.title}`}
                             data-testid={`edit-prophet-verse-${verse.id}`}
                           >
-                            <EditIcon fontSize="small" />
+                            <EditOutlined fontSize="small" />
                           </IconButton>
                           <IconButton
                             aria-label={`Delete ${verse.title}`}
@@ -314,7 +311,7 @@ export function ProphetVersesListPage() {
                             disabled={busyId === verse.id}
                             data-testid={`delete-prophet-verse-${verse.id}`}
                           >
-                            <DeleteIcon fontSize="small" />
+                            <DeleteOutlined fontSize="small" />
                           </IconButton>
                         </TableCell>
                       ) : null}
@@ -347,6 +344,6 @@ export function ProphetVersesListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

@@ -35,6 +35,9 @@ export type AuditCollection =
   | 'prophet_verses'
   // M6. The media feed's own collection.
   | 'media'
+  // The media LIBRARY: the record of every uploaded or linked file. Not
+  // the feed above -- see services/firebase/mediaAssets.ts.
+  | 'media_assets'
   // M7. The member-authored collections, and the moderation queue over
   // them. Logged separately from the content collections above because
   // "who removed a member's message, and when" is the question a

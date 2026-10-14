@@ -33,10 +33,15 @@ export function planFromReading(reading: PlanReading): PublishedPlan {
   return {
     id: reading.planId,
     title: reading.title,
+    subtitle: '',
     description: '',
     category: '',
     coverImageUrl: null,
     dayCount: reading.dayCount,
+    language: null,
+    estimatedMinutes: null,
+    author: '',
+    order: 0,
   };
 }
 

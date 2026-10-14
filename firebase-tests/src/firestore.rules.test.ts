@@ -1677,6 +1677,769 @@ describe('firestore.rules', () => {
     });
   });
 
+  /**
+   * The reading-plan MANAGER's contract with the rules.
+   *
+   * The five tests above pin the original published/unpublished behaviour
+   * and still pass unchanged. These add what the manager needs:
+   *
+   *  - four statuses (draft, scheduled, published, archived), with
+   *    `published` locked to agree, because members' devices ask for
+   *    `published == true` and nothing else;
+   *  - a SCHEDULED plan that opens by itself when publishAt arrives (the
+   *    server's clock decides, as for the media feed);
+   *  - days that are readable exactly when their plan is;
+   *  - optional day text (devotional no longer required), so a day can be a
+   *    passage, a question and a prayer;
+   *  - and, throughout, that nothing a member can ask for ever returns a
+   *    plan that is not live.
+   *
+   * Several of these run the real QUERIES the phone runs, not just single
+   * reads: Firestore refuses a query unless its constraints prove every
+   * possible result is readable, which is a different check from reading
+   * one document and the one that actually decides whether the library
+   * loads.
+   */
+  describe('reading-plan manager (statuses, scheduling, day text)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const past = () => new Date(Date.now() - DAY);
+    const future = () => new Date(Date.now() + DAY);
+
+    /** A plan a content admin may write, with a given status and the flag that must agree. */
+    function plan(overrides: Record<string, unknown> = {}) {
+      return {
+        title: 'Seven Days in the Psalms',
+        description: 'A week of psalms.',
+        category: 'Devotional',
+        dayCount: 7,
+        order: 1,
+        published: false,
+        status: 'draft',
+        coverImageUrl: null,
+        ...overrides,
+      };
+    }
+
+    const DRAFT = plan();
+    const PUBLISHED = plan({ published: true, status: 'published' });
+    const ARCHIVED = plan({ status: 'archived' });
+    const SCHEDULED_LATER = () => plan({ status: 'scheduled', publishAt: future() });
+    const SCHEDULED_DUE = () => plan({ status: 'scheduled', publishAt: past() });
+    /** Written by the app before the manager existed: no status at all. */
+    const LEGACY_PUBLISHED = {
+      title: 'Old plan',
+      description: 'From before.',
+      category: 'Topical',
+      dayCount: 3,
+      order: 5,
+      published: true,
+    };
+    const LEGACY_DRAFT = { ...LEGACY_PUBLISHED, published: false };
+
+    const DAY_DOC = {
+      dayNumber: 1,
+      title: 'Day 1',
+      scriptureReference: 'Psalm 23',
+      devotional: 'x',
+    };
+
+    async function seedUsers() {
+      await seed(async (db) => {
+        await db.doc('users/member-1').set({ role: 'member' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+      });
+    }
+
+    async function seedPlan(id: string, data: Record<string, unknown>) {
+      await seed(async (db) => {
+        await db.doc(`plans/${id}`).set(data);
+        await db.doc(`plans/${id}/days/d1`).set(DAY_DOC);
+      });
+    }
+
+    describe('who can read a plan, and its days, in each state', () => {
+      it.each([
+        ['a draft', DRAFT],
+        ['an archived plan', ARCHIVED],
+        ['a scheduled plan before its time', SCHEDULED_LATER()],
+        ['an old plan that is not published', LEGACY_DRAFT],
+      ])('keeps %s from a member, but not from an administrator', async (_name, data) => {
+        await seedUsers();
+        await seedPlan('p', data);
+
+        await assertFails(dbFor('member-1').doc('plans/p').get());
+        await assertFails(dbFor('member-1').doc('plans/p/days/d1').get());
+        await assertFails(dbFor(null).doc('plans/p').get());
+
+        await assertSucceeds(dbFor('host-1').doc('plans/p').get());
+        await assertSucceeds(dbFor('host-1').doc('plans/p/days/d1').get());
+        await assertSucceeds(dbFor('admin-1').doc('plans/p').get());
+        await assertSucceeds(dbFor('super-1').doc('plans/p/days/d1').get());
+      });
+
+      it.each([
+        ['a published plan', PUBLISHED],
+        ['an old published plan with no status', LEGACY_PUBLISHED],
+        ['a scheduled plan whose time has come', SCHEDULED_DUE()],
+      ])('gives %s, and its days, to a signed-in member', async (_name, data) => {
+        await seedUsers();
+        await seedPlan('p', data);
+
+        await assertSucceeds(dbFor('member-1').doc('plans/p').get());
+        await assertSucceeds(dbFor('member-1').doc('plans/p/days/d1').get());
+        // Signing in is still required.
+        await assertFails(dbFor(null).doc('plans/p').get());
+        await assertFails(dbFor(null).doc('plans/p/days/d1').get());
+      });
+
+      it('lists the days of a live plan for a member, and of a draft for nobody but staff', async () => {
+        await seedUsers();
+        await seedPlan('live', PUBLISHED);
+        await seedPlan('draft', DRAFT);
+
+        const live = await assertSucceeds(
+          dbFor('member-1').collection('plans/live/days').orderBy('dayNumber').get()
+        );
+        expect(live.size).toBe(1);
+        await assertFails(
+          dbFor('member-1').collection('plans/draft/days').orderBy('dayNumber').get()
+        );
+        await assertSucceeds(
+          dbFor('host-1').collection('plans/draft/days').orderBy('dayNumber').get()
+        );
+      });
+
+      it('opens a scheduled plan by the SERVER clock, not by anything the client says', async () => {
+        await seedUsers();
+        await seedPlan('later', SCHEDULED_LATER());
+        // A client cannot make its own copy of the document say it is due:
+        // the rule reads the stored publishAt.
+        await assertFails(dbFor('member-1').doc('plans/later').get());
+        await assertFails(dbFor('member-1').doc('plans/later/days/d1').get());
+      });
+
+      it('opens a scheduled plan, and its days, when the server clock reaches its time -- not before', async () => {
+        await seedUsers();
+        const opensAt = new Date(Date.now() + 5000);
+        await seedPlan('soon', plan({ status: 'scheduled', publishAt: opensAt }));
+        const startedEarly = Date.now() < opensAt.getTime() - 1500;
+
+        // EVERY attempt is on a connection of its own, on purpose. The emulator
+        // fixes `request.time` when a connection is opened, so a client that was
+        // already connected when the moment passed keeps being judged by the time
+        // it connected, and would stay refused. (A phone that is open across the
+        // moment is the case that matters in production; see READING_PLANS.md.)
+        async function attempt() {
+          const startedAt = Date.now();
+          const member = dbFor('member-1');
+          try {
+            await member.doc('plans/soon').get();
+            await member.doc('plans/soon/days/d1').get();
+            return { opened: true, startedAt };
+          } catch {
+            return { opened: false, startedAt };
+          }
+        }
+
+        const giveUpAt = Date.now() + 25_000;
+        let refusals = 0;
+        let firstOpen: number | null = null;
+        while (firstOpen === null) {
+          if (Date.now() > giveUpAt) throw new Error('The scheduled plan never opened.');
+          const result = await attempt();
+          if (result.opened) firstOpen = result.startedAt;
+          else {
+            refusals += 1;
+            await new Promise((resolve) => setTimeout(resolve, 400));
+          }
+        }
+
+        // Not early: the first read that worked began no sooner than the plan was
+        // due, give or take a second for the round trip.
+        expect(firstOpen).toBeGreaterThanOrEqual(opensAt.getTime() - 1000);
+        // And it really was refused until then.
+        if (startedEarly) expect(refusals).toBeGreaterThan(0);
+      });
+    });
+
+    describe('the queries the phone runs', () => {
+      async function seedLibrary() {
+        await seedUsers();
+        await seed(async (db) => {
+          await db.doc('plans/live').set({ ...PUBLISHED, order: 2 });
+          await db.doc('plans/legacy').set({ ...LEGACY_PUBLISHED, order: 3 });
+          await db.doc('plans/draft').set({ ...DRAFT, order: 1 });
+          await db.doc('plans/archived').set({ ...ARCHIVED, order: 4 });
+          await db.doc('plans/later').set({ ...SCHEDULED_LATER(), order: 5 });
+          await db.doc('plans/due').set({ ...SCHEDULED_DUE(), order: 6 });
+        });
+      }
+
+      it('returns exactly the published plans for a member, drafts and the rest never', async () => {
+        await seedLibrary();
+        const result = await assertSucceeds(
+          dbFor('member-1')
+            .collection('plans')
+            .where('published', '==', true)
+            .orderBy('order', 'asc')
+            .get()
+        );
+        expect(result.docs.map((d) => d.id)).toEqual(['live', 'legacy']);
+      });
+
+      it('returns the published plans with no ordering, so a plan that has no `order` is not lost', async () => {
+        // This is the library query the phone runs: it sorts for itself, because
+        // asking Firestore to order by a field leaves out every document without it
+        // (a plan from before the manager, or one the starter-plan script wrote).
+        await seedLibrary();
+        await seed(async (db) => {
+          const { order: _order, ...withoutOrder } = LEGACY_PUBLISHED;
+          await db.doc('plans/unordered').set(withoutOrder);
+        });
+        const result = await assertSucceeds(
+          dbFor('member-1').collection('plans').where('published', '==', true).get()
+        );
+        expect(result.docs.map((d) => d.id).sort()).toEqual(['legacy', 'live', 'unordered']);
+      });
+
+      it('returns the scheduled plans whose time has come, and only those', async () => {
+        await seedLibrary();
+        const bound = new Date(Date.now() - 60 * 1000);
+        const result = await assertSucceeds(
+          dbFor('member-1')
+            .collection('plans')
+            .where('status', '==', 'scheduled')
+            .where('publishAt', '<=', bound)
+            .get()
+        );
+        expect(result.docs.map((d) => d.id)).toEqual(['due']);
+      });
+
+      it('refuses a scheduled-plans query that reaches into the future', async () => {
+        await seedLibrary();
+        // A phone whose clock runs fast asks for a bound the server has not
+        // reached; the app retries five minutes earlier on this denial.
+        await assertFails(
+          dbFor('member-1')
+            .collection('plans')
+            .where('status', '==', 'scheduled')
+            .where('publishAt', '<=', new Date(Date.now() + DAY))
+            .get()
+        );
+      });
+
+      it('refuses a member any query that could return an unpublished plan', async () => {
+        await seedLibrary();
+        const member = dbFor('member-1');
+        await assertFails(member.collection('plans').get());
+        await assertFails(
+          member.collection('plans').where('published', '==', false).get()
+        );
+        await assertFails(
+          member.collection('plans').where('status', '==', 'draft').get()
+        );
+        await assertFails(
+          member.collection('plans').where('status', '==', 'archived').get()
+        );
+        await assertFails(member.collection('plans').orderBy('order').get());
+        // Asking for scheduled plans without a bound would include future ones.
+        await assertFails(
+          member.collection('plans').where('status', '==', 'scheduled').get()
+        );
+      });
+
+      it('lets an administrator list every plan', async () => {
+        await seedLibrary();
+        for (const uid of ['host-1', 'admin-1', 'super-1']) {
+          const all = await assertSucceeds(
+            dbFor(uid).collection('plans').orderBy('order', 'asc').get()
+          );
+          expect(all.size).toBe(6);
+        }
+      });
+    });
+
+    describe('what an administrator may write', () => {
+      beforeEach(async () => {
+        await seedUsers();
+      });
+
+      it('accepts a draft, a published plan, an archived plan and a future schedule', async () => {
+        const db = dbFor('admin-1');
+        await assertSucceeds(db.doc('plans/a').set(DRAFT));
+        await assertSucceeds(db.doc('plans/b').set(PUBLISHED));
+        await assertSucceeds(db.doc('plans/c').set(ARCHIVED));
+        await assertSucceeds(db.doc('plans/d').set(SCHEDULED_LATER()));
+      });
+
+      it('still accepts a plan with none of the manager fields', async () => {
+        const db = dbFor('admin-1');
+        await assertSucceeds(db.doc('plans/old').set(LEGACY_PUBLISHED));
+        await assertSucceeds(db.doc('plans/older').set(LEGACY_DRAFT));
+      });
+
+      it('accepts every new optional field when it is valid', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('plans/full')
+            .set(
+              plan({
+                subtitle: 'Rest for the weary',
+                author: 'Pastor Samuel',
+                language: 'te',
+                estimatedMinutes: 15,
+                createdBy: 'admin-1',
+                publishedAt: null,
+                publishAt: null,
+              })
+            )
+        );
+      });
+
+      it('lets a published plan be unpublished and an old plan gain a status on edit', async () => {
+        await seed(async (db) => db.doc('plans/p').set(LEGACY_PUBLISHED));
+        const db = dbFor('admin-1');
+        await assertSucceeds(
+          db.doc('plans/p').update({ status: 'published', language: 'en' })
+        );
+        await assertSucceeds(
+          db.doc('plans/p').update({ status: 'draft', published: false })
+        );
+      });
+
+      describe('status and published must agree', () => {
+        it.each([
+          ['published=true with status draft', { published: true, status: 'draft' }],
+          [
+            'published=true with status archived',
+            { published: true, status: 'archived' },
+          ],
+          [
+            'published=true with status scheduled',
+            { published: true, status: 'scheduled', publishAt: new Date() },
+          ],
+          [
+            'published=false with status published',
+            { published: false, status: 'published' },
+          ],
+          ['an unknown status', { published: false, status: 'live' }],
+          ['a status that is not a string', { published: false, status: 1 }],
+        ])('refuses %s', async (_name, fields) => {
+          await assertFails(dbFor('admin-1').doc('plans/x').set(plan(fields)));
+        });
+
+        // An edit that touches only ONE of the two fields. The rules judge the
+        // plan as it WOULD BE afterwards, so this cannot leave them disagreeing
+        // -- which is what the editor's quick actions rely on.
+        describe('when only one of them is changed on a plan that exists', () => {
+          it.each([
+            ['a draft cannot go live by `published` alone', DRAFT, { published: true }],
+            ['a draft cannot go live by `status` alone', DRAFT, { status: 'published' }],
+            [
+              'a published plan cannot be archived by `status` alone',
+              PUBLISHED,
+              { status: 'archived' },
+            ],
+            [
+              'a published plan cannot be hidden by `published` alone',
+              PUBLISHED,
+              { published: false },
+            ],
+            [
+              'a scheduled plan cannot go live by `published` alone',
+              SCHEDULED_LATER(),
+              { published: true },
+            ],
+            [
+              'a scheduled plan cannot lose the time it was scheduled for',
+              SCHEDULED_LATER(),
+              { publishAt: null },
+            ],
+          ])('refuses it: %s', async (_name, stored, change) => {
+            await seed(async (db) => db.doc('plans/p').set(stored));
+            await assertFails(dbFor('admin-1').doc('plans/p').update(change));
+          });
+
+          it('accepts the same changes made together, which is how the editor makes them', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/d').set(DRAFT);
+              await db.doc('plans/p').set(PUBLISHED);
+            });
+            const db = dbFor('admin-1');
+            await assertSucceeds(
+              db.doc('plans/d').update({ published: true, status: 'published' })
+            );
+            await assertSucceeds(
+              db.doc('plans/p').update({ published: false, status: 'archived' })
+            );
+          });
+
+          it('refuses to empty a live plan in place', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/p').set(PUBLISHED);
+              await db.doc('plans/s').set(SCHEDULED_LATER());
+            });
+            const db = dbFor('admin-1');
+            await assertFails(db.doc('plans/p').update({ dayCount: 0 }));
+            await assertFails(db.doc('plans/p').update({ description: '' }));
+            await assertFails(db.doc('plans/s').update({ dayCount: 0 }));
+            await assertFails(db.doc('plans/s').update({ description: '' }));
+          });
+        });
+      });
+
+      describe('scheduling', () => {
+        it('needs a publishAt that is a timestamp', async () => {
+          const db = dbFor('admin-1');
+          const noTime = plan({ status: 'scheduled' });
+          await assertFails(db.doc('plans/a').set(noTime));
+          await assertFails(
+            db.doc('plans/b').set(plan({ status: 'scheduled', publishAt: null }))
+          );
+          await assertFails(
+            db.doc('plans/c').set(plan({ status: 'scheduled', publishAt: '2030-01-01' }))
+          );
+          await assertSucceeds(db.doc('plans/d').set(SCHEDULED_LATER()));
+        });
+
+        it('refuses a publishAt that is not a timestamp on any status', async () => {
+          await assertFails(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .set(plan({ publishAt: 'tomorrow' }))
+          );
+        });
+      });
+
+      describe('a plan going live needs something to show', () => {
+        it('refuses publishing with no days', async () => {
+          await assertFails(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .set(plan({ published: true, status: 'published', dayCount: 0 }))
+          );
+        });
+
+        it('refuses scheduling with no days', async () => {
+          await assertFails(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .set({ ...SCHEDULED_LATER(), dayCount: 0 })
+          );
+        });
+
+        it('refuses publishing or scheduling with no description', async () => {
+          const db = dbFor('admin-1');
+          await assertFails(db.doc('plans/x').set({ ...PUBLISHED, description: '' }));
+          await assertFails(
+            db.doc('plans/y').set({ ...SCHEDULED_LATER(), description: '' })
+          );
+        });
+
+        it('still lets a half-built plan be saved as a draft or archived', async () => {
+          const db = dbFor('admin-1');
+          await assertSucceeds(
+            db.doc('plans/x').set(plan({ description: '', dayCount: 0 }))
+          );
+          await assertSucceeds(
+            db
+              .doc('plans/y')
+              .set(plan({ status: 'archived', description: '', dayCount: 0 }))
+          );
+        });
+
+        it('refuses to flip an empty draft to published in place', async () => {
+          await seed(async (db) =>
+            db.doc('plans/x').set(plan({ description: '', dayCount: 0 }))
+          );
+          await assertFails(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .update({ published: true, status: 'published' })
+          );
+        });
+
+        // COMPATIBILITY, and a deliberate tightening: before the manager, a plan
+        // could be published with no days at all (its dayCount was 0). It still
+        // READS fine -- members see what they always did -- but it is held to the
+        // new rule the next time anyone edits it. The way out is to add a day, or
+        // to unpublish or archive it, and both stay open. The editor recomputes
+        // dayCount from the real days on every save, so adding a day is enough.
+        describe('an old published plan that has no days', () => {
+          const OLD_EMPTY = {
+            title: 'Old plan',
+            description: 'From before.',
+            category: 'Topical',
+            dayCount: 0,
+            order: 3,
+            published: true,
+          };
+
+          it('is still readable by a member', async () => {
+            await seed(async (db) => db.doc('plans/old').set(OLD_EMPTY));
+            await assertSucceeds(dbFor('member-1').doc('plans/old').get());
+          });
+
+          it('cannot be edited in place while it is published, but can be taken back or fixed', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/a').set(OLD_EMPTY);
+              await db.doc('plans/b').set(OLD_EMPTY);
+              await db.doc('plans/c').set(OLD_EMPTY);
+            });
+            const db = dbFor('admin-1');
+            await assertFails(db.doc('plans/a').update({ order: 9 }));
+            await assertSucceeds(
+              db.doc('plans/a').update({ published: false, status: 'draft' })
+            );
+            await assertSucceeds(
+              db.doc('plans/b').update({ published: false, status: 'archived' })
+            );
+            await assertSucceeds(db.doc('plans/c').update({ dayCount: 1, order: 9 }));
+          });
+        });
+
+        it('keeps the description limit', async () => {
+          await assertFails(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .set(plan({ description: 'd'.repeat(2001) }))
+          );
+          await assertSucceeds(
+            dbFor('admin-1')
+              .doc('plans/y')
+              .set(plan({ description: 'd'.repeat(2000) }))
+          );
+        });
+      });
+
+      describe('field shapes', () => {
+        it.each([
+          ['an empty title', { title: '' }],
+          ['a title over 200 characters', { title: 't'.repeat(201) }],
+          ['an empty category', { category: '' }],
+          ['a category over 100 characters', { category: 'c'.repeat(101) }],
+          ['a negative day count', { dayCount: -1 }],
+          ['a fractional day count', { dayCount: 1.5 }],
+          ['a non-integer order', { order: 'first' }],
+          ['published that is not a boolean', { published: 'yes', status: undefined }],
+          ['a language the app does not have', { language: 'fr' }],
+          ['a language that is not a string', { language: 1 }],
+          ['estimatedMinutes of 0', { estimatedMinutes: 0 }],
+          ['estimatedMinutes over 240', { estimatedMinutes: 241 }],
+          ['a fractional estimatedMinutes', { estimatedMinutes: 7.5 }],
+          ['a subtitle over 200 characters', { subtitle: 's'.repeat(201) }],
+          ['an author over 120 characters', { author: 'a'.repeat(121) }],
+          ['a createdBy that is not a string', { createdBy: 42 }],
+          ['a coverImageUrl that is not a string', { coverImageUrl: 7 }],
+        ])('refuses %s', async (_name, fields) => {
+          const bad = { ...plan(), ...fields } as Record<string, unknown>;
+          for (const key of Object.keys(bad)) {
+            if (bad[key] === undefined) delete bad[key];
+          }
+          await assertFails(dbFor('admin-1').doc('plans/x').set(bad));
+        });
+
+        it('accepts the edges of each limit', async () => {
+          await assertSucceeds(
+            dbFor('admin-1')
+              .doc('plans/x')
+              .set(
+                plan({
+                  title: 't'.repeat(200),
+                  category: 'c'.repeat(100),
+                  subtitle: 's'.repeat(200),
+                  author: 'a'.repeat(120),
+                  estimatedMinutes: 240,
+                })
+              )
+          );
+          await assertSucceeds(
+            dbFor('admin-1')
+              .doc('plans/y')
+              .set(plan({ estimatedMinutes: 1 }))
+          );
+        });
+      });
+
+      it('lets a content admin and a super admin delete a plan, and nobody else', async () => {
+        await seed(async (db) => {
+          await db.doc('plans/a').set(DRAFT);
+          await db.doc('plans/b').set(DRAFT);
+          await db.doc('plans/c').set(DRAFT);
+          await db.doc('plans/d').set(DRAFT);
+        });
+        await assertFails(dbFor('member-1').doc('plans/a').delete());
+        await assertFails(dbFor('host-1').doc('plans/a').delete());
+        await assertFails(dbFor(null).doc('plans/a').delete());
+        await assertSucceeds(dbFor('admin-1').doc('plans/b').delete());
+        await assertSucceeds(dbFor('super-1').doc('plans/c').delete());
+      });
+
+      it('lets neither a host nor a member write a plan', async () => {
+        await assertFails(dbFor('host-1').doc('plans/x').set(DRAFT));
+        await assertFails(dbFor('member-1').doc('plans/x').set(DRAFT));
+        await assertFails(dbFor(null).doc('plans/x').set(DRAFT));
+      });
+
+      it('lets neither a host nor a member change the status of a plan', async () => {
+        await seed(async (db) => db.doc('plans/p').set(DRAFT));
+        await assertFails(
+          dbFor('host-1').doc('plans/p').update({ published: true, status: 'published' })
+        );
+        await assertFails(
+          dbFor('member-1')
+            .doc('plans/p')
+            .update({ published: true, status: 'published' })
+        );
+      });
+    });
+
+    describe('what a day may contain', () => {
+      beforeEach(async () => {
+        await seedUsers();
+        await seed(async (db) => db.doc('plans/p').set(PUBLISHED));
+      });
+
+      it('accepts a day that is only a passage -- the devotional is optional', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('plans/p/days/d1')
+            .set({ dayNumber: 1, title: 'Psalm 23', scriptureReference: 'Psalm 23' })
+        );
+      });
+
+      it('accepts a day with an empty devotional', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('plans/p/days/d1')
+            .set({ ...DAY_DOC, devotional: '' })
+        );
+      });
+
+      it('accepts a day with every optional text field, and several passages', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('plans/p/days/d1')
+            .set({
+              ...DAY_DOC,
+              scriptureReference: 'Psalm 23; John 10:11-18',
+              devotional: 'Reflect.',
+              reflectionQuestion: 'Where has the Shepherd led you?',
+              prayerPrompt: 'Thank him.',
+              application: 'Call someone who is walking through a valley.',
+              notes: 'Written by David.',
+            })
+        );
+      });
+
+      it('still accepts a day in the original shape', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('plans/p/days/d1').set(DAY_DOC));
+      });
+
+      it.each([
+        ['day 0', { dayNumber: 0 }],
+        ['day 1001', { dayNumber: 1001 }],
+        ['a fractional day number', { dayNumber: 1.5 }],
+        ['a day number that is not a number', { dayNumber: '1' }],
+        ['an empty title', { title: '' }],
+        ['a title over 200 characters', { title: 't'.repeat(201) }],
+        ['no passage', { scriptureReference: '' }],
+        ['a passage field over 200 characters', { scriptureReference: 'p'.repeat(201) }],
+        ['a devotional over 5000 characters', { devotional: 'd'.repeat(5001) }],
+        ['a prayer over 1000 characters', { prayerPrompt: 'p'.repeat(1001) }],
+        [
+          'a reflection question over 1000 characters',
+          { reflectionQuestion: 'q'.repeat(1001) },
+        ],
+        ['an application over 2000 characters', { application: 'a'.repeat(2001) }],
+        ['notes over 3000 characters', { notes: 'n'.repeat(3001) }],
+        ['a devotional that is not text', { devotional: 5 }],
+        ['a reflection question that is not text', { reflectionQuestion: ['x'] }],
+      ])('refuses %s', async (_name, fields) => {
+        await assertFails(
+          dbFor('admin-1')
+            .doc('plans/p/days/d1')
+            .set({ ...DAY_DOC, ...fields })
+        );
+      });
+
+      it('accepts the edges of each limit', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('plans/p/days/d1')
+            .set({
+              ...DAY_DOC,
+              dayNumber: 1000,
+              title: 't'.repeat(200),
+              scriptureReference: 'p'.repeat(200),
+              devotional: 'd'.repeat(5000),
+              prayerPrompt: 'p'.repeat(1000),
+              reflectionQuestion: 'q'.repeat(1000),
+              application: 'a'.repeat(2000),
+              notes: 'n'.repeat(3000),
+            })
+        );
+      });
+
+      it('lets neither a host nor a member write or delete a day', async () => {
+        await seed(async (db) => db.doc('plans/p/days/d9').set(DAY_DOC));
+        await assertFails(dbFor('host-1').doc('plans/p/days/d1').set(DAY_DOC));
+        await assertFails(dbFor('member-1').doc('plans/p/days/d1').set(DAY_DOC));
+        await assertFails(dbFor('host-1').doc('plans/p/days/d9').delete());
+        await assertFails(dbFor('member-1').doc('plans/p/days/d9').delete());
+        await assertSucceeds(dbFor('admin-1').doc('plans/p/days/d9').delete());
+      });
+
+      it('lets an administrator write a whole plan in ONE batch (the editor saves this way)', async () => {
+        // 1 plan + 60 days + 1 removed day. Proves the per-request limit on
+        // rules lookups is not exceeded by a large save.
+        await seed(async (db) => db.doc('plans/old/days/gone').set(DAY_DOC));
+        const db = dbFor('admin-1');
+        const batch = db.batch();
+        batch.set(db.doc('plans/new'), { ...DRAFT, dayCount: 60 });
+        for (let n = 1; n <= 60; n += 1) {
+          batch.set(db.doc(`plans/new/days/d${n}`), {
+            ...DAY_DOC,
+            dayNumber: n,
+            title: `Day ${n}`,
+          });
+        }
+        batch.delete(db.doc('plans/old/days/gone'));
+        await assertSucceeds(batch.commit());
+        const written = await assertSucceeds(
+          dbFor('admin-1').collection('plans/new/days').orderBy('dayNumber').get()
+        );
+        expect(written.size).toBe(60);
+      });
+
+      it('refuses the whole batch if one day in it is invalid', async () => {
+        const db = dbFor('admin-1');
+        const batch = db.batch();
+        batch.set(db.doc('plans/new'), { ...DRAFT, dayCount: 2 });
+        batch.set(db.doc('plans/new/days/d1'), DAY_DOC);
+        batch.set(db.doc('plans/new/days/d2'), { ...DAY_DOC, dayNumber: 0 });
+        await assertFails(batch.commit());
+        const none = await assertSucceeds(db.collection('plans/new/days').get());
+        expect(none.size).toBe(0);
+      });
+    });
+
+    it('does not let a plan progress document reveal an unpublished plan', async () => {
+      // Progress is the member's own; it grants no access to the plan.
+      await seedUsers();
+      await seed(async (db) => {
+        await db.doc('plans/p').set(DRAFT);
+        await db
+          .doc('users/member-1/planProgress/p')
+          .set({ startedAt: new Date(), currentDay: 1, completedDays: [] });
+      });
+      await assertSucceeds(dbFor('member-1').doc('users/member-1/planProgress/p').get());
+      await assertFails(dbFor('member-1').doc('plans/p').get());
+    });
+  });
+
   describe('users/{userId}/planProgress (fully private per-owner)', () => {
     it('blocks a different member from reading another member\'s plan progress', async () => {
       await seed(async (db) => {
@@ -2736,6 +3499,278 @@ describe('firestore.rules', () => {
   // request cannot carry an author, rather than that the app chooses not
   // to render one.
   // ==================================================================
+  describe('media_assets (the administrators\' media library)', () => {
+    const now = new Date();
+    /** A complete, valid library record. */
+    const asset = (overrides: Record<string, unknown> = {}) => ({
+      kind: 'image',
+      source: 'cloudinary',
+      category: 'poster',
+      title: 'Easter poster',
+      altText: 'A cross at sunrise',
+      url: 'https://res.cloudinary.com/my-church/image/upload/v1/maranatha/easter.jpg',
+      thumbnailUrl: null,
+      publicId: 'maranatha/easter',
+      format: 'jpg',
+      bytes: 123456,
+      width: 1600,
+      height: 900,
+      durationSeconds: null,
+      originalFilename: 'easter',
+      youtubeId: null,
+      createdBy: 'admin-1',
+      createdByName: 'Admin One',
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    });
+
+    async function seedRoles() {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/member-1').set({ role: 'member' });
+      });
+    }
+
+    describe('who may read it', () => {
+      beforeEach(async () => {
+        await seedRoles();
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+      });
+
+      it('lets a host read it', async () => {
+        await assertSucceeds(dbFor('host-1').doc('media_assets/a1').get());
+      });
+      it('lets a content admin and a super admin read it', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').get());
+        await assertSucceeds(dbFor('super-1').doc('media_assets/a1').get());
+      });
+      it('refuses an ordinary member', async () => {
+        await assertFails(dbFor('member-1').doc('media_assets/a1').get());
+      });
+      it('refuses someone who is not signed in', async () => {
+        await assertFails(dbFor(null).doc('media_assets/a1').get());
+      });
+      it('refuses a member listing the collection', async () => {
+        await assertFails(dbFor('member-1').collection('media_assets').get());
+      });
+    });
+
+    describe('who may write it', () => {
+      beforeEach(seedRoles);
+
+      it('lets a content admin add a Cloudinary image', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').set(asset()));
+      });
+      it('lets a super admin add a record', async () => {
+        await assertSucceeds(
+          dbFor('super-1').doc('media_assets/a2').set(asset({ createdBy: 'super-1' }))
+        );
+      });
+      it('lets a content admin add an audio file with a fractional duration', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/song')
+            .set(
+              asset({
+                kind: 'audio',
+                category: 'song',
+                altText: '',
+                url: 'https://res.cloudinary.com/my-church/video/upload/v1/maranatha/hymn.mp3',
+                width: null,
+                height: null,
+                durationSeconds: 187.4,
+                format: 'mp3',
+              })
+            )
+        );
+      });
+      it('lets a content admin add a YouTube video', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/yt')
+            .set(
+              asset({
+                kind: 'video',
+                source: 'youtube',
+                category: 'video',
+                altText: '',
+                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                publicId: null,
+                format: null,
+                bytes: null,
+                width: null,
+                height: null,
+                originalFilename: null,
+                youtubeId: 'dQw4w9WgXcQ',
+              })
+            )
+        );
+      });
+      it('lets a content admin add a plain https link', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/link')
+            .set(
+              asset({
+                source: 'link',
+                url: 'https://example.org/poster.png',
+                publicId: null,
+                format: null,
+                bytes: null,
+                width: null,
+                height: null,
+                originalFilename: null,
+              })
+            )
+        );
+      });
+
+      it('refuses a host', async () => {
+        await assertFails(
+          dbFor('host-1').doc('media_assets/a1').set(asset({ createdBy: 'host-1' }))
+        );
+      });
+      it('refuses an ordinary member', async () => {
+        await assertFails(
+          dbFor('member-1').doc('media_assets/a1').set(asset({ createdBy: 'member-1' }))
+        );
+      });
+      it('refuses someone who is not signed in', async () => {
+        await assertFails(dbFor(null).doc('media_assets/a1').set(asset()));
+      });
+      it('refuses a record that names someone else as its creator', async () => {
+        await assertFails(
+          dbFor('admin-1').doc('media_assets/a1').set(asset({ createdBy: 'super-1' }))
+        );
+      });
+    });
+
+    describe('what a record must look like', () => {
+      beforeEach(seedRoles);
+      const write = (overrides: Record<string, unknown>) =>
+        dbFor('admin-1').doc('media_assets/x').set(asset(overrides));
+
+      it.each([
+        ['an http address', { url: 'http://res.cloudinary.com/x.jpg' }],
+        ['a javascript: address', { url: 'javascript:alert(1)' }],
+        ['a data: address', { url: 'data:text/html;base64,AAAA' }],
+        ['an address with a space in it', { url: 'https://example.org/a b.jpg' }],
+        ['an address over 2000 characters', { url: `https://example.org/${'a'.repeat(2000)}` }],
+        ['an http thumbnail', { thumbnailUrl: 'http://example.org/t.jpg' }],
+        ['an unknown kind', { kind: 'document' }],
+        ['an unknown source', { source: 'ftp' }],
+        ['an unknown category', { category: 'secret' }],
+        ['an empty title', { title: '' }],
+        ['a title over 200 characters', { title: 'x'.repeat(201) }],
+        ['alt text over 500 characters', { altText: 'x'.repeat(501) }],
+        ['a negative size', { bytes: -1 }],
+        ['a fractional size', { bytes: 1.5 }],
+        ['a size over 100 MB', { bytes: 104857601 }],
+        ['a zero width', { width: 0 }],
+        ['a negative duration', { durationSeconds: -1 }],
+        ['a duration over a day', { durationSeconds: 86401 }],
+        ['a malformed YouTube id', { youtubeId: 'short' }],
+        ['a non-string creator', { createdBy: 5 }],
+        ['a missing creator', { createdBy: '' }],
+        ['a creation date that is a string', { createdAt: '2026-01-01' }],
+        ['an extra, unknown field', { isFeatured: true }],
+        ['an extra field that tries to grant something', { role: 'super_admin' }],
+      ])('refuses %s', async (_name, overrides) => {
+        await assertFails(write(overrides));
+      });
+
+      it('refuses a record with a field missing altogether', async () => {
+        const incomplete: Record<string, unknown> = asset();
+        delete incomplete.width;
+        await assertFails(dbFor('admin-1').doc('media_assets/x').set(incomplete));
+      });
+
+      it('refuses a YouTube record that is not a video', async () => {
+        await assertFails(
+          write({ source: 'youtube', kind: 'image', youtubeId: 'dQw4w9WgXcQ' })
+        );
+      });
+      it('refuses a YouTube record without a video id', async () => {
+        await assertFails(write({ source: 'youtube', kind: 'video', youtubeId: null }));
+      });
+      it('refuses a Cloudinary record of kind video (long video belongs on YouTube)', async () => {
+        await assertFails(write({ source: 'cloudinary', kind: 'video' }));
+      });
+    });
+
+    describe('changing and removing a record', () => {
+      beforeEach(async () => {
+        await seedRoles();
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+      });
+
+      it('lets a content admin change the title, description and category', async () => {
+        await assertSucceeds(
+          dbFor('admin-1').doc('media_assets/a1').update({
+            title: 'Easter poster 2027',
+            altText: 'Sunrise over the cross',
+            category: 'cover',
+            updatedAt: new Date(),
+          })
+        );
+      });
+      it('does NOT let anyone change the file the record points at', async () => {
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ url: 'https://example.org/other.jpg', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('super-1')
+            .doc('media_assets/a1')
+            .update({ kind: 'audio', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ createdBy: 'admin-1', createdByName: 'Someone', updatedAt: new Date() })
+        );
+      });
+      it('refuses an update that breaks the shape', async () => {
+        await assertFails(
+          dbFor('admin-1').doc('media_assets/a1').update({ title: '', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ category: 'nope', updatedAt: new Date() })
+        );
+      });
+      it('refuses a host and a member trying to change a record', async () => {
+        await assertFails(
+          dbFor('host-1')
+            .doc('media_assets/a1')
+            .update({ title: 'Hijack', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('member-1')
+            .doc('media_assets/a1')
+            .update({ title: 'Hijack', updatedAt: new Date() })
+        );
+      });
+
+      it('lets a content admin or super admin remove a record', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').delete());
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+        await assertSucceeds(dbFor('super-1').doc('media_assets/a1').delete());
+      });
+      it('refuses a host, a member and an anonymous visitor removing a record', async () => {
+        await assertFails(dbFor('host-1').doc('media_assets/a1').delete());
+        await assertFails(dbFor('member-1').doc('media_assets/a1').delete());
+        await assertFails(dbFor(null).doc('media_assets/a1').delete());
+      });
+    });
+  });
+
   describe('M7 community_messages, prayer_requests and reports', () => {
     async function seedM7Roles() {
       await seed(async (db) => {

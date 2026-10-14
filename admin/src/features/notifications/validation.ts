@@ -3,14 +3,13 @@
  * ../announcements/validation.ts (the actual, server-enforced authority is
  * functions/src/sendNotification.ts's isValidInput(), which this file's
  * caps are kept in sync with by hand: TITLE 200 / MESSAGE 1000). Image
- * validation mirrors announcements' own (5 MB cap, image/* content type),
- * matching storage.rules' content/{imageType}/{fileName} write rule.
+ * validation is the shared upload rule (../../services/media/uploadRules.ts).
  */
+
+import { validateUploadFile } from '../../services/media/uploadRules';
 
 export const NOTIFICATION_TITLE_MAX_LENGTH = 200;
 export const NOTIFICATION_MESSAGE_MAX_LENGTH = 1000;
-/** Matches storage.rules' content/{imageType}/{fileName} write rule's cap. */
-export const NOTIFICATION_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export interface NotificationValidationInput {
   title: string;
@@ -50,16 +49,12 @@ export function hasValidationErrors(errors: NotificationValidationErrors): boole
 }
 
 /**
- * Validates an image file before upload -- type and size only (matching
- * storage.rules' own checks), so a rejection is obvious immediately rather
- * than after a slow upload fails server-side.
+ * Whether this file may be uploaded as a notification image. It is the shared image
+ * rule (../../services/media/uploadRules.ts) -- the same formats and
+ * 5 MB ceiling for every picture -- so a mistake is caught in the browser
+ * before an upload starts. A courtesy only: the limits that really apply
+ * are set on the Cloudinary upload preset (docs/admin/MEDIA_UPLOADS.md).
  */
 export function validateNotificationImage(file: File): string | null {
-  if (!file.type.startsWith('image/')) {
-    return 'Please choose an image file.';
-  }
-  if (file.size >= NOTIFICATION_IMAGE_MAX_BYTES) {
-    return 'Image must be smaller than 5 MB.';
-  }
-  return null;
+  return validateUploadFile(file, 'image');
 }

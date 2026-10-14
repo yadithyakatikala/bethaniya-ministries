@@ -40,52 +40,96 @@ You'll land on the Dashboard, which shows your name and your role
 (Host, Content Admin, or Super Admin). What you can do from here depends
 on that role — see "Who can do what" below.
 
+## The Dashboard
+
+The first page after you sign in. It answers "what should I look at?" using
+only what is really in the database — nothing is estimated or made up:
+
+- **Count cards** for Announcements, Reading Plans, Songs, Upcoming Events and
+  (for Content Admins and above) Open Reports. Each opens the page that holds
+  them. While a number is still loading it shows a dash, never a zero.
+- **Needs attention** — drafts you have started but not published, most
+  recently touched first.
+- **Coming up** — things scheduled to open (reading plans, photos and videos,
+  Prophet verses), with when.
+- **Recently updated** — what is published, most recently changed first.
+- **Today's verse** — the verse the app is showing today, and where it came
+  from (a day set by hand, your church's own list, or the app's built-in year).
+- **Prophet verse** (Content Admin and above) — the one showing now.
+- **Reading plans** by status, and the last notification sent.
+- **Quick actions** — shortcuts to real pages, depending on your role.
+
+If part of the page could not be read, it says which part, instead of showing
+a number it could not check. A retired reading plan is never listed.
+
 ## Finding your way around
 
-Every page shares the same sidebar down the left side (on a phone or
-narrow window, tap the menu icon in the top-left corner to open it): links
-to the Dashboard, Announcements, Daily Verses, Songs, Events, Community,
-Plans, Notifications, Users, and Settings. The page you're currently on
-is highlighted. Selecting any link takes you straight there — nothing
-here requires remembering a web address.
+Every page shares the same navy sidebar down the left side (on a phone or
+narrow window, tap the menu icon in the top-left corner to open it), in five
+groups:
 
-To sign out, go back to the Dashboard and select **Sign out**.
+- **Dashboard**
+- **Content** — Announcements, Songs, Events, Community, Photos & Videos
+- **Bible** — Verse of the Day, Prophet Verse of the Day, Reading Plans
+- **Library** — Media Library
+- **People** — Notifications, Reports, Users, and Settings at the bottom
+
+The page you're on is marked with a gold bar. Selecting any link takes you
+straight there — nothing requires remembering a web address, and every address
+that worked before still does.
+
+To sign out, use **Sign out** at the foot of the sidebar (or the button at the
+top of the Dashboard).
+
+**Tables on a phone.** A wide table (Users, Reading Plans…) scrolls sideways
+inside its own card — swipe it. The page itself never moves sideways.
+
+**Dates** are written the same way everywhere: `14 Oct 2026, 18:10`, in the
+time zone of the computer you are using.
 
 ## Who can do what
 
 | You are a... | You can |
 | --- | --- |
 | **Host** | Manage the live-stream link/status on Events, and send notifications. Everything else below is view-only or hidden. |
-| **Content Admin** | Everything a Host can do, plus create/edit/publish Announcements, Daily Verses, Songs, Events, Community posts, and Reading Plans. Settings are visible but not editable. |
+| **Content Admin** | Everything a Host can do, plus create/edit/publish Announcements, Daily Verses, Songs, Events, Community posts, Photos & Videos, Prophet verses and Reading Plans, and use the Media Library. Settings are visible but not editable. |
 | **Super Admin** | Everything, plus manage other users' accounts/roles and edit Settings. |
 
 If a page or button isn't there for your role, that's expected — it isn't
 missing, it's just not part of what your role does. If you believe your
 role is wrong, ask another Super Admin to check the Users page.
 
-## Announcements, Daily Verses, and Songs
+## Announcements, Songs, and Daily Verses
 
-These three work the same way (Content Admin and Super Admin only):
+These work the same way (Content Admin and Super Admin only):
 
 1. From the sidebar, select the section you want.
-2. You'll see a list of existing entries, each marked **Published** (green)
-   or **Draft** (grey), with **Publish**/**Unpublish**, an edit (pencil)
-   icon, and a delete (trash) icon on each row.
+2. You'll see a list of existing entries, each marked **Published** or
+   **Draft** (a word and a small icon, not just a colour), with
+   **Publish**/**Unpublish**, an edit (pencil) icon, and a delete (trash) icon
+   on each row.
 3. To add a new one, select the "New..." button at the top of the list.
    - **Announcements**: Title, Content (the message body), and an optional
      image.
-   - **Daily Verses**: Scripture Reference (e.g. "John 3:16"), Verse Text,
-     and the Date it should appear on.
-   - **Songs**: Title, Artist, Category, Lyrics, and an Audio URL (a link
-     to the song's audio file).
-4. A new entry always starts as a **Draft** — it will not appear in the
+   - **Songs**: Title, Artist, Category, Lyrics, a cover picture, and the song's
+     audio — **upload** an audio file, **choose** one from the Media Library,
+     or paste a link.
+   - **Daily Verses** (a day you set by hand — see "Verse of the Day" below):
+     Scripture Reference, Verse Text, and the Date it should appear on.
+4. **Pictures and songs.** Wherever a form takes a picture or a song you can
+   **upload** it from your computer, **choose from library** (anything uploaded
+   before), or **use a web address**. Uploading needs the one-time setup in
+   [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md); until that is
+   done the form says so, and the other two ways still work. The form's save
+   button waits while a file is uploading.
+5. A new entry always starts as a **Draft** — it will not appear in the
    mobile app until you select **Publish** on its row in the list. This is
    deliberate: it lets you prepare content ahead of time and publish it
    exactly when you want it live.
-5. Required fields are marked, and the form won't let you save until
+6. Required fields are marked, and the form won't let you save until
    they're filled in correctly — an error message explains what's missing
-   or wrong (for example, an invalid URL).
-6. To change something later, select the pencil icon; to remove it
+   or wrong.
+7. To change something later, select the pencil icon; to remove it
    entirely, select the trash icon (you'll be asked to confirm first —
    deletion cannot be undone).
 
@@ -120,23 +164,87 @@ there is no way for a member to post here themselves.
 
 ## Reading Plans (Content Admin and Super Admin)
 
-Reading Plans are multi-day Bible reading plans members can browse and
-work through in the mobile app. Managing one has two steps:
+Reading Plans are multi-day Bible readings members browse and follow in the
+app (**Bible → Plans**). The full guide — every field, the statuses, the
+publish checklist, scheduling, and exactly what members see — is in
+**[docs/admin/READING_PLANS.md](./docs/admin/READING_PLANS.md)**. In short:
 
-1. **The plan itself** — from the Plans list, select "New Plan" to set
-   its Title, Description, Category (e.g. "Devotional", "Topical"), an
-   optional cover image, and its Display Order (lower numbers appear
-   first in the mobile library). A new plan starts as a **Draft** and
-   with zero days — publish it once its days are ready.
-2. **The plan's days** — from the Plans list, select the list icon on a
-   plan's row to manage its days. Each day has a Day Number, Title,
-   Scripture Reference, Devotional text, and an optional Prayer Prompt.
-   Add, edit, or remove days one at a time; the plan's day count on the
-   main Plans list updates automatically to match.
+1. **Reading Plans → New Plan.** On the **Details** tab give it a title,
+   description and category (and, if you like, a subtitle, language, time per
+   day, author and cover picture). The **Plan ID** is made from the title and
+   **cannot be changed later**, because members' progress is stored under it.
+2. On the **Days** tab add a day for each day of the plan: a title and a
+   passage are required; a devotional, reflection question, application,
+   prayer and notes are optional. Passages are **checked against the real
+   Bible** as you type (a passage that does not exist is refused, with the
+   reason), and **Choose from the Bible** builds one for you.
+3. **Preview** shows the plan's card and any day as a member will see it.
+4. **Save changes.** A new plan is saved as a **Draft** — administrators only.
+5. **Publish** (live now) or **Schedule…** (live at a time you choose). The
+   site first checks the plan is complete — a description, at least one day,
+   and every day with a title and a real passage — and lists anything missing.
+6. Other actions, from the list's **⋮** menu or the editor: **Unpublish**,
+   **Archive** / **Restore**, **Duplicate**, **Delete** (each asks first).
 
-A plan only becomes visible to members once you publish it from the main
-Plans list — adding days to an unpublished plan is safe to do ahead of
-time.
+Changing a plan members are already reading: their progress is saved **by day
+number**, so moving or deleting a day changes which day they have finished.
+Adding days at the end, and editing any day's words, is always safe.
+
+A Host can open any plan and read it, but cannot change one.
+
+**What needs approval before it works on phones:** the database rules and one
+index that publishing relies on have not been deployed yet. See
+[DEPLOYMENT.md](./DEPLOYMENT.md).
+
+## Media Library, Photos & Videos
+
+**Library → Media Library** is the catalogue of every picture, song and video
+link you have uploaded or added. From it you can **search**, filter by type and
+category, see previews, **copy a file's address**, **edit** its title,
+description and category, and **remove** its record. Removing a record never
+deletes the file itself, and never breaks anything that already uses it.
+
+- **Upload file** — a picture or a song from your computer (needs the one-time
+  setup in [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md)).
+- **Add video or link** — a **YouTube** link (the right home for video — it is
+  free), or an `https://` address of a picture or song that already lives
+  elsewhere.
+
+**Content → Photos & Videos** is the feed members scroll in the app — separate
+from the library. Each post is a picture or a video with a caption (and
+optionally a verse), saved as a draft until you publish it, and can be
+scheduled for a later time.
+
+If uploading is not set up, you will see a plain notice instead of an upload
+button. If you are the person setting it up, the notice has a "For the person
+setting it up" section naming exactly what is missing.
+
+## Verse of the Day and Prophet Verse of the Day
+
+**Bible → Verse of the Day** is one page with four tabs:
+
+- **Today** — what the app is showing right now and *why* (set by hand, your
+  church's own list, or the built-in year), and a preview of any other day.
+- **Schedule** — which verse falls on which day, a year ahead.
+- **Verses** — days you have set by hand, and your church's own verse list if
+  you keep one.
+- **How it works** — whether the rotation is running, and its two settings.
+
+The app chooses a verse every day by itself; **nothing has to be done each
+morning**. You step in only to make one day different ("Set a day by hand").
+
+When you type a **Scripture reference** for a daily verse or a Prophet verse,
+you can also press the book icon, **Choose from the Bible**, to pick the book,
+chapter and verses instead — it fills the field with a correctly written
+reference. Typing still works exactly as before.
+
+**Bible → Prophet Verse of the Day** is a separate thing: a word your church
+writes and publishes, with a date and time it should start showing. The page
+opens with which one is on the home screen now.
+
+A **Host** can look at the Verse of the Day; setting a day by hand, managing
+the church's verse list and the Prophet verses are for Content Admins and
+above.
 
 ## Notifications
 
@@ -177,7 +285,8 @@ record-keeping tool, not as a way to actually reach people urgently.
 ## Settings
 
 1. From the sidebar, select **Settings**.
-2. **Super Admin** sees an editable form: Church Name, Logo URL,
+2. **Super Admin** sees an editable form: Church Name, Church logo (upload
+   one, choose it from the Media Library, or paste a web address),
    Description, and Support Email, plus a **Save** button. Saving shows a
    confirmation message, and the church's name/logo/description update in
    the mobile app almost immediately — there is no separate "publish"
@@ -187,7 +296,7 @@ record-keeping tool, not as a way to actually reach people urgently.
    Super Admin can make changes. This lets everyone confirm what the
    church's public-facing info currently says without risking an
    accidental change.
-4. Required fields and the Logo URL/Support Email formats are checked
+4. Required fields and the logo address/Support Email formats are checked
    before saving — an error message explains anything that needs fixing.
 
 ## If something goes wrong

@@ -13,7 +13,7 @@ const { mockLogAdminAction, MockTimestamp } = vi.hoisted(() => {
   return { mockLogAdminAction: vi.fn(), MockTimestamp };
 });
 
-vi.mock('../app', () => ({ db: {}, storage: {} }));
+vi.mock('../app', () => ({ db: {} }));
 vi.mock('../auditLog', () => ({ logAdminAction: mockLogAdminAction }));
 
 vi.mock('firebase/firestore', () => ({
@@ -29,12 +29,6 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
 }));
 
-vi.mock('firebase/storage', () => ({
-  ref: vi.fn((_storage, path) => ({ path })),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
-}));
-
 import {
   addDoc,
   deleteDoc,
@@ -42,13 +36,11 @@ import {
   updateDoc,
   type FirestoreError,
 } from 'firebase/firestore';
-import { getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
   createDailyVerse,
   deleteDailyVerse,
   subscribeToDailyVerses,
   updateDailyVerse,
-  uploadDailyVerseImage,
 } from '../dailyVerses';
 
 describe('dailyVerses service', () => {
@@ -189,23 +181,6 @@ describe('dailyVerses service', () => {
       subscribeToDailyVerses(onNext, onError);
 
       expect(onError).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe('uploadDailyVerseImage', () => {
-    it('uploads the file and returns its download URL', async () => {
-      vi.mocked(uploadBytes).mockResolvedValue(undefined as never);
-      vi.mocked(getDownloadURL).mockResolvedValue('https://example.com/uploaded.jpg');
-      const file = new File(['a'], 'photo.jpg', { type: 'image/jpeg' });
-
-      const url = await uploadDailyVerseImage(file);
-
-      expect(uploadBytes).toHaveBeenCalledWith(
-        expect.objectContaining({ path: expect.stringContaining('photo.jpg') }),
-        file,
-        { contentType: 'image/jpeg' }
-      );
-      expect(url).toBe('https://example.com/uploaded.jpg');
     });
   });
 });

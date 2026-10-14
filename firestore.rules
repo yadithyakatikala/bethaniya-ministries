@@ -443,6 +443,70 @@ service cloud.firestore {
             || (data.verseText is string && data.verseText.size() <= 2000));
     }
 
+    // ---- media library -------------------------------------------------
+    // A record of an uploaded or linked file (see
+    // admin/src/services/firebase/mediaAssets.ts). It is NOT the feed
+    // above: `media` is what the congregation sees, `media_assets` is the
+    // administrators' catalogue of files they can attach to content.
+    //
+    // Three things this validator exists to guarantee:
+    //  * THE ADDRESS IS HTTPS AND NOTHING ELSE. Same rule as isValidMediaPost:
+    //    a record's `url` ends up in an <img src>, an <audio src> or a link,
+    //    so javascript:, data: and http: never get in.
+    //  * THE SHAPE IS CLOSED. `keys().hasOnly(...)` means a client cannot
+    //    smuggle an extra field onto a document, and every listed field
+    //    must be present, so a half-written record fails rather than
+    //    being read back as a record with holes.
+    //  * KIND AND SOURCE AGREE. A YouTube record is a video with an id; a
+    //    Cloudinary record is an image or audio file. Cloudinary files are
+    //    never records of kind 'video': long video belongs on YouTube.
+    function isValidMediaAsset(data) {
+      return data.keys().hasOnly([
+          'kind', 'source', 'category', 'title', 'altText', 'url',
+          'thumbnailUrl', 'publicId', 'format', 'bytes', 'width', 'height',
+          'durationSeconds', 'originalFilename', 'youtubeId',
+          'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+        ])
+        && data.kind in ['image', 'audio', 'video']
+        && data.source in ['cloudinary', 'youtube', 'link']
+        && data.category in ['poster', 'cover', 'thumbnail', 'song', 'video', 'general']
+        && data.title is string
+        && data.title.size() > 0 && data.title.size() <= 200
+        && data.altText is string && data.altText.size() <= 500
+        && data.url is string
+        && data.url.size() <= 2000
+        && data.url.matches('^https://[^\\s]+$')
+        && (data.thumbnailUrl == null
+            || (data.thumbnailUrl is string
+                && data.thumbnailUrl.size() <= 2000
+                && data.thumbnailUrl.matches('^https://[^\\s]+$')))
+        && (data.publicId == null
+            || (data.publicId is string && data.publicId.size() <= 300))
+        && (data.format == null
+            || (data.format is string && data.format.size() <= 20))
+        && (data.bytes == null
+            || (data.bytes is int && data.bytes >= 0 && data.bytes <= 104857600))
+        && (data.width == null
+            || (data.width is int && data.width >= 1 && data.width <= 30000))
+        && (data.height == null
+            || (data.height is int && data.height >= 1 && data.height <= 30000))
+        && (data.durationSeconds == null
+            || (data.durationSeconds is number
+                && data.durationSeconds >= 0 && data.durationSeconds <= 86400))
+        && (data.originalFilename == null
+            || (data.originalFilename is string && data.originalFilename.size() <= 300))
+        && (data.youtubeId == null
+            || (data.youtubeId is string && data.youtubeId.matches('^[A-Za-z0-9_-]{11}$')))
+        && data.createdBy is string
+        && data.createdBy.size() > 0 && data.createdBy.size() <= 128
+        && data.createdByName is string && data.createdByName.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (data.source != 'youtube'
+            || (data.kind == 'video' && data.youtubeId != null))
+        && (data.source != 'cloudinary' || data.kind in ['image', 'audio']);
+    }
+
     // M6 comment validation. Short, attributed, and not empty -- an empty
     // comment is a tap someone did not mean, and a 10,000-character one
     // is not a comment.
@@ -649,32 +713,120 @@ service cloud.firestore {
     // validates dayCount's shape (a non-negative integer), the same
     // boundary FINAL_ARCHITECTURE_SPECIFICATION.md's "client validates,
     // rules re-validate shape" principle uses elsewhere in this file.
+    //
+    // THE READING-PLAN MANAGER ADDS FIELDS, AND CHANGES NOTHING THAT WAS
+    // THERE. Every field below the `published` line is optional, so a plan
+    // written before the manager existed (no status, no language, no
+    // author) is still a valid plan and can still be edited. They are:
+    //
+    //   subtitle, author     short text
+    //   language             'en' or 'te' -- the languages the app has
+    //   estimatedMinutes     a day's reading time, 1 to 240
+    //   status               'draft' | 'scheduled' | 'published' | 'archived'
+    //   publishAt            when a SCHEDULED plan becomes visible
+    //   publishedAt          when it was first published (informational)
+    //   createdBy            the administrator's uid (informational)
+    //
+    // `status` AND `published` MUST AGREE. Members' devices ask for
+    // `published == true`, so that one boolean is what decides whether a
+    // plan is public. If `status` could say 'draft' while `published` said
+    // true, an administrator would believe a plan was private while it was
+    // being served to everyone. So when `status` is present the two are
+    // locked together: published exactly when status is 'published'.
+    //
+    // A plan that is going live -- published, or scheduled to be -- needs
+    // something to show: a description and at least one day. This is the
+    // last line against a half-built plan reaching the congregation; the
+    // admin screen refuses to publish one long before this is reached.
+    function planIsGoingLive(data) {
+      return data.published == true
+        || ('status' in data && data.status == 'scheduled');
+    }
+
     function isValidPlan(data) {
       return data.title is string
         && data.title.size() > 0 && data.title.size() <= 200
         && data.description is string
-        && data.description.size() > 0 && data.description.size() <= 2000
+        && data.description.size() <= 2000
         && data.category is string
         && data.category.size() > 0 && data.category.size() <= 100
         && data.dayCount is int && data.dayCount >= 0
         && data.order is int
         && data.published is bool
-        && (!('coverImageUrl' in data) || data.coverImageUrl == null || data.coverImageUrl is string);
+        && (!('coverImageUrl' in data) || data.coverImageUrl == null || data.coverImageUrl is string)
+        && (!('subtitle' in data)
+            || data.subtitle == null
+            || (data.subtitle is string && data.subtitle.size() <= 200))
+        && (!('author' in data)
+            || data.author == null
+            || (data.author is string && data.author.size() <= 120))
+        && (!('language' in data) || data.language == null || data.language in ['en', 'te'])
+        && (!('estimatedMinutes' in data)
+            || data.estimatedMinutes == null
+            || (data.estimatedMinutes is int
+                && data.estimatedMinutes >= 1 && data.estimatedMinutes <= 240))
+        && (!('publishAt' in data) || data.publishAt == null || data.publishAt is timestamp)
+        && (!('publishedAt' in data) || data.publishedAt == null || data.publishedAt is timestamp)
+        && (!('createdBy' in data)
+            || (data.createdBy is string && data.createdBy.size() <= 128))
+        && (!('status' in data)
+            || (data.status in ['draft', 'scheduled', 'published', 'archived']
+                && data.published == (data.status == 'published')
+                && (data.status != 'scheduled'
+                    || ('publishAt' in data && data.publishAt is timestamp))))
+        && (!planIsGoingLive(data)
+            || (data.description.size() > 0 && data.dayCount >= 1));
+    }
+
+    // Whether MEMBERS may read this plan right now. Used for the plan
+    // itself and, through get(), for each of its days.
+    //
+    // Two ways in, and only two:
+    //   * `published == true` -- a live plan.
+    //   * status 'scheduled' whose `publishAt` has arrived, judged against
+    //     the SERVER's clock (request.time), exactly as the media feed and
+    //     Prophet Verses already do. There is no server job on the Spark
+    //     plan to flip a flag when the moment comes, so the moment itself
+    //     is what opens the door.
+    //
+    // A draft, an archived plan, a plan with no status that is not
+    // published, and a scheduled plan before its time all fail both, and
+    // so are invisible to members whatever they ask for. `published` is
+    // tested first and alone so the long-standing member query
+    // (published == true, ordered by `order`) is provably covered by this
+    // rule without any new clause.
+    function isPlanReadableByMembers(data) {
+      return data.published == true
+        || (data.status == 'scheduled' && data.publishAt <= request.time);
     }
 
     // A single day within a reading plan -- see the
     // /plans/{planId}/days/{dayId} rule below for why read access is
-    // gated on the parent plan's own published flag rather than a
-    // separate published field per day.
+    // gated on the parent plan rather than a separate published field per
+    // day.
+    //
+    // `devotional` is optional: a day may be just a passage, a reflection
+    // question and a prayer. (It used to be required and non-empty, which
+    // forced an administrator to type filler.) The extra text fields are
+    // optional too. `scriptureReference` may name several passages
+    // separated by semicolons ("Psalm 23; John 10:11-18"); the app opens
+    // the first (mobile/src/features/plans/planReference.ts).
     function isValidPlanDay(data) {
-      return data.dayNumber is int && data.dayNumber >= 1
+      return data.dayNumber is int && data.dayNumber >= 1 && data.dayNumber <= 1000
         && data.title is string
         && data.title.size() > 0 && data.title.size() <= 200
         && data.scriptureReference is string
         && data.scriptureReference.size() > 0 && data.scriptureReference.size() <= 200
-        && data.devotional is string
-        && data.devotional.size() > 0 && data.devotional.size() <= 5000
-        && (!('prayerPrompt' in data) || data.prayerPrompt is string && data.prayerPrompt.size() <= 1000);
+        && (!('devotional' in data)
+            || (data.devotional is string && data.devotional.size() <= 5000))
+        && (!('prayerPrompt' in data)
+            || (data.prayerPrompt is string && data.prayerPrompt.size() <= 1000))
+        && (!('reflectionQuestion' in data)
+            || (data.reflectionQuestion is string && data.reflectionQuestion.size() <= 1000))
+        && (!('application' in data)
+            || (data.application is string && data.application.size() <= 2000))
+        && (!('notes' in data)
+            || (data.notes is string && data.notes.size() <= 3000));
     }
 
     // A member's own progress through a reading plan -- fully private,
@@ -1187,28 +1339,32 @@ service cloud.firestore {
 
     // ---- plans -----------------------------------------------------------
     // New V1 feature -- admin-authored Bible-reading plans, member-read
-    // when published. Same read/write shape as announcements/community.
+    // when live. Same read/write shape as announcements/community, with
+    // one addition: a SCHEDULED plan becomes readable by members when its
+    // publishAt arrives (see isPlanReadableByMembers above).
     match /plans/{planId} {
       // Host gets "read all" -- see the announcements rule above for why
       // this is isHostOrAbove(), not isContentAdminOrAbove().
       allow read: if isHostOrAbove()
-        || (isSignedIn() && resource.data.published == true);
+        || (isSignedIn() && isPlanReadableByMembers(resource.data));
       allow create, update: if isContentAdminOrAbove()
         && isValidPlan(request.resource.data);
       allow delete: if isContentAdminOrAbove();
 
-      // A day's own visibility follows its PARENT plan's published flag,
-      // not a separate field -- get() the parent doc rather than
-      // duplicating `published` onto every day (avoids the two ever
-      // drifting out of sync, at the cost of one extra read per day-list
-      // rule evaluation, the same read-quota tradeoff callerRole() above
-      // already accepts for this project's V1 scale).
+      // A day's own visibility follows its PARENT plan, not a separate
+      // field -- get() the parent doc rather than duplicating anything
+      // onto every day (avoids the two ever drifting out of sync, at the
+      // cost of one extra read per day-list rule evaluation, the same
+      // read-quota tradeoff callerRole() above already accepts for this
+      // project's V1 scale). Because it asks the same question as the plan
+      // itself, a day is readable exactly when its plan is.
       match /days/{dayId} {
         // Host gets "read all" -- see the announcements rule above for why
         // this is isHostOrAbove(), not isContentAdminOrAbove().
         allow read: if isHostOrAbove()
           || (isSignedIn()
-              && get(/databases/$(database)/documents/plans/$(planId)).data.published == true);
+              && isPlanReadableByMembers(
+                   get(/databases/$(database)/documents/plans/$(planId)).data));
         allow create, update: if isContentAdminOrAbove()
           && isValidPlanDay(request.resource.data);
         allow delete: if isContentAdminOrAbove();
@@ -1331,6 +1487,33 @@ service cloud.firestore {
         allow delete: if isContentAdminOrAbove()
           || (isSignedIn() && resource.data.authorUid == request.auth.uid);
       }
+    }
+
+    // ---- media_assets -----------------------------------------------------
+    // The media library. Administrators only: members never read it, because
+    // content documents carry their own copy of the address they use.
+    //
+    // Hosts may READ (the library is how a host finds a picture to talk
+    // about) but not write, the same split as every other content
+    // collection above. Content admins and super admins create, relabel and
+    // remove records.
+    //
+    // A record's file identity is IMMUTABLE once created: an update may
+    // change only the label, the description and the category. To use a
+    // different file, add a different record. That keeps "what is this
+    // record" from changing under content that was filed against it.
+    //
+    // Deleting a record deletes nothing else -- see mediaAssets.ts.
+    match /media_assets/{assetId} {
+      allow read: if isHostOrAbove();
+      allow create: if isContentAdminOrAbove()
+        && isValidMediaAsset(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isContentAdminOrAbove()
+        && isValidMediaAsset(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['title', 'altText', 'category', 'updatedAt']);
+      allow delete: if isContentAdminOrAbove();
     }
 
     // ---- users/{userId}/mediaLikes and /mediaSaves -----------------------

@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import { ThemeProvider, CssBaseline } from '@mui/material';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { theme } from './theme/theme';
+import { AppProviders } from './components/AppProviders';
 import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
-import { DashboardPage } from './features/auth/DashboardPage';
+import { DashboardPage } from './features/dashboard/DashboardPage';
 import { AnnouncementsListPage } from './features/announcements/AnnouncementsListPage';
 import { AnnouncementForm } from './features/announcements/AnnouncementForm';
 import { EditAnnouncementPage } from './features/announcements/EditAnnouncementPage';
@@ -12,11 +11,12 @@ import { CommunityPostsListPage } from './features/community/CommunityPostsListP
 import { CommunityPostForm } from './features/community/CommunityPostForm';
 import { EditCommunityPostPage } from './features/community/EditCommunityPostPage';
 import { PlansListPage } from './features/plans/PlansListPage';
-import { PlanForm } from './features/plans/PlanForm';
-import { EditPlanPage } from './features/plans/EditPlanPage';
-import { PlanDaysPage } from './features/plans/PlanDaysPage';
-import { PlanDayForm } from './features/plans/PlanDayForm';
-import { EditPlanDayPage } from './features/plans/EditPlanDayPage';
+import {
+  LegacyDaysRedirect,
+  LegacyEditDayRedirect,
+  LegacyNewDayRedirect,
+  PlanEditorPage,
+} from './features/plans/PlanEditorPage';
 import { VerseOfTheDayPage } from './features/daily-verses/VerseOfTheDayPage';
 import { DailyVerseForm } from './features/daily-verses/DailyVerseForm';
 import { EditDailyVersePage } from './features/daily-verses/EditDailyVersePage';
@@ -26,6 +26,7 @@ import { EditProphetVersePage } from './features/prophet-verses/EditProphetVerse
 import { MediaListPage } from './features/media/MediaListPage';
 import { MediaForm } from './features/media/MediaForm';
 import { EditMediaPage } from './features/media/EditMediaPage';
+import { MediaLibraryPage } from './features/media-library/MediaLibraryPage';
 import { SongsListPage } from './features/songs/SongsListPage';
 import { SongForm } from './features/songs/SongForm';
 import { EditSongPage } from './features/songs/EditSongPage';
@@ -85,8 +86,7 @@ function App() {
   useEffect(() => subscribeToAuthChanges(), []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <AppProviders>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -175,7 +175,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanForm mode="create" />
+                  <PlanEditorPage mode="create" />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -185,7 +185,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <EditPlanPage />
+                  <PlanEditorPage mode="edit" />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -195,7 +195,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanDaysPage />
+                  <LegacyDaysRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -205,7 +205,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <PlanDayForm mode="create" />
+                  <LegacyNewDayRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -215,7 +215,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout>
-                  <EditPlanDayPage />
+                  <LegacyEditDayRedirect />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -317,6 +317,21 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <EditMediaPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* The media LIBRARY: the administrators' store of uploaded and
+              linked files, which every upload field's picker draws from.
+              Not the congregation's feed above (/media). Reachable by every
+              dashboard role; firestore.rules lets hosts read and content
+              admins write. `?upload=1` opens the upload dialog directly. */}
+          <Route
+            path="/media-library"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <MediaLibraryPage />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -428,7 +443,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </ThemeProvider>
+    </AppProviders>
   );
 }
 

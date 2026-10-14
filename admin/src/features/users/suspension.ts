@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../components/ui/formatDate';
 import type { AdminUserSummary, Suspension, SuspensionKind } from '../../types';
 
 /**
@@ -188,14 +189,7 @@ export function describeSuspension(request: SuspensionRequest): string {
 }
 
 export function formatWhen(date: Date | null): string {
-  if (!date) return '—';
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTime(date);
 }
 
 /** How long is left, in words a person would use. Null once it is over. */

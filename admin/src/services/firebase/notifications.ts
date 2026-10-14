@@ -33,8 +33,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, functions, storage } from './app';
+import { db, functions } from './app';
 import type { NotificationLogEntry, NotificationRecipientGroup } from '../../types';
 
 const NOTIFICATIONS_LOG_COLLECTION = 'notifications_log';
@@ -168,20 +167,4 @@ export function subscribeToNotificationLog(
       onNext(snapshot.docs.map((d) => toNotificationLogEntry(d.id, d.data()))),
     onError
   );
-}
-
-/**
- * Uploads a notification image to Storage and returns its download URL.
- * Reuses the exact same content/{imageType}/{fileName} Storage path/rule
- * announcements/daily-verses/songs already use (storage.rules'
- * isContentAdminOrAbove() write check) -- NOT extended to Hosts, matching
- * that existing rule exactly, which is why NotificationsPage.tsx hides
- * the image field entirely for a Host caller rather than showing it and
- * failing the upload.
- */
-export async function uploadNotificationImage(file: File): Promise<string> {
-  const path = `content/notifications/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
 }

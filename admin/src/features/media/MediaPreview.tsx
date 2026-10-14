@@ -1,6 +1,7 @@
 import { Box, Paper, Typography } from '@mui/material';
 import { mediaUrlProblem, MEDIA_URL_MESSAGES } from './validation';
 import type { MediaType } from '../../services/firebase/media';
+import { parseYouTubeUrl, youTubeThumbnailUrl } from '../../services/media/youtube';
 
 /**
  * What a member will see, shown beside the form.
@@ -15,11 +16,12 @@ import type { MediaType } from '../../services/firebase/media';
  * anything.
  *
  * It deliberately does NOT render a video player. A YouTube link plays
- * on the phone through YouTube's own embed; here it is named as a video
- * with its address, because loading a player into an admin form to
- * preview one field is a lot of machinery for a link check, and the
- * thing worth checking -- that the address is the right one -- is
- * readable without it.
+ * on the phone through YouTube's own embed; here it is shown as that
+ * video's thumbnail (the field above it offers a real "Play preview"),
+ * and any other link is named as a video with its address. Loading a
+ * player into the preview of a form would be a lot of machinery for a
+ * link check, and the thing worth checking -- that the address is the
+ * right one -- is visible without it.
  *
  * Nothing here is `dangerouslySetInnerHTML`, and no part of the post is
  * ever treated as markup: a caption is text in a <Typography>, and the
@@ -40,6 +42,7 @@ export function MediaPreview({
 }) {
   const trimmedUrl = mediaUrl.trim();
   const problem = trimmedUrl.length > 0 ? mediaUrlProblem(trimmedUrl) : null;
+  const youtube = type === 'video' ? parseYouTubeUrl(trimmedUrl) : null;
 
   return (
     <Box data-testid="media-preview">
@@ -61,8 +64,17 @@ export function MediaPreview({
           </Typography>
         ) : type === 'video' ? (
           <Box data-testid="media-preview-video">
-            <Typography variant="body2" color="text.secondary">
-              Video
+            {youtube ? (
+              <Box
+                component="img"
+                src={youTubeThumbnailUrl(youtube.videoId)}
+                alt="YouTube video thumbnail"
+                data-testid="media-preview-video-thumbnail"
+                sx={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 1 }}
+              />
+            ) : null}
+            <Typography variant="body2" color="text.secondary" sx={{ mt: youtube ? 1 : 0 }}>
+              {youtube ? 'YouTube video — plays in the app' : 'Video'}
             </Typography>
             <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
               {trimmedUrl}

@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -11,7 +10,6 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -20,11 +18,11 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import { AdminEmptyState } from '../../../components/AdminEmptyState';
 import { AdminTableCard } from '../../../components/AdminTableCard';
+import { SectionCard, ToneChip } from '../../../components/ui';
 import {
   deleteVersePoolEntry,
   saveVersePoolEntry,
@@ -108,16 +106,15 @@ export function PoolPanel({
   }
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }} data-testid="votd-pool-panel">
-      <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-        Your church&rsquo;s own verses
-      </Typography>
-      <Typography color="text.secondary" sx={{ fontSize: 14, mb: 2 }}>
-        {active.length === 0
+    <SectionCard
+      title="Your church’s own verses"
+      testId="votd-pool-panel"
+      description={
+        active.length === 0
           ? `Optional. Leave this empty and the app uses its own year of ${VOTD_YEAR_LENGTH} verses, which needs nothing from you. Add verses here only if your church wants its own selection instead.`
-          : `These ${active.length} verses replace the app's built-in year. Each one comes up once before any repeats, so they last ${active.length} days.`}
-      </Typography>
-
+          : `These ${active.length} verses replace the app's built-in year. Each one comes up once before any repeats, so they last ${active.length} days.`
+      }
+    >
       {config.enabled && active.length > 0 && active.length < 30 ? (
         <Alert severity="info" sx={{ mb: 2 }} data-testid="votd-pool-short">
           {/* Not an error -- a church may genuinely want a short cycle --
@@ -159,12 +156,7 @@ export function PoolPanel({
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{entry.reference}</TableCell>
                     <TableCell>
-                      <Chip
-                        label="In rotation"
-                        size="small"
-                        color="success"
-                        variant="outlined"
-                      />
+                      <ToneChip tone="success" label="In rotation" />
                     </TableCell>
                     {canManage ? (
                       <TableCell align="right">
@@ -182,7 +174,7 @@ export function PoolPanel({
                           disabled={busyId === entry.id}
                           data-testid={`votd-pool-delete-${entry.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -195,10 +187,9 @@ export function PoolPanel({
                     <TableCell>
                       {/* Labelled, not merely greyed: "not in the rotation"
                           must not be communicated by colour alone. */}
-                      <Chip
+                      <ToneChip
+                        tone="outlined"
                         label={entry.active ? 'Not usable' : 'Taken out'}
-                        size="small"
-                        variant="outlined"
                       />
                     </TableCell>
                     {canManage ? (
@@ -217,7 +208,7 @@ export function PoolPanel({
                           disabled={busyId === entry.id}
                           data-testid={`votd-pool-delete-${entry.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -249,7 +240,7 @@ export function PoolPanel({
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </SectionCard>
   );
 }
 
@@ -261,6 +252,12 @@ export function PoolPanel({
  * error -- it is a day on which the congregation silently gets something
  * else. Picking from the 66 books and checking the number against the
  * real verse count makes that impossible. See ../bibleStructure.ts.
+ *
+ * It is deliberately NOT the shared passage picker the verse forms use
+ * (../../scripture/PassagePicker.tsx). A pool entry is stored as three numbers
+ * -- book, chapter, verse -- because the rotation reads them as data, and it
+ * is exactly one verse; the picker returns a written reference that may span
+ * several. Merging them would make one model's shape the other's.
  */
 function AddPoolEntryForm({ pool }: { pool: VersePoolEntryDocument[] }) {
   const [bookId, setBookId] = useState('');

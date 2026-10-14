@@ -188,6 +188,11 @@ export interface Strings {
   'plans.doneMessage': string;
   'plans.chooseAnother': string;
   'plans.dayLoadError': string;
+  'plans.question': string;
+  'plans.application': string;
+  'plans.notes': string;
+  'plans.minutesPerDay': string;
+  'plans.byAuthor': string;
 
   // --- Prayers ---
   'prayers.title': string;
@@ -835,6 +840,11 @@ const en: Strings = {
   'plans.chooseAnother': 'Choose another plan',
   'plans.dayLoadError':
     'This reading couldn’t be loaded. Check your connection and try again.',
+  'plans.question': 'Think about it',
+  'plans.application': 'Put it into practice',
+  'plans.notes': 'Notes',
+  'plans.minutesPerDay': '{n} min a day',
+  'plans.byAuthor': 'by {author}',
 
   'prayers.title': 'Prayers',
   'prayers.newRequest': 'New Prayer Request',
@@ -1422,6 +1432,11 @@ const te: Strings = {
   'plans.doneMessage': '{plan} యొక్క {n} రోజులూ మీరు చదివారు.',
   'plans.chooseAnother': 'మరో ప్రణాళికను ఎంచుకోండి',
   'plans.dayLoadError': 'ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
+  'plans.question': 'ఆలోచించండి',
+  'plans.application': 'ఆచరణలో పెట్టండి',
+  'plans.notes': 'గమనికలు',
+  'plans.minutesPerDay': 'రోజుకు {n} నిమిషాలు',
+  'plans.byAuthor': '{author} రచన',
 
   'prayers.title': 'ప్రార్థనలు',
   'prayers.newRequest': 'కొత్త ప్రార్థన అభ్యర్థన',

@@ -26,7 +26,8 @@ import {
   firstSentence,
   groupPlans,
   percentComplete,
-  planIsEnglishInTeluguApp,
+  planOtherLanguage,
+  withStartedBundledPlans,
 } from './planGroups';
 
 type Chosen = 'my' | 'find' | 'completed';
@@ -38,8 +39,14 @@ type Chosen = 'my' | 'find' | 'completed';
  * **Completed** (a badge says so). A row opens the plan.
  *
  * A plan follows the app language. A plan the church has not yet written in the
- * member's language (its title has no Telugu in a Telugu app) is still shown, in
- * the language it has, and the row says which: "· English" (design decision Q6 a).
+ * member's language is still shown, in the language it has, and the row says which:
+ * "· English" in a Telugu app, "· Telugu" in an English one (design decision Q6 a).
+ * The church names a plan's language when it writes it; for a plan that does not
+ * (the starter plans, older plans) a title with no Telugu in a Telugu app is English.
+ *
+ * A starter plan a member has already begun stays in their list even after the
+ * church publishes plans of its own (which makes the starter plans stand aside for
+ * everyone else) -- their place in it is theirs to keep.
  *
  * The library and the member's progress are two listeners, and the rows show as
  * soon as the library has arrived: with no progress yet every plan is simply "not
@@ -85,7 +92,10 @@ export function PlansView({
 
   // Nobody signed in has started nothing.
   const own = uid ? progress : NO_PROGRESS;
-  const groups = useMemo(() => groupPlans(plans ?? [], own), [plans, own]);
+  const groups = useMemo(
+    () => groupPlans(withStartedBundledPlans(plans ?? [], own), own),
+    [plans, own]
+  );
   const rows = groups[chosen];
   const pad = { paddingHorizontal: layout.screenMargin };
 
@@ -193,7 +203,7 @@ export function PlansView({
               plan={item}
               kind={chosen}
               progress={own[item.id]}
-              telugu={appLanguage === 'te'}
+              appLanguage={appLanguage}
               onPress={() => onOpenPlan(item)}
             />
           </View>
@@ -209,21 +219,22 @@ function PlanRow({
   plan,
   kind,
   progress,
-  telugu,
+  appLanguage,
   onPress,
 }: {
   plan: PublishedPlan;
   kind: Chosen;
   progress: PlanProgress | undefined;
-  telugu: boolean;
+  appLanguage: 'en' | 'te';
   onPress: () => void;
 }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const telugu = appLanguage === 'te';
   const percent = percentComplete(plan, progress);
   const day = currentDayOf(plan, progress);
-  // In a Telugu app a plan whose title has no Telugu is in English: say so.
-  const inEnglish = planIsEnglishInTeluguApp(plan.title, telugu ? 'te' : 'en');
+  // A plan in the other language than the app's: say which.
+  const otherLanguage = planOtherLanguage(plan, appLanguage);
   const needsRoom = telugu || ['telugu', 'mixed'].includes(scriptOf(plan.title));
 
   const days = `${plan.dayCount} ${t(plan.dayCount === 1 ? 'plans.day' : 'plans.days')}`;
@@ -232,10 +243,23 @@ function PlanRow({
       ? `${t('home.dayOf', { current: day, total: plan.dayCount })} · ${t('home.percentComplete', { percent })}`
       : kind === 'completed'
         ? t('home.dayOf', { current: plan.dayCount, total: plan.dayCount })
-        : [plan.category, days].filter(Boolean).join(' · ');
-  if (inEnglish) meta += ` · ${t('settings.languageEnglish')}`;
+        : [
+            plan.category,
+            days,
+            plan.estimatedMinutes
+              ? t('plans.minutesPerDay', { n: plan.estimatedMinutes })
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ');
+  if (otherLanguage) {
+    meta += ` · ${t(otherLanguage === 'te' ? 'settings.languageTelugu' : 'settings.languageEnglish')}`;
+  }
 
-  const description = kind === 'find' ? firstSentence(plan.description) : '';
+  // What a plan not yet started says about itself: the church's short line if it
+  // wrote one, else the description's first sentence.
+  const description =
+    kind === 'find' ? plan.subtitle.trim() || firstSentence(plan.description) : '';
 
   return (
     <Tappable

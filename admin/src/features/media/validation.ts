@@ -9,9 +9,10 @@
  * =====================================================================
  * THE MEDIA URL IS THE WHOLE POINT OF THIS FILE
  * =====================================================================
- * Nothing is uploaded anywhere -- this project has no Cloud Storage
- * bucket (see ../../services/firebase/media.ts) -- so a media post is a
- * link, and the link is the entire attack surface.
+ * Whatever the form does to obtain it -- upload a picture to Cloudinary,
+ * pick one from the library, paste a YouTube address -- a media post
+ * stores a LINK (see ../../services/firebase/media.ts), and the link is
+ * the entire attack surface. Every route in is checked here.
  *
  * The rules, and why each one:
  *  * HTTPS ONLY, as an allowlist of one rather than a list of banned
@@ -26,6 +27,13 @@
  *    picture or a video; an .apk or .html link in a church feed is either
  *    a mistake or an attack, and neither should be one tap from a
  *    congregation.
+ *  * A LOWER-CASE `https://` AND NO WHITESPACE. firestore.rules match a media
+ *    post's (and a library record's) address against `^https://[^\s]+$`,
+ *    which is stricter than the URL parser: `new URL()` lower-cases
+ *    `HTTPS://` and repairs `https:/host`, and encodes a space. Without this
+ *    a link the form called fine was refused on Save by a rule that could only
+ *    say "permission denied". (The phone needs no such check: a stored
+ *    document cannot contain one.)
  *
  * The same list, with the same reasoning, is enforced on the phone in
  * mobile/src/features/media/mediaUrl.ts. It is duplicated rather than
@@ -65,7 +73,13 @@ const FORBIDDEN_EXTENSIONS = [
 ];
 
 export type MediaUrlProblem =
-  'empty' | 'tooLong' | 'malformed' | 'notHttps' | 'hasCredentials' | 'executable';
+  | 'empty'
+  | 'tooLong'
+  | 'malformed'
+  | 'notHttps'
+  | 'hasCredentials'
+  | 'executable'
+  | 'hasSpaces';
 
 /**
  * Why this URL cannot be used, or `null` when it can.
@@ -91,6 +105,8 @@ export function mediaUrlProblem(input: string): MediaUrlProblem | null {
   }
 
   if (parsed.protocol !== 'https:') return 'notHttps';
+  // The parser has accepted `HTTPS://` and `https:/host`; the rules do not.
+  if (!trimmed.startsWith('https://')) return 'notHttps';
   if (parsed.username.length > 0 || parsed.password.length > 0) return 'hasCredentials';
   if (parsed.hostname.length === 0) return 'malformed';
 
@@ -98,6 +114,8 @@ export function mediaUrlProblem(input: string): MediaUrlProblem | null {
   if (FORBIDDEN_EXTENSIONS.some((extension) => path.endsWith(extension))) {
     return 'executable';
   }
+  // Last, as the least serious: the parser would have encoded it for us.
+  if (/\s/.test(trimmed)) return 'hasSpaces';
   return null;
 }
 
@@ -110,6 +128,8 @@ export const MEDIA_URL_MESSAGES: Record<MediaUrlProblem, string> = {
   hasCredentials: 'The link must not contain a username or password.',
   executable:
     'That link points at a file this app will not open. Use a link to an image or a video.',
+  hasSpaces:
+    'The link must not contain spaces. If the address has any, replace each one with %20.',
 };
 
 export interface MediaValidationInput {

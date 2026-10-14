@@ -38,12 +38,26 @@
  */
 import type { PublishedPlan, PublishedPlanDay } from '../../services/firebase/plans';
 
-/** A plan plus its ordered days, before either has a Firestore id. */
+/**
+ * A plan plus its ordered days, before either has a Firestore id.
+ *
+ * Only the fields the starter plans actually carry. The rest of what the app
+ * reads about a plan -- a subtitle, a language, the optional parts of a day --
+ * is filled with its default where the bundled plans are built
+ * (../../services/firebase/plans.ts), so this data stays what it has always
+ * been, and scripts/seed-plans.mjs still writes exactly these fields.
+ */
 export interface SeedPlan {
   /** Stable slug used as the Firestore document id, so re-seeding is idempotent. */
   id: string;
-  plan: Omit<PublishedPlan, 'id'>;
-  days: Omit<PublishedPlanDay, 'id'>[];
+  plan: Pick<
+    PublishedPlan,
+    'title' | 'description' | 'category' | 'coverImageUrl' | 'dayCount'
+  >;
+  days: Pick<
+    PublishedPlanDay,
+    'dayNumber' | 'title' | 'scriptureReference' | 'devotional' | 'prayerPrompt'
+  >[];
 }
 
 /**

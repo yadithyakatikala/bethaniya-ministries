@@ -85,6 +85,11 @@ a key cannot be accidentally dropped while editing.
 | `plans.beginWithPlan` | ఒక ప్రణాళికతో మొదలుపెట్టండి, నేటికి ఒక దారి ఏర్పడుతుంది. | A short invitation under "Start a plan" when a member has none. Drafted; check the tone is warm, not pushy. |
 | `plans.reflect` | ధ్యానించండి | "ధ్యానించండి" ("meditate"). The second of three steps in a plan day (Read, Reflect, Pray); confirm it is the verb the church uses for reflecting on a passage. |
 | `plans.doneMessage` | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | The sentence on "Plan complete": "{plan} యొక్క {n} రోజులూ మీరు చదివారు." Check the order of the name and the number reads naturally. |
+| `plans.question` | ఆలోచించండి | "ఆలోచించండి" ("think about it"). The heading over a plan day's reflection question (a question to ponder after reading). Confirm it reads as an invitation to reflect, not as a command. |
+| `plans.application` | ఆచరణలో పెట్టండి | "ఆచరణలో పెట్టండి" ("put into practice"). The heading over the day's suggestion for living the reading out. Confirm the church's own phrase. |
+| `plans.notes` | గమనికలు | "గమనికలు" ("notes"). The heading over background notes the church adds to a day. It is not the member's own notes (`you.notes`, "నోట్‌లు"); check the two are clearly different. |
+| `plans.minutesPerDay` | రోజుకు {n} నిమిషాలు | "రోజుకు {n} నిమిషాలు" ("{n} minutes a day"), shown beside a plan's length. Keep {n} as it is. |
+| `plans.byAuthor` | {author} రచన | "{author} రచన" ("written by {author}"). Keep {author} as it is; check the order reads naturally with a person's name. |
 | `plans.nextDay` | తదుపరి: {n}వ రోజు | "తదుపరి: {n}వ రోజు" ("Next: day {n}"). Check the ordinal ending "వ" after a number reads correctly for every day. |
 | `bible.pageSepia` | సెపియా | A page colour, transliterated ("సెపియా"). Confirm members would recognise it, or choose a native word for a warm cream page. |
 | `bible.page` | పేజీ | "పేజీ" ("page"): the label over the three page choices (Light, Sepia, Dark) in the reading settings. |
@@ -99,7 +104,7 @@ a key cannot be accidentally dropped while editing.
 
 ## Every string
 
-513 keys, grouped by screen area.
+518 keys, grouped by screen area.
 
 ### Bottom navigation
 
@@ -405,6 +410,11 @@ a key cannot be accidentally dropped while editing.
 | `plans.doneMessage` | You read all {n} days of {plan}. | {plan} యొక్క {n} రోజులూ మీరు చదివారు. | ⚠️ |
 | `plans.chooseAnother` | Choose another plan | మరో ప్రణాళికను ఎంచుకోండి |  |
 | `plans.dayLoadError` | This reading couldn’t be loaded. Check your connection and try again. | ఈ పఠనం లోడ్ కాలేదు. కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి. |  |
+| `plans.question` | Think about it | ఆలోచించండి | ⚠️ |
+| `plans.application` | Put it into practice | ఆచరణలో పెట్టండి | ⚠️ |
+| `plans.notes` | Notes | గమనికలు | ⚠️ |
+| `plans.minutesPerDay` | {n} min a day | రోజుకు {n} నిమిషాలు | ⚠️ |
+| `plans.byAuthor` | by {author} | {author} రచన | ⚠️ |
 | `plans.loadErrorShort` | Could not load reading plans. | పఠన ప్రణాళికలు లోడ్ చేయలేకపోయాము. |  |
 | `plans.emptyShort` | No reading plans yet. | ఇంకా పఠన ప్రణాళికలు లేవు. |  |
 

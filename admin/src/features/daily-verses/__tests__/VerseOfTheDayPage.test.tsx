@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { VerseOfTheDayPage } from '../VerseOfTheDayPage';
@@ -90,6 +90,10 @@ function setUp({ config = CONFIG, pool = POOL, overrides = [] as DailyVerse[] } 
     onNext(pool);
     return vi.fn();
   });
+  vi.mocked(votdService.subscribeToActiveVersePool).mockImplementation((onNext) => {
+    onNext(pool.filter((entry) => entry.active));
+    return vi.fn();
+  });
   vi.mocked(dailyVersesService.subscribeToDailyVerses).mockImplementation((onNext) => {
     onNext(overrides);
     return vi.fn();
@@ -122,8 +126,54 @@ function override(date: string): DailyVerse {
 }
 
 afterEach(() => {
+  // Unmount FIRST. The page reads the pool the way the role allows, so
+  // changing the role while it is still mounted (as the reset below does)
+  // re-opens its subscriptions -- against mocks that have just been emptied.
+  cleanup();
   vi.resetAllMocks();
   useAuthStore.setState({ role: 'super_admin' });
+});
+
+describe('which part of the pool a role may read', () => {
+  // firestore.rules lets only a content administrator read the whole pool,
+  // deactivated entries included; anyone else is limited to active entries.
+  // The page used to ask every role for the whole pool, so for a host the
+  // read was refused and the page sat on its spinner with an error.
+  it('asks a content administrator for the whole pool', async () => {
+    setUp();
+    useAuthStore.setState({ role: 'content_admin' });
+    renderPage();
+    await screen.findByTestId('votd-tab-today');
+    expect(votdService.subscribeToVersePool).toHaveBeenCalled();
+    expect(votdService.subscribeToActiveVersePool).not.toHaveBeenCalled();
+  });
+
+  it('asks a host for the active entries only, and the page works', async () => {
+    setUp({
+      pool: [...POOL, entry('retired', 2, { reference: 'Old 1:1', active: false })],
+    });
+    useAuthStore.setState({ role: 'host' });
+    renderPage();
+    expect(await screen.findByTestId('votd-today-panel')).toBeInTheDocument();
+    expect(votdService.subscribeToActiveVersePool).toHaveBeenCalled();
+    expect(votdService.subscribeToVersePool).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('votd-error')).not.toBeInTheDocument();
+  });
+
+  it('does not offer a host the way to set a day by hand, which only a content administrator may do', async () => {
+    setUp();
+    useAuthStore.setState({ role: 'host' });
+    renderPage();
+    await screen.findByTestId('votd-preview-result');
+    expect(screen.queryByTestId('votd-set-by-hand')).not.toBeInTheDocument();
+  });
+
+  it('offers a content administrator that way', async () => {
+    setUp();
+    useAuthStore.setState({ role: 'content_admin' });
+    renderPage();
+    expect(await screen.findByTestId('votd-set-by-hand')).toBeInTheDocument();
+  });
 });
 
 describe('one page, not two', () => {

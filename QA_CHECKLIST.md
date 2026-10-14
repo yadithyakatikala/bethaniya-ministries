@@ -212,6 +212,48 @@ will not be saved.
     no-image posts both); an unpublished post created in admin does
     **not** appear in the mobile list.
 
+#### Reading plans published from the admin site
+
+Do these only after the rules and index in `firestore.rules` /
+`firestore.indexes.json` have been deployed (see DEPLOYMENT.md), on a build
+pointed at the same Firebase project as the admin site.
+
+- **Published plan appears.** Publish a plan in the admin site (with a cover,
+  a language and a time estimate); within moments it is in **Bible → Plans**
+  with that title, cover, language label and day count. Open it: every day
+  lists its passage, and a day's **Read** button opens the Bible at the
+  *first* passage of that day.
+- **Optional parts are optional.** A day with only a title and a passage shows
+  no empty "Reflect" or "Prayer" headings. A plan with no cover shows the plain
+  placeholder, not a broken image.
+- **Draft never appears.** A plan saved as a draft, an archived plan, and a
+  plan scheduled for later are absent from the list, however long you wait.
+- **Scheduled plan arrives.** Schedule a plan two or three minutes ahead. It is
+  absent before that time. Check **both** of these on a real phone:
+  1. *App opened after the time* (closed, or opened fresh): the plan is in the
+     list within about a minute of the time. (The app asks for plans that came
+     due at least a minute earlier, so that a phone whose clock runs a little
+     fast is not refused.)
+  2. *App left open the whole time* (this is the one that matters, and the only
+     scheduling behaviour that has **not** been checked against the live
+     database): the app asks again every five minutes, so the plan should
+     appear within about ten minutes after the time. If it does not, close and
+     reopen the app — it should appear then. **A phone that needs the reopen is
+     a finding to report**: in the local test setup the server's clock for a
+     connection is fixed when the connection opens, and nobody has yet seen
+     whether the live database does the same.
+- **Unpublish and republish keep progress.** Start a plan and finish a day;
+  unpublish it in admin (it disappears for new readers); publish it again — the
+  member's finished day is still marked.
+- **Edits reach the phone.** Change a day's devotional in admin; reopening
+  the day shows the new words.
+- **Starter plans stand aside.** With no church plan published, the five
+  built-in starter plans are listed; once one church plan is published they are
+  not — except a starter plan this member had already started, which stays
+  under "My plans" with its progress.
+- **Plans from before the manager still work.** An older plan (no language or
+  author) still opens and its days still show.
+
 ### Other existing V1 features
 
 19. **Announcements** — list and detail screens load; content matches
@@ -346,6 +388,19 @@ will not be saved.
     correctly reflects "not live" after unpublishing.
 28. **Admin logout** — Log Out returns to the admin sign-in screen and a
     direct URL to a protected admin route redirects back to sign-in.
+    - **The admin site on a phone and on a laptop** — each list scrolls
+      sideways *inside* its card (never the whole page), no column is a letter
+      wide, dates read like `14 Oct 2026, 18:10`, and the menu opens from the
+      top-left icon on a phone.
+    - **The three roles** — a Host's Dashboard has no warning banner and no
+      Prophet-verse panel; the Verse of the Day opens for a Host without an
+      error; a Content Admin sees the Prophet verse and the open-reports
+      count.
+    - **Uploads** (only once Cloudinary is set up, see
+      docs/admin/MEDIA_UPLOADS.md) — upload a picture and a song from a form,
+      see them in **Media Library**, pick them again with **Choose from
+      library**, and confirm a `.pdf` or a 40 MB file is refused with a
+      sentence before anything is sent.
 
 ### Android-specific behavior
 

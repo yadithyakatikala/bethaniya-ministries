@@ -1,13 +1,40 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { MediaForm } from '../MediaForm';
 import { useAuthStore } from '../../../store/authStore';
 import * as service from '../../../services/firebase/media';
 import type { MediaRecord } from '../../../services/firebase/media';
+import type { UploadedAsset } from '../../../services/media/types';
+import {
+  MISSING,
+  READY,
+  UPLOADED_IMAGE,
+  deferred,
+} from '../../../components/media/__tests__/helpers';
 
 vi.mock('../../../services/firebase/media');
+vi.mock('../../../services/media/cloudinaryConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryConfig')>()),
+  getCloudinaryConfig: vi.fn(),
+}));
+vi.mock('../../../services/media/cloudinaryUpload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryUpload')>()),
+  uploadToCloudinary: vi.fn(),
+}));
+vi.mock('../../../services/firebase/mediaAssets', () => ({
+  createMediaAsset: vi.fn(),
+  assetFromUpload: vi.fn((uploaded, details) => ({ uploaded, details })),
+  subscribeToMediaAssets: vi.fn(() => vi.fn()),
+}));
+
+import { getCloudinaryConfig } from '../../../services/media/cloudinaryConfig';
+import { uploadToCloudinary } from '../../../services/media/cloudinaryUpload';
+import {
+  createMediaAsset,
+  subscribeToMediaAssets,
+} from '../../../services/firebase/mediaAssets';
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -47,6 +74,24 @@ function existing(partial: Partial<MediaRecord> = {}): MediaRecord {
   };
 }
 
+// Uploading is NOT set up by default, which leaves the picture's web-address
+// box open -- the way this form was used before uploads existed. The tests
+// of the upload itself switch to READY.
+beforeEach(() => {
+  vi.mocked(getCloudinaryConfig).mockReturnValue(MISSING);
+  vi.mocked(subscribeToMediaAssets).mockReturnValue(vi.fn());
+  vi.mocked(createMediaAsset).mockResolvedValue('asset-1');
+  vi.mocked(uploadToCloudinary).mockReset();
+  URL.createObjectURL = vi.fn(() => 'blob:local-preview');
+  URL.revokeObjectURL = vi.fn();
+});
+
+/** Types an address into the picture field and takes it. */
+async function useImageAddress(address: string) {
+  await userEvent.type(screen.getByTestId('media-image-url-input'), address);
+  await userEvent.click(screen.getByTestId('media-image-url-apply'));
+}
+
 afterEach(() => {
   navigate.mockReset();
   vi.mocked(service.createMediaPost).mockReset();
@@ -61,55 +106,80 @@ describe('what the form refuses to save', () => {
   it('refuses a post with no caption, naming the field', async () => {
     renderForm({ mode: 'create' });
 
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/photo.jpg'
-    );
+    await useImageAddress('https://example.org/photo.jpg');
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
     expect(await screen.findByText(/caption is required/i)).toBeInTheDocument();
     expect(service.createMediaPost).not.toHaveBeenCalled();
   });
 
-  it('refuses a link that is not https, and says which problem it is', async () => {
+  it('refuses a post with no picture', async () => {
     renderForm({ mode: 'create' });
 
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'http://example.org/photo.jpg'
-    );
     await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    expect(await screen.findAllByText(/media link is required/i)).not.toHaveLength(0);
+    expect(service.createMediaPost).not.toHaveBeenCalled();
+  });
+
+  it('will not take a link that is not https, and says which problem it is', async () => {
+    renderForm({ mode: 'create' });
+
+    await useImageAddress('http://example.org/photo.jpg');
+    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    expect(screen.getAllByText(/must start with https/i)).not.toHaveLength(0);
+    expect(service.createMediaPost).not.toHaveBeenCalled();
+  });
+
+  it('will not take a javascript: link', async () => {
+    renderForm({ mode: 'create' });
+
+    await useImageAddress('javascript:alert(1)');
+    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    await waitFor(() => expect(service.createMediaPost).not.toHaveBeenCalled());
+    expect(screen.queryByTestId('media-image-address')).not.toBeInTheDocument();
+  });
+
+  it('will not take a link to an installer', async () => {
+    renderForm({ mode: 'create' });
+
+    await useImageAddress('https://example.org/app.apk');
+    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    expect(screen.getAllByText(/will not open/i)).not.toHaveLength(0);
+    expect(service.createMediaPost).not.toHaveBeenCalled();
+  });
+
+  it('refuses to save a stored link that is not https, in the same words', async () => {
+    // An old post can carry a link the field would not take today.
+    renderForm({
+      mode: 'edit',
+      post: existing({ mediaUrl: 'http://example.org/photo.jpg' }),
+    });
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
     // findAll, not find: the same sentence is shown twice on purpose --
     // once under the field and once in the preview, where an
     // administrator is actually looking when a link goes wrong.
     expect(await screen.findAllByText(/must start with https/i)).not.toHaveLength(0);
-    expect(service.createMediaPost).not.toHaveBeenCalled();
+    expect(service.updateMediaPost).not.toHaveBeenCalled();
   });
 
-  it('refuses a javascript: link', async () => {
-    renderForm({ mode: 'create' });
-
-    await userEvent.type(screen.getByTestId('media-url-input'), 'javascript:alert(1)');
-    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
-    await userEvent.click(screen.getByTestId('media-form-submit'));
-
-    await waitFor(() => expect(service.createMediaPost).not.toHaveBeenCalled());
-  });
-
-  it('refuses a link to an installer', async () => {
-    renderForm({ mode: 'create' });
-
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/app.apk'
-    );
-    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+  it('refuses a stored link to an installer', async () => {
+    renderForm({
+      mode: 'edit',
+      post: existing({ mediaUrl: 'https://example.org/app.apk' }),
+    });
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
     expect(await screen.findAllByText(/will not open/i)).not.toHaveLength(0);
-    expect(service.createMediaPost).not.toHaveBeenCalled();
+    expect(service.updateMediaPost).not.toHaveBeenCalled();
   });
 });
 
@@ -120,10 +190,7 @@ describe('saving', () => {
     vi.mocked(service.createMediaPost).mockResolvedValue('new-id');
     renderForm({ mode: 'create' });
 
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/photo.jpg'
-    );
+    await useImageAddress('https://example.org/photo.jpg');
     await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
@@ -146,10 +213,7 @@ describe('saving', () => {
     vi.mocked(service.createMediaPost).mockResolvedValue('new-id');
     renderForm({ mode: 'create' });
 
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/photo.jpg'
-    );
+    await useImageAddress('https://example.org/photo.jpg');
     await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
@@ -177,7 +241,8 @@ describe('saving', () => {
 
   it('loads an existing post into the fields', () => {
     renderForm({ mode: 'edit', post: existing() });
-    expect(screen.getByTestId('media-url-input')).toHaveValue(
+    expect(screen.getByTestId('media-image-preview')).toHaveAttribute(
+      'src',
       'https://example.org/photo.jpg'
     );
     expect(screen.getByTestId('media-caption-input')).toHaveValue('Sunday worship');
@@ -188,15 +253,136 @@ describe('saving', () => {
     vi.mocked(service.createMediaPost).mockRejectedValue(new Error('denied'));
     renderForm({ mode: 'create' });
 
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/photo.jpg'
-    );
+    await useImageAddress('https://example.org/photo.jpg');
     await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
     await userEvent.click(screen.getByTestId('media-form-submit'));
 
     expect(await screen.findByTestId('media-form-error')).toBeInTheDocument();
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe('the picture', () => {
+  it('uploads a picture and saves the address Cloudinary returned', async () => {
+    vi.mocked(getCloudinaryConfig).mockReturnValue(READY);
+    vi.mocked(uploadToCloudinary).mockResolvedValue(UPLOADED_IMAGE);
+    vi.mocked(service.createMediaPost).mockResolvedValue('new-id');
+    renderForm({ mode: 'create' });
+
+    await userEvent.upload(
+      screen.getByTestId('media-image-input'),
+      new File(['x'], 'sunday.jpg', { type: 'image/jpeg' })
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('media-image-preview')).toHaveAttribute(
+        'src',
+        UPLOADED_IMAGE.url
+      )
+    );
+    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sunday worship');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    await waitFor(() => expect(service.createMediaPost).toHaveBeenCalled());
+    expect(vi.mocked(service.createMediaPost).mock.calls[0]![0]).toMatchObject({
+      type: 'image',
+      mediaUrl: UPLOADED_IMAGE.url,
+    });
+    expect(createMediaAsset).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds Save while the picture is still uploading', async () => {
+    vi.mocked(getCloudinaryConfig).mockReturnValue(READY);
+    const pending = deferred<UploadedAsset>();
+    vi.mocked(uploadToCloudinary).mockReturnValue(pending.promise);
+    renderForm({ mode: 'create' });
+
+    await userEvent.upload(
+      screen.getByTestId('media-image-input'),
+      new File(['x'], 'sunday.jpg', { type: 'image/jpeg' })
+    );
+    expect(await screen.findByTestId('media-image-progress')).toBeInTheDocument();
+    expect(screen.getByTestId('media-form-submit')).toBeDisabled();
+
+    await act(async () => {
+      pending.resolve(UPLOADED_IMAGE);
+    });
+    await waitFor(() => expect(screen.getByTestId('media-form-submit')).toBeEnabled());
+  });
+
+  it('says plainly that uploading is not set up, and still takes an address', () => {
+    renderForm({ mode: 'create' });
+    expect(screen.getByTestId('media-image-setup')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-image-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('media-image-url-input')).toBeInTheDocument();
+  });
+});
+
+describe('a video post', () => {
+  async function chooseVideo() {
+    const select = screen.getByTestId('media-type-input');
+    // MUI's select renders a hidden native input; the visible control is the button.
+    await userEvent.click(
+      within(select.parentElement as HTMLElement).getByRole('combobox')
+    );
+    await userEvent.click(await screen.findByRole('option', { name: 'Video' }));
+  }
+
+  it('is a link, never an upload', async () => {
+    renderForm({ mode: 'create' });
+    await chooseVideo();
+
+    expect(screen.getByTestId('media-video-url-input')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-image-input')).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it('tidies a pasted YouTube address to the form the phone plays, and saves that', async () => {
+    vi.mocked(service.createMediaPost).mockResolvedValue('new-id');
+    renderForm({ mode: 'create' });
+    await chooseVideo();
+
+    await userEvent.type(
+      screen.getByTestId('media-video-url-input'),
+      'https://youtu.be/dQw4w9WgXcQ?t=43'
+    );
+    await userEvent.tab();
+    expect(screen.getByTestId('media-video-url-input')).toHaveValue(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    );
+
+    await userEvent.type(screen.getByTestId('media-caption-input'), 'Sermon');
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    await waitFor(() => expect(service.createMediaPost).toHaveBeenCalled());
+    expect(vi.mocked(service.createMediaPost).mock.calls[0]![0]).toMatchObject({
+      type: 'video',
+      mediaUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+  });
+
+  it('shows the video thumbnail in the preview of what a member will see', async () => {
+    renderForm({
+      mode: 'edit',
+      post: existing({
+        type: 'video',
+        mediaUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      }),
+    });
+    expect(await screen.findByTestId('media-preview-video-thumbnail')).toHaveAttribute(
+      'src',
+      'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+    );
+  });
+
+  it('refuses a video link that is not https, in the same words as for a picture', async () => {
+    renderForm({
+      mode: 'edit',
+      post: existing({ type: 'video', mediaUrl: 'http://example.org/clip.mp4' }),
+    });
+    await userEvent.click(screen.getByTestId('media-form-submit'));
+
+    expect(await screen.findAllByText(/must start with https/i)).not.toHaveLength(0);
+    expect(service.updateMediaPost).not.toHaveBeenCalled();
   });
 });
 
@@ -208,19 +394,15 @@ describe('the preview', () => {
 
   it('shows the image once the link is usable', async () => {
     renderForm({ mode: 'create' });
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'https://example.org/photo.jpg'
-    );
+    await useImageAddress('https://example.org/photo.jpg');
     expect(await screen.findByTestId('media-preview-image')).toBeInTheDocument();
   });
 
-  it('explains a bad link instead of showing a broken image', async () => {
-    renderForm({ mode: 'create' });
-    await userEvent.type(
-      screen.getByTestId('media-url-input'),
-      'http://example.org/photo.jpg'
-    );
+  it('explains a bad stored link instead of showing a broken image', async () => {
+    renderForm({
+      mode: 'edit',
+      post: existing({ mediaUrl: 'http://example.org/photo.jpg' }),
+    });
     expect(await screen.findByTestId('media-preview-problem')).toBeInTheDocument();
     expect(screen.queryByTestId('media-preview-image')).not.toBeInTheDocument();
   });

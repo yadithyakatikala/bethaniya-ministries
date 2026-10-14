@@ -2,14 +2,14 @@
  * Firestore data layer for the media feed -- M6.
  *
  * ---------------------------------------------------------------------
- * NOTHING IS UPLOADED. THERE IS NO UPLOAD FUNCTION HERE.
+ * NOTHING IS STORED IN FIREBASE BUT THE ADDRESS. NO UPLOAD FUNCTION HERE.
  * ---------------------------------------------------------------------
  * There is no `uploadMedia()` in this file and there must not be.
  * Firebase Cloud Storage requires the Blaze plan, which this project
- * deliberately does not attach, so an administrator hosts the image or
- * video wherever they already do and pastes the link. The app stores the
- * link and the metadata around it. Same decision, and the same reason,
- * as ./songs.ts's audio and ./prophetVerses.ts's image.
+ * deliberately does not attach. A picture is uploaded to Cloudinary by
+ * the form's <ImageField> (see ../media/cloudinaryUpload.ts) and a video
+ * is a YouTube link; either way this collection stores the https
+ * ADDRESS and the metadata around it, never a file.
  *
  * That makes the LINK the entire attack surface, which is why
  * ../../features/media/validation.ts exists and why firestore.rules

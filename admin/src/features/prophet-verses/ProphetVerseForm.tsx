@@ -1,15 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Divider,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Divider, Paper, TextField, Typography } from '@mui/material';
 import {
   createProphetVerse,
   updateProphetVerse,
@@ -24,20 +15,25 @@ import {
   type ProphetVerseValidationErrors,
 } from './validation';
 import { useNow } from './useNow';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { DateTimeField, FormActions, FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
+import { adminColors, adminRadii } from '../../theme/tokens';
+import { ScriptureReferenceField } from '../scripture/ScriptureReferenceField';
 
 /**
  * Create / edit a Prophet Verse, with a live preview of what a member
  * will see.
  *
  * ---------------------------------------------------------------------
- * NO IMAGE UPLOAD, BY DESIGN
+ * THE IMAGE IS UPLOADED TO CLOUDINARY, AND STORED AS AN ADDRESS
  * ---------------------------------------------------------------------
- * The image field takes an https web ADDRESS, not a file. There is no
- * Cloud Storage bucket on this project's plan (see
- * ../../services/firebase/prophetVerses.ts), so an upload control here
- * would be a button that always fails -- the same reason song audio is a
- * url. The field is optional, and a verse with no image is a complete
- * verse, not an unfinished one.
+ * <ImageField> uploads a picture (with progress and a preview), picks one
+ * from the media library, or takes an https web address. The record keeps
+ * only that address (see ../../services/firebase/prophetVerses.ts) -- no
+ * file ever enters Firebase, which has no Cloud Storage bucket on this
+ * project's plan. The field is optional, and a verse with no image is a
+ * complete verse, not an unfinished one.
  *
  * ---------------------------------------------------------------------
  * PUBLISHING IS NOT PART OF THIS FORM
@@ -72,6 +68,7 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
   const [errors, setErrors] = useState<ProphetVerseValidationErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -86,7 +83,7 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
       publishAt,
     });
     setErrors(next);
-    if (hasProphetVerseErrors(next)) return;
+    if (hasProphetVerseErrors(next) || uploading) return;
 
     const parsedPublishAt = parsePublishAt(publishAt);
     if (!parsedPublishAt) {
@@ -128,16 +125,15 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
     parsedPublishAtForHint !== null && parsedPublishAtForHint.getTime() > now.getTime();
 
   return (
-    <Box sx={{ p: 4, maxWidth: 720 }} data-testid="prophet-verse-form-page">
-      <Paper
-        sx={{ p: 4 }}
-        component="form"
-        onSubmit={(event) => void handleSubmit(event)}
-      >
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Prophet Verse' : 'Edit Prophet Verse'}
-        </Typography>
-
+    <PageContainer width="narrow" testId="prophet-verse-form-page">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Prophet Verse' : 'Edit Prophet Verse'}
+        breadcrumbs={[
+          { label: 'Prophet Verses', to: '/prophet-verses' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={(event) => void handleSubmit(event)}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="prophet-verse-form-error">
             {submitError}
@@ -155,15 +151,13 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-title-input' } }}
         />
 
-        <TextField
+        <ScriptureReferenceField
           label="Scripture reference"
-          fullWidth
-          margin="normal"
           value={reference}
-          onChange={(event) => setReference(event.target.value)}
+          onChange={setReference}
           error={Boolean(errors.reference)}
-          helperText={errors.reference ?? 'For example, Isaiah 43:19.'}
-          slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-reference-input' } }}
+          helperText={errors.reference ?? 'For example, Isaiah 43:19. Type it, or choose it from the Bible.'}
+          testId="prophet-verse-reference-input"
         />
 
         <TextField
@@ -192,27 +186,20 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
           slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-attribution-input' } }}
         />
 
-        <TextField
-          label="Image address (optional)"
-          fullWidth
-          margin="normal"
-          value={imageUrl}
-          onChange={(event) => setImageUrl(event.target.value)}
-          error={Boolean(errors.imageUrl)}
-          helperText={
-            errors.imageUrl ??
-            'A full https:// address of an image already on the web. There is no upload — the app loads the address directly.'
-          }
-          slotProps={{ htmlInput: { 'data-testid': 'prophet-verse-image-url-input' } }}
+        <ImageField
+          label="Image (optional)"
+          value={imageUrl.trim() ? imageUrl : null}
+          onChange={(url) => setImageUrl(url ?? '')}
+          category="poster"
+          testIdPrefix="prophet-verse-image"
+          error={errors.imageUrl}
+          onBusyChange={setUploading}
         />
 
-        <TextField
+        <DateTimeField
           label="Show from"
-          type="datetime-local"
-          fullWidth
-          margin="normal"
           value={publishAt}
-          onChange={(event) => setPublishAt(event.target.value)}
+          onChange={setPublishAt}
           error={Boolean(errors.publishAt)}
           helperText={
             errors.publishAt ??
@@ -220,10 +207,7 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
               ? 'Scheduled: once published, members will see it from this moment.'
               : 'Members will see it as soon as it is published.')
           }
-          slotProps={{
-            inputLabel: { shrink: true },
-            htmlInput: { 'data-testid': 'prophet-verse-publish-at-input' },
-          }}
+          testId="prophet-verse-publish-at-input"
         />
 
         {mode === 'create' ? (
@@ -245,11 +229,11 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
           imageUrl={imageUrl}
         />
 
-        <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+        <FormActions>
           <Button
             type="submit"
             variant="contained"
-            disabled={submitting}
+            disabled={submitting || uploading}
             data-testid="prophet-verse-form-submit"
           >
             {submitting ? 'Saving…' : 'Save'}
@@ -261,9 +245,9 @@ export function ProphetVerseForm({ mode, verse }: ProphetVerseFormProps) {
           >
             Cancel
           </Button>
-        </Stack>
-      </Paper>
-    </Box>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }
 
@@ -296,7 +280,15 @@ export function ProphetVersePreview({
       <Typography variant="overline" color="text.secondary">
         Preview
       </Typography>
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3, mt: 1 }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: `${adminRadii.card}px`,
+          p: { xs: 2, sm: 2.5 },
+          mt: 1,
+          borderColor: adminColors.border,
+        }}
+      >
         {showImage ? (
           <Box
             component="img"
@@ -307,7 +299,7 @@ export function ProphetVersePreview({
               width: '100%',
               aspectRatio: '3 / 2',
               objectFit: 'cover',
-              borderRadius: 2,
+              borderRadius: `${adminRadii.control}px`,
               mb: 2,
               display: 'block',
             }}
@@ -321,8 +313,8 @@ export function ProphetVersePreview({
         </Typography>
         {reference.trim() ? (
           <Typography
-            color="primary"
-            sx={{ fontSize: 14, mb: 1 }}
+            variant="body2"
+            sx={{ color: adminColors.accent, fontWeight: 600, mb: 1 }}
             data-testid="prophet-verse-preview-reference"
           >
             {reference.trim()}
@@ -337,7 +329,8 @@ export function ProphetVersePreview({
         {attribution.trim() ? (
           <Typography
             color="text.secondary"
-            sx={{ fontSize: 13, mt: 1.5 }}
+            variant="body2"
+            sx={{ mt: 1.5 }}
             data-testid="prophet-verse-preview-attribution"
           >
             {attribution.trim()}

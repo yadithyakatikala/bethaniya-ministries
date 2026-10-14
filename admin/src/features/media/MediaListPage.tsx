@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
-  Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,9 +17,11 @@ import {
   TableHead,
   TableRow,
   Tooltip,
+  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteMediaPost,
   setMediaPublished,
@@ -32,9 +32,15 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import {
+  PageContainer,
+  StatusChip,
+  TableSkeleton,
+  formatDateTime,
+} from '../../components/ui';
 import { useNow } from '../prophet-verses/useNow';
 import { mediaUrlProblem } from './validation';
-import { MEDIA_STATE_LABELS, labelFor, stateOf } from './state';
+import { labelFor, stateOf } from './state';
 
 /**
  * The media feed, as an administrator manages it.
@@ -50,11 +56,12 @@ import { MEDIA_STATE_LABELS, labelFor, stateOf } from './state';
  * =====================================================================
  * IT FLAGS A LINK THAT WILL NOT WORK
  * =====================================================================
- * Nothing is uploaded -- a post is an external address (see
- * ../../services/firebase/media.ts) -- so a link that has rotted, or was
- * pasted as http, is a post that shows a broken image to the whole
- * congregation and looks fine in this table. The row says so, and it
- * says so on published posts too, because that is when it matters most.
+ * A post holds only an address (see ../../services/firebase/media.ts) --
+ * whether the file was uploaded through the media uploader or the link
+ * was pasted -- so a link that has rotted, or was pasted as http, is a
+ * post that shows a broken image to the whole congregation and looks fine
+ * in this table. The row says so, and it says so on published posts too,
+ * because that is when it matters most.
  *
  * RBAC: every dashboard role can view; a content admin or above can
  * write, publish and delete, matching firestore.rules' media rule. The
@@ -62,17 +69,6 @@ import { MEDIA_STATE_LABELS, labelFor, stateOf } from './state';
  */
 function canManageMedia(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
-}
-
-function formatWhen(date: Date | null): string {
-  if (!date) return '—';
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 export function MediaListPage() {
@@ -127,15 +123,17 @@ export function MediaListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="media-list-page">
+    <PageContainer testId="media-list-page">
       <AdminPageHeader
-        title="Media"
+        title="Photos & Videos"
+        subtitle="The feed members scroll through in the app. A draft or a scheduled post stays hidden until its moment."
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/media/new"
+              startIcon={<AddOutlined />}
               data-testid="new-media-button"
             >
               New media post
@@ -156,14 +154,13 @@ export function MediaListPage() {
       ) : null}
 
       {!posts && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="media-loading" />
-        </Box>
+        <TableSkeleton testId="media-loading" label="Loading photos and videos" />
       ) : null}
 
       {posts && posts.length === 0 ? (
         <AdminEmptyState
-          message="No media yet. Until there is some, the app simply does not show that section."
+          title="No photos or videos yet"
+          message="Until there is some, the app simply does not show that section."
           testId="media-empty"
         />
       ) : null}
@@ -187,7 +184,11 @@ export function MediaListPage() {
                   const urlProblem = mediaUrlProblem(post.mediaUrl);
                   return (
                     <TableRow key={post.id} data-testid={`media-row-${post.id}`}>
-                      <TableCell>{labelFor(post)}</TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                          {labelFor(post)}
+                        </Typography>
+                      </TableCell>
                       <TableCell>
                         {post.type === 'video' ? 'Video' : 'Image'}
                         {urlProblem ? (
@@ -202,17 +203,13 @@ export function MediaListPage() {
                           </Tooltip>
                         ) : null}
                       </TableCell>
-                      <TableCell>{formatWhen(post.publishAt)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {formatDateTime(post.publishAt)}
+                      </TableCell>
                       <TableCell>
                         {/* Named, not coloured: "scheduled" and "draft" look
                             identical to a member, so the words carry it. */}
-                        <Chip
-                          size="small"
-                          variant={state === 'published' ? 'filled' : 'outlined'}
-                          color={state === 'published' ? 'success' : 'default'}
-                          label={MEDIA_STATE_LABELS[state]}
-                          data-testid={`media-state-${post.id}`}
-                        />
+                        <StatusChip status={state} testId={`media-state-${post.id}`} />
                       </TableCell>
                       {canManage ? (
                         <TableCell align="right">
@@ -230,7 +227,7 @@ export function MediaListPage() {
                             aria-label={`Edit ${labelFor(post)}`}
                             data-testid={`edit-media-${post.id}`}
                           >
-                            <EditIcon fontSize="small" />
+                            <EditOutlined fontSize="small" />
                           </IconButton>
                           <IconButton
                             aria-label={`Delete ${labelFor(post)}`}
@@ -238,7 +235,7 @@ export function MediaListPage() {
                             disabled={busyId === post.id}
                             data-testid={`delete-media-${post.id}`}
                           >
-                            <DeleteIcon fontSize="small" />
+                            <DeleteOutlined fontSize="small" />
                           </IconButton>
                         </TableCell>
                       ) : null}
@@ -271,6 +268,6 @@ export function MediaListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

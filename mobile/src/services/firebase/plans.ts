@@ -39,6 +39,28 @@
  * NOTHING IS WRITTEN, and no rule changes. This is a read-side fallback
  * over data already compiled into the app, the same shape as the bundled
  * Bible in ../../features/bible/.
+ *
+ * =====================================================================
+ * PLANS THE ADMIN SITE PUBLISHES
+ * =====================================================================
+ * The admin site's plan manager (admin/src/features/plans/) writes the
+ * plans members read here. Two kinds are visible to a member
+ * (firestore.rules' isPlanReadableByMembers()):
+ *
+ *   published   `published == true`. Read by the library query below.
+ *   scheduled   `status == 'scheduled'` and `publishAt` has passed, by the
+ *               SERVER's clock. There is no server job on the Spark plan to
+ *               flip the flag, so the phone asks for these separately
+ *               (subscribeToDuePlans) and merges them in.
+ *
+ * Drafts and archived plans are never returned: the rules refuse any
+ * member query that could reach them, so nothing here has to hide them.
+ * Plans written before the manager existed have no `status`, `language`,
+ * `author` or `order`; every field below degrades to a sensible default.
+ *
+ * A member's progress is keyed by the plan's id, which the manager never
+ * changes, so unpublishing and publishing again, or editing a plan, keeps
+ * everyone's place.
  */
 import {
   type FirestoreError,
@@ -66,10 +88,22 @@ import { SEED_PLANS } from '../../features/plans/seedPlans';
  * plan and its later-seeded Firestore twin are the same plan as far as a
  * member's saved progress is concerned.
  */
-const BUNDLED_PLANS: PublishedPlan[] = SEED_PLANS.map((seed) => ({
+const BUNDLED_PLANS: PublishedPlan[] = SEED_PLANS.map((seed, index) => ({
   id: seed.id,
+  subtitle: '',
+  // They are written in English, which is what the library says beside
+  // one in a Telugu app.
+  language: 'en',
+  estimatedMinutes: null,
+  author: '',
+  order: index,
   ...seed.plan,
 }));
+
+/** A bundled plan by id -- for a member who started one and whose library no longer lists it. */
+export function getBundledPlan(planId: string): PublishedPlan | undefined {
+  return BUNDLED_PLANS.find((plan) => plan.id === planId);
+}
 
 /**
  * A bundled plan's days, keyed by plan id, with a synthetic day id.
@@ -81,7 +115,13 @@ const BUNDLED_PLANS: PublishedPlan[] = SEED_PLANS.map((seed) => ({
 const BUNDLED_PLAN_DAYS: Record<string, PublishedPlanDay[]> = Object.fromEntries(
   SEED_PLANS.map((seed) => [
     seed.id,
-    seed.days.map((day) => ({ id: `${seed.id}-day-${day.dayNumber}`, ...day })),
+    seed.days.map((day) => ({
+      id: `${seed.id}-day-${day.dayNumber}`,
+      reflectionQuestion: '',
+      application: '',
+      notes: '',
+      ...day,
+    })),
   ])
 );
 
@@ -90,13 +130,26 @@ export function isBundledPlanId(planId: string): boolean {
   return planId in BUNDLED_PLAN_DAYS;
 }
 
+/** The languages a plan can be written in: the two the app supports. */
+export type PlanLanguage = 'en' | 'te';
+
 export interface PublishedPlan {
   id: string;
   title: string;
+  /** A short line under the title. '' when the church wrote none. */
+  subtitle: string;
   description: string;
   category: string;
   coverImageUrl: string | null;
   dayCount: number;
+  /** The language the plan is written in, when the church said. A plan from before the plan manager has none. */
+  language: PlanLanguage | null;
+  /** About how many minutes a day takes, when the church said. */
+  estimatedMinutes: number | null;
+  /** Who wrote it. '' when not given. */
+  author: string;
+  /** Where the church put it in the library; lower comes first. 0 for a plan with none. */
+  order: number;
 }
 
 export interface PublishedPlanDay {
@@ -104,8 +157,12 @@ export interface PublishedPlanDay {
   dayNumber: number;
   title: string;
   scriptureReference: string;
+  /** Every one of these, from here on, is optional: '' when the church left it out. */
   devotional: string;
+  reflectionQuestion: string;
+  application: string;
   prayerPrompt: string;
+  notes: string;
 }
 
 export interface PlanProgress {
@@ -115,27 +172,69 @@ export interface PlanProgress {
   lastReadAt: Date | null;
 }
 
-function toPublishedPlan(id: string, data: Record<string, unknown>): PublishedPlan {
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * A plan document -> what the app reads. Written to accept ANY plan ever
+ * stored: a missing or wrongly typed field becomes its default and never
+ * throws, so one odd document cannot blank the library.
+ */
+export function toPublishedPlan(
+  id: string,
+  data: Record<string, unknown>
+): PublishedPlan {
+  const minutes = finiteNumber(data.estimatedMinutes);
   return {
     id,
-    title: typeof data.title === 'string' ? data.title : '',
-    description: typeof data.description === 'string' ? data.description : '',
-    category: typeof data.category === 'string' ? data.category : '',
-    coverImageUrl: typeof data.coverImageUrl === 'string' ? data.coverImageUrl : null,
-    dayCount: typeof data.dayCount === 'number' ? data.dayCount : 0,
+    title: text(data.title),
+    subtitle: text(data.subtitle),
+    description: text(data.description),
+    category: text(data.category),
+    coverImageUrl:
+      typeof data.coverImageUrl === 'string' && data.coverImageUrl.length > 0
+        ? data.coverImageUrl
+        : null,
+    dayCount: finiteNumber(data.dayCount) ?? 0,
+    language: data.language === 'en' || data.language === 'te' ? data.language : null,
+    estimatedMinutes: minutes !== null && minutes > 0 ? minutes : null,
+    author: text(data.author),
+    order: finiteNumber(data.order) ?? 0,
   };
 }
 
-function toPublishedPlanDay(id: string, data: Record<string, unknown>): PublishedPlanDay {
+export function toPublishedPlanDay(
+  id: string,
+  data: Record<string, unknown>
+): PublishedPlanDay {
   return {
     id,
     dayNumber: typeof data.dayNumber === 'number' ? data.dayNumber : 0,
-    title: typeof data.title === 'string' ? data.title : '',
-    scriptureReference:
-      typeof data.scriptureReference === 'string' ? data.scriptureReference : '',
-    devotional: typeof data.devotional === 'string' ? data.devotional : '',
-    prayerPrompt: typeof data.prayerPrompt === 'string' ? data.prayerPrompt : '',
+    title: text(data.title),
+    scriptureReference: text(data.scriptureReference),
+    devotional: text(data.devotional),
+    reflectionQuestion: text(data.reflectionQuestion),
+    application: text(data.application),
+    prayerPrompt: text(data.prayerPrompt),
+    notes: text(data.notes),
   };
+}
+
+/** Library order: the church's number, then the title. */
+export function comparePublishedPlans(a: PublishedPlan, b: PublishedPlan): number {
+  return a.order - b.order || a.title.localeCompare(b.title);
+}
+
+/** The library: plans with the same id are one plan, and the church's order decides the rest. */
+function mergePlans(...lists: readonly PublishedPlan[][]): PublishedPlan[] {
+  const byId = new Map<string, PublishedPlan>();
+  for (const list of lists) for (const plan of list) byId.set(plan.id, plan);
+  return [...byId.values()].sort(comparePublishedPlans);
 }
 
 function toPlanProgress(data: Record<string, unknown>): PlanProgress {
@@ -149,23 +248,120 @@ function toPlanProgress(data: Record<string, unknown>): PlanProgress {
   };
 }
 
-/** Subscribes to every published plan, ordered for the library (see admin's `order` field). */
+/**
+ * How far behind the phone's own clock the "due" bound is set. The server
+ * refuses a bound later than its own clock (a phone's clock can run a little
+ * fast), and a plan opening a minute after its time is no loss.
+ */
+const DUE_MARGIN_MS = 60_000;
+/** The bound used once, after the server refuses the first: a phone well ahead of the server. */
+const DUE_RETRY_MARGIN_MS = 10 * 60_000;
+/** How often an open library asks again, so a plan whose time arrives meanwhile appears. */
+const DUE_REFRESH_MS = 5 * 60_000;
+
+export interface PlanLibraryOptions {
+  /** The clock, for tests. */
+  now?: () => Date;
+}
+
+/**
+ * Subscribes to the scheduled plans whose time has come.
+ *
+ * This is a second query because the rules open a scheduled plan on the
+ * SERVER's clock (`publishAt <= request.time`) and a query can only ask for
+ * what the rules can prove it may read: "scheduled, and due by <a time not
+ * later than the server's>". It needs the (status, publishAt) index in
+ * firestore.indexes.json.
+ *
+ * It is quiet by design. If it fails -- offline, an index not yet built, the
+ * rules not yet deployed -- scheduled plans simply do not appear; the library
+ * of published plans is unaffected and no error reaches the member. The bound
+ * moves forward every few minutes, so a plan whose time arrives while the
+ * library is open is picked up without reopening it.
+ */
+function subscribeToDuePlans(
+  onNext: (plans: PublishedPlan[]) => void,
+  now: () => Date
+): Unsubscribe {
+  let stopped = false;
+  let unsubscribe: Unsubscribe | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function listen(marginMs: number, mayRetryEarlier: boolean) {
+    unsubscribe?.();
+    const bound = Timestamp.fromDate(new Date(now().getTime() - marginMs));
+    unsubscribe = onSnapshot(
+      query(
+        collection(db, 'plans'),
+        where('status', '==', 'scheduled'),
+        where('publishAt', '<=', bound)
+      ),
+      (snapshot) => {
+        if (!stopped) onNext(snapshot.docs.map((d) => toPublishedPlan(d.id, d.data())));
+      },
+      (error) => {
+        if (stopped) return;
+        if (mayRetryEarlier && error.code === 'permission-denied') {
+          listen(DUE_RETRY_MARGIN_MS, false);
+          return;
+        }
+        onNext([]);
+      }
+    );
+  }
+
+  function scheduleRefresh() {
+    timer = setTimeout(() => {
+      if (stopped) return;
+      listen(DUE_MARGIN_MS, true);
+      scheduleRefresh();
+    }, DUE_REFRESH_MS);
+    // Never keep a process alive for a refresh (Node, in tests).
+    (timer as unknown as { unref?: () => void }).unref?.();
+  }
+
+  listen(DUE_MARGIN_MS, true);
+  scheduleRefresh();
+
+  return () => {
+    stopped = true;
+    unsubscribe?.();
+    if (timer) clearTimeout(timer);
+  };
+}
+
+/**
+ * Subscribes to the plans a member may read: every published plan, plus the
+ * scheduled ones whose time has come, in the church's order.
+ *
+ * The published query asks for nothing in particular about `order`: asking
+ * Firestore to order by a field silently leaves out every document without
+ * it, and a plan from before the plan manager (or one the starter-plan
+ * script wrote) has none. The sort happens here instead, so such a plan is
+ * listed (first, as order 0) rather than invisible.
+ */
 export function subscribeToPublishedPlans(
   onNext: (plans: PublishedPlan[]) => void,
-  onError: (error: FirestoreError) => void
+  onError: (error: FirestoreError) => void,
+  options: PlanLibraryOptions = {}
 ): Unsubscribe {
-  const q = query(
-    collection(db, 'plans'),
-    where('published', '==', true),
-    orderBy('order', 'asc')
-  );
-  return onSnapshot(
-    q,
+  const now = options.now ?? (() => new Date());
+  let published: PublishedPlan[] | null = null;
+  let due: PublishedPlan[] = [];
+
+  function emit() {
+    if (published === null) return;
+    const library = mergePlans(published, due);
+    // Only when the church has published NONE. One real plan and the
+    // bundled five step aside -- see this file's header.
+    onNext(library.length > 0 ? library : BUNDLED_PLANS);
+  }
+
+  const stopPublished = onSnapshot(
+    query(collection(db, 'plans'), where('published', '==', true)),
     (snapshot) => {
-      const published = snapshot.docs.map((d) => toPublishedPlan(d.id, d.data()));
-      // Only when the church has published NONE. One real plan and the
-      // bundled five step aside -- see this file's header.
-      onNext(published.length > 0 ? published : BUNDLED_PLANS);
+      published = snapshot.docs.map((d) => toPublishedPlan(d.id, d.data()));
+      emit();
     },
     // A failed read also falls back, rather than leaving a member who is
     // offline staring at an error for content the app is carrying.
@@ -174,9 +370,18 @@ export function subscribeToPublishedPlans(
       onError(error);
     }
   );
+  const stopDue = subscribeToDuePlans((plans) => {
+    due = plans;
+    emit();
+  }, now);
+
+  return () => {
+    stopPublished();
+    stopDue();
+  };
 }
 
-/** Subscribes to a plan's days, ordered by dayNumber. Visibility follows the parent plan's published flag -- see firestore.rules' plans/{id}/days rule. */
+/** Subscribes to a plan's days, ordered by dayNumber. A plan's days are readable exactly when the plan is (published, or scheduled and due) -- see firestore.rules' plans/{id}/days rule. */
 export function subscribeToPlanDays(
   planId: string,
   onNext: (days: PublishedPlanDay[]) => void,

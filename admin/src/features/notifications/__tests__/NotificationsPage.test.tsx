@@ -1,12 +1,42 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { NotificationsPage } from '../NotificationsPage';
 import { useAuthStore } from '../../../store/authStore';
 import * as notificationsService from '../../../services/firebase/notifications';
 import type { NotificationLogEntry } from '../../../types';
+import type { UploadedAsset } from '../../../services/media/types';
+import {
+  MISSING,
+  READY,
+  UPLOADED_IMAGE,
+  deferred,
+} from '../../../components/media/__tests__/helpers';
 
 vi.mock('../../../services/firebase/notifications');
+vi.mock('../../../services/media/cloudinaryConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryConfig')>()),
+  getCloudinaryConfig: vi.fn(),
+}));
+vi.mock('../../../services/media/cloudinaryUpload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryUpload')>()),
+  uploadToCloudinary: vi.fn(),
+}));
+vi.mock('../../../services/firebase/mediaAssets', () => ({
+  createMediaAsset: vi.fn(),
+  assetFromUpload: vi.fn((uploaded, details) => ({ uploaded, details })),
+  subscribeToMediaAssets: vi.fn(() => vi.fn()),
+}));
+
+import { getCloudinaryConfig } from '../../../services/media/cloudinaryConfig';
+import {
+  UploadError,
+  uploadToCloudinary,
+} from '../../../services/media/cloudinaryUpload';
+import {
+  createMediaAsset,
+  subscribeToMediaAssets,
+} from '../../../services/firebase/mediaAssets';
 
 function renderPage() {
   return render(<NotificationsPage />);
@@ -25,6 +55,15 @@ const SAMPLE_ENTRY: NotificationLogEntry = {
 };
 
 describe('NotificationsPage', () => {
+  beforeEach(() => {
+    vi.mocked(getCloudinaryConfig).mockReturnValue(READY);
+    vi.mocked(subscribeToMediaAssets).mockReturnValue(vi.fn());
+    vi.mocked(createMediaAsset).mockResolvedValue('asset-1');
+    vi.mocked(uploadToCloudinary).mockReset();
+    URL.createObjectURL = vi.fn(() => 'blob:local-preview');
+    URL.revokeObjectURL = vi.fn();
+  });
+
   afterEach(() => {
     vi.mocked(notificationsService.subscribeToNotificationLog).mockReset();
     vi.mocked(notificationsService.estimateRecipientCount).mockReset();
@@ -217,56 +256,139 @@ describe('NotificationsPage', () => {
     );
   });
 
-  // --- Blaze-gated failures must each name their own real cause ---------
-  // This page can fail three distinguishable ways, and the optional image
-  // upload runs FIRST -- so a missing Cloud Storage bucket aborts before
-  // anything is sent, and must not be reported as a send failure. See
-  // ../../../services/firebase/storageErrors.ts and the handler in
-  // ../NotificationsPage.tsx.
+  // --- The optional image, and the failures a send can still have ------
+  // The image is uploaded by <ImageField> as soon as it is chosen, so by
+  // the time Send is pressed it is just an address. What can still go
+  // wrong at Send is the callable, which is unavailable on the Spark plan.
+
+  /** Chooses an image and waits for the upload to finish. */
+  async function attachImage(user: ReturnType<typeof userEvent.setup>) {
+    await user.upload(
+      screen.getByTestId('notification-image-input'),
+      new File(['x'], 'banner.png', { type: 'image/png' })
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('notification-image-preview')).toHaveAttribute(
+        'src',
+        UPLOADED_IMAGE.url
+      )
+    );
+  }
 
   /** Drives the form through to the confirmation dialog's Send button. */
   async function submitWithImage(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByTestId('notification-title-input'), 'Title');
     await user.type(screen.getByTestId('notification-message-input'), 'Message');
-    await user.upload(
-      screen.getByTestId('notification-image-input'),
-      new File(['x'], 'banner.png', { type: 'image/png' })
-    );
+    await attachImage(user);
     await user.click(screen.getByTestId('notification-form-submit'));
     await user.click(await screen.findByTestId('confirm-send-button'));
   }
 
-  it('reports Cloud Storage as the cause when the image upload is unavailable, not the send', async () => {
+  function asContentAdmin() {
     useAuthStore.setState({ role: 'super_admin' });
     vi.mocked(notificationsService.subscribeToNotificationLog).mockImplementation(() =>
       vi.fn()
     );
     vi.mocked(notificationsService.estimateRecipientCount).mockResolvedValue(5);
-    vi.mocked(notificationsService.uploadNotificationImage).mockRejectedValue({
-      code: 'storage/unknown',
-    });
+  }
+
+  it('sends the address of the uploaded image with the notification', async () => {
+    asContentAdmin();
+    vi.mocked(uploadToCloudinary).mockResolvedValue(UPLOADED_IMAGE);
+    vi.mocked(notificationsService.sendNotification).mockResolvedValue({
+      recipientCount: 5,
+    } as never);
     renderPage();
 
     await submitWithImage(userEvent.setup());
 
-    const error = await screen.findByTestId('notification-form-error');
-    expect(error).toHaveTextContent(/Cloud Storage/);
-    expect(error).toHaveTextContent(/save without an image/i);
-    // The upload threw first -- nothing should have been sent.
-    expect(notificationsService.sendNotification).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: UPLOADED_IMAGE.url })
+      )
+    );
+    // And the composer is cleared for the next one, image included.
+    await waitFor(() =>
+      expect(screen.queryByTestId('notification-image-preview')).not.toBeInTheDocument()
+    );
   });
 
-  it('still reports the Blaze-gated send limitation when the image upload succeeds', async () => {
-    // Regression guard: adding the Storage branch must not shadow the
-    // Cloud-Functions-unavailable message.
-    useAuthStore.setState({ role: 'super_admin' });
-    vi.mocked(notificationsService.subscribeToNotificationLog).mockImplementation(() =>
-      vi.fn()
+  it('can still send when no image is attached', async () => {
+    asContentAdmin();
+    vi.mocked(notificationsService.sendNotification).mockResolvedValue({
+      recipientCount: 5,
+    } as never);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByTestId('notification-title-input'), 'Title');
+    await user.type(screen.getByTestId('notification-message-input'), 'Message');
+    await user.click(screen.getByTestId('notification-form-submit'));
+    await user.click(await screen.findByTestId('confirm-send-button'));
+
+    await waitFor(() =>
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: null })
+      )
     );
-    vi.mocked(notificationsService.estimateRecipientCount).mockResolvedValue(5);
-    vi.mocked(notificationsService.uploadNotificationImage).mockResolvedValue(
-      'https://example.com/banner.png'
+  });
+
+  it('shows why an image upload failed and does not block sending without it', async () => {
+    asContentAdmin();
+    vi.mocked(uploadToCloudinary).mockRejectedValue(
+      new UploadError('network', 'The upload could not reach Cloudinary.')
     );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.upload(
+      screen.getByTestId('notification-image-input'),
+      new File(['x'], 'banner.png', { type: 'image/png' })
+    );
+
+    expect(await screen.findByTestId('notification-image-error')).toHaveTextContent(
+      'The upload could not reach Cloudinary.'
+    );
+    expect(screen.getByTestId('notification-form-submit')).toBeEnabled();
+  });
+
+  it('holds Send while the image is still uploading', async () => {
+    asContentAdmin();
+    const pending = deferred<UploadedAsset>();
+    vi.mocked(uploadToCloudinary).mockReturnValue(pending.promise);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.upload(
+      screen.getByTestId('notification-image-input'),
+      new File(['x'], 'banner.png', { type: 'image/png' })
+    );
+    expect(await screen.findByTestId('notification-image-progress')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-form-submit')).toBeDisabled();
+
+    await act(async () => {
+      pending.resolve(UPLOADED_IMAGE);
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('notification-form-submit')).toBeEnabled()
+    );
+  });
+
+  it('explains that image uploading is not set up, without blocking the composer', () => {
+    asContentAdmin();
+    vi.mocked(getCloudinaryConfig).mockReturnValue(MISSING);
+    renderPage();
+
+    expect(screen.getByTestId('notification-image-setup')).toBeInTheDocument();
+    expect(screen.queryByTestId('notification-image-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('notification-form-submit')).toBeEnabled();
+  });
+
+  it('still reports the Blaze-gated send limitation when an image was attached', async () => {
+    // Regression guard: the send failure must be named for what it is,
+    // retry advice included, whether or not a picture is attached.
+    asContentAdmin();
+    vi.mocked(uploadToCloudinary).mockResolvedValue(UPLOADED_IMAGE);
     vi.mocked(notificationsService.sendNotification).mockRejectedValue(
       new notificationsService.CloudFunctionsUnavailableError()
     );
@@ -277,5 +399,23 @@ describe('NotificationsPage', () => {
     const error = await screen.findByTestId('notification-form-error');
     expect(error).toHaveTextContent(/Sending is unavailable/);
     expect(error).toHaveTextContent(/retrying will not help/);
+  });
+
+  it('offers a retry for a send failure that is not the Blaze limitation', async () => {
+    asContentAdmin();
+    vi.mocked(notificationsService.sendNotification).mockRejectedValue(
+      new Error('network')
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByTestId('notification-title-input'), 'Title');
+    await user.type(screen.getByTestId('notification-message-input'), 'Message');
+    await user.click(screen.getByTestId('notification-form-submit'));
+    await user.click(await screen.findByTestId('confirm-send-button'));
+
+    const error = await screen.findByTestId('notification-form-error');
+    expect(error).toHaveTextContent(/please try again/i);
+    expect(error).not.toHaveTextContent(/Sending is unavailable/);
   });
 });

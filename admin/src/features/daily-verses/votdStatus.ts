@@ -43,6 +43,13 @@ import type { DailyVerse } from '../../types';
 /** Where a day's verse comes from. The three steps above, named. */
 export type VotdDaySource = 'override' | 'pool' | 'year';
 
+/** What each source is called wherever a day's verse is explained. */
+export const VOTD_SOURCE_LABELS: Record<VotdDaySource, string> = {
+  override: 'Set by hand',
+  pool: 'From your church’s verses',
+  year: 'From the app’s built-in year',
+};
+
 export interface VotdDay {
   dateKey: string;
   source: VotdDaySource;

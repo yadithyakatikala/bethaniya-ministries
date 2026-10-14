@@ -5,18 +5,14 @@ import {
   type PublishedPlan,
 } from '../../../services/firebase/plans';
 import { markPlanDay, planFromReading, planReadingFor } from '../planReading';
+import { makePlan } from '../../../testing/planFixtures';
 
 jest.mock('../../../services/firebase/app');
 jest.mock('../../../services/firebase/plans');
 
-const PLAN: PublishedPlan = {
-  id: 'psalms',
-  title: 'Seven Days in the Psalms',
-  description: 'A week of psalms.',
-  category: 'Devotional',
+const PLAN: PublishedPlan = makePlan({
   coverImageUrl: 'https://example.org/cover.png',
-  dayCount: 7,
-};
+});
 
 const progress = (overrides: Partial<PlanProgress> = {}): PlanProgress => ({
   startedAt: new Date(2026, 9, 1),
@@ -49,14 +45,16 @@ describe('planReadingFor', () => {
 
 describe('planFromReading', () => {
   it('rebuilds just enough of a plan for "Plan complete", which prints its name and length', () => {
-    expect(planFromReading(planReadingFor(PLAN, 7))).toEqual({
-      id: 'psalms',
-      title: 'Seven Days in the Psalms',
-      description: '',
-      category: '',
-      coverImageUrl: null,
-      dayCount: 7,
-    });
+    expect(planFromReading(planReadingFor(PLAN, 7))).toEqual(
+      makePlan({
+        id: 'psalms',
+        title: 'Seven Days in the Psalms',
+        description: '',
+        category: '',
+        coverImageUrl: null,
+        dayCount: 7,
+      })
+    );
   });
 });
 

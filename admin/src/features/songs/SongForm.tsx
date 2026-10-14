@@ -1,18 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material';
-import {
-  createSong,
-  updateSong,
-  uploadSongCoverImage,
-} from '../../services/firebase/songs';
+import { Alert, Button, TextField } from '@mui/material';
+import { createSong, updateSong } from '../../services/firebase/songs';
 import {
   hasValidationErrors,
   validateSongCoverImage,
   validateSongInput,
 } from './validation';
 import type { Song } from '../../types';
-import { describeSaveFailure } from '../../services/firebase/storageErrors';
+import { SAVE_RETRY_MESSAGE } from '../../services/firebase/saveErrors';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormActions, FormCard, PageContainer } from '../../components/ui';
+import { AudioField, ImageField } from '../../components/media';
 
 interface SongFormProps {
   mode: 'create' | 'edit';
@@ -22,14 +21,18 @@ interface SongFormProps {
 
 /**
  * Shared create/edit form -- per FINAL_ARCHITECTURE_SPECIFICATION.md's Day 6
- * plan, this collects title + artist + category + lyrics + an external
- * audio URL + an optional cover image. Song audio is always an external
- * URL (per storage.rules' own doc comment: "no audio files in Storage;
- * song audio is referenced by external URL") -- there is no audio file
- * upload control here, only a URL text field. The publish/unpublish
- * toggle is a separate list-page action (SongsListPage.tsx), not part of
- * this form -- a new song always starts unpublished, per createSong()'s
- * own contract, mirroring AnnouncementForm.tsx.
+ * plan, this collects title + artist + category + lyrics + audio + an
+ * optional cover image. The publish/unpublish toggle is a separate
+ * list-page action (SongsListPage.tsx), not part of this form -- a new
+ * song always starts unpublished, per createSong()'s own contract,
+ * mirroring AnnouncementForm.tsx.
+ *
+ * AUDIO. A song's `audioUrl` is still just an https address -- that is
+ * what the phone app plays and what firestore.rules checks. What changed
+ * is how the address gets here: <AudioField> uploads an MP3, M4A, AAC or
+ * WAV file to Cloudinary (with progress and a player to check it) and
+ * fills the address in, or takes one from the media library, or accepts
+ * a pasted link (including streams such as HLS, which nothing uploads).
  */
 export function SongForm({ mode, song }: SongFormProps) {
   const navigate = useNavigate();
@@ -38,9 +41,10 @@ export function SongForm({ mode, song }: SongFormProps) {
   const [category, setCategory] = useState(song?.category ?? '');
   const [lyrics, setLyrics] = useState(song?.lyrics ?? '');
   const [audioUrl, setAudioUrl] = useState(song?.audioUrl ?? '');
-  const [coverUrl] = useState<string | null>(song?.coverUrl ?? null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(song?.coverUrl ?? null);
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const uploading = audioBusy || coverBusy;
   const [fieldErrors, setFieldErrors] = useState<{
     title?: string;
     artist?: string;
@@ -51,80 +55,39 @@ export function SongForm({ mode, song }: SongFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleCoverChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setCoverFile(null);
-      setCoverError(null);
-      return;
-    }
-    const error = validateSongCoverImage(file);
-    if (error) {
-      setCoverError(error);
-      setCoverFile(null);
-      return;
-    }
-    setCoverError(null);
-    setCoverFile(file);
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitError(null);
 
     const errors = validateSongInput({ title, artist, category, lyrics, audioUrl });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors) || coverError) return;
+    if (hasValidationErrors(errors) || uploading) return;
 
     setSubmitting(true);
     try {
-      let resolvedCoverUrl = coverUrl;
-      if (coverFile) {
-        resolvedCoverUrl = await uploadSongCoverImage(coverFile);
-      }
-
       if (mode === 'create') {
-        await createSong({
-          title,
-          artist,
-          category,
-          lyrics,
-          audioUrl,
-          coverUrl: resolvedCoverUrl,
-        });
+        await createSong({ title, artist, category, lyrics, audioUrl, coverUrl });
       } else if (song) {
-        await updateSong(song.id, {
-          title,
-          artist,
-          category,
-          lyrics,
-          audioUrl,
-          coverUrl: resolvedCoverUrl,
-        });
+        await updateSong(song.id, { title, artist, category, lyrics, audioUrl, coverUrl });
       }
       navigate('/songs');
-    } catch (error) {
-      // A missing Cloud Storage bucket is permanent on this project, and
-      // the upload throws BEFORE the Firestore write -- so "saving failed,
-      // please try again" was wrong about what failed and invited a retry
-      // that cannot succeed. The image is optional, so clearing the
-      // selection lets the very next Save go through without one. See
-      // ../../services/firebase/storageErrors.ts.
-      const failure = describeSaveFailure(error);
-      if (failure.clearSelectedImage) {setCoverFile(null);}
-      setSubmitError(failure.message);
+    } catch {
+      setSubmitError(SAVE_RETRY_MESSAGE);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 640 }}>
-      <Paper sx={{ p: 4 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {mode === 'create' ? 'New Song' : 'Edit Song'}
-        </Typography>
-
+    <PageContainer width="narrow">
+      <AdminPageHeader
+        title={mode === 'create' ? 'New Song' : 'Edit Song'}
+        breadcrumbs={[
+          { label: 'Songs', to: '/songs' },
+          { label: mode === 'create' ? 'New' : 'Edit' },
+        ]}
+      />
+      <FormCard onSubmit={handleSubmit}>
         {submitError ? (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="song-form-error">
             {submitError}
@@ -173,59 +136,41 @@ export function SongForm({ mode, song }: SongFormProps) {
           helperText={fieldErrors.lyrics}
           slotProps={{ htmlInput: { 'data-testid': 'song-lyrics-input' } }}
         />
-        <TextField
-          label="Audio URL"
-          fullWidth
-          margin="normal"
+
+        <AudioField
+          label="Audio"
           value={audioUrl}
-          onChange={(e) => setAudioUrl(e.target.value)}
-          error={Boolean(fieldErrors.audioUrl)}
-          helperText={
-            fieldErrors.audioUrl ??
-            'Direct link to a playable audio file or stream (e.g. .mp3, .m4a, .wav, or an HLS .m3u8 URL), hosted elsewhere -- audio files are not uploaded to this app. A YouTube or Spotify page link will not play; those are webpages, not direct audio files.'
-          }
-          slotProps={{ htmlInput: { 'data-testid': 'song-audio-url-input' } }}
+          onChange={setAudioUrl}
+          category="song"
+          testIdPrefix="song-audio"
+          error={fieldErrors.audioUrl}
+          onBusyChange={setAudioBusy}
         />
 
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Typography variant="body2" gutterBottom>
-            Cover image (optional)
-          </Typography>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleCoverChange}
-            data-testid="song-cover-input"
-          />
-          {coverError ? (
-            <Typography variant="body2" color="error" data-testid="song-cover-error">
-              {coverError}
-            </Typography>
-          ) : null}
-          {coverUrl && !coverFile ? (
-            <Typography variant="body2" color="text.secondary">
-              Current cover image is set. Choose a new file to replace it.
-            </Typography>
-          ) : null}
-        </Box>
+        <ImageField
+          label="Cover image (optional)"
+          value={coverUrl}
+          onChange={setCoverUrl}
+          category="cover"
+          testIdPrefix="song-cover"
+          validateFile={validateSongCoverImage}
+          onBusyChange={setCoverBusy}
+        />
 
-        <Button
-          type="submit"
-          variant="contained"
-          sx={{ mt: 2 }}
-          disabled={submitting}
-          data-testid="song-form-submit"
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-        <Button
-          sx={{ mt: 2, ml: 1 }}
-          onClick={() => navigate('/songs')}
-          data-testid="song-form-cancel"
-        >
-          Cancel
-        </Button>
-      </Paper>
-    </Box>
+        <FormActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={submitting || uploading}
+            data-testid="song-form-submit"
+          >
+            {mode === 'create' ? 'Create' : 'Save changes'}
+          </Button>
+          <Button onClick={() => navigate('/songs')} data-testid="song-form-cancel">
+            Cancel
+          </Button>
+        </FormActions>
+      </FormCard>
+    </PageContainer>
   );
 }

@@ -6,8 +6,9 @@
  * a permission error after Save.
  *
  * THE IMAGE URL IS THE ONE RULE WORTH READING TWICE. There is no Cloud
- * Storage bucket on this project's plan, so the image is an external
- * address the member's own device will load. It must be https: Android
+ * Storage bucket on this project's plan, so the image is an address (of a
+ * Cloudinary upload, or of a picture hosted elsewhere) that the member's
+ * own device will load. It must be https: Android
  * blocks cleartext http by default, so an http:// url would render as a
  * broken image rather than failing loudly here. `javascript:` and
  * `data:` are refused for the obvious reason, which the https requirement

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsPage } from '../SettingsPage';
@@ -6,8 +6,29 @@ import { useAuthStore } from '../../../store/authStore';
 import * as settingsService from '../../../services/firebase/settings';
 import type { ChurchSettings } from '../../../types';
 import type { User } from 'firebase/auth';
+import { READY, UPLOADED_IMAGE } from '../../../components/media/__tests__/helpers';
 
 vi.mock('../../../services/firebase/settings');
+vi.mock('../../../services/media/cloudinaryConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryConfig')>()),
+  getCloudinaryConfig: vi.fn(),
+}));
+vi.mock('../../../services/media/cloudinaryUpload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/media/cloudinaryUpload')>()),
+  uploadToCloudinary: vi.fn(),
+}));
+vi.mock('../../../services/firebase/mediaAssets', () => ({
+  createMediaAsset: vi.fn(),
+  assetFromUpload: vi.fn((uploaded, details) => ({ uploaded, details })),
+  subscribeToMediaAssets: vi.fn(() => vi.fn()),
+}));
+
+import { getCloudinaryConfig } from '../../../services/media/cloudinaryConfig';
+import { uploadToCloudinary } from '../../../services/media/cloudinaryUpload';
+import {
+  createMediaAsset,
+  subscribeToMediaAssets,
+} from '../../../services/firebase/mediaAssets';
 
 function renderPage() {
   return render(<SettingsPage />);
@@ -35,6 +56,15 @@ function mockSubscription(settings: ChurchSettings | null) {
 }
 
 describe('SettingsPage', () => {
+  beforeEach(() => {
+    vi.mocked(getCloudinaryConfig).mockReturnValue(READY);
+    vi.mocked(subscribeToMediaAssets).mockReturnValue(vi.fn());
+    vi.mocked(createMediaAsset).mockResolvedValue('asset-1');
+    vi.mocked(uploadToCloudinary).mockReset();
+    URL.createObjectURL = vi.fn(() => 'blob:local-preview');
+    URL.revokeObjectURL = vi.fn();
+  });
+
   afterEach(() => {
     vi.mocked(settingsService.subscribeToChurchSettings).mockReset();
     vi.mocked(settingsService.saveChurchSettings).mockReset();
@@ -66,7 +96,8 @@ describe('SettingsPage', () => {
     mockSubscription(EXISTING_SETTINGS);
     renderPage();
     expect(screen.getByTestId('church-name-input')).toHaveValue('Bethaniya Ministries');
-    expect(screen.getByTestId('logo-url-input')).toHaveValue(
+    expect(screen.getByTestId('logo-preview')).toHaveAttribute(
+      'src',
       'https://example.com/logo.png'
     );
     expect(screen.getByTestId('support-email-input')).toHaveValue('support@example.com');
@@ -93,7 +124,11 @@ describe('SettingsPage', () => {
     mockSubscription(EXISTING_SETTINGS);
     renderPage();
     expect(screen.getByTestId('settings-readonly-notice')).toBeInTheDocument();
-    expect(screen.getByTestId('logo-url-input')).toBeDisabled();
+    // The logo is shown, but nothing offers to change it.
+    expect(screen.getByTestId('logo-preview')).toBeInTheDocument();
+    expect(screen.getByTestId('logo-upload-button')).toBeDisabled();
+    expect(screen.getByTestId('logo-library-button')).toBeDisabled();
+    expect(screen.getByTestId('logo-remove')).toBeDisabled();
     expect(screen.queryByTestId('settings-save-button')).not.toBeInTheDocument();
   });
 
@@ -120,18 +155,73 @@ describe('SettingsPage', () => {
     expect(settingsService.saveChurchSettings).not.toHaveBeenCalled();
   });
 
-  it('blocks the confirm dialog and shows a field error for an invalid logo URL', async () => {
+  it('blocks the confirm dialog and says a logo is required once it has been removed', async () => {
     const user = userEvent.setup();
     useAuthStore.setState({ role: 'super_admin', user: asUser('own-uid') });
     mockSubscription(EXISTING_SETTINGS);
     renderPage();
 
-    await user.clear(screen.getByTestId('logo-url-input'));
-    await user.type(screen.getByTestId('logo-url-input'), 'not-a-url');
+    await user.click(screen.getByTestId('logo-remove'));
+    await user.click(screen.getByTestId('settings-save-button'));
+
+    expect(screen.getByText('Logo URL is required.')).toBeInTheDocument();
+    expect(screen.queryByTestId('confirm-save-settings-button')).not.toBeInTheDocument();
+    expect(settingsService.saveChurchSettings).not.toHaveBeenCalled();
+  });
+
+  it('blocks the confirm dialog for a stored logo address that is not http(s)', async () => {
+    const user = userEvent.setup();
+    useAuthStore.setState({ role: 'super_admin', user: asUser('own-uid') });
+    mockSubscription({ ...EXISTING_SETTINGS, logoUrl: 'not-a-url' });
+    renderPage();
+
     await user.click(screen.getByTestId('settings-save-button'));
 
     expect(screen.getByText('Logo URL must be a valid http(s) URL.')).toBeInTheDocument();
     expect(settingsService.saveChurchSettings).not.toHaveBeenCalled();
+  });
+
+  it('saves the address of a newly uploaded logo', async () => {
+    const user = userEvent.setup();
+    useAuthStore.setState({ role: 'super_admin', user: asUser('own-uid') });
+    mockSubscription(EXISTING_SETTINGS);
+    vi.mocked(uploadToCloudinary).mockResolvedValue(UPLOADED_IMAGE);
+    vi.mocked(settingsService.saveChurchSettings).mockResolvedValue(undefined);
+    renderPage();
+
+    await user.upload(
+      screen.getByTestId('logo-input'),
+      new File(['x'], 'logo.png', { type: 'image/png' })
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('logo-preview')).toHaveAttribute(
+        'src',
+        UPLOADED_IMAGE.url
+      )
+    );
+    await user.click(screen.getByTestId('settings-save-button'));
+    await user.click(await screen.findByTestId('confirm-save-settings-button'));
+
+    await waitFor(() =>
+      expect(settingsService.saveChurchSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ logoUrl: UPLOADED_IMAGE.url })
+      )
+    );
+  });
+
+  it('holds Save while a logo is still uploading', async () => {
+    const user = userEvent.setup();
+    useAuthStore.setState({ role: 'super_admin', user: asUser('own-uid') });
+    mockSubscription(EXISTING_SETTINGS);
+    vi.mocked(uploadToCloudinary).mockReturnValue(new Promise(() => undefined));
+    renderPage();
+
+    await user.upload(
+      screen.getByTestId('logo-input'),
+      new File(['x'], 'logo.png', { type: 'image/png' })
+    );
+    expect(await screen.findByTestId('logo-progress')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-save-button')).toBeDisabled();
   });
 
   it('saves successfully: opens the confirm dialog, calls saveChurchSettings, shows success', async () => {

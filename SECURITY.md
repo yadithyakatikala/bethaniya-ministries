@@ -1016,3 +1016,119 @@ reasoning and the rejected alternatives written down there.
 `firebase emulators:exec --only firestore,storage,auth`. The M7 block
 alone adds 57 tests covering ownership, anonymity, moderation,
 report access, suspension and the new profile fields.
+
+## Admin CMS update: media uploads, the media library and reading plans
+
+This section records what the admin-site work changed about security, what it
+deliberately did not change, and the one risk it cannot remove. Nothing described
+as "pending" below has been deployed.
+
+### Rules that changed (written and tested, **not deployed**)
+
+| Collection | Change | Why it is safe |
+| --- | --- | --- |
+| `plans` | Adds the optional fields the manager writes (`subtitle`, `author`, `language` `en`/`te`, `estimatedMinutes` 1–240, `status`, `publishAt`, `publishedAt`, `createdBy`), each value-checked. | Every new field is optional, so a plan written before the manager is still valid and editable. |
+| `plans` | **`status` and `published` are locked together** (`published` exactly when `status == 'published'`). | Members' devices ask for `published == true`; if `status` could say "draft" while `published` said true, an administrator would believe a plan private while it was served to everyone. |
+| `plans` | A plan that is **going live** (published, or scheduled) must have a description and `dayCount >= 1`. | The last line against a half-built plan reaching members, behind the screen's own checklist. |
+| `plans` | A **scheduled** plan is **readable by members once `publishAt` has passed**, judged by the **server's** clock (`request.time`). Its days follow its plan. | There is no server job on the free plan to flip a flag; the moment itself opens the door. The same pattern the media feed and Prophet verses already use. A draft, an archived plan and a scheduled plan before its time are unreadable whatever a member asks for. |
+| `plans` | **Relaxed:** a *draft* may have an empty description; a day's `devotional` is optional (both were required non-empty); `dayNumber` is now capped at 1000. | The manager has to save drafts and passage-only days. Both are data-shape rules, not access rules: **who may read or write a plan is unchanged**. |
+| `media_assets` (new) | Hosts and above **read**; Content Admin and above **create, relabel and remove**. A **closed** field list (`keys().hasOnly`), `https://` addresses only (no `javascript:`, `data:` or `http:`), kind and source must agree, Cloudinary files are never `video`, and an update may change only `title`, `altText`, `category`, `updatedAt` (a record's file identity is immutable). | Members never read it: content documents carry their own copy of the address they use. |
+
+Plans: **write access is still Content Admin and above only**; Hosts read; members
+read only what is live. Nothing was loosened to make a feature work beyond the two
+data-shape relaxations in the table, which are listed here so that they are a
+decision and not a surprise.
+
+One new index is needed: `plans` on (`status`, `publishAt`), for the phone's
+"scheduled plans that have come due" query. See DEPLOYMENT.md.
+
+### What did not change
+
+- `storage.rules` is untouched. The admin site no longer uploads to Firebase
+  Storage (this project has no Storage bucket on the free plan); the existing
+  rules still deny anything that is not allowed.
+- No new role, no new callable function, no new Cloud Function. The existing
+  `logAdminAction` function gains one allowed collection name (`media_assets`,
+  so a library change can be audited); it takes effect only when functions are
+  deployed, which needs the paid plan and has not been done. Nothing else here
+  needs the paid plan.
+- The hosts' read rights are exactly what they were. The admin site now asks a
+  host only for what a host may read (the dashboard) and, for the verse pool, for
+  the *active* entries only — the query the rules already allow members.
+
+### The unsigned upload endpoint: a risk that cannot be removed without a server
+
+Uploads go **directly from the browser to Cloudinary** with an *unsigned upload
+preset*. The cloud name and preset names are in the published JavaScript, so
+anyone can send files to that preset. **Hiding the upload buttons behind the
+admin login does not make Cloudinary's endpoint private**, and nothing in this
+site claims it does.
+
+- A stranger can fill the free storage and allowance with files of the types
+  and sizes the preset allows. They **cannot** read, list, change or delete
+  existing files or touch the account (all of that needs the API secret, which
+  is not in the site), and they **cannot** put anything in the app: members see
+  only addresses an administrator saved to the database.
+- The browser-side checks (types, 5 MB / 25 MB) are a courtesy, not a defence.
+  The real limits are the preset's *Allowed formats*, folder and incoming
+  transformation, and the plan's allowance. `docs/admin/MEDIA_UPLOADS.md`
+  gives the exact settings, how to monitor usage, and how to respond to abuse.
+- **Signed uploads are the proper fix and were deliberately not built**: they
+  need a server to hold the API secret, and on the free plan Cloud Functions are
+  unavailable. There is no fake "signed" mode. If the risk becomes real, the
+  choice of architecture is the owner's (see the options in that document).
+
+### Secrets
+
+- The three Cloudinary settings (`VITE_CLOUDINARY_CLOUD_NAME`,
+  `…_IMAGE_PRESET`, `…_AUDIO_PRESET`) are public by design. They live in
+  `admin/.env.local` / `admin/.env.production`, which are git-ignored, with
+  blanks in `admin/.env.example`.
+- **The API secret, API key and `CLOUDINARY_URL` must never appear in any
+  `VITE_` variable, in git, in the mobile app, or in chat.** The site's settings
+  reader inspects the *names* of the variables it is given and, if one looks like
+  a Cloudinary credential, refuses to enable uploading and tells the operator to
+  rotate the secret. It never prints a value.
+- The site never calls Cloudinary's Admin API and never deletes a remote file.
+
+### Roles on the admin site
+
+The Dashboard and the Verse of the Day page now read only what each role may
+(see above). Pages that were already content-admin-only in the rules but are
+reachable from the menu by a host — Photos & Videos, Prophet Verse of the Day,
+Reports — still show a load error to a host rather than a "not for your role"
+page. That behaviour pre-dates this work and is unchanged; the rules, not the
+menu, are the boundary.
+
+### What is verified, and how
+
+See the test levels listed in `firebase-tests/README.md`. In short: the rules
+above have emulator-backed tests for each allow and each deny (including the
+scheduled-plan clock boundary, the `status`/`published` lock, the closed
+`media_assets` shape and an immutable file identity), and
+`firebase-tests/src/plans-end-to-end.test.ts` publishes a plan through the admin
+site's real data layer and reads it back through the phone's, under the committed
+rules, with no mocks. `firebase-tests/src/media-assets-end-to-end.test.ts` does the
+same for the media library: the admin site's real record builders and writer
+against the committed rules, for each way a record is made, and for who is turned
+away. **Cloudinary itself has never been contacted by any test** (no account
+exists); the upload code is tested against a fake `XMLHttpRequest`.
+
+### Final review: known gaps and recommendations
+
+A line-by-line review of this branch (rules, uploads, plans) found the items
+below. Those marked **Fixed** were corrected on the branch, each with a test that
+fails without the fix; the rest are listed so none of them is a surprise. Nothing
+here is a security regression against `main` unless it says so.
+
+| # | What | Severity | Status |
+| --- | --- | --- | --- |
+| 1 | **A scheduled plan on a phone that stays connected across the scheduled moment.** The rules judge the schedule by the server's clock (verified). In the emulator that clock is fixed when a *connection* opens, so such a phone does not see the plan until it reconnects (reopening the app does it). Whether the live database behaves the same is **unknown**. | Medium, unverified | Open. Real-phone check added to `QA_CHECKLIST.md` and `DEPLOYMENT.md`; if it shows the problem, decide then (no safe free-plan fix exists in the app alone). |
+| 2 | **No Content-Security-Policy or other security headers** (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) on the admin site. Pre-dates this branch. | Low | Open. Needs a header block in `firebase.json` tested in a real browser against Firebase sign-in before it is deployed, so it was not added blind. |
+| 3 | **`plans.coverImageUrl` is only "a string" in the rules** (no `https://`, no length limit), unlike `media`, `media_assets` and verse images. Pre-dates this branch. The admin site only ever stores an `https://` address and the phone passes it to an image view that cannot run script. | Low | Open. Tightening it is a rules change that could refuse an old document, so it is left for a decision. |
+| 4 | **An old published plan with no days** (possible before the manager) can no longer be edited in place; it can still be read, unpublished, archived, or fixed by adding a day. | Low, intended | Documented and tested (`firestore.rules.test.ts`). |
+| 5 | **The unsigned upload endpoint** (above). | Medium, accepted by design | Unchanged: cannot be removed without a server. |
+| 6 | **A pasted link written as `HTTPS://…` or containing a space** passed the form but was refused by the rules on Save. | Low | **Fixed** (`features/media/validation.ts`, tested). |
+| 7 | **The settings guard missed some secret-like names** (`VITE_CLOUDINARY_KEY`, `…_SIGNATURE`, `…_PASSWORD`, any `VITE_…SECRET…` not containing "cloudinary"). | Low | **Fixed** (`services/media/cloudinaryConfig.ts`, tested). |
+| 8 | **A library record built from an upload could be refused by the rules** if Cloudinary reported a value outside the record's limits (audio as 0 × 0 pixels, a very long name). The file was stored; only the record failed. | Low | **Fixed** (`services/firebase/mediaAssets.ts`, tested against the real rules). |
+| 9 | **The plan editor let a save begin that the rules would refuse part-way:** removing the last day of a *live* plan deleted the day, then the plan write was refused, leaving members a live plan with no days; an over-long day text failed the same way with a vague message. | Medium | **Fixed** (`features/plans/PlanEditor.tsx`, `planReadiness.ts`, tested). |

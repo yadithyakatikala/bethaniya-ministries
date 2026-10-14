@@ -13,7 +13,7 @@ const { mockCallable, MockTimestamp } = vi.hoisted(() => {
   return { mockCallable: vi.fn(), MockTimestamp };
 });
 
-vi.mock('../app', () => ({ db: {}, storage: {}, functions: {} }));
+vi.mock('../app', () => ({ db: {}, functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => mockCallable) }));
 
 vi.mock('firebase/firestore', () => ({

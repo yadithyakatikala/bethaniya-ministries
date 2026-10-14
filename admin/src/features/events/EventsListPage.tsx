@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,9 +18,11 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteEvent,
   setEventLiveStream,
@@ -33,6 +34,12 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import {
+  PageContainer,
+  StatusChip,
+  TableSkeleton,
+  formatDateTime,
+} from '../../components/ui';
 import type { Event } from '../../types';
 
 /** Matches firestore.rules' isContentAdminOrAbove() -- full event CRUD + publish/unpublish. Gating these buttons is a UX convenience only; the rules are the real boundary. */
@@ -43,11 +50,6 @@ function canManageEvents(role: string | null): boolean {
 /** Matches firestore.rules' isHostOrAbove() event-update branch -- Host (and above) may set ONLY isLive/youtubeUrl via the Live Stream dialog below, nothing else. Gating this button is a UX convenience only; the rules are the real boundary. */
 function canManageLiveStream(role: string | null): boolean {
   return role === 'host' || role === 'content_admin' || role === 'super_admin';
-}
-
-function formatStartsAt(date: Date | null): string {
-  if (!date) return '--';
-  return date.toLocaleString();
 }
 
 /**
@@ -160,15 +162,21 @@ export function EventsListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="events-list-page">
+    <PageContainer testId="events-list-page">
       <AdminPageHeader
         title="Events"
+        subtitle={
+          canManage
+            ? 'Services and gatherings. Hosts can start and end a live stream from here without touching anything else.'
+            : 'Services and gatherings, and their live streams.'
+        }
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/events/new"
+              startIcon={<AddOutlined />}
               data-testid="new-event-button"
             >
               New Event
@@ -184,13 +192,19 @@ export function EventsListPage() {
       ) : null}
 
       {!events && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="events-loading" />
-        </Box>
+        <TableSkeleton testId="events-loading" label="Loading events" />
       ) : null}
 
       {events && events.length === 0 ? (
-        <AdminEmptyState message="No events yet." testId="events-empty" />
+        <AdminEmptyState
+          testId="events-empty"
+          title="No events yet"
+          message={
+            canManage
+              ? 'Add a service or gathering. Published events appear in the app with their date and time.'
+              : 'No events have been added yet.'
+          }
+        />
       ) : null}
 
       {events && events.length > 0 ? (
@@ -211,23 +225,20 @@ export function EventsListPage() {
               <TableBody>
                 {events.map((event) => (
                   <TableRow key={event.id} data-testid={`event-row-${event.id}`}>
-                    <TableCell>{event.title}</TableCell>
-                    <TableCell>{formatStartsAt(event.startsAt)}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={event.published ? 'Published' : 'Draft'}
-                        color={event.published ? 'success' : 'default'}
-                        size="small"
-                      />
+                      <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                        {event.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {formatDateTime(event.startsAt)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusChip status={event.published ? 'published' : 'draft'} />
                     </TableCell>
                     <TableCell>
                       {event.isLive ? (
-                        <Chip
-                          label="LIVE"
-                          color="error"
-                          size="small"
-                          data-testid={`live-chip-${event.id}`}
-                        />
+                        <StatusChip status="live" testId={`live-chip-${event.id}`} />
                       ) : null}
                     </TableCell>
                     {canManage || canStream ? (
@@ -259,7 +270,7 @@ export function EventsListPage() {
                               aria-label="Edit"
                               data-testid={`edit-event-${event.id}`}
                             >
-                              <EditIcon fontSize="small" />
+                              <EditOutlined fontSize="small" />
                             </IconButton>
                             <IconButton
                               aria-label="Delete"
@@ -267,7 +278,7 @@ export function EventsListPage() {
                               disabled={busyId === event.id}
                               data-testid={`delete-event-${event.id}`}
                             >
-                              <DeleteIcon fontSize="small" />
+                              <DeleteOutlined fontSize="small" />
                             </IconButton>
                           </>
                         ) : null}
@@ -311,12 +322,12 @@ export function EventsListPage() {
         <DialogTitle
           sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
         >
-          <Box component="span">Live Stream -- {streamTarget?.title}</Box>
-          <Chip
-            label={streamTarget?.isLive ? 'LIVE NOW' : 'Not live'}
-            color={streamTarget?.isLive ? 'error' : 'default'}
-            size="small"
-          />
+          <Box component="span">Live Stream — {streamTarget?.title}</Box>
+          {streamTarget?.isLive ? (
+            <StatusChip status="live" label="Live now" />
+          ) : (
+            <Chip label="Not live" size="small" variant="outlined" />
+          )}
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
@@ -357,6 +368,6 @@ export function EventsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

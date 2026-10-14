@@ -32,9 +32,11 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from './app';
 import { logAdminAction } from './auditLog';
@@ -210,6 +212,30 @@ export function subscribeToVersePool(
 ): Unsubscribe {
   return onSnapshot(
     collection(db, VERSE_POOL_COLLECTION),
+    (snapshot) =>
+      onNext(
+        snapshot.docs.map((entry) => toVersePoolEntryDocument(entry.id, entry.data()))
+      ),
+    onError
+  );
+}
+
+/**
+ * The ACTIVE entries only -- the read the rules give everyone who is not a
+ * content admin, and the very query a member's phone makes. A host (who may
+ * look at the Verse of the Day page and the dashboard but not manage the
+ * pool) uses this, because asking for the whole collection is refused for
+ * them. It loses nothing for working out the verse: inactive entries are
+ * never part of the rotation, so the answer is the same one the phones
+ * compute. See ../../features/daily-verses/votdSelection.ts's
+ * prepareVersePool().
+ */
+export function subscribeToActiveVersePool(
+  onNext: (entries: VersePoolEntryDocument[]) => void,
+  onError: (error: FirestoreError) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, VERSE_POOL_COLLECTION), where('active', '==', true)),
     (snapshot) =>
       onNext(
         snapshot.docs.map((entry) => toVersePoolEntryDocument(entry.id, entry.data()))

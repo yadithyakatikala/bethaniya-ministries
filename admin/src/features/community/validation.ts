@@ -2,14 +2,15 @@
  * Client-side community-post input validation. Mirrors
  * ../announcements/validation.ts exactly -- see that module's doc comment
  * for the full reasoning (this is a UX convenience only; the real,
- * server-enforced authority is firestore.rules' isValidCommunityPost() and
- * storage.rules' content/{imageType}/{fileName} rule).
+ * server-enforced authority is firestore.rules' isValidCommunityPost()).
+ * Images go to Cloudinary through <ImageField>; see
+ * docs/admin/MEDIA_UPLOADS.md for the limits that really apply.
  */
+
+import { validateUploadFile } from '../../services/media/uploadRules';
 
 export const COMMUNITY_POST_TITLE_MAX_LENGTH = 200;
 export const COMMUNITY_POST_CONTENT_MAX_LENGTH = 5000;
-/** Matches storage.rules' content/{imageType}/{fileName} write rule's cap. */
-export const COMMUNITY_POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 export interface CommunityPostValidationInput {
   title: string;
@@ -49,16 +50,12 @@ export function hasValidationErrors(errors: CommunityPostValidationErrors): bool
 }
 
 /**
- * Validates an image file before upload -- type and size only (matching
- * storage.rules' own checks), so a rejection is obvious immediately rather
- * than after a slow upload fails server-side.
+ * Whether this file may be uploaded as a community-post image. It is the shared image
+ * rule (../../services/media/uploadRules.ts) -- the same formats and
+ * 5 MB ceiling for every picture -- so a mistake is caught in the browser
+ * before an upload starts. A courtesy only: the limits that really apply
+ * are set on the Cloudinary upload preset (docs/admin/MEDIA_UPLOADS.md).
  */
 export function validateCommunityPostImage(file: File): string | null {
-  if (!file.type.startsWith('image/')) {
-    return 'Please choose an image file.';
-  }
-  if (file.size >= COMMUNITY_POST_IMAGE_MAX_BYTES) {
-    return 'Image must be smaller than 5 MB.';
-  }
-  return null;
+  return validateUploadFile(file, 'image');
 }

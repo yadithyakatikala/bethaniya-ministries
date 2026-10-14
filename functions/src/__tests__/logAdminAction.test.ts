@@ -100,6 +100,22 @@ describe('logAdminActionHandler', () => {
     }
   );
 
+  it("accepts the media library's collection, so uploads and removals are audited", async () => {
+    const uid = 'admin-user-media-assets';
+    await setUserRole(uid, 'content_admin');
+    await expect(
+      logAdminActionHandler(
+        {
+          action: 'create',
+          collection: 'media_assets',
+          documentId: 'asset-1',
+          changeSummary: 'Added image "Sunday poster" to the media library',
+        },
+        { uid, email: 'a@example.com' }
+      )
+    ).resolves.toEqual({ logged: true });
+  });
+
   it('never trusts a client-supplied admin_id/admin_email, even if the payload includes them', async () => {
     const uid = 'admin-user-spoof-test';
     await setUserRole(uid, 'super_admin');

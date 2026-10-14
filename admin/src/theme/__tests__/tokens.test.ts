@@ -1,36 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_MIN_TOUCH_TARGET, adminColors, adminFonts, adminRadii } from '../tokens';
+import {
+  ADMIN_MIN_TOUCH_TARGET,
+  adminColors,
+  adminFonts,
+  adminLayout,
+  adminRadii,
+} from '../tokens';
 import { theme } from '../theme';
 
 /**
  * The admin's half of the design system.
  *
- * WHY THESE ASSERTIONS EXIST. The two apps are separate builds with no
- * shared package, so the tokens are written twice. They had drifted: the
- * dashboard was still on `#A96C33` after the mobile app darkened its
- * accent to `#8F5A26` to clear the 4.5:1 AA minimum, and on a
- * `borderRadius` of 10 against the mobile app's 12. Nothing caught
- * either, because nothing compared them.
+ * WHAT IS PINNED TO THE MOBILE APP, AND WHAT IS NOT. The two apps are
+ * separate builds with no shared package, so tokens are written twice. The
+ * dashboard used to copy the whole mobile palette and this test pinned every
+ * value. The redesign gives the dashboard its own structural palette --
+ * navy, ivory, gold -- on purpose (see ../tokens.ts), so the surface and
+ * ink values are no longer compared. What stays pinned is MEANING:
  *
- * The values below are copied deliberately from
- * mobile/src/theme/tokens.ts. If that file changes, this test fails and
+ *   * the four status colours and their tints, so green/amber/red/blue
+ *     mean the same thing in the dashboard and in the app;
+ *   * the brand gold (`accent`), so the metal is the same metal.
+ *
+ * If mobile/src/theme/tokens.ts changes one of these, this test fails and
  * someone has to decide -- which is the point.
  */
-const MOBILE_LIGHT = {
-  paper: '#FAFAF8',
-  surface: '#FFFFFF',
-  surfaceRaised: '#F3F3EF',
-  border: '#D0D0C8',
-  borderStrong: '#868B87',
-  ink: '#101114',
-  inkMuted: '#55595F',
-  inkSubtle: '#6B7077',
-  primary: '#16181C',
-  primaryPressed: '#000000',
-  primaryTint: '#EDEDE9',
-  onPrimary: '#FFFFFF',
+const MOBILE_SHARED = {
   accent: '#8F5A26',
-  accentTint: '#F6EFE6',
   success: '#1F6B43',
   successTint: '#E6F0E9',
   warning: '#7D5200',
@@ -39,8 +35,6 @@ const MOBILE_LIGHT = {
   dangerTint: '#FBEAE8',
   info: '#1C5570',
   infoTint: '#E6EEF3',
-  disabledInk: '#6F747B',
-  disabledSurface: '#F0F0EC',
 } as const;
 
 /** WCAG 2.1 relative luminance. */
@@ -57,52 +51,119 @@ function contrastRatio(a: string, b: string): number {
 }
 
 const AA_NORMAL_TEXT = 4.5;
+/** WCAG 1.4.11: the boundary of an input, and other meaningful graphics. */
+const AA_NON_TEXT = 3;
 
-describe('the admin palette does not drift from the mobile one', () => {
-  it.each(Object.entries(MOBILE_LIGHT))(
+describe('what the admin shares with the mobile app', () => {
+  it.each(Object.entries(MOBILE_SHARED))(
     '%s matches the mobile light token',
     (key, value) => {
-      expect(adminColors[key as keyof typeof MOBILE_LIGHT]).toBe(value);
+      expect(adminColors[key as keyof typeof MOBILE_SHARED]).toBe(value);
     }
   );
 
-  it('shares the mobile radii and touch minimum', () => {
-    expect(adminRadii.control).toBe(12);
-    expect(adminRadii.card).toBe(16);
+  it('keeps the 44px touch minimum the mobile app enforces', () => {
     expect(ADMIN_MIN_TOUCH_TARGET).toBe(44);
   });
 });
 
+describe('the admin has its own structural palette', () => {
+  it('uses navy for structure and gold only as an accent', () => {
+    // Gold must never become the fill of a button or the primary colour.
+    expect(theme.palette.primary.main).toBe(adminColors.primary);
+    expect(adminColors.primary).not.toBe(adminColors.accent);
+    expect(adminColors.primary).not.toBe(adminColors.goldBase);
+    expect(adminColors.primary).not.toBe(adminColors.goldBright);
+    // The contained-primary variant is where a button's hover and pressed
+    // colours live; both are navy, never gold.
+    const variants = (theme.components?.MuiButton?.variants ?? []) as {
+      props: { variant?: string; color?: string };
+      style: { '&:hover'?: { backgroundColor?: string } };
+    }[];
+    const contained = variants.find(
+      (v) => v.props.variant === 'contained' && v.props.color === 'primary'
+    );
+    expect(contained?.style['&:hover']?.backgroundColor).toBe(adminColors.primaryHover);
+  });
+
+  it('puts the page on a warm ivory ground with white cards', () => {
+    expect(adminColors.paper).toBe('#F7F4EC');
+    expect(adminColors.surface).toBe('#FFFFFF');
+    expect(adminColors.paper).not.toBe(adminColors.surface);
+  });
+
+  it('uses modest radii', () => {
+    expect(adminRadii.control).toBe(8);
+    expect(adminRadii.card).toBe(12);
+  });
+
+  it('keeps a readable content measure and a fixed-width rail', () => {
+    expect(adminLayout.sidebarWidth).toBeGreaterThanOrEqual(240);
+    expect(adminLayout.pageMaxWidth.narrow).toBeLessThan(
+      adminLayout.pageMaxWidth.default
+    );
+    expect(adminLayout.pageMaxWidth.default).toBeLessThan(adminLayout.pageMaxWidth.wide);
+  });
+});
+
 describe('the admin palette meets WCAG AA', () => {
-  const pairs: [string, keyof typeof adminColors, keyof typeof adminColors][] = [
+  const textPairs: [string, keyof typeof adminColors, keyof typeof adminColors][] = [
     ['body text on paper', 'ink', 'paper'],
     ['body text on surface', 'ink', 'surface'],
+    ['body text on a raised panel', 'ink', 'surfaceRaised'],
+    ['secondary text on paper', 'inkMuted', 'paper'],
     ['secondary text on surface', 'inkMuted', 'surface'],
+    ['secondary text on a raised panel', 'inkMuted', 'surfaceRaised'],
     ['placeholder on surface', 'inkSubtle', 'surface'],
+    ['placeholder on paper', 'inkSubtle', 'paper'],
+    ['placeholder on a raised panel', 'inkSubtle', 'surfaceRaised'],
     ['button label', 'onPrimary', 'primary'],
+    ['button label on hover', 'onPrimary', 'primaryHover'],
+    ['navy on its tint', 'primary', 'primaryTint'],
+    ['gold text on surface', 'accent', 'surface'],
+    ['gold text on paper', 'accent', 'paper'],
+    ['gold text on a raised panel', 'accent', 'surfaceRaised'],
+    ['gold text on its tint', 'accent', 'accentTint'],
     ['success chip', 'success', 'successTint'],
     ['warning chip', 'warning', 'warningTint'],
     ['error chip', 'danger', 'dangerTint'],
+    ['white on the live banner', 'onPrimary', 'danger'],
     ['info chip', 'info', 'infoTint'],
-    ['accent on surface', 'accent', 'surface'],
-    // The sidebar is an inverted surface, so its own pairs need checking
-    // separately from the light ones.
-    ['sidebar label', 'sidebarText', 'sidebarBg'],
-    ['sidebar muted label', 'sidebarTextMuted', 'sidebarBg'],
-    ['sidebar selected label', 'sidebarSelectedText', 'sidebarSelectedBg'],
-    ['sidebar avatar initial', 'sidebarAvatarText', 'sidebarAvatarBg'],
+    ['archived chip', 'archived', 'archivedTint'],
+    ['success text on surface', 'success', 'surface'],
+    ['warning text on surface', 'warning', 'surface'],
+    ['error text on surface', 'danger', 'surface'],
+    ['error text on paper', 'danger', 'paper'],
+    ['info text on surface', 'info', 'surface'],
+    // The rail is an inverted surface, so its own pairs need checking.
+    ['rail label', 'sidebarText', 'sidebarBg'],
+    ['rail muted label', 'sidebarTextMuted', 'sidebarBg'],
+    ['rail muted label when selected', 'sidebarTextMuted', 'sidebarSelectedBg'],
+    ['rail selected label', 'sidebarSelectedText', 'sidebarSelectedBg'],
+    ['rail avatar initial', 'sidebarAvatarText', 'sidebarAvatarBg'],
+    ['rail gold label', 'sidebarAccent', 'sidebarBg'],
   ];
 
-  it.each(pairs)('%s', (_name, fg, bg) => {
+  it.each(textPairs)('%s', (_name, fg, bg) => {
     expect(contrastRatio(adminColors[fg], adminColors[bg])).toBeGreaterThanOrEqual(
       AA_NORMAL_TEXT
     );
   });
 
-  it('keeps a disabled label readable', () => {
-    expect(
-      contrastRatio(adminColors.disabledInk, adminColors.disabledSurface)
-    ).toBeGreaterThanOrEqual(3);
+  const nonTextPairs: [string, keyof typeof adminColors, keyof typeof adminColors][] = [
+    ['an input edge on a white surface', 'borderStrong', 'surface'],
+    ['an input edge on the ivory ground', 'borderStrong', 'paper'],
+    ['the focus ring on the ivory ground', 'accent', 'paper'],
+    ['the focus ring on a white surface', 'accent', 'surface'],
+    ['the tab indicator on a white surface', 'goldBase', 'surface'],
+    ['the rail marker on the selected item', 'sidebarAccent', 'sidebarSelectedBg'],
+    ['a disabled label on its field', 'disabledInk', 'disabledSurface'],
+  ];
+
+  it.each(nonTextPairs)('%s', (_name, fg, bg) => {
+    expect(contrastRatio(adminColors[fg], adminColors[bg])).toBeGreaterThanOrEqual(
+      AA_NON_TEXT
+    );
   });
 });
 
@@ -115,6 +176,7 @@ describe('the MUI theme reads from the tokens', () => {
     expect(theme.palette.info.main).toBe(adminColors.info);
     expect(theme.palette.success.main).toBe(adminColors.success);
     expect(theme.palette.background.default).toBe(adminColors.paper);
+    expect(theme.palette.background.paper).toBe(adminColors.surface);
     expect(theme.palette.divider).toBe(adminColors.border);
   });
 
@@ -159,12 +221,35 @@ describe('the MUI theme reads from the tokens', () => {
     expect(input['&::placeholder']?.opacity).toBe(1);
   });
 
-  it('gives cards a border and no shadow, matching the mobile Card', () => {
+  it('draws input edges at the 3:1 non-text contrast, not the MUI default', () => {
+    const outline = theme.components?.MuiOutlinedInput?.styleOverrides
+      ?.notchedOutline as { borderColor?: string };
+    expect(outline.borderColor).toBe(adminColors.borderStrong);
+  });
+
+  it('gives cards a border and no shadow', () => {
     const card = theme.components?.MuiCard?.styleOverrides?.root as {
       boxShadow?: string;
       borderRadius?: number;
     };
     expect(card.boxShadow).toBe('none');
     expect(card.borderRadius).toBe(adminRadii.card);
+  });
+
+  it('honours a request for reduced motion', () => {
+    const baseline = theme.components?.MuiCssBaseline?.styleOverrides as Record<
+      string,
+      unknown
+    >;
+    expect(baseline['@media (prefers-reduced-motion: reduce)']).toBeDefined();
+  });
+
+  it('gives keyboard focus a visible indicator', () => {
+    const baseline = theme.components?.MuiCssBaseline?.styleOverrides as Record<
+      string,
+      { outline?: string }
+    >;
+    const rule = baseline[':where(a, button, [role="button"], [tabindex]):focus-visible'];
+    expect(rule?.outline).toContain(adminColors.accent);
   });
 });

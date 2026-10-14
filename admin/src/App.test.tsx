@@ -7,7 +7,6 @@ import App from './App';
 vi.mock('./services/firebase/app', () => ({
   auth: {},
   db: {},
-  storage: {},
   functions: {},
   usingFirebaseEmulators: true,
 }));
@@ -32,14 +31,11 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(() => vi.fn()),
   orderBy: vi.fn(),
   query: vi.fn(),
+  // A host's dashboard reads the verse pool the way a phone does (active
+  // entries only), which is a filtered query.
+  where: vi.fn(),
   serverTimestamp: vi.fn(),
   Timestamp: class MockTimestamp {},
-}));
-
-vi.mock('firebase/storage', () => ({
-  ref: vi.fn(),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
 }));
 
 /**

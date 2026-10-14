@@ -3,9 +3,7 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   FormControlLabel,
-  Paper,
   Stack,
   Switch,
   TextField,
@@ -22,6 +20,7 @@ import { prepareVersePool } from '../votdSelection';
 import { hasErrors, validateVotdConfig, type VotdConfigErrors } from '../votdValidation';
 import { votdCycle } from '../votdStatus';
 import { VOTD_YEAR_LENGTH } from '../votdYear';
+import { SectionCard, ToneChip } from '../../../components/ui';
 
 /**
  * HOW IT WORKS -- the status of the automation, and the two controls
@@ -116,41 +115,30 @@ export function AutomationPanel({
 
   return (
     <Stack spacing={3} data-testid="votd-config-panel">
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-          How it works
-        </Typography>
-
+      <SectionCard title="How it works">
         <Stack spacing={1}>
-          <Chip
-            label={config.enabled ? 'Running' : 'Paused'}
-            color={config.enabled ? 'success' : 'default'}
-            size="small"
-            sx={{ alignSelf: 'flex-start' }}
-            data-testid="votd-automation-status"
-          />
-          <Typography sx={{ fontSize: 15 }} data-testid="votd-automation-summary">
+          <Box sx={{ alignSelf: 'flex-start' }}>
+            <ToneChip
+              tone={config.enabled ? 'success' : 'neutral'}
+              label={config.enabled ? 'Running' : 'Paused'}
+              testId="votd-automation-status"
+            />
+          </Box>
+          <Typography data-testid="votd-automation-summary">
             {/* The whole point of the page, in one sentence. */}
             {cycle.using === 'year'
               ? `The app chooses a verse for every day on its own, from its built-in year of ${VOTD_YEAR_LENGTH} verses. There is nothing to set up and nothing to do each morning.`
               : `The app chooses a verse for every day on its own, from the ${cycle.days} verses your church added. There is nothing to do each morning.`}
           </Typography>
-          <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+          <Typography color="text.secondary" variant="body2">
             Each verse comes up once before any of them repeats, so the cycle lasts{' '}
             {cycle.days} days. The day changes at midnight {VOTD_TIMEZONE.replace('_', ' ')},
             wherever the member is.
           </Typography>
         </Stack>
-      </Paper>
+      </SectionCard>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 3 }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
-          Settings
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 14, mb: 2 }}>
-          Most churches never change these.
-        </Typography>
-
+      <SectionCard title="Settings" description="Most churches never change these.">
         {saved ? (
           <Alert severity="success" sx={{ mb: 2 }} data-testid="votd-config-saved">
             Saved.
@@ -212,7 +200,7 @@ export function AutomationPanel({
             {/* The explanation is deliberately NOT this field's helperText.
                 A version number is two digits wide, and capping the whole
                 TextField squeezed the sentence into a three-line column. */}
-            <Typography color="text.secondary" sx={{ fontSize: 13, mt: -1 }}>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: -1 }}>
               Raise this after editing your church&rsquo;s verses: it restarts the rotation
               and refreshes every phone.
             </Typography>
@@ -229,7 +217,7 @@ export function AutomationPanel({
                 </Button>
               </Box>
             ) : (
-              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+              <Typography color="text.secondary" variant="body2">
                 Only a content admin can change these.
               </Typography>
             )}
@@ -245,13 +233,13 @@ export function AutomationPanel({
             >
               {bumping ? 'Restarting…' : 'Restart the rotation'}
             </Button>
-            <Typography color="text.secondary" sx={{ fontSize: 13, mt: 0.5 }}>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
               Raises the pool version, which reshuffles the order and refreshes every phone
               on its next open. Worth doing after adding or taking out verses.
             </Typography>
           </Box>
         ) : null}
-      </Paper>
+      </SectionCard>
     </Stack>
   );
 }

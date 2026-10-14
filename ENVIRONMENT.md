@@ -242,6 +242,27 @@ printed output for direct links): enabling Auth sign-in providers
 (Google/Apple/Phone), and everything Blaze-gated (Storage, Cloud
 Functions) — see "Blaze-gated" above; none of that is attempted here.
 
+## Media uploads (Cloudinary) — optional, free, and yours to set up
+
+The admin site can upload pictures and songs to **Cloudinary** (free plan).
+It is **off** until you give it three values, and **nothing here is created for
+you**: you make the account yourself and never enter payment details.
+
+| Variable (in `admin/.env.local`, and `admin/.env.production` for the live build) | What it is |
+| --- | --- |
+| `VITE_CLOUDINARY_CLOUD_NAME` | your Cloudinary account's cloud name |
+| `VITE_CLOUDINARY_IMAGE_PRESET` | name of an **unsigned** upload preset that accepts only images |
+| `VITE_CLOUDINARY_AUDIO_PRESET` | name of an **unsigned** upload preset that accepts only audio |
+
+None of the three is a secret (they are built into the published site, which
+is how unsigned uploading works). **The Cloudinary API secret, API key and
+`CLOUDINARY_URL` must never be put in any `VITE_` variable, any `.env` file in
+git, or the mobile app** — the site refuses to enable uploading if it finds
+one. The env files are ignored by git (`.env*`); keep it that way.
+
+Click-by-click setup, what a stranger could and could not do with an unsigned
+preset, and how to watch your free allowance: [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md).
+
 ## Apple Developer account (needed before real device testing / TestFlight)
 
 - https://developer.apple.com/programs/ — $99/year

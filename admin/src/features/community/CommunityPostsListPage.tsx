@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
-  Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,9 +15,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteCommunityPost,
   setCommunityPostPublished,
@@ -30,9 +29,10 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { PageContainer, StatusChip, TableSkeleton } from '../../components/ui';
 import type { CommunityPost } from '../../types';
 
-/** Matches firestore.rules'/storage.rules' isContentAdminOrAbove() -- Host can read all posts but not write any. Gating these buttons is a UX convenience only; the rules are the real boundary. */
+/** Matches firestore.rules' isContentAdminOrAbove() -- Host can read all posts but not write any. Gating these buttons is a UX convenience only; the rules are the real boundary. */
 function canManageCommunityPosts(role: string | null): boolean {
   return role === 'content_admin' || role === 'super_admin';
 }
@@ -85,15 +85,17 @@ export function CommunityPostsListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="community-list-page">
+    <PageContainer testId="community-list-page">
       <AdminPageHeader
         title="Community"
+        subtitle="Posts shared with the whole church family. A draft stays hidden until you publish it."
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/community/new"
+              startIcon={<AddOutlined />}
               data-testid="new-community-post-button"
             >
               New Post
@@ -109,13 +111,19 @@ export function CommunityPostsListPage() {
       ) : null}
 
       {!posts && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="community-loading" />
-        </Box>
+        <TableSkeleton testId="community-loading" label="Loading community posts" />
       ) : null}
 
       {posts && posts.length === 0 ? (
-        <AdminEmptyState message="No community posts yet." testId="community-empty" />
+        <AdminEmptyState
+          testId="community-empty"
+          title="No community posts yet"
+          message={
+            canManage
+              ? 'Share a word, a photo or a thought with the church family, and publish it when it is ready.'
+              : 'No community posts have been shared yet.'
+          }
+        />
       ) : null}
 
       {posts && posts.length > 0 ? (
@@ -132,13 +140,13 @@ export function CommunityPostsListPage() {
               <TableBody>
                 {posts.map((post) => (
                   <TableRow key={post.id} data-testid={`community-row-${post.id}`}>
-                    <TableCell>{post.title}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={post.published ? 'Published' : 'Draft'}
-                        color={post.published ? 'success' : 'default'}
-                        size="small"
-                      />
+                      <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                        {post.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <StatusChip status={post.published ? 'published' : 'draft'} />
                     </TableCell>
                     {canManage ? (
                       <TableCell align="right">
@@ -156,7 +164,7 @@ export function CommunityPostsListPage() {
                           aria-label="Edit"
                           data-testid={`edit-community-post-${post.id}`}
                         >
-                          <EditIcon fontSize="small" />
+                          <EditOutlined fontSize="small" />
                         </IconButton>
                         <IconButton
                           aria-label="Delete"
@@ -164,7 +172,7 @@ export function CommunityPostsListPage() {
                           disabled={busyId === post.id}
                           data-testid={`delete-community-post-${post.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -196,6 +204,6 @@ export function CommunityPostsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

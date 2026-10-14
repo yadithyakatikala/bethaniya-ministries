@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Paper,
   TextField,
 } from '@mui/material';
 import {
@@ -23,6 +22,8 @@ import {
 } from './validation';
 import { useAuthStore } from '../../store/authStore';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { FormCard, PageContainer } from '../../components/ui';
+import { ImageField } from '../../components/media';
 import type { ChurchSettings } from '../../types';
 
 /**
@@ -83,6 +84,7 @@ export function SettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToChurchSettings(
@@ -113,7 +115,7 @@ export function SettingsPage() {
       supportEmail,
     });
     setFieldErrors(errors);
-    if (hasValidationErrors(errors)) return;
+    if (hasValidationErrors(errors) || uploading) return;
     setConfirmOpen(true);
   }
 
@@ -135,13 +137,16 @@ export function SettingsPage() {
   const isLoading = settings === undefined && !loadError;
 
   return (
-    <Box sx={{ p: 4 }} data-testid="settings-page">
-      <AdminPageHeader title="Settings" />
+    <PageContainer width="narrow" testId="settings-page">
+      <AdminPageHeader
+        title="Settings"
+        subtitle="The church details shown to every member in the app."
+      />
 
       {!canEdit ? (
         <Alert
           severity="info"
-          sx={{ mb: 2, maxWidth: 640 }}
+          sx={{ mb: 2 }}
           data-testid="settings-readonly-notice"
         >
           You can view these settings, but only a Super Admin can edit and save them.
@@ -151,7 +156,7 @@ export function SettingsPage() {
       {loadError ? (
         <Alert
           severity="error"
-          sx={{ mb: 2, maxWidth: 640 }}
+          sx={{ mb: 2 }}
           data-testid="settings-load-error"
         >
           {loadError}
@@ -165,11 +170,7 @@ export function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadError ? (
-        <Paper
-          sx={{ p: 4, maxWidth: 640 }}
-          component="form"
-          onSubmit={(e) => void handleOpenConfirm(e)}
-        >
+        <FormCard onSubmit={(e) => void handleOpenConfirm(e)}>
           {submitError ? (
             <Alert severity="error" sx={{ mb: 2 }} data-testid="settings-form-error">
               {submitError}
@@ -192,16 +193,15 @@ export function SettingsPage() {
             helperText={fieldErrors.churchName}
             slotProps={{ htmlInput: { 'data-testid': 'church-name-input' } }}
           />
-          <TextField
-            label="Logo URL"
-            fullWidth
-            margin="normal"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
+          <ImageField
+            label="Church logo"
+            value={logoUrl.trim() ? logoUrl : null}
+            onChange={(url) => setLogoUrl(url ?? '')}
+            category="general"
+            testIdPrefix="logo"
+            error={fieldErrors.logoUrl}
             disabled={!canEdit}
-            error={Boolean(fieldErrors.logoUrl)}
-            helperText={fieldErrors.logoUrl}
-            slotProps={{ htmlInput: { 'data-testid': 'logo-url-input' } }}
+            onBusyChange={setUploading}
           />
           <TextField
             label="Description"
@@ -233,13 +233,13 @@ export function SettingsPage() {
               type="submit"
               variant="contained"
               sx={{ mt: 2 }}
-              disabled={submitting}
+              disabled={submitting || uploading}
               data-testid="settings-save-button"
             >
               Save
             </Button>
           ) : null}
-        </Paper>
+        </FormCard>
       ) : null}
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
@@ -267,6 +267,6 @@ export function SettingsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

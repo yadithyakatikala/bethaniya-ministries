@@ -1,4 +1,9 @@
-import type { PlanProgress, PublishedPlan } from '../../services/firebase/plans';
+import {
+  getBundledPlan,
+  type PlanLanguage,
+  type PlanProgress,
+  type PublishedPlan,
+} from '../../services/firebase/plans';
 import { scriptOf } from '../../theme/scriptFace';
 
 /**
@@ -52,6 +57,31 @@ export function currentDayOf(
   return Math.max(1, plan.dayCount > 0 ? Math.min(day, plan.dayCount) : day);
 }
 
+/**
+ * The library, plus any starter plan this member has already begun.
+ *
+ * The starter plans that ship with the app stand aside the moment the church
+ * publishes one of its own (see ../../services/firebase/plans.ts). That is
+ * right for someone choosing a plan, and wrong for someone half-way through
+ * "Seven Days in the Psalms": their saved place is still there, but the plan
+ * would vanish from their list. So a starter plan that is missing from the
+ * library and that the member has progress on stays -- under "My plans", or
+ * "Completed" -- and is never offered to anyone who has not started it.
+ */
+export function withStartedBundledPlans(
+  plans: readonly PublishedPlan[],
+  progress: Readonly<Record<string, PlanProgress>>
+): PublishedPlan[] {
+  const listed = new Set(plans.map((plan) => plan.id));
+  const kept: PublishedPlan[] = [];
+  for (const id of Object.keys(progress)) {
+    if (listed.has(id)) continue;
+    const bundled = getBundledPlan(id);
+    if (bundled) kept.push(bundled);
+  }
+  return kept.length === 0 ? [...plans] : [...plans, ...kept];
+}
+
 export function groupPlans(
   plans: readonly PublishedPlan[],
   progress: Readonly<Record<string, PlanProgress>>
@@ -90,4 +120,21 @@ export function planIsEnglishInTeluguApp(
   appLanguage: 'en' | 'te'
 ): boolean {
   return appLanguage === 'te' && !['telugu', 'mixed'].includes(scriptOf(title));
+}
+
+/**
+ * The language to name beside a plan -- "English" in a Telugu app, "Telugu" in an
+ * English one -- or null when the plan is in the language the member reads the app
+ * in (nothing to say).
+ *
+ * The church says which language a plan is written in when it creates it. A plan
+ * from before that (or one that ships with the app) does not, and for those the old
+ * reading stands: an English title in a Telugu app is English.
+ */
+export function planOtherLanguage(
+  plan: Pick<PublishedPlan, 'title' | 'language'>,
+  appLanguage: PlanLanguage
+): PlanLanguage | null {
+  if (plan.language) return plan.language === appLanguage ? null : plan.language;
+  return planIsEnglishInTeluguApp(plan.title, appLanguage) ? 'en' : null;
 }

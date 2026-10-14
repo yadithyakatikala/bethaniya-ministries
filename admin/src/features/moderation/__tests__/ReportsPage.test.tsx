@@ -96,6 +96,39 @@ describe('the queue', () => {
   });
 });
 
+describe('how a row reads', () => {
+  it.each([
+    ['open', 'Open'],
+    ['resolved', 'Resolved'],
+    ['dismissed', 'Dismissed'],
+  ] as const)('names a %s report in words, not only a colour', async (status, word) => {
+    withReports([report({ id: 'r9', status })]);
+    render(<ReportsPage />);
+    await userEvent.click(screen.getByTestId('reports-filter-all'));
+    expect(screen.getByTestId('report-status-r9')).toHaveTextContent(word);
+    expect(screen.getByTestId('report-status-r9')).toHaveAttribute('data-status', status);
+  });
+
+  it('says "Something else" for a reason this version of the page does not know', () => {
+    // An older app, or a hand-made document, can carry any string here.
+    withReports([report({ reason: 'inappropriate' as never })]);
+    render(<ReportsPage />);
+    expect(screen.getByTestId('report-row-r1')).toHaveTextContent('Something else');
+  });
+
+  it('writes the date the way every other admin page does', () => {
+    withReports([report({ createdAt: new Date(2026, 2, 1, 9, 5) })]);
+    render(<ReportsPage />);
+    expect(screen.getByTestId('report-row-r1')).toHaveTextContent('1 Mar 2026, 09:05');
+  });
+
+  it('shows a dash, not "null", for a report with no date', () => {
+    withReports([report({ createdAt: null })]);
+    render(<ReportsPage />);
+    expect(screen.getByTestId('report-row-r1')).toHaveTextContent('—');
+  });
+});
+
 describe('reviewing one', () => {
   it('shows the words that were reported', async () => {
     withReports([report()]);

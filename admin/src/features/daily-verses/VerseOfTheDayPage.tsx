@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, CircularProgress, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Stack, Tab, Tabs } from '@mui/material';
 import { useAuthStore } from '../../store/authStore';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { PageContainer } from '../../components/ui';
 import {
+  subscribeToActiveVersePool,
   subscribeToVersePool,
   subscribeToVotdConfig,
   type VersePoolEntryDocument,
@@ -92,7 +94,12 @@ export function VerseOfTheDayPage() {
       },
       () => setError('Could not load the Verse of the Day settings.')
     );
-    const unsubscribePool = subscribeToVersePool(
+    // Only a content admin may read the whole pool, deactivated entries
+    // included; everyone else is shown the active ones -- the same ones the
+    // phones use -- so the page works for a host instead of failing on a read
+    // the rules refuse.
+    const openPool = canManage ? subscribeToVersePool : subscribeToActiveVersePool;
+    const unsubscribePool = openPool(
       (next) => setPool(next),
       () => setError('Could not load your church’s verses.')
     );
@@ -110,7 +117,7 @@ export function VerseOfTheDayPage() {
       unsubscribePool();
       unsubscribeOverrides();
     };
-  }, []);
+  }, [canManage]);
 
   const overrideByDate = useMemo(
     () => indexOverridesByDate(overrides ?? []),
@@ -118,12 +125,11 @@ export function VerseOfTheDayPage() {
   );
 
   return (
-    <Box sx={{ p: 4 }} data-testid="verse-of-the-day-page">
-      <AdminPageHeader title="Verse of the Day" />
-      <Typography color="text.secondary" sx={{ fontSize: 14, mt: -2, mb: 3 }}>
-        The verse every member sees on the home screen. The app chooses one for every day
-        on its own &mdash; you only step in when you want a particular day to be different.
-      </Typography>
+    <PageContainer testId="verse-of-the-day-page">
+      <AdminPageHeader
+        title="Verse of the Day"
+        subtitle="The verse every member sees on the home screen. The app chooses one for every day on its own — you only step in when you want a particular day to be different."
+      />
 
       {error ? (
         <Alert severity="error" sx={{ mb: 3 }} data-testid="votd-error">
@@ -151,7 +157,12 @@ export function VerseOfTheDayPage() {
       ) : (
         <>
           {tab === 'today' ? (
-            <TodayPanel config={config} pool={pool} overrideByDate={overrideByDate} />
+            <TodayPanel
+              config={config}
+              pool={pool}
+              overrideByDate={overrideByDate}
+              canManage={canManage}
+            />
           ) : null}
 
           {tab === 'schedule' ? (
@@ -170,6 +181,6 @@ export function VerseOfTheDayPage() {
           ) : null}
         </>
       )}
-    </Box>
+    </PageContainer>
   );
 }
