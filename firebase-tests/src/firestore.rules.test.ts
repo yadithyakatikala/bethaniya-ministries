@@ -1819,6 +1819,49 @@ describe('firestore.rules', () => {
         await assertFails(dbFor('member-1').doc('plans/later').get());
         await assertFails(dbFor('member-1').doc('plans/later/days/d1').get());
       });
+
+      it('opens a scheduled plan, and its days, when the server clock reaches its time -- not before', async () => {
+        await seedUsers();
+        const opensAt = new Date(Date.now() + 5000);
+        await seedPlan('soon', plan({ status: 'scheduled', publishAt: opensAt }));
+        const startedEarly = Date.now() < opensAt.getTime() - 1500;
+
+        // EVERY attempt is on a connection of its own, on purpose. The emulator
+        // fixes `request.time` when a connection is opened, so a client that was
+        // already connected when the moment passed keeps being judged by the time
+        // it connected, and would stay refused. (A phone that is open across the
+        // moment is the case that matters in production; see READING_PLANS.md.)
+        async function attempt() {
+          const startedAt = Date.now();
+          const member = dbFor('member-1');
+          try {
+            await member.doc('plans/soon').get();
+            await member.doc('plans/soon/days/d1').get();
+            return { opened: true, startedAt };
+          } catch {
+            return { opened: false, startedAt };
+          }
+        }
+
+        const giveUpAt = Date.now() + 25_000;
+        let refusals = 0;
+        let firstOpen: number | null = null;
+        while (firstOpen === null) {
+          if (Date.now() > giveUpAt) throw new Error('The scheduled plan never opened.');
+          const result = await attempt();
+          if (result.opened) firstOpen = result.startedAt;
+          else {
+            refusals += 1;
+            await new Promise((resolve) => setTimeout(resolve, 400));
+          }
+        }
+
+        // Not early: the first read that worked began no sooner than the plan was
+        // due, give or take a second for the round trip.
+        expect(firstOpen).toBeGreaterThanOrEqual(opensAt.getTime() - 1000);
+        // And it really was refused until then.
+        if (startedEarly) expect(refusals).toBeGreaterThan(0);
+      });
     });
 
     describe('the queries the phone runs', () => {
@@ -1986,6 +2029,65 @@ describe('firestore.rules', () => {
         ])('refuses %s', async (_name, fields) => {
           await assertFails(dbFor('admin-1').doc('plans/x').set(plan(fields)));
         });
+
+        // An edit that touches only ONE of the two fields. The rules judge the
+        // plan as it WOULD BE afterwards, so this cannot leave them disagreeing
+        // -- which is what the editor's quick actions rely on.
+        describe('when only one of them is changed on a plan that exists', () => {
+          it.each([
+            ['a draft cannot go live by `published` alone', DRAFT, { published: true }],
+            ['a draft cannot go live by `status` alone', DRAFT, { status: 'published' }],
+            [
+              'a published plan cannot be archived by `status` alone',
+              PUBLISHED,
+              { status: 'archived' },
+            ],
+            [
+              'a published plan cannot be hidden by `published` alone',
+              PUBLISHED,
+              { published: false },
+            ],
+            [
+              'a scheduled plan cannot go live by `published` alone',
+              SCHEDULED_LATER(),
+              { published: true },
+            ],
+            [
+              'a scheduled plan cannot lose the time it was scheduled for',
+              SCHEDULED_LATER(),
+              { publishAt: null },
+            ],
+          ])('refuses it: %s', async (_name, stored, change) => {
+            await seed(async (db) => db.doc('plans/p').set(stored));
+            await assertFails(dbFor('admin-1').doc('plans/p').update(change));
+          });
+
+          it('accepts the same changes made together, which is how the editor makes them', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/d').set(DRAFT);
+              await db.doc('plans/p').set(PUBLISHED);
+            });
+            const db = dbFor('admin-1');
+            await assertSucceeds(
+              db.doc('plans/d').update({ published: true, status: 'published' })
+            );
+            await assertSucceeds(
+              db.doc('plans/p').update({ published: false, status: 'archived' })
+            );
+          });
+
+          it('refuses to empty a live plan in place', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/p').set(PUBLISHED);
+              await db.doc('plans/s').set(SCHEDULED_LATER());
+            });
+            const db = dbFor('admin-1');
+            await assertFails(db.doc('plans/p').update({ dayCount: 0 }));
+            await assertFails(db.doc('plans/p').update({ description: '' }));
+            await assertFails(db.doc('plans/s').update({ dayCount: 0 }));
+            await assertFails(db.doc('plans/s').update({ description: '' }));
+          });
+        });
       });
 
       describe('scheduling', () => {
@@ -2057,6 +2159,45 @@ describe('firestore.rules', () => {
               .doc('plans/x')
               .update({ published: true, status: 'published' })
           );
+        });
+
+        // COMPATIBILITY, and a deliberate tightening: before the manager, a plan
+        // could be published with no days at all (its dayCount was 0). It still
+        // READS fine -- members see what they always did -- but it is held to the
+        // new rule the next time anyone edits it. The way out is to add a day, or
+        // to unpublish or archive it, and both stay open. The editor recomputes
+        // dayCount from the real days on every save, so adding a day is enough.
+        describe('an old published plan that has no days', () => {
+          const OLD_EMPTY = {
+            title: 'Old plan',
+            description: 'From before.',
+            category: 'Topical',
+            dayCount: 0,
+            order: 3,
+            published: true,
+          };
+
+          it('is still readable by a member', async () => {
+            await seed(async (db) => db.doc('plans/old').set(OLD_EMPTY));
+            await assertSucceeds(dbFor('member-1').doc('plans/old').get());
+          });
+
+          it('cannot be edited in place while it is published, but can be taken back or fixed', async () => {
+            await seed(async (db) => {
+              await db.doc('plans/a').set(OLD_EMPTY);
+              await db.doc('plans/b').set(OLD_EMPTY);
+              await db.doc('plans/c').set(OLD_EMPTY);
+            });
+            const db = dbFor('admin-1');
+            await assertFails(db.doc('plans/a').update({ order: 9 }));
+            await assertSucceeds(
+              db.doc('plans/a').update({ published: false, status: 'draft' })
+            );
+            await assertSucceeds(
+              db.doc('plans/b').update({ published: false, status: 'archived' })
+            );
+            await assertSucceeds(db.doc('plans/c').update({ dayCount: 1, order: 9 }));
+          });
         });
 
         it('keeps the description limit', async () => {
