@@ -179,6 +179,46 @@ export function titleFromFilename(name: string | null): string {
   return base.length > 0 ? base.slice(0, 200) : 'Untitled';
 }
 
+/**
+ * What a record may hold, exactly as firestore.rules' isValidMediaAsset()
+ * says. Keep the two in step: a value past one of these is refused by the
+ * rules, and the whole record with it.
+ */
+export const RECORD_LIMITS = {
+  publicIdLength: 300,
+  formatLength: 20,
+  filenameLength: 300,
+  maxBytes: 104_857_600,
+  maxPixels: 30_000,
+  maxSeconds: 86_400,
+} as const;
+
+/**
+ * The numbers and names of an upload come straight from Cloudinary's reply --
+ * the one input to a record that is not ours. A value outside the limits
+ * above would have the WHOLE record refused after the file was already stored
+ * (and the administrator told the library "could not be updated" for a file
+ * that was fine), so a value that cannot be recorded is left out instead. The
+ * file, its address and everything else are recorded as usual.
+ */
+function textWithin(value: string | null, max: number): string | null {
+  return value !== null && value.length <= max ? value : null;
+}
+function wholeNumberWithin(
+  value: number | null,
+  min: number,
+  max: number
+): number | null {
+  return value !== null && Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : null;
+}
+function numberWithin(value: number | null, min: number, max: number): number | null {
+  return value !== null && Number.isFinite(value) && value >= min && value <= max
+    ? value
+    : null;
+}
+
 export function assetFromUpload(
   uploaded: UploadedAsset,
   details: MediaAssetDetails
@@ -187,19 +227,21 @@ export function assetFromUpload(
     kind: uploaded.kind,
     source: 'cloudinary',
     category: details.category,
+    // Titled from the file name as it came, however long it was.
     title: details.title.trim() || titleFromFilename(uploaded.originalFilename),
     altText: uploaded.kind === 'image' ? details.altText.trim() : '',
     url: uploaded.url,
     // Thumbnails of Cloudinary images are derived when shown (see
     // ../media/delivery.ts); nothing is stored that could go stale.
     thumbnailUrl: null,
-    publicId: uploaded.publicId,
-    format: uploaded.format,
-    bytes: uploaded.bytes,
-    width: uploaded.width,
-    height: uploaded.height,
-    durationSeconds: uploaded.durationSeconds,
-    originalFilename: uploaded.originalFilename,
+    publicId: textWithin(uploaded.publicId, RECORD_LIMITS.publicIdLength),
+    format: textWithin(uploaded.format, RECORD_LIMITS.formatLength),
+    bytes: wholeNumberWithin(uploaded.bytes, 0, RECORD_LIMITS.maxBytes),
+    // Audio is a "video" to Cloudinary and may come back described as 0 x 0.
+    width: wholeNumberWithin(uploaded.width, 1, RECORD_LIMITS.maxPixels),
+    height: wholeNumberWithin(uploaded.height, 1, RECORD_LIMITS.maxPixels),
+    durationSeconds: numberWithin(uploaded.durationSeconds, 0, RECORD_LIMITS.maxSeconds),
+    originalFilename: textWithin(uploaded.originalFilename, RECORD_LIMITS.filenameLength),
     youtubeId: null,
   };
 }

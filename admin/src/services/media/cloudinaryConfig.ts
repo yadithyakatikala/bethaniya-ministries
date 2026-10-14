@@ -55,12 +55,22 @@ const CLOUD_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/;
 const PRESET_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 /**
- * A variable NAME that suggests a Cloudinary credential. Matched on the
- * name only. `API_KEY` is included: unsigned uploading never needs one, and
- * a key alongside a leaked secret completes the pair.
+ * A variable NAME that suggests a credential. Matched on the name only.
+ *
+ *   * A `VITE_` name with `secret` in it. Everything Vite publishes starts
+ *     with `VITE_`, so a published variable called a secret is a mistake
+ *     whoever's it is -- and someone who shortens "Cloudinary" to "CLD" must
+ *     not slip past. (Only `VITE_` names: where this reads the whole process
+ *     environment, in a test run, a machine's unrelated `SOME_SECRET` is not
+ *     going anywhere near the browser.)
+ *   * A Cloudinary name, with any prefix, with a key, private part, token,
+ *     signature or password in it. A key is included even though it is not
+ *     secret on its own: unsigned uploading never needs one, and a key
+ *     alongside a leaked secret completes the pair.
+ *   * `CLOUDINARY_URL`, the connection string that CONTAINS the key and secret.
  */
 const SECRET_NAME_PATTERN =
-  /cloudinary.*(secret|api[_-]?key|private|token)|cloudinary[_-]?url/i;
+  /^VITE_.*secret|cloudinary.*(key|private|token|signature|password)|cloudinary[_-]?url/i;
 
 function clean(value: string | undefined): string {
   return (value ?? '').trim();
@@ -83,11 +93,17 @@ export function readCloudinaryConfig(
   // 1. A secret in the browser bundle is the worst possible configuration.
   const secretNames = Object.keys(env).filter((name) => SECRET_NAME_PATTERN.test(name));
   for (const name of secretNames) {
+    // Only a Cloudinary-named variable is known to hold Cloudinary's secret; for
+    // any other, "make a new one in the Cloudinary console" could be wrong advice.
+    const cloudinary = /cloudinary/i.test(name);
     problems.push(
-      `${name} looks like a Cloudinary secret or key. Anything starting with VITE_ is ` +
-        'published to every visitor. Remove it from your .env files and, because it has ' +
-        'been exposed, create a new API secret in the Cloudinary console. Unsigned ' +
-        'uploading needs only the cloud name and an unsigned preset name.'
+      `${name} looks like a ${cloudinary ? 'Cloudinary secret or key' : 'secret'}. ` +
+        'Anything starting with VITE_ is published to every visitor. Remove it from ' +
+        'your .env files and, because it has been exposed, ' +
+        (cloudinary
+          ? 'create a new API secret in the Cloudinary console. '
+          : 'replace the secret at its source. ') +
+        'Unsigned uploading needs only the cloud name and an unsigned preset name.'
     );
   }
 

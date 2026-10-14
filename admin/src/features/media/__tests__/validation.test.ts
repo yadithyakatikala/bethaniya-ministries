@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MEDIA_CAPTION_MAX_LENGTH,
   MEDIA_URL_MAX_LENGTH,
+  MEDIA_URL_MESSAGES,
   hasMediaValidationErrors,
   mediaUrlProblem,
   validateMediaInput,
@@ -101,6 +102,64 @@ describe('links the admin refuses, and why', () => {
     expect(
       mediaUrlProblem(`https://example.org/${'x'.repeat(MEDIA_URL_MAX_LENGTH)}`)
     ).toBe('tooLong');
+  });
+});
+
+/**
+ * ADMIN SIDE ONLY. These are not among the cases the phone's validator shares
+ * (see the note at the top): they exist because firestore.rules is STRICTER
+ * than the URL parser. A media post and a library record must match
+ * `^https://[^\s]+$` -- a lower-case scheme and no whitespace at all -- while
+ * `new URL()` lower-cases `HTTPS://` for you and quietly encodes a space. A
+ * link like these used to pass the form and then fail on Save, with a message
+ * that said nothing about the link. A stored document can never contain one,
+ * so the phone has nothing to catch.
+ */
+describe('links the Firestore rules would refuse', () => {
+  it('asks for a lower-case https:// at the start', () => {
+    expect(mediaUrlProblem('HTTPS://example.org/a.jpg')).toBe('notHttps');
+    expect(mediaUrlProblem('Https://example.org/a.jpg')).toBe('notHttps');
+  });
+
+  it('asks for the two slashes', () => {
+    // The URL parser repairs this one into a valid address; the rule does not.
+    expect(mediaUrlProblem('https:/example.org/a.jpg')).toBe('notHttps');
+  });
+
+  it('refuses a space, a tab or a line break inside the link', () => {
+    expect(mediaUrlProblem('https://example.org/my photo.jpg')).toBe('hasSpaces');
+    expect(mediaUrlProblem('https://example.org/my\tphoto.jpg')).toBe('hasSpaces');
+    expect(mediaUrlProblem('https://example.org/my\nphoto.jpg')).toBe('hasSpaces');
+  });
+
+  it('still accepts a space that has been encoded', () => {
+    expect(mediaUrlProblem('https://example.org/my%20photo.jpg')).toBeNull();
+  });
+
+  it('still ignores whitespace around the link, which is not part of it', () => {
+    expect(mediaUrlProblem('\n  https://example.org/photo.jpg \t')).toBeNull();
+  });
+
+  it('reports the more serious problem first', () => {
+    expect(mediaUrlProblem('javascript:alert(1)')).toBe('notHttps');
+    expect(mediaUrlProblem('https://user:pw@example.org/my photo.jpg')).toBe(
+      'hasCredentials'
+    );
+    expect(mediaUrlProblem('https://example.org/my app.apk')).toBe('executable');
+  });
+
+  it('says what to do about a space', () => {
+    expect(MEDIA_URL_MESSAGES.hasSpaces).toMatch(/spaces/i);
+    expect(MEDIA_URL_MESSAGES.hasSpaces).toMatch(/%20/);
+  });
+
+  it('is what a media post reports on Save', () => {
+    expect(
+      validateMediaInput(input({ mediaUrl: 'HTTPS://example.org/a.jpg' })).mediaUrl
+    ).toBe(MEDIA_URL_MESSAGES.notHttps);
+    expect(
+      validateMediaInput(input({ mediaUrl: 'https://example.org/my photo.jpg' })).mediaUrl
+    ).toBe(MEDIA_URL_MESSAGES.hasSpaces);
   });
 });
 

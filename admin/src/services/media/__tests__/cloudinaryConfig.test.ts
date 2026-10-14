@@ -122,6 +122,13 @@ describe('refusing wrong or dangerous values', () => {
     'VITE_CLOUDINARY_URL',
     'VITE_CLOUDINARY_PRIVATE_KEY',
     'VITE_CLOUDINARY_TOKEN',
+    // The console labels these "API Key" and "API Secret", and people shorten
+    // them; a bare KEY, a signature and a password are as exposed as the rest.
+    'VITE_CLOUDINARY_SECRET',
+    'VITE_CLOUDINARY_KEY',
+    'VITE_CLOUDINARY_PUBLIC_KEY',
+    'VITE_CLOUDINARY_SIGNATURE',
+    'VITE_CLOUDINARY_PASSWORD',
   ])('switches uploading OFF when %s exists in the browser build', (name) => {
     const config = readCloudinaryConfig({ ...READY, [name]: 'sEcReT-123-do-not-print' });
     expect(config.status).toBe('invalid');
@@ -137,12 +144,59 @@ describe('refusing wrong or dangerous values', () => {
     expect(isUploadAvailable(config, 'audio')).toBe(false);
   });
 
+  // Every VITE_ variable is published to every visitor, so one NAMED like a
+  // secret is a mistake whoever's secret it is -- and a person who shortens
+  // "Cloudinary" to "CLD" must not slip past the check.
+  it.each([
+    'VITE_API_SECRET',
+    'VITE_CLD_SECRET',
+    'VITE_CLD_API_SECRET',
+    'VITE_CLOUD_API_SECRET',
+    'VITE_SECRET',
+  ])(
+    'also switches uploading OFF when %s exists, whatever it is called after',
+    (name) => {
+      const config = readCloudinaryConfig({
+        ...READY,
+        [name]: 'sEcReT-123-do-not-print',
+      });
+      expect(config.status).toBe('invalid');
+      if (config.status !== 'invalid') throw new Error('unreachable');
+      expect(config.problems.join(' ')).toContain(name);
+      expect(config.problems.join(' ')).toMatch(/replace the secret/);
+      // It does not send someone to the Cloudinary console about a secret that
+      // may not be Cloudinary's.
+      expect(config.problems.join(' ')).not.toMatch(/Cloudinary console/);
+      expect(JSON.stringify(config)).not.toContain('sEcReT-123-do-not-print');
+      expect(isUploadAvailable(config, 'image')).toBe(false);
+    }
+  );
+
+  it('leaves alone a secret-named variable the browser build can never contain', () => {
+    // Vite publishes only VITE_ variables. Where the whole process environment
+    // is passed in -- a test run on a machine that has its own SOME_SECRET --
+    // a name like this is not a leak and must not switch uploading off.
+    const config = readCloudinaryConfig({
+      ...READY,
+      CI_DEPLOY_SECRET: 'never-published',
+      GITHUB_TOKEN_SECRET: 'never-published',
+    });
+    expect(config.status).toBe('ready');
+  });
+
   it('does not mistake the legitimate variables, or unrelated ones, for secrets', () => {
     const config = readCloudinaryConfig({
       ...READY,
       BASE_URL: '/',
       MODE: 'production',
+      DEV: false,
+      PROD: true,
+      SSR: false,
       VITE_FIREBASE_API_KEY: 'public-web-key',
+      VITE_FIREBASE_APP_ID: '1:0:web:0',
+      VITE_FIREBASE_MESSAGING_SENDER_ID: '0',
+      VITE_FIREBASE_AUTH_DOMAIN: 'x.firebaseapp.com',
+      VITE_USE_FIREBASE_EMULATORS: 'false',
       VITE_APP_ENV: 'production',
     });
     expect(config.status).toBe('ready');

@@ -242,6 +242,94 @@ describe('building a record', () => {
   });
 });
 
+/**
+ * firestore.rules' isValidMediaAsset() fixes what a record may hold. The
+ * numbers and names in an upload record come straight from Cloudinary's reply,
+ * the one input here that is not ours, and a value outside those limits would
+ * have the WHOLE record refused after the file was already stored -- the
+ * administrator would be told the library "could not be updated" for a file
+ * that was fine. So a value that cannot be recorded is left out (null); the
+ * file, its address and everything else are recorded as usual.
+ */
+describe('a record the rules will accept, whatever the upload reply said', () => {
+  const record = (overrides: Partial<UploadedAsset>) =>
+    assetFromUpload({ ...UPLOADED_IMAGE, ...overrides }, DETAILS);
+
+  it('keeps every value that is within the limits, right up to the edge', () => {
+    const edge = record({
+      publicId: 'p'.repeat(300),
+      format: 'f'.repeat(20),
+      bytes: 104_857_600,
+      width: 30_000,
+      height: 30_000,
+      durationSeconds: 86_400,
+      originalFilename: 'n'.repeat(300),
+    });
+    expect(edge).toMatchObject({
+      publicId: 'p'.repeat(300),
+      format: 'f'.repeat(20),
+      bytes: 104_857_600,
+      width: 30_000,
+      height: 30_000,
+      durationSeconds: 86_400,
+      originalFilename: 'n'.repeat(300),
+    });
+    expect(record({ bytes: 0, durationSeconds: 0 })).toMatchObject({
+      bytes: 0,
+      durationSeconds: 0,
+    });
+    expect(record({ durationSeconds: 187.4 }).durationSeconds).toBe(187.4);
+  });
+
+  it('leaves out a size that is not a whole number of bytes in range', () => {
+    for (const bytes of [-1, 1.5, 104_857_601, Number.MAX_SAFE_INTEGER]) {
+      expect(record({ bytes }).bytes).toBeNull();
+    }
+  });
+
+  it('leaves out dimensions that are not whole pixels from 1 to 30,000', () => {
+    // Audio is a "video" to Cloudinary and may be described as 0 x 0 pixels.
+    for (const side of [0, -5, 1.5, 30_001]) {
+      const made = record({ width: side, height: side });
+      expect(made.width).toBeNull();
+      expect(made.height).toBeNull();
+    }
+  });
+
+  it('leaves out a duration outside zero to a day', () => {
+    for (const durationSeconds of [-1, 86_401]) {
+      expect(record({ durationSeconds }).durationSeconds).toBeNull();
+    }
+  });
+
+  it('leaves out text longer than the record can hold, but not the file', () => {
+    const made = record({
+      publicId: 'p'.repeat(301),
+      format: 'f'.repeat(21),
+      originalFilename: 'n'.repeat(301),
+    });
+    expect(made).toMatchObject({
+      publicId: null,
+      format: null,
+      originalFilename: null,
+      url: UPLOADED_IMAGE.url,
+      kind: 'image',
+      width: 1600,
+    });
+  });
+
+  it('still titles an upload from a file name that is too long to record', () => {
+    const made = record({ originalFilename: 'n'.repeat(301) });
+    expect(made.originalFilename).toBeNull();
+    expect(made.title).toBe('Easter poster');
+    const untitled = assetFromUpload(
+      { ...UPLOADED_IMAGE, originalFilename: 'n'.repeat(301) },
+      { ...DETAILS, title: '' }
+    );
+    expect(untitled.title).toBe('n'.repeat(200));
+  });
+});
+
 describe('writing', () => {
   it('creates a record stamped with its author and the server clock, and logs it', async () => {
     vi.mocked(addDoc).mockResolvedValue({ id: 'new-id' } as never);
