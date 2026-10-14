@@ -31,6 +31,9 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(() => vi.fn()),
   orderBy: vi.fn(),
   query: vi.fn(),
+  // A host's dashboard reads the verse pool the way a phone does (active
+  // entries only), which is a filtered query.
+  where: vi.fn(),
   serverTimestamp: vi.fn(),
   Timestamp: class MockTimestamp {},
 }));
