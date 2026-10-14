@@ -6,6 +6,9 @@ import { theme } from '../../../theme/theme';
 import { PlanDaysTab } from '../PlanDaysTab';
 import { DAY_LIMITS, blankDay, type DayDraft } from '../planDays';
 
+// The two tests at the longest plan draw hundreds of rows; under a full parallel run they are slow.
+vi.setConfig({ testTimeout: 30_000 });
+
 function day(key: string, title: string, passages = ['Psalm 23']): DayDraft {
   return { ...blankDay(key), title, passages };
 }

@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProviders } from './components/AppProviders';
 import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
-import { DashboardPage } from './features/auth/DashboardPage';
+import { DashboardPage } from './features/dashboard/DashboardPage';
 import { AnnouncementsListPage } from './features/announcements/AnnouncementsListPage';
 import { AnnouncementForm } from './features/announcements/AnnouncementForm';
 import { EditAnnouncementPage } from './features/announcements/EditAnnouncementPage';

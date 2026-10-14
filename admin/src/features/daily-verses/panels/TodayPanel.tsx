@@ -4,6 +4,7 @@ import { Alert, Box, Button, Chip, Paper, Stack, TextField, Typography } from '@
 import { VOTD_TIMEZONE } from '../../../services/firebase/votd';
 import { indiaDateKey, isDateKey } from '../votdDate';
 import {
+  VOTD_SOURCE_LABELS,
   resolveVotdDay,
   votdCycle,
   type VotdDay,
@@ -26,11 +27,7 @@ import type { DailyVerse } from '../../../types';
  * An administrator travelling abroad must not be shown a different verse
  * from the one their church is reading.
  */
-const SOURCE_LABEL: Record<VotdDaySource, string> = {
-  override: 'Set by hand',
-  pool: 'From your church’s verses',
-  year: 'From the app’s built-in year',
-};
+const SOURCE_LABEL = VOTD_SOURCE_LABELS;
 
 function SourceChip({ source }: { source: VotdDaySource }) {
   return (

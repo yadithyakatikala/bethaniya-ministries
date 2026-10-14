@@ -127,6 +127,7 @@ describe('the admin palette meets WCAG AA', () => {
     ['success chip', 'success', 'successTint'],
     ['warning chip', 'warning', 'warningTint'],
     ['error chip', 'danger', 'dangerTint'],
+    ['white on the live banner', 'onPrimary', 'danger'],
     ['info chip', 'info', 'infoTint'],
     ['archived chip', 'archived', 'archivedTint'],
     ['success text on surface', 'success', 'surface'],
