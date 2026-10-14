@@ -144,10 +144,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       },
                     }}
                   >
-                    <ListItemIcon
-                      sx={{ minWidth: 34, color: 'inherit' }}
-                      aria-hidden
-                    >
+                    <ListItemIcon sx={{ minWidth: 34, color: 'inherit' }} aria-hidden>
                       <item.Icon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText

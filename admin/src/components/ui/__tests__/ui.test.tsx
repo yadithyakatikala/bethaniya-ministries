@@ -66,7 +66,9 @@ describe('StatusChip', () => {
   });
 
   it('accepts a longer label without losing the status', () => {
-    renderThemed(<StatusChip status="scheduled" label="Scheduled · Sun 9:00" testId="c" />);
+    renderThemed(
+      <StatusChip status="scheduled" label="Scheduled · Sun 9:00" testId="c" />
+    );
     expect(screen.getByTestId('c')).toHaveTextContent('Scheduled · Sun 9:00');
     expect(screen.getByTestId('c')).toHaveAttribute('data-status', 'scheduled');
   });
@@ -180,9 +182,7 @@ describe('Toast', () => {
     await user.click(screen.getByText('go Second'));
     expect(await screen.findByTestId('toast')).toHaveTextContent('First');
     await user.click(screen.getByRole('button', { name: /close/i }));
-    await waitFor(() =>
-      expect(screen.getByTestId('toast')).toHaveTextContent('Second')
-    );
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Second'));
   });
 
   it('does not throw when used outside a provider', async () => {

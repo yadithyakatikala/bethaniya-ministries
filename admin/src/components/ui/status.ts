@@ -7,8 +7,7 @@
  *   archived   retired: hidden, but kept
  *   live       happening right now (an event's live stream)
  */
-export type PublicationStatus =
-  'draft' | 'scheduled' | 'published' | 'archived' | 'live';
+export type PublicationStatus = 'draft' | 'scheduled' | 'published' | 'archived' | 'live';
 
 export const STATUS_LABELS: Record<PublicationStatus, string> = {
   draft: 'Draft',

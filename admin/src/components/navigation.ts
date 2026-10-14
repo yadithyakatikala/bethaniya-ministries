@@ -65,8 +65,18 @@ export const NAV_GROUPS: NavGroup[] = [
         testId: 'sidebar-announcements-link',
         Icon: CampaignOutlined,
       },
-      { label: 'Songs', path: '/songs', testId: 'sidebar-songs-link', Icon: MusicNoteOutlined },
-      { label: 'Events', path: '/events', testId: 'sidebar-events-link', Icon: EventOutlined },
+      {
+        label: 'Songs',
+        path: '/songs',
+        testId: 'sidebar-songs-link',
+        Icon: MusicNoteOutlined,
+      },
+      {
+        label: 'Events',
+        path: '/events',
+        testId: 'sidebar-events-link',
+        Icon: EventOutlined,
+      },
       {
         label: 'Community',
         path: '/community',
@@ -127,8 +137,18 @@ export const NAV_GROUPS: NavGroup[] = [
       // M7. Moderation sits next to Users: it is day-to-day work on the
       // congregation's own content, and it is the people whose content it
       // is that an administrator reaches for next.
-      { label: 'Reports', path: '/reports', testId: 'sidebar-reports-link', Icon: FlagOutlined },
-      { label: 'Users', path: '/users', testId: 'sidebar-users-link', Icon: PeopleOutlined },
+      {
+        label: 'Reports',
+        path: '/reports',
+        testId: 'sidebar-reports-link',
+        Icon: FlagOutlined,
+      },
+      {
+        label: 'Users',
+        path: '/users',
+        testId: 'sidebar-users-link',
+        Icon: PeopleOutlined,
+      },
     ],
   },
   {

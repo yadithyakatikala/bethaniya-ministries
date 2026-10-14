@@ -48,7 +48,11 @@ export function FormSection({
         {title}
       </Typography>
       {description ? (
-        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5, maxWidth: 560 }}>
+        <Typography
+          color="text.secondary"
+          variant="body2"
+          sx={{ mt: 0.5, maxWidth: 560 }}
+        >
           {description}
         </Typography>
       ) : null}

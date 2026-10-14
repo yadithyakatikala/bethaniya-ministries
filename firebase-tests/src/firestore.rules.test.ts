@@ -2736,6 +2736,278 @@ describe('firestore.rules', () => {
   // request cannot carry an author, rather than that the app chooses not
   // to render one.
   // ==================================================================
+  describe('media_assets (the administrators\' media library)', () => {
+    const now = new Date();
+    /** A complete, valid library record. */
+    const asset = (overrides: Record<string, unknown> = {}) => ({
+      kind: 'image',
+      source: 'cloudinary',
+      category: 'poster',
+      title: 'Easter poster',
+      altText: 'A cross at sunrise',
+      url: 'https://res.cloudinary.com/my-church/image/upload/v1/maranatha/easter.jpg',
+      thumbnailUrl: null,
+      publicId: 'maranatha/easter',
+      format: 'jpg',
+      bytes: 123456,
+      width: 1600,
+      height: 900,
+      durationSeconds: null,
+      originalFilename: 'easter',
+      youtubeId: null,
+      createdBy: 'admin-1',
+      createdByName: 'Admin One',
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    });
+
+    async function seedRoles() {
+      await seed(async (db) => {
+        await db.doc('users/admin-1').set({ role: 'content_admin' });
+        await db.doc('users/super-1').set({ role: 'super_admin' });
+        await db.doc('users/host-1').set({ role: 'host' });
+        await db.doc('users/member-1').set({ role: 'member' });
+      });
+    }
+
+    describe('who may read it', () => {
+      beforeEach(async () => {
+        await seedRoles();
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+      });
+
+      it('lets a host read it', async () => {
+        await assertSucceeds(dbFor('host-1').doc('media_assets/a1').get());
+      });
+      it('lets a content admin and a super admin read it', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').get());
+        await assertSucceeds(dbFor('super-1').doc('media_assets/a1').get());
+      });
+      it('refuses an ordinary member', async () => {
+        await assertFails(dbFor('member-1').doc('media_assets/a1').get());
+      });
+      it('refuses someone who is not signed in', async () => {
+        await assertFails(dbFor(null).doc('media_assets/a1').get());
+      });
+      it('refuses a member listing the collection', async () => {
+        await assertFails(dbFor('member-1').collection('media_assets').get());
+      });
+    });
+
+    describe('who may write it', () => {
+      beforeEach(seedRoles);
+
+      it('lets a content admin add a Cloudinary image', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').set(asset()));
+      });
+      it('lets a super admin add a record', async () => {
+        await assertSucceeds(
+          dbFor('super-1').doc('media_assets/a2').set(asset({ createdBy: 'super-1' }))
+        );
+      });
+      it('lets a content admin add an audio file with a fractional duration', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/song')
+            .set(
+              asset({
+                kind: 'audio',
+                category: 'song',
+                altText: '',
+                url: 'https://res.cloudinary.com/my-church/video/upload/v1/maranatha/hymn.mp3',
+                width: null,
+                height: null,
+                durationSeconds: 187.4,
+                format: 'mp3',
+              })
+            )
+        );
+      });
+      it('lets a content admin add a YouTube video', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/yt')
+            .set(
+              asset({
+                kind: 'video',
+                source: 'youtube',
+                category: 'video',
+                altText: '',
+                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                publicId: null,
+                format: null,
+                bytes: null,
+                width: null,
+                height: null,
+                originalFilename: null,
+                youtubeId: 'dQw4w9WgXcQ',
+              })
+            )
+        );
+      });
+      it('lets a content admin add a plain https link', async () => {
+        await assertSucceeds(
+          dbFor('admin-1')
+            .doc('media_assets/link')
+            .set(
+              asset({
+                source: 'link',
+                url: 'https://example.org/poster.png',
+                publicId: null,
+                format: null,
+                bytes: null,
+                width: null,
+                height: null,
+                originalFilename: null,
+              })
+            )
+        );
+      });
+
+      it('refuses a host', async () => {
+        await assertFails(
+          dbFor('host-1').doc('media_assets/a1').set(asset({ createdBy: 'host-1' }))
+        );
+      });
+      it('refuses an ordinary member', async () => {
+        await assertFails(
+          dbFor('member-1').doc('media_assets/a1').set(asset({ createdBy: 'member-1' }))
+        );
+      });
+      it('refuses someone who is not signed in', async () => {
+        await assertFails(dbFor(null).doc('media_assets/a1').set(asset()));
+      });
+      it('refuses a record that names someone else as its creator', async () => {
+        await assertFails(
+          dbFor('admin-1').doc('media_assets/a1').set(asset({ createdBy: 'super-1' }))
+        );
+      });
+    });
+
+    describe('what a record must look like', () => {
+      beforeEach(seedRoles);
+      const write = (overrides: Record<string, unknown>) =>
+        dbFor('admin-1').doc('media_assets/x').set(asset(overrides));
+
+      it.each([
+        ['an http address', { url: 'http://res.cloudinary.com/x.jpg' }],
+        ['a javascript: address', { url: 'javascript:alert(1)' }],
+        ['a data: address', { url: 'data:text/html;base64,AAAA' }],
+        ['an address with a space in it', { url: 'https://example.org/a b.jpg' }],
+        ['an address over 2000 characters', { url: `https://example.org/${'a'.repeat(2000)}` }],
+        ['an http thumbnail', { thumbnailUrl: 'http://example.org/t.jpg' }],
+        ['an unknown kind', { kind: 'document' }],
+        ['an unknown source', { source: 'ftp' }],
+        ['an unknown category', { category: 'secret' }],
+        ['an empty title', { title: '' }],
+        ['a title over 200 characters', { title: 'x'.repeat(201) }],
+        ['alt text over 500 characters', { altText: 'x'.repeat(501) }],
+        ['a negative size', { bytes: -1 }],
+        ['a fractional size', { bytes: 1.5 }],
+        ['a size over 100 MB', { bytes: 104857601 }],
+        ['a zero width', { width: 0 }],
+        ['a negative duration', { durationSeconds: -1 }],
+        ['a duration over a day', { durationSeconds: 86401 }],
+        ['a malformed YouTube id', { youtubeId: 'short' }],
+        ['a non-string creator', { createdBy: 5 }],
+        ['a missing creator', { createdBy: '' }],
+        ['a creation date that is a string', { createdAt: '2026-01-01' }],
+        ['an extra, unknown field', { isFeatured: true }],
+        ['an extra field that tries to grant something', { role: 'super_admin' }],
+      ])('refuses %s', async (_name, overrides) => {
+        await assertFails(write(overrides));
+      });
+
+      it('refuses a record with a field missing altogether', async () => {
+        const incomplete: Record<string, unknown> = asset();
+        delete incomplete.width;
+        await assertFails(dbFor('admin-1').doc('media_assets/x').set(incomplete));
+      });
+
+      it('refuses a YouTube record that is not a video', async () => {
+        await assertFails(
+          write({ source: 'youtube', kind: 'image', youtubeId: 'dQw4w9WgXcQ' })
+        );
+      });
+      it('refuses a YouTube record without a video id', async () => {
+        await assertFails(write({ source: 'youtube', kind: 'video', youtubeId: null }));
+      });
+      it('refuses a Cloudinary record of kind video (long video belongs on YouTube)', async () => {
+        await assertFails(write({ source: 'cloudinary', kind: 'video' }));
+      });
+    });
+
+    describe('changing and removing a record', () => {
+      beforeEach(async () => {
+        await seedRoles();
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+      });
+
+      it('lets a content admin change the title, description and category', async () => {
+        await assertSucceeds(
+          dbFor('admin-1').doc('media_assets/a1').update({
+            title: 'Easter poster 2027',
+            altText: 'Sunrise over the cross',
+            category: 'cover',
+            updatedAt: new Date(),
+          })
+        );
+      });
+      it('does NOT let anyone change the file the record points at', async () => {
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ url: 'https://example.org/other.jpg', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('super-1')
+            .doc('media_assets/a1')
+            .update({ kind: 'audio', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ createdBy: 'admin-1', createdByName: 'Someone', updatedAt: new Date() })
+        );
+      });
+      it('refuses an update that breaks the shape', async () => {
+        await assertFails(
+          dbFor('admin-1').doc('media_assets/a1').update({ title: '', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('admin-1')
+            .doc('media_assets/a1')
+            .update({ category: 'nope', updatedAt: new Date() })
+        );
+      });
+      it('refuses a host and a member trying to change a record', async () => {
+        await assertFails(
+          dbFor('host-1')
+            .doc('media_assets/a1')
+            .update({ title: 'Hijack', updatedAt: new Date() })
+        );
+        await assertFails(
+          dbFor('member-1')
+            .doc('media_assets/a1')
+            .update({ title: 'Hijack', updatedAt: new Date() })
+        );
+      });
+
+      it('lets a content admin or super admin remove a record', async () => {
+        await assertSucceeds(dbFor('admin-1').doc('media_assets/a1').delete());
+        await seed(async (db) => db.doc('media_assets/a1').set(asset()));
+        await assertSucceeds(dbFor('super-1').doc('media_assets/a1').delete());
+      });
+      it('refuses a host, a member and an anonymous visitor removing a record', async () => {
+        await assertFails(dbFor('host-1').doc('media_assets/a1').delete());
+        await assertFails(dbFor('member-1').doc('media_assets/a1').delete());
+        await assertFails(dbFor(null).doc('media_assets/a1').delete());
+      });
+    });
+  });
+
   describe('M7 community_messages, prayer_requests and reports', () => {
     async function seedM7Roles() {
       await seed(async (db) => {

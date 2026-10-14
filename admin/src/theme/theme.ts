@@ -363,10 +363,11 @@ export const theme = createTheme({
         paper: {
           borderRadius: adminRadii.card,
           boxShadow: adminShadows.floating,
-          // Never wider than the viewport minus a gutter on a phone.
+          // A 16-point gutter on a phone instead of MUI's 32, so a dialog
+          // keeps as much width as it can. Width itself is left to each
+          // dialog's own maxWidth/fullWidth: a confirmation should be
+          // narrow and the media picker wide.
           margin: 16,
-          width: 'calc(100% - 32px)',
-          maxWidth: 560,
         },
       },
     },

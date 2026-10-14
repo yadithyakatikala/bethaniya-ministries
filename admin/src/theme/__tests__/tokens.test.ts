@@ -99,7 +99,9 @@ describe('the admin has its own structural palette', () => {
 
   it('keeps a readable content measure and a fixed-width rail', () => {
     expect(adminLayout.sidebarWidth).toBeGreaterThanOrEqual(240);
-    expect(adminLayout.pageMaxWidth.narrow).toBeLessThan(adminLayout.pageMaxWidth.default);
+    expect(adminLayout.pageMaxWidth.narrow).toBeLessThan(
+      adminLayout.pageMaxWidth.default
+    );
     expect(adminLayout.pageMaxWidth.default).toBeLessThan(adminLayout.pageMaxWidth.wide);
   });
 });

@@ -1,10 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Snackbar } from '@mui/material';
-import {
-  DEFAULT_TOAST_MS,
-  ToastContext,
-  type ToastOptions,
-} from './toastContext';
+import { DEFAULT_TOAST_MS, ToastContext, type ToastOptions } from './toastContext';
 
 interface QueuedToast extends ToastOptions {
   key: number;
