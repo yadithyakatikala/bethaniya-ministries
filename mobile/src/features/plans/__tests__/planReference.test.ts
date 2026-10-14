@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { SEED_PLANS } from '../seedPlans';
 import { parsePlanReference } from '../planReference';
 import { BIBLE_BOOKS } from '../../bible/books';
@@ -90,5 +92,44 @@ describe('parsePlanReference', () => {
       }
     }
     expect(unreadable).toEqual([]);
+  });
+});
+
+/**
+ * THE CROSS-PACKAGE GUARD.
+ *
+ * The admin dashboard validates a plan day's reading with its own parser
+ * (admin/src/features/plans/passages.ts) and stores a canonical string; this
+ * app opens the Bible from that string. The packages share no code, so a
+ * reading the dashboard accepts but this app cannot open would be a Read
+ * button that silently does nothing -- and neither suite alone could notice.
+ * Both replay the SAME file. Change either parser and one suite fails.
+ */
+interface Vector {
+  text: string;
+  admin: boolean;
+  mobile: { bookId: string; chapterNumber: number; verse?: number } | null;
+}
+
+const VECTORS = (
+  JSON.parse(
+    readFileSync(join(__dirname, 'plan-reference-vectors.json'), 'utf8')
+  ) as { vectors: Vector[] }
+).vectors;
+
+describe('the reference vectors shared with the admin dashboard', () => {
+  it.each(VECTORS.map((vector) => [vector.text, vector] as const))(
+    'opens %j where the vector says',
+    (_text, vector) => {
+      expect(parsePlanReference(vector.text)).toEqual(vector.mobile);
+    }
+  );
+
+  it('opens every reading the dashboard accepts', () => {
+    const accepted = VECTORS.filter((vector) => vector.admin);
+    expect(accepted.length).toBeGreaterThan(10);
+    for (const vector of accepted) {
+      expect(parsePlanReference(vector.text)).not.toBeNull();
+    }
   });
 });

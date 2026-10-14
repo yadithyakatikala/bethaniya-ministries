@@ -25,6 +25,7 @@ const STRUCTURE_PATH = join(
 interface Row {
   id: string;
   name: string;
+  nameTe: string;
   order: number;
   verseCounts: number[];
 }
@@ -33,14 +34,15 @@ function parseStructure(): Row[] {
   const source = readFileSync(STRUCTURE_PATH, 'utf8');
   const rows: Row[] = [];
   const entry =
-    /\{ id: '([^']+)', name: '((?:[^'\\]|\\')+)', order: (\d+), verseCounts: \[([^\]]+)\] \}/g;
+    /\{ id: '([^']+)', name: '((?:[^'\\]|\\')+)', nameTe: '([^']+)', order: (\d+), verseCounts: \[([^\]]+)\] \}/g;
   let match: RegExpExecArray | null;
   while ((match = entry.exec(source)) !== null) {
     rows.push({
       id: match[1]!,
       name: match[2]!.replace(/\\'/g, "'"),
-      order: Number(match[3]),
-      verseCounts: match[4]!.split(',').map((n) => Number(n.trim())),
+      nameTe: match[3]!,
+      order: Number(match[4]),
+      verseCounts: match[5]!.split(',').map((n) => Number(n.trim())),
     });
   }
   return rows;
@@ -57,6 +59,14 @@ describe("the admin's generated Bible structure", () => {
     );
     expect(STRUCTURE.map((row) => row.order)).toEqual(
       BIBLE_BOOKS.map((book) => book.order)
+    );
+  });
+
+  it('carries the app’s own Telugu name for every book', () => {
+    // The reading-plan editor accepts a reference written with these names,
+    // and the phone reads them with the same table.
+    expect(STRUCTURE.map((row) => row.nameTe)).toEqual(
+      BIBLE_BOOKS.map((book) => book.nameTe)
     );
   });
 
