@@ -206,7 +206,9 @@ export function ImageField({
                 <Typography
                   variant="body2"
                   color="text.secondary"
-                  sx={{ wordBreak: 'break-all', mb: 1 }}
+                  noWrap
+                  title={value}
+                  sx={{ mb: 1 }}
                   data-testid={`${p}-address`}
                 >
                   {shortAddress(value)}
@@ -302,6 +304,7 @@ export function ImageField({
             variant="outlined"
             onClick={applyUrl}
             disabled={disabled || urlDraft.trim().length === 0}
+            sx={{ flexShrink: 0, whiteSpace: 'nowrap', height: 40 }}
             data-testid={`${p}-url-apply`}
           >
             Use address

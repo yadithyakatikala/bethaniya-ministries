@@ -23,6 +23,7 @@
  * read it, so for an administrator it IS published, and `planStatusOf`
  * says so. (The next time anyone saves it, it can be saved as published.)
  */
+import { formatDateTime } from '../../components/ui/formatDate';
 import type { Plan, PlanStatus } from '../../types';
 import { toDateTimeLocalValue } from '../prophet-verses/validation';
 
@@ -102,16 +103,8 @@ export function isGoingLive(change: PlanStatusChange | null): boolean {
   return change !== null && (change.to === 'published' || change.to === 'scheduled');
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
 export function formatScheduleTime(date: Date): string {
-  return DATE_FORMAT.format(date);
+  return formatDateTime(date);
 }
 
 /** The words for a status chip: "Scheduled · 12 Oct 2026, 09:00" for a future plan. */

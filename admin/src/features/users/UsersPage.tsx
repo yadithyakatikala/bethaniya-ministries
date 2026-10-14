@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -27,6 +26,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import LockOutlined from '@mui/icons-material/LockOutlined';
 import {
   fetchAllUsers,
   restoreUserAccess,
@@ -49,12 +49,14 @@ import {
   suspensionState,
   timeRemaining,
   type SuspensionRequest,
-  type SuspensionState,
 } from './suspension';
 import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { PageContainer, TableSkeleton, formatDate } from '../../components/ui';
+import { adminColors } from '../../theme/tokens';
+import { AccountStateChip, RoleChip } from './UserChips';
 import {
   ASSIGNABLE_ROLES,
   ROLE_LABELS,
@@ -96,17 +98,8 @@ function canManageUsers(role: string | null): boolean {
   return role === 'super_admin';
 }
 
-/** Ascending-authority color coding for the role chip -- reuses the theme's existing palette entries (no new colors introduced) so Super Admin (evergreen) reads as the most privileged down through Member (neutral, uncolored). */
-const ROLE_CHIP_COLOR: Record<UserRole, 'primary' | 'secondary' | 'warning' | 'default'> =
-  {
-    super_admin: 'primary',
-    content_admin: 'secondary',
-    host: 'warning',
-    member: 'default',
-  };
-
 function formatJoinDate(date: Date | null): string {
-  return date ? date.toLocaleDateString() : 'Unknown';
+  return formatDate(date, 'Unknown');
 }
 
 function userDisplayLabel(user: AdminUserSummary): string {
@@ -117,24 +110,6 @@ interface PendingRoleChange {
   user: AdminUserSummary;
   newRole: UserRole;
 }
-
-/**
- * M8. How each account state is coloured in the table.
- *
- * 'expired' is deliberately NOT a warning colour. The suspension is
- * over; the row is saying "this happened", not "this is happening", and
- * colouring it like an active restriction would have administrators
- * chasing members who are already back.
- */
-const SUSPENSION_CHIP_COLOR: Record<
-  SuspensionState,
-  'default' | 'warning' | 'error'
-> = {
-  active: 'default',
-  temporary: 'warning',
-  permanent: 'error',
-  expired: 'default',
-};
 
 /** One label-and-value line in the detail drawer. */
 function DetailRow({
@@ -283,17 +258,24 @@ export function UsersPage() {
 
   if (!canManage) {
     return (
-      <Box sx={{ p: 4 }} data-testid="users-page">
-        <Typography color="text.secondary" data-testid="users-unauthorized">
-          You are not authorized to view or manage users.
-        </Typography>
-      </Box>
+      <PageContainer width="narrow" testId="users-page">
+        <AdminPageHeader title="Users" />
+        <AdminEmptyState
+          testId="users-unauthorized"
+          icon={<LockOutlined />}
+          title="Only a Super Admin can open this page"
+          message="You are not authorized to view or manage users. If someone's role needs to change, ask a Super Admin."
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="users-page">
-      <AdminPageHeader title="Users" />
+    <PageContainer testId="users-page">
+      <AdminPageHeader
+        title="Users"
+        subtitle="Everyone who has signed in to the app. Open a member to see their details, change their role, or suspend them."
+      />
 
       {submitError ? (
         <Alert severity="error" sx={{ mb: 2 }} data-testid="role-change-error">
@@ -313,9 +295,7 @@ export function UsersPage() {
       ) : null}
 
       {!users && !loadError ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="users-loading" />
-        </Box>
+        <TableSkeleton testId="users-loading" label="Loading users" />
       ) : null}
 
       {users && users.length > 0 ? (
@@ -333,7 +313,11 @@ export function UsersPage() {
       ) : null}
 
       {users && users.length === 0 ? (
-        <AdminEmptyState message="No users yet." testId="users-empty" />
+        <AdminEmptyState
+          title="No users yet"
+          message="Members appear here once they sign in to the app."
+          testId="users-empty"
+        />
       ) : null}
 
       {users && users.length > 0 && visible.length === 0 ? (
@@ -371,15 +355,17 @@ export function UsersPage() {
                               height: 28,
                               fontSize: 13,
                               fontWeight: 700,
-                              bgcolor: 'primary.light',
-                              color: 'primary.dark',
+                              bgcolor: adminColors.primaryTint,
+                              color: adminColors.primary,
                             }}
                           >
                             {(user.displayName ?? user.email ?? '?')
                               .charAt(0)
                               .toUpperCase()}
                           </Avatar>
-                          <Box component="span">{user.displayName ?? '--'}</Box>
+                          <Box component="span" sx={{ fontWeight: 600 }}>
+                            {user.displayName ?? '—'}
+                          </Box>
                           {isSelf ? (
                             <Chip
                               label="You"
@@ -389,8 +375,12 @@ export function UsersPage() {
                           ) : null}
                         </Box>
                       </TableCell>
-                      <TableCell>{user.email ?? '--'}</TableCell>
-                      <TableCell>{user.phoneNumber ?? '--'}</TableCell>
+                      <TableCell sx={{ overflowWrap: 'break-word' }}>
+                        {user.email ?? '—'}
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {user.phoneNumber ?? '—'}
+                      </TableCell>
                       <TableCell>
                         <Tooltip
                           title={isSelf ? 'You cannot change your own role.' : ''}
@@ -403,13 +393,7 @@ export function UsersPage() {
                               onChange={(event) => handleRoleSelect(user, event)}
                               disabled={isSelf || submitting}
                               data-testid={`role-select-${user.uid}`}
-                              renderValue={(value) => (
-                                <Chip
-                                  label={ROLE_LABELS[value as UserRole]}
-                                  color={ROLE_CHIP_COLOR[value as UserRole]}
-                                  size="small"
-                                />
-                              )}
+                              renderValue={(value) => <RoleChip role={value as UserRole} />}
                             >
                               {ASSIGNABLE_ROLES.map((assignableRole) => (
                                 <MenuItem key={assignableRole} value={assignableRole}>
@@ -425,17 +409,14 @@ export function UsersPage() {
                             suspension that has run out is over, and the
                             table must not go on calling it a suspension
                             (see ./suspension.ts). */}
-                        <Chip
-                          size="small"
-                          label={SUSPENSION_STATE_LABELS[suspensionState(user)]}
-                          color={SUSPENSION_CHIP_COLOR[suspensionState(user)]}
-                          variant={
-                            suspensionState(user) === 'expired' ? 'outlined' : 'filled'
-                          }
-                          data-testid={`user-status-${user.uid}`}
+                        <AccountStateChip
+                          state={suspensionState(user)}
+                          testId={`user-status-${user.uid}`}
                         />
                       </TableCell>
-                      <TableCell>{formatJoinDate(user.createdAt)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {formatJoinDate(user.createdAt)}
+                      </TableCell>
                       <TableCell align="right">
                         <Button
                           size="small"
@@ -643,6 +624,6 @@ export function UsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

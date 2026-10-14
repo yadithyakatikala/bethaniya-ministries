@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Alert, Box, Button, Link, Paper, TextField, Typography } from '@mui/material';
-import { ADMIN_TITLE } from '../../theme/brand';
+import { Alert, Button, Link, TextField, Typography } from '@mui/material';
 import { useAuthStore } from '../../store/authStore';
 import { sendPasswordReset } from '../../services/firebase/authService';
+import { AuthShell } from './AuthShell';
 
 /**
- * Minimal email/password login screen -- enough to exercise the real
- * architecture, not a polished design (per the Day 2 directive's Phase 8).
+ * Email/password sign-in, and the password reset that hangs off it. The
+ * frame around them -- the navy identity panel and the ivory form side --
+ * is ./AuthShell.tsx; this file is only the form and what it does.
  *
  * Password reset (added during the V1 production-readiness audit, after
  * FINAL_ARCHITECTURE_SPECIFICATION.md's "Password reset via email" admin
@@ -79,10 +80,14 @@ export function LoginPage() {
 
   if (mode === 'reset-password') {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <Paper sx={{ p: 4, width: 360 }} component="form" onSubmit={handleResetSubmit}>
-          <Typography variant="h5" component="h1" gutterBottom>
-            Reset password
+      <AuthShell>
+        <form onSubmit={handleResetSubmit}>
+          <Typography variant="h2" component="h1">
+            Reset your password
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+            Enter the email for your account and we will send a link to choose a new
+            password.
           </Typography>
 
           {resetSent ? (
@@ -125,16 +130,19 @@ export function LoginPage() {
           >
             Back to sign in
           </Link>
-        </Paper>
-      </Box>
+        </form>
+      </AuthShell>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-      <Paper sx={{ p: 4, width: 360 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          {ADMIN_TITLE}
+    <AuthShell>
+      <form onSubmit={handleSubmit}>
+        <Typography variant="h2" component="h1">
+          Sign in
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+          Use the email and password for your admin account.
         </Typography>
 
         {authErrorMessage ? (
@@ -181,7 +189,7 @@ export function LoginPage() {
         >
           Forgot password?
         </Link>
-      </Paper>
-    </Box>
+      </form>
+    </AuthShell>
   );
 }

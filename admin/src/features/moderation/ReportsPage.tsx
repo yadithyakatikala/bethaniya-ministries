@@ -24,7 +24,9 @@ import {
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { PageContainer, TableSkeleton, formatDateTime } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
+import { ReportStatusChip } from './ReportStatusChip';
 import {
   REPORT_REASON_LABELS,
   REPORT_TARGET_LABELS,
@@ -71,6 +73,15 @@ import {
  * a report the other has just closed.
  */
 type Filter = 'open' | 'all';
+
+/**
+ * The reporter's reason in words. A report written by an older version of
+ * the app, or by hand, can carry a reason this list does not know; the cell
+ * then says so in the plainest words rather than sitting empty.
+ */
+function reasonLabel(reason: string): string {
+  return (REPORT_REASON_LABELS as Record<string, string | undefined>)[reason] ?? REPORT_REASON_LABELS.other;
+}
 
 export function ReportsPage() {
   const adminUid = useAuthStore((s) => s.user?.uid ?? null);
@@ -177,9 +188,10 @@ export function ReportsPage() {
   );
 
   return (
-    <Box sx={{ p: 4 }} data-testid="reports-page">
+    <PageContainer testId="reports-page">
       <AdminPageHeader
         title="Reports"
+        subtitle="Things members have flagged in the app. Open a report to read what was said, then remove it or dismiss the report."
         action={
           <ToggleButtonGroup
             size="small"
@@ -212,13 +224,12 @@ export function ReportsPage() {
       ) : null}
 
       {!reports && !loadError ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="reports-loading" />
-        </Box>
+        <TableSkeleton testId="reports-loading" label="Loading reports" />
       ) : null}
 
       {reports && visible.length === 0 ? (
         <AdminEmptyState
+          title={filter === 'open' ? 'All clear' : 'No reports'}
           message={
             filter === 'open'
               ? 'No open reports. Nothing needs attention.'
@@ -244,23 +255,17 @@ export function ReportsPage() {
               <TableBody>
                 {visible.map((report) => (
                   <TableRow key={report.id} data-testid={`report-row-${report.id}`}>
-                    <TableCell>{REPORT_TARGET_LABELS[report.targetType]}</TableCell>
-                    <TableCell>{REPORT_REASON_LABELS[report.reason]}</TableCell>
-                    <TableCell>
-                      {report.createdAt ? report.createdAt.toLocaleString() : '--'}
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      {REPORT_TARGET_LABELS[report.targetType]}
+                    </TableCell>
+                    <TableCell>{reasonLabel(report.reason)}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {formatDateTime(report.createdAt)}
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        size="small"
-                        label={report.status}
-                        color={
-                          report.status === 'open'
-                            ? 'warning'
-                            : report.status === 'resolved'
-                              ? 'success'
-                              : 'default'
-                        }
-                        data-testid={`report-status-${report.id}`}
+                      <ReportStatusChip
+                        status={report.status}
+                        testId={`report-status-${report.id}`}
                       />
                     </TableCell>
                     <TableCell align="right">
@@ -289,7 +294,7 @@ export function ReportsPage() {
                 <Typography variant="overline" color="text.secondary">
                   Reported as
                 </Typography>
-                <Typography>{REPORT_REASON_LABELS[reviewing.reason]}</Typography>
+                <Typography>{reasonLabel(reviewing.reason)}</Typography>
               </Box>
 
               {reviewing.details ? (
@@ -384,6 +389,6 @@ export function ReportsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

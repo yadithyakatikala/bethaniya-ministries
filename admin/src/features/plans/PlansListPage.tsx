@@ -43,6 +43,7 @@ import {
   PageContainer,
   StatusChip,
   TableSkeleton,
+  formatDate,
   useToast,
 } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
@@ -85,12 +86,6 @@ type Action =
     }
   | { kind: 'unpublish' | 'archive' | 'restore' | 'delete'; plan: Plan }
   | { kind: 'duplicate'; plan: Plan };
-
-const DATE = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
 
 /**
  * The reading plans: every plan, where it stands, and what can be done to it.
@@ -418,7 +413,7 @@ export function PlansListPage() {
                               </Box>
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography
-                                  sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}
+                                  sx={{ fontWeight: 600, overflowWrap: 'break-word' }}
                                 >
                                   {plan.title || 'Untitled plan'}
                                 </Typography>
@@ -427,7 +422,7 @@ export function PlansListPage() {
                                   color="text.secondary"
                                   sx={{
                                     fontFamily: 'monospace',
-                                    overflowWrap: 'anywhere',
+                                    overflowWrap: 'break-word',
                                   }}
                                 >
                                   {plan.id}
@@ -456,7 +451,7 @@ export function PlansListPage() {
                           </TableCell>
                           <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                             <Typography variant="body2" color="text.secondary">
-                              {plan.updatedAt ? DATE.format(plan.updatedAt) : '—'}
+                              {formatDate(plan.updatedAt)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>

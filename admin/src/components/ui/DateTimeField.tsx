@@ -52,9 +52,12 @@ export function DateTimeField({
       disabled={disabled}
       required={required}
       helperText={
+        // Two spans, so a form's own message ("Start date/time is required.")
+        // stays one element of its own beside the note about the clock.
         <>
-          {helperText ? <>{helperText} </> : null}
-          {zone ? `Times are in your local time zone (${zone}).` : null}
+          {helperText ? <span>{helperText}</span> : null}
+          {helperText && zone ? ' ' : null}
+          {zone ? <span>{`Times are in your local time zone (${zone}).`}</span> : null}
         </>
       }
       slotProps={{

@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
-  Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,9 +15,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import {
   deleteSong,
   setSongPublished,
@@ -30,6 +29,7 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
+import { PageContainer, StatusChip, TableSkeleton } from '../../components/ui';
 import type { Song } from '../../types';
 
 /** Matches firestore.rules' isContentAdminOrAbove() -- Host can read all songs but not write any, per the RBAC table in FINAL_ARCHITECTURE_SPECIFICATION.md (songs has the same publish-concept shape as announcements). Gating these buttons is a UX convenience only; the rules are the real boundary. */
@@ -88,15 +88,17 @@ export function SongsListPage() {
   }
 
   return (
-    <Box sx={{ p: 4 }} data-testid="songs-list-page">
+    <PageContainer testId="songs-list-page">
       <AdminPageHeader
         title="Songs"
+        subtitle="The songs members can read and sing along to in the app. A draft stays hidden until you publish it."
         action={
           canManage ? (
             <Button
               variant="contained"
               component={RouterLink}
               to="/songs/new"
+              startIcon={<AddOutlined />}
               data-testid="new-song-button"
             >
               New Song
@@ -112,13 +114,19 @@ export function SongsListPage() {
       ) : null}
 
       {!songs && !error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress data-testid="songs-loading" />
-        </Box>
+        <TableSkeleton testId="songs-loading" label="Loading songs" />
       ) : null}
 
       {songs && songs.length === 0 ? (
-        <AdminEmptyState message="No songs yet." testId="songs-empty" />
+        <AdminEmptyState
+          testId="songs-empty"
+          title="No songs yet"
+          message={
+            canManage
+              ? 'Add a song with its words, and publish it when it is ready for the congregation.'
+              : 'No songs have been added yet.'
+          }
+        />
       ) : null}
 
       {songs && songs.length > 0 ? (
@@ -137,15 +145,15 @@ export function SongsListPage() {
               <TableBody>
                 {songs.map((song) => (
                   <TableRow key={song.id} data-testid={`song-row-${song.id}`}>
-                    <TableCell>{song.title}</TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                        {song.title}
+                      </Typography>
+                    </TableCell>
                     <TableCell>{song.artist}</TableCell>
                     <TableCell>{song.category}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={song.published ? 'Published' : 'Draft'}
-                        color={song.published ? 'success' : 'default'}
-                        size="small"
-                      />
+                      <StatusChip status={song.published ? 'published' : 'draft'} />
                     </TableCell>
                     {canManage ? (
                       <TableCell align="right">
@@ -163,7 +171,7 @@ export function SongsListPage() {
                           aria-label="Edit"
                           data-testid={`edit-song-${song.id}`}
                         >
-                          <EditIcon fontSize="small" />
+                          <EditOutlined fontSize="small" />
                         </IconButton>
                         <IconButton
                           aria-label="Delete"
@@ -171,7 +179,7 @@ export function SongsListPage() {
                           disabled={busyId === song.id}
                           data-testid={`delete-song-${song.id}`}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TableCell>
                     ) : null}
@@ -203,6 +211,6 @@ export function SongsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

@@ -146,7 +146,7 @@ export function SettingsPage() {
       {!canEdit ? (
         <Alert
           severity="info"
-          sx={{ mb: 2, maxWidth: 640 }}
+          sx={{ mb: 2 }}
           data-testid="settings-readonly-notice"
         >
           You can view these settings, but only a Super Admin can edit and save them.
@@ -156,7 +156,7 @@ export function SettingsPage() {
       {loadError ? (
         <Alert
           severity="error"
-          sx={{ mb: 2, maxWidth: 640 }}
+          sx={{ mb: 2 }}
           data-testid="settings-load-error"
         >
           {loadError}

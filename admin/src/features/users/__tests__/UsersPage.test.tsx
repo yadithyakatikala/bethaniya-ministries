@@ -75,6 +75,15 @@ describe('UsersPage', () => {
     expect(screen.getByTestId('users-unauthorized')).toBeInTheDocument();
   });
 
+  it('keeps the page title and says who to ask, rather than showing one bare line', () => {
+    useAuthStore.setState({ role: 'content_admin', user: asUser('ca-uid') });
+    renderPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toBeInTheDocument();
+    const notice = screen.getByTestId('users-unauthorized');
+    expect(notice).toHaveTextContent('You are not authorized to view or manage users.');
+    expect(notice).toHaveTextContent('ask a Super Admin');
+  });
+
   it('shows a loading state before the fetch resolves', () => {
     useAuthStore.setState({ role: 'super_admin', user: asUser('own-uid') });
     vi.mocked(usersService.fetchAllUsers).mockImplementation(() => new Promise(() => {}));

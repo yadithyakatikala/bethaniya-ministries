@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -38,7 +37,14 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminEmptyState } from '../../components/AdminEmptyState';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminTableCard } from '../../components/AdminTableCard';
-import { FormCard, PageContainer } from '../../components/ui';
+import {
+  FormCard,
+  PageContainer,
+  TableSkeleton,
+  formatDateTime,
+} from '../../components/ui';
+import LockOutlined from '@mui/icons-material/LockOutlined';
+import { adminColors } from '../../theme/tokens';
 import { ImageField } from '../../components/media';
 import type { NotificationLogEntry, NotificationRecipientGroup } from '../../types';
 
@@ -106,7 +112,7 @@ const RECIPIENT_LABELS: Record<NotificationRecipientGroup, string> = {
 };
 
 function formatSentAt(date: Date | null): string {
-  return date ? date.toLocaleString() : 'Unknown';
+  return formatDateTime(date, 'Unknown');
 }
 
 export function NotificationsPage() {
@@ -203,10 +209,14 @@ export function NotificationsPage() {
 
   if (!canSend) {
     return (
-      <PageContainer testId="notifications-page">
-        <Typography color="text.secondary" data-testid="notifications-unauthorized">
-          You are not authorized to send notifications.
-        </Typography>
+      <PageContainer width="narrow" testId="notifications-page">
+        <AdminPageHeader title="Notifications" />
+        <AdminEmptyState
+          testId="notifications-unauthorized"
+          icon={<LockOutlined />}
+          title="Notifications are sent by the church team"
+          message="You are not authorized to send notifications. If one needs to go out, ask a host or an admin."
+        />
       </PageContainer>
     );
   }
@@ -327,14 +337,17 @@ export function NotificationsPage() {
       ) : null}
 
       {!log && !logError ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <CircularProgress data-testid="notification-log-loading" />
-        </Box>
+        <TableSkeleton
+          rows={3}
+          testId="notification-log-loading"
+          label="Loading the notification log"
+        />
       ) : null}
 
       {log && log.length === 0 ? (
         <AdminEmptyState
-          message="No notifications sent yet."
+          title="Nothing sent yet"
+          message="Each notification you send is recorded here, with who it was for."
           testId="notification-log-empty"
         />
       ) : null}
@@ -358,14 +371,26 @@ export function NotificationsPage() {
                     key={entry.id}
                     data-testid={`notification-log-row-${entry.id}`}
                   >
-                    <TableCell>{formatSentAt(entry.sentAt)}</TableCell>
-                    <TableCell>{entry.title}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {formatSentAt(entry.sentAt)}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, overflowWrap: 'break-word' }}>
+                      {entry.title}
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={RECIPIENT_LABELS[entry.recipientGroup]}
                         size="small"
-                        color={
-                          entry.recipientGroup === 'admins_only' ? 'warning' : 'default'
+                        sx={
+                          entry.recipientGroup === 'admins_only'
+                            ? {
+                                bgcolor: adminColors.warningTint,
+                                color: adminColors.warning,
+                              }
+                            : {
+                                bgcolor: adminColors.surfaceRaised,
+                                color: adminColors.inkMuted,
+                              }
                         }
                       />
                     </TableCell>

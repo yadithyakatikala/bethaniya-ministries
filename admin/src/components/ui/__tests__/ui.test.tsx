@@ -6,6 +6,7 @@ import { ThemeProvider } from '@mui/material';
 import { theme } from '../../../theme/theme';
 import { AdminPageHeader } from '../../AdminPageHeader';
 import { AdminEmptyState } from '../../AdminEmptyState';
+import { AdminTableCard } from '../../AdminTableCard';
 import {
   ConfirmDialog,
   DateTimeField,
@@ -214,6 +215,22 @@ describe('DateTimeField', () => {
     expect(onChange).toHaveBeenCalledWith('2026-12-01T09:30');
   });
 
+  it("keeps the form's own message as its own element, beside the note about the clock", () => {
+    renderThemed(
+      <DateTimeField
+        label="Starts At"
+        value=""
+        onChange={vi.fn()}
+        error
+        helperText="Start date/time is required."
+      />
+    );
+    // Findable on its own, so a test (or a screen-reader rotor) reaches the
+    // message without it being buried in the zone sentence.
+    expect(screen.getByText('Start date/time is required.')).toBeInTheDocument();
+    expect(screen.getByText(/Times are in your local time zone/)).toBeInTheDocument();
+  });
+
   it('says nothing about a zone when the platform will not name one', () => {
     vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
       throw new Error('no Intl');
@@ -299,6 +316,38 @@ describe('page chrome', () => {
     expect(screen.getByText('The basics.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('AdminTableCard gives its table a floor, so a phone scrolls the card instead of crushing columns', () => {
+    renderThemed(
+      <AdminTableCard>
+        <table data-testid="plain" className="MuiTable-root">
+          <tbody>
+            <tr>
+              <td>one</td>
+            </tr>
+          </tbody>
+        </table>
+      </AdminTableCard>
+    );
+    // The reading plans list once rendered a title a letter to a line on a
+    // phone, because nothing stopped the table shrinking to fit.
+    expect(getComputedStyle(screen.getByTestId('plain')).minWidth).toBe('640px');
+  });
+
+  it('AdminTableCard lets a page choose a different floor', () => {
+    renderThemed(
+      <AdminTableCard minTableWidth={480}>
+        <table data-testid="narrower" className="MuiTable-root">
+          <tbody>
+            <tr>
+              <td>one</td>
+            </tr>
+          </tbody>
+        </table>
+      </AdminTableCard>
+    );
+    expect(getComputedStyle(screen.getByTestId('narrower')).minWidth).toBe('480px');
   });
 
   it('TableSkeleton announces that content is loading and shows the requested rows', () => {

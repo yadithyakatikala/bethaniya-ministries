@@ -131,6 +131,10 @@ export function PlanDaysTab({
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  // A phone cannot hold the number, a readable title and five
+                  // buttons side by side; the buttons drop to their own line
+                  // instead of squeezing the title to a few letters.
+                  flexWrap: 'wrap',
                   gap: 1.5,
                   p: 1.5,
                   border: `1px solid ${
@@ -157,7 +161,7 @@ export function PlanDaysTab({
                   {number}
                 </Box>
 
-                <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
                   <Typography
                     sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}
                     data-testid={`plan-day-title-${number}`}
@@ -187,7 +191,7 @@ export function PlanDaysTab({
                   />
                 ) : null}
 
-                <Box sx={{ display: 'flex', flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', flexShrink: 0, ml: 'auto' }}>
                   <Tooltip title={readOnly ? 'View day' : 'Edit day'}>
                     <IconButton
                       aria-label={`${readOnly ? 'View' : 'Edit'} day ${number}`}

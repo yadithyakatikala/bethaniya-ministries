@@ -168,4 +168,12 @@ describe('asset display helpers', () => {
     expect(shortAddress('https://example.org')).toBe('example.org');
     expect(shortAddress('not a url')).toBe('not a url');
   });
+
+  it('never runs past one line, however long the address or file name is', () => {
+    const long = `https://res.cloudinary.com/demo/image/upload/${'a'.repeat(200)}.jpg`;
+    const shown = shortAddress(long);
+    expect(shown.length).toBeLessThanOrEqual(60);
+    expect(shown.endsWith('…')).toBe(true);
+    expect(shortAddress('x'.repeat(200)).length).toBeLessThanOrEqual(60);
+  });
 });

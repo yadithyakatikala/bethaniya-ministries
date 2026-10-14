@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, CircularProgress, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Stack, Tab, Tabs } from '@mui/material';
 import { useAuthStore } from '../../store/authStore';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { PageContainer } from '../../components/ui';
 import {
   subscribeToVersePool,
   subscribeToVotdConfig,
@@ -118,12 +119,11 @@ export function VerseOfTheDayPage() {
   );
 
   return (
-    <Box sx={{ p: 4 }} data-testid="verse-of-the-day-page">
-      <AdminPageHeader title="Verse of the Day" />
-      <Typography color="text.secondary" sx={{ fontSize: 14, mt: -2, mb: 3 }}>
-        The verse every member sees on the home screen. The app chooses one for every day
-        on its own &mdash; you only step in when you want a particular day to be different.
-      </Typography>
+    <PageContainer testId="verse-of-the-day-page">
+      <AdminPageHeader
+        title="Verse of the Day"
+        subtitle="The verse every member sees on the home screen. The app chooses one for every day on its own — you only step in when you want a particular day to be different."
+      />
 
       {error ? (
         <Alert severity="error" sx={{ mb: 3 }} data-testid="votd-error">
@@ -170,6 +170,6 @@ export function VerseOfTheDayPage() {
           ) : null}
         </>
       )}
-    </Box>
+    </PageContainer>
   );
 }
