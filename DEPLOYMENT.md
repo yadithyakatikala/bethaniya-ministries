@@ -40,6 +40,47 @@ age is not saved. Deploying Firestore rules is free; it needs no plan upgrade:
 firebase deploy --only firestore:rules --project <env>
 ```
 
+### Pending: the admin CMS changes to the rules and indexes (NOT deployed)
+
+The reading-plan manager and the media library change `firestore.rules` and
+add one entry to `firestore.indexes.json`. **Neither has been deployed to any
+Firebase project, and nothing here deploys them for you — it needs your
+approval.** Until they are deployed, against the rules currently in production:
+
+- a **draft with an empty description**, or a **day with no devotional**, is
+  refused when the admin site tries to save it (the old rules required both);
+- a **scheduled** plan cannot be read by phones: the old rules do not know about
+  schedules, and the index the phone's "scheduled plans that have come due"
+  query needs does not exist yet. Plans that are simply **published** (with a
+  description and a devotional on every day) still reach phones as before;
+- the media library (`media_assets`) cannot be written (no rule exists for it),
+  so uploads cannot be recorded in the library.
+
+What the new rules do, and why they are safe to deploy (full detail:
+SECURITY.md → "Admin CMS update"):
+
+- **plans**: adds the optional fields the manager writes (subtitle, language,
+  author, time estimate, status, publish time); locks `status` and `published`
+  together; refuses to make a plan live without a description and a day;
+  makes a **scheduled** plan readable by members once its time has arrived
+  (judged by the server's clock). A draft may now have an empty description,
+  and a day's devotional is optional — both were required before, and the
+  manager needs to save drafts and passage-only days. Who may write is
+  unchanged: Content Admin and above.
+- **media_assets** (new): administrators and hosts read; Content Admin and above
+  create, relabel and remove; a closed field list; `https://` addresses only.
+- **index**: `plans` on (`status`, `publishAt`).
+
+To deploy, once you approve (free; no plan upgrade):
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes --project <env>
+```
+
+The index takes a few minutes to build; scheduled plans appear to phones after
+it is ready. Test against the emulators first (see `firebase-tests/README.md`).
+Nothing in this change needs Cloud Functions or the paid plan.
+
 ## Admin dashboard
 
 `firebase.json` is configured for Firebase Hosting (`public: "admin/dist"`),
@@ -53,6 +94,14 @@ cd admin
 npm run build
 firebase deploy --only hosting --project <env>
 ```
+
+**Uploading needs three build-time values.** Vite bakes `VITE_*` variables into
+the site when it is built, so for the live site to offer uploading, put
+`VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_IMAGE_PRESET` and
+`VITE_CLOUDINARY_AUDIO_PRESET` in `admin/.env.production` **before**
+`npm run build` (see ENVIRONMENT.md and docs/admin/MEDIA_UPLOADS.md). They are
+not secrets. Without them the build is fine; the upload buttons simply show a
+"not set up yet" notice.
 
 If Vercel is preferred instead: connect the GitHub repo in the Vercel
 dashboard, set root directory to `admin/`, build command `npm run build`,

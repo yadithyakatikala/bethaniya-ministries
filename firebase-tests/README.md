@@ -17,6 +17,17 @@ package avoids pulling emulator-testing devDependencies into app bundles.
 
 - `firestore.rules.test.ts` / `storage.rules.test.ts` -- exhaustive
   authorized-vs-unauthorized RBAC coverage via `@firebase/rules-unit-testing`.
+- `plans-end-to-end.test.ts` -- the reading-plan manager's whole path, with
+  **no mocks**: it drives the admin site's real data layer
+  (`admin/src/services/firebase/plans.ts`) and the phone's real data layer
+  (`mobile/src/services/firebase/plans.ts`) against the Firestore emulator and
+  the committed `firestore.rules`. An administrator saves, publishes,
+  schedules, unpublishes and archives a plan; the phone, signed in as a member,
+  then reads the library and each day. It asserts what a member can and cannot
+  see, including a scheduled plan before and after its time, and that a draft is
+  refused outright. It needs the same emulators as the others.
+  (It is excluded from the package's own `tsc` pass because it imports the two
+  apps' source; jest runs it as normal.)
 - `client-emulator-smoke.test.ts` -- a different kind of check: it uses the
   plain `firebase` client SDK (`firebase/app`, `firebase/auth`,
   `firebase/firestore`, `firebase/storage`) to sign in through the Auth
