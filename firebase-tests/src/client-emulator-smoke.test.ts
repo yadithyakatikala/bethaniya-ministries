@@ -31,6 +31,7 @@ import {
   doc,
   getDoc,
   getFirestore,
+  serverTimestamp,
   setDoc,
   terminate,
   type Firestore,
@@ -90,9 +91,10 @@ test('creates and reads the signed-in user’s own /users/{uid} profile via the 
   if (!uid) throw new Error('expected an anonymous session from the previous test');
 
   const userDocRef = doc(db, 'users', uid);
-  // Allowed by firestore.rules: `allow create: if isOwner(userId) &&
-  // request.resource.data.role == 'member'`.
-  await setDoc(userDocRef, { role: 'member', createdAt: Date.now() });
+  // Allowed by firestore.rules' users create rule: the caller's own uid,
+  // role 'member', and -- as the app itself writes it -- the server's clock
+  // for createdAt (isValidOwnProfileCreate refuses a device-chosen value).
+  await setDoc(userDocRef, { role: 'member', createdAt: serverTimestamp() });
 
   const snapshot = await getDoc(userDocRef);
   expect(snapshot.exists()).toBe(true);

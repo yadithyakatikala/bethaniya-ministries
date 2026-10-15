@@ -7,8 +7,10 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import {
+  PROFILE_NAME_MAX_LENGTH,
   completeOnboarding,
   ensureOwnProfileExists,
+  profileDisplayNameFrom,
   subscribeToOwnProfile,
   updateOwnProfile,
 } from '../userProfile';
@@ -347,6 +349,70 @@ describe('ensureOwnProfileExists', () => {
     (runTransaction as jest.Mock).mockRejectedValue(new Error('offline'));
 
     await expect(ensureOwnProfileExists(user)).resolves.toBeUndefined();
+  });
+
+  /** The document a brand-new profile would be created with, for `account`. */
+  async function createdWith(account: Partial<User>): Promise<Record<string, unknown>> {
+    const set = jest.fn();
+    (runTransaction as jest.Mock).mockImplementation((_db, updateFunction) =>
+      updateFunction({ get: async () => ({ exists: () => false }), set })
+    );
+    await ensureOwnProfileExists({ uid: 'uid-1', ...account } as User);
+    return set.mock.calls[0][1];
+  }
+
+  // firestore.rules accepts a new profile's e-mail only when it is exactly the
+  // address in the sign-in token, and its creation time only when it is the
+  // server's own clock.
+  it("writes the account's e-mail exactly as Firebase Auth has it", async () => {
+    expect((await createdWith({ email: 'Jane.Doe@Example.com' })).email).toBe(
+      'Jane.Doe@Example.com'
+    );
+    expect((await createdWith({ email: null })).email).toBeNull();
+  });
+
+  it("stamps createdAt with the server's clock, not the device's", async () => {
+    const written = await createdWith({ email: 'jane@example.com' });
+    const stamps = (serverTimestamp as jest.Mock).mock.results;
+    expect(stamps).toHaveLength(1);
+    expect(written.createdAt).toBe(stamps[0].value);
+  });
+
+  it('creates the profile with a trimmed name, or none when the account has none', async () => {
+    expect((await createdWith({ displayName: '  Jane Doe  ' })).displayName).toBe(
+      'Jane Doe'
+    );
+    expect((await createdWith({ displayName: '   ' })).displayName).toBeNull();
+    expect((await createdWith({ displayName: null })).displayName).toBeNull();
+  });
+
+  it('cuts an over-long name to the length the rules accept', async () => {
+    const written = await createdWith({ displayName: 'x'.repeat(300) });
+    expect(written.displayName).toBe('x'.repeat(PROFILE_NAME_MAX_LENGTH));
+  });
+});
+
+describe('profileDisplayNameFrom', () => {
+  it('keeps a name that already fits, Telugu included', () => {
+    expect(profileDisplayNameFrom('Ruth')).toBe('Ruth');
+    expect(profileDisplayNameFrom('రూతు')).toBe('రూతు');
+    const exactly = 'a'.repeat(PROFILE_NAME_MAX_LENGTH);
+    expect(profileDisplayNameFrom(exactly)).toBe(exactly);
+  });
+
+  it('turns no name, or only spaces, into null', () => {
+    expect(profileDisplayNameFrom(undefined)).toBeNull();
+    expect(profileDisplayNameFrom(null)).toBeNull();
+    expect(profileDisplayNameFrom('')).toBeNull();
+    expect(profileDisplayNameFrom(' \n\t ')).toBeNull();
+  });
+
+  it('never splits an emoji at the limit', () => {
+    // 199 letters then a two-unit emoji: the emoji would make 201, so it goes.
+    const name = `${'a'.repeat(PROFILE_NAME_MAX_LENGTH - 1)}😀`;
+    const cut = profileDisplayNameFrom(name);
+    expect(cut).toBe('a'.repeat(PROFILE_NAME_MAX_LENGTH - 1));
+    expect(cut!.length).toBeLessThanOrEqual(PROFILE_NAME_MAX_LENGTH);
   });
 });
 

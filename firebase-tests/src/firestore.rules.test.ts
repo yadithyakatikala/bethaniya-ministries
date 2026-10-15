@@ -8,6 +8,8 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import {
   assertFails,
   assertSucceeds,
@@ -56,6 +58,16 @@ function dbFor(uid: string | null) {
   const ctx = uid ? testEnv.authenticatedContext(uid) : testEnv.unauthenticatedContext();
   return ctx.firestore();
 }
+
+type TokenClaims = Parameters<RulesTestEnvironment['authenticatedContext']>[1];
+
+/** A signed-in account whose ID token carries `claims` -- its e-mail address, say. */
+function dbForAccount(uid: string, claims: TokenClaims) {
+  return testEnv.authenticatedContext(uid, claims).firestore();
+}
+
+/** What a real client sends for "now": serverTimestamp(), resolved to request.time. */
+const serverTime = () => firebase.firestore.FieldValue.serverTimestamp();
 
 describe('firestore.rules', () => {
   describe('default deny', () => {
@@ -121,15 +133,16 @@ describe('firestore.rules', () => {
     // actually runs. These pin the exact contract that client depends on.
 
     it('allows a signed-in user to create their own member profile with the expected field shape', async () => {
-      // Exactly what mobile's ensureOwnProfileExists() writes.
-      const db = dbFor('new-member');
+      // Exactly what mobile's ensureOwnProfileExists() writes: the account's
+      // own address (the one its sign-in token carries) and the server's clock.
+      const db = dbForAccount('new-member', { email: 'new@example.com' });
       await assertSucceeds(
         db.doc('users/new-member').set({
           role: 'member',
           displayName: 'New Member',
           email: 'new@example.com',
           phoneNumber: null,
-          createdAt: new Date(),
+          createdAt: serverTime(),
         })
       );
     });
@@ -138,21 +151,21 @@ describe('firestore.rules', () => {
       // hasOnly permits a subset, so a caller need not send every key.
       const db = dbFor('new-member');
       await assertSucceeds(
-        db.doc('users/new-member').set({ role: 'member', createdAt: new Date() })
+        db.doc('users/new-member').set({ role: 'member', createdAt: serverTime() })
       );
     });
 
     it('blocks self-creating a profile with an elevated role', async () => {
       const db = dbFor('new-member');
       await assertFails(
-        db.doc('users/new-member').set({ role: 'super_admin', createdAt: new Date() })
+        db.doc('users/new-member').set({ role: 'super_admin', createdAt: serverTime() })
       );
     });
 
     it('blocks creating a profile document for someone else', async () => {
       const db = dbFor('new-member');
       await assertFails(
-        db.doc('users/somebody-else').set({ role: 'member', createdAt: new Date() })
+        db.doc('users/somebody-else').set({ role: 'member', createdAt: serverTime() })
       );
     });
 
@@ -164,10 +177,256 @@ describe('firestore.rules', () => {
       await assertFails(
         db.doc('users/new-member').set({
           role: 'member',
-          createdAt: new Date(),
+          createdAt: serverTime(),
           isChurchAdmin: true,
         })
       );
+    });
+
+    // --- The VALUES a new profile is created with ------------------------
+    // The create rule used to check field names only, so a member could
+    // create their profile claiming somebody else's address -- the address
+    // the admin Users page shows, and picks from when assigning a role.
+    describe('profile creation: values must be honest (isValidOwnProfileCreate)', () => {
+      /** What ensureOwnProfileExists() writes for an account with this address and name. */
+      const profile = (overrides: Record<string, unknown> = {}) => ({
+        role: 'member',
+        displayName: 'Grace Thomas',
+        email: 'grace@example.org',
+        phoneNumber: null,
+        createdAt: serverTime(),
+        ...overrides,
+      });
+
+      // Each provider's ID token, as the real Auth emulator issues it (the
+      // address in `email` is exactly what the client reads as `user.email`).
+      const passwordAccount: TokenClaims = {
+        email: 'grace@example.org',
+        email_verified: false,
+        firebase: { sign_in_provider: 'password' },
+      };
+
+      describe('legitimate sign-ups still work, for every provider the app offers', () => {
+        it('email/password: the account address, not yet verified', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertSucceeds(db.doc('users/grace').set(profile()));
+        });
+
+        it('Google: the Google account address', async () => {
+          const db = dbForAccount('grace', {
+            email: 'grace.thomas@gmail.com',
+            email_verified: true,
+            firebase: { sign_in_provider: 'google.com' },
+          });
+          await assertSucceeds(
+            db.doc('users/grace').set(profile({ email: 'grace.thomas@gmail.com' }))
+          );
+        });
+
+        it('Apple: the private relay address Apple hands out', async () => {
+          const relay = 'k2x9qz7w4m@privaterelay.appleid.com';
+          const db = dbForAccount('grace', {
+            email: relay,
+            email_verified: true,
+            firebase: { sign_in_provider: 'apple.com' },
+          });
+          await assertSucceeds(
+            db.doc('users/grace').set(profile({ email: relay, displayName: null }))
+          );
+        });
+
+        it('Apple with the address withheld: no address on the account, null in the profile', async () => {
+          const db = dbForAccount('grace', {
+            firebase: { sign_in_provider: 'apple.com' },
+          });
+          await assertSucceeds(
+            db.doc('users/grace').set(profile({ email: null, displayName: null }))
+          );
+        });
+
+        it('an account with an address may still leave it out of the profile', async () => {
+          await assertSucceeds(
+            dbForAccount('grace', passwordAccount)
+              .doc('users/grace')
+              .set(profile({ email: null }))
+          );
+          await assertSucceeds(
+            dbForAccount('grace-2', passwordAccount)
+              .doc('users/grace-2')
+              .set({ role: 'member', createdAt: serverTime() })
+          );
+        });
+
+        it('a name of exactly 200 characters, in English or Telugu', async () => {
+          await assertSucceeds(
+            dbForAccount('grace', passwordAccount)
+              .doc('users/grace')
+              .set(profile({ displayName: 'a'.repeat(200) }))
+          );
+          await assertSucceeds(
+            dbForAccount('grace-te', passwordAccount)
+              .doc('users/grace-te')
+              .set(profile({ displayName: 'గ'.repeat(200) }))
+          );
+        });
+
+        it('a real phone number, or none', async () => {
+          await assertSucceeds(
+            dbForAccount('grace', passwordAccount)
+              .doc('users/grace')
+              .set(profile({ phoneNumber: '+919876543210' }))
+          );
+        });
+      });
+
+      describe("a member cannot claim an address that is not their account's", () => {
+        it("refuses somebody else's address", async () => {
+          const db = dbForAccount('impostor', {
+            email: 'impostor@example.org',
+            firebase: { sign_in_provider: 'password' },
+          });
+          await assertFails(
+            db
+              .doc('users/impostor')
+              .set(profile({ email: 'pastor@church.org', displayName: 'Pastor' }))
+          );
+        });
+
+        it('refuses an address when the account has none', async () => {
+          const db = dbForAccount('impostor', {
+            firebase: { sign_in_provider: 'apple.com' },
+          });
+          await assertFails(
+            db.doc('users/impostor').set(profile({ email: 'pastor@church.org' }))
+          );
+        });
+
+        it('refuses an address that differs only in letter case', async () => {
+          // Firebase Auth stores an email/password address in lower case, and
+          // the client writes it as it is, so an exact match is always possible.
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(
+            db.doc('users/grace').set(profile({ email: 'Grace@Example.org' }))
+          );
+        });
+
+        it('refuses an address that is not text', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(db.doc('users/grace').set(profile({ email: 42 })));
+          await assertFails(
+            db
+              .doc('users/grace')
+              .set(profile({ email: { address: 'grace@example.org' } }))
+          );
+        });
+      });
+
+      describe('a member cannot create a profile with invalid values', () => {
+        it('refuses an empty name, a 201-character name and a 200,000-character one', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(db.doc('users/grace').set(profile({ displayName: '' })));
+          await assertFails(
+            db.doc('users/grace').set(profile({ displayName: 'a'.repeat(201) }))
+          );
+          await assertFails(
+            db.doc('users/grace').set(profile({ displayName: 'x'.repeat(200_000) }))
+          );
+        });
+
+        it('refuses a name that is not text', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(db.doc('users/grace').set(profile({ displayName: 7 })));
+          await assertFails(db.doc('users/grace').set(profile({ displayName: true })));
+        });
+
+        it('refuses a creation time that is text, or a date the device chose', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(
+            db.doc('users/grace').set(profile({ createdAt: 'not-a-time' }))
+          );
+          await assertFails(
+            db.doc('users/grace').set(profile({ createdAt: new Date('1990-01-01') }))
+          );
+          await assertFails(
+            db
+              .doc('users/grace')
+              .set(profile({ createdAt: new Date(Date.now() + 365 * 86_400_000) }))
+          );
+          // Even the device's idea of "now" is not the server's clock.
+          await assertFails(
+            db.doc('users/grace').set(profile({ createdAt: new Date() }))
+          );
+        });
+
+        it('refuses a phone number that is empty, too long or not text', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertFails(db.doc('users/grace').set(profile({ phoneNumber: '' })));
+          await assertFails(
+            db.doc('users/grace').set(profile({ phoneNumber: '1'.repeat(33) }))
+          );
+          await assertFails(
+            db.doc('users/grace').set(profile({ phoneNumber: 919876543210 }))
+          );
+        });
+      });
+
+      describe('profile updates still work', () => {
+        it('after an honest creation, every ordinary self-update the app makes', async () => {
+          const db = dbForAccount('grace', passwordAccount);
+          await assertSucceeds(db.doc('users/grace').set(profile()));
+          await assertSucceeds(
+            db.doc('users/grace').update({ themePreference: 'dark', bibleMode: 'te' })
+          );
+          // completeOnboarding()'s write, then the separate age update.
+          await assertSucceeds(
+            db.doc('users/grace').update({
+              displayName: 'Grace Thomas',
+              phoneNumber: '+919876543210',
+              gender: 'female',
+              appLanguage: 'te',
+              profileCompletedAt: serverTime(),
+            })
+          );
+          await assertSucceeds(db.doc('users/grace').update({ age: 34 }));
+          // recordSignInActivity()'s write.
+          await assertSucceeds(
+            db.doc('users/grace').update({
+              lastActiveAt: serverTime(),
+              authProvider: 'password',
+            })
+          );
+        });
+
+        it('a profile stored before this check is not re-checked: its owner can still update it', async () => {
+          // An address that no longer matches the account and a device-chosen
+          // date, as an existing document might hold.
+          await seed(async (db) =>
+            db.doc('users/grace').set({
+              role: 'member',
+              displayName: 'Grace',
+              email: 'old-address@example.org',
+              phoneNumber: null,
+              createdAt: new Date('2025-01-01'),
+            })
+          );
+          const db = dbForAccount('grace', passwordAccount);
+          await assertSucceeds(
+            db.doc('users/grace').update({ themePreference: 'light' })
+          );
+          // ...and the stored address is still not theirs to rewrite.
+          await assertFails(db.doc('users/grace').update({ email: 'grace@example.org' }));
+        });
+
+        it('a super admin can still change the role of an honestly created profile', async () => {
+          await seed(async (db) => db.doc('users/super-1').set({ role: 'super_admin' }));
+          await assertSucceeds(
+            dbForAccount('grace', passwordAccount).doc('users/grace').set(profile())
+          );
+          await assertSucceeds(
+            dbFor('super-1').doc('users/grace').update({ role: 'content_admin' })
+          );
+        });
+      });
     });
 
     it('blocks a member from changing their own role field (self-modification prevention)', async () => {
@@ -566,14 +825,15 @@ describe('firestore.rules', () => {
 
       it('cannot be smuggled in when the profile is created', async () => {
         // The create allowlist is unchanged: age arrives by a later update.
-        const db = dbFor('member-9');
+        // Everything else is an honest creation, so `age` is the only reason.
+        const db = dbForAccount('member-9', { email: 'new@example.com' });
         await assertFails(
           db.doc('users/member-9').set({
             role: 'member',
             displayName: 'New',
             email: 'new@example.com',
             phoneNumber: null,
-            createdAt: new Date(),
+            createdAt: serverTime(),
             age: 30,
           })
         );
