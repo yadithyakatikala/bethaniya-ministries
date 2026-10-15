@@ -402,6 +402,55 @@ service cloud.firestore {
             || data.lastActiveAt is timestamp);
     }
 
+    // The VALUES a member's own client may put in a brand-new /users/{uid}.
+    //
+    // The create rule below has always pinned the role and the field NAMES,
+    // but checked no value, so a member could create their profile claiming
+    // somebody else's e-mail address -- the address the super admin's Users
+    // page shows, and picks from when giving someone a role -- or with a
+    // 200,000-character name, or with text where the creation time belongs.
+    //
+    //   email        absent, null, or EXACTLY the address on the signed-in
+    //                Firebase Auth account. Email/password, Google and Apple
+    //                sign-in all put the account's address in the ID token's
+    //                `email` claim, and mobile's ensureOwnProfileExists()
+    //                writes `user.email`, which is that same value. An
+    //                account with no address (Apple, when the member hides
+    //                it) has no claim, so only null is accepted for it.
+    //                What this proves is that the address is the ACCOUNT's.
+    //                It does not prove the member owns the mailbox: an
+    //                email/password address is unverified until its link is
+    //                clicked, and requiring `email_verified` here would
+    //                refuse every new email/password member's profile.
+    //   displayName  absent, null, or 1..200 characters -- the bounds
+    //                isValidUserProfileSelfUpdate() above applies to every
+    //                later write, so a profile is never created in a shape
+    //                its owner could not update afterwards.
+    //   phoneNumber  absent, null, or a 1..32 character string, as above.
+    //   createdAt    absent, or the server's own clock. The client writes
+    //                serverTimestamp(), which arrives as exactly
+    //                request.time; a date chosen on the device is refused.
+    //
+    // Only CREATION is checked. No stored profile is re-validated by this,
+    // so nothing that exists today becomes impossible to update.
+    function isValidOwnProfileCreate(data) {
+      return (!('email' in data)
+            || data.email == null
+            || (data.email is string
+                && data.email == request.auth.token.get('email', null)))
+        && (!('displayName' in data)
+            || data.displayName == null
+            || (data.displayName is string
+                && data.displayName.size() > 0
+                && data.displayName.size() <= 200))
+        && (!('phoneNumber' in data)
+            || data.phoneNumber == null
+            || (data.phoneNumber is string
+                && data.phoneNumber.size() > 0
+                && data.phoneNumber.size() <= 32))
+        && (!('createdAt' in data) || data.createdAt == request.time);
+    }
+
     // M6 media post validation.
     //
     // THE URL RULES ARE THE POINT OF THIS FUNCTION. Nothing is uploaded
@@ -1099,10 +1148,14 @@ service cloud.firestore {
       // smuggled in at creation time would persist unchallenged. The list is
       // exactly the field set both creators write; hasOnly rather than
       // hasAll, so a caller may legitimately omit a field.
+      //
+      // isValidOwnProfileCreate() checks the VALUES of those fields -- above
+      // all, that `email` is the signed-in account's own address.
       allow create: if isOwner(userId)
         && request.resource.data.role == 'member'
         && request.resource.data.keys().hasOnly(
-             ['role', 'displayName', 'email', 'phoneNumber', 'createdAt']);
+             ['role', 'displayName', 'email', 'phoneNumber', 'createdAt'])
+        && isValidOwnProfileCreate(request.resource.data);
 
       // Day 9: an owner's self-update may ONLY touch the profile/
       // preference fields below (never role, email, phoneNumber, or

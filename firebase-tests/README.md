@@ -38,6 +38,15 @@ package avoids pulling emulator-testing devDependencies into app bundles.
   odd reported details is still accepted. **No request is made to Cloudinary**;
   the "uploads" are the records a successful upload would hand over.
   (Also excluded from the package's own `tsc` pass; jest runs it as normal.)
+- `profile-create-end-to-end.test.ts` -- a member's first profile, after a
+  REAL sign-in: the phone's own sign-up and profile code
+  (`mobile/src/services/firebase/authService.ts`, `userProfile.ts`) against the
+  Auth emulator and the committed rules, for email/password, Google and Apple
+  (with the address shared and withheld). It proves the address the rules
+  compare against -- the ID token's `email` claim -- is exactly the one the
+  app writes, that ordinary updates still work afterwards, and that a member
+  writing their own profile with somebody else's address is refused.
+  (Also excluded from the package's own `tsc` pass; jest runs it as normal.)
 - `client-emulator-smoke.test.ts` -- a different kind of check: it uses the
   plain `firebase` client SDK (`firebase/app`, `firebase/auth`,
   `firebase/firestore`, `firebase/storage`) to sign in through the Auth

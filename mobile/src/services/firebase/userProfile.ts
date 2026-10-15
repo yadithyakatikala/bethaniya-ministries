@@ -518,6 +518,29 @@ export async function recordSignInActivity(
   }
 }
 
+/** The longest name firestore.rules accepts, counted the way the rules count (UTF-16 units). */
+export const PROFILE_NAME_MAX_LENGTH = 200;
+
+/**
+ * The name a new profile is created with: the account's display name,
+ * trimmed and cut to PROFILE_NAME_MAX_LENGTH, or null when there is none.
+ *
+ * firestore.rules refuses an empty or over-long name when a profile is
+ * created, and ensureOwnProfileExists() swallows that refusal, so passing a
+ * provider's name through unchanged could leave a member with no profile at
+ * all. Cut by whole characters, so an emoji at the boundary is never split.
+ */
+export function profileDisplayNameFrom(name: string | null | undefined): string | null {
+  const trimmed = (name ?? '').trim();
+  if (trimmed.length <= PROFILE_NAME_MAX_LENGTH) return trimmed || null;
+  let cut = '';
+  for (const character of trimmed) {
+    if (cut.length + character.length > PROFILE_NAME_MAX_LENGTH) break;
+    cut += character;
+  }
+  return cut.trimEnd() || null;
+}
+
 /**
  * Creates /users/{uid} for the just-signed-in user if (and only if) it
  * doesn't already exist -- the client-side fallback for
@@ -545,7 +568,9 @@ export async function ensureOwnProfileExists(user: User): Promise<void> {
       if (snapshot.exists()) return;
       tx.set(userRef, {
         role: 'member',
-        displayName: user.displayName ?? null,
+        displayName: profileDisplayNameFrom(user.displayName),
+        // Exactly the account's address, never tidied: firestore.rules
+        // accepts only the address in the sign-in token, which is this one.
         email: user.email ?? null,
         phoneNumber: user.phoneNumber ?? null,
         createdAt: serverTimestamp(),
