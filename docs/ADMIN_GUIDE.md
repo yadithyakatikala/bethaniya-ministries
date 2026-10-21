@@ -310,7 +310,7 @@ record-keeping tool, not as a way to actually reach people urgently.
   you believe your role itself is wrong (ask a Super Admin to check).
 - **Something looks broken that isn't covered here**: this project has not
   yet been tested on real phones/tablets or under a slow/unreliable
-  connection (see README.md's "Day 12" section) — if you're on a real
+  connection (see HISTORY.md's "Days 11–13" section) — if you're on a real
   device and hit something unexpected, that's exactly the kind of report
   that testing phase needs. Note what you were doing, what device/browser
   you were using, and pass it along to whoever manages this project's

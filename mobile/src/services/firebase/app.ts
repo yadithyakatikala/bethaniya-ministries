@@ -205,7 +205,7 @@ try {
 // which could crash every Firestore-backed screen in the app instead of
 // just silently missing an offline-cache nice-to-have. Enabling this
 // safely requires real-device/simulator verification, which this
-// environment cannot provide (see README.md's "Day 12" real-device-testing
+// environment cannot provide (see docs/HISTORY.md's "Days 11–13" real-device-testing
 // gap) -- so this stays a documented, investigated-but-deferred item
 // rather than a blind guess. See PRODUCTION_READINESS.md's offline
 // section.
