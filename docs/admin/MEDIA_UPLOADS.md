@@ -103,7 +103,7 @@ left blank.
 
 The values are baked into the site when it starts or is built, so they take
 effect after you restart `npm run dev`, or after the next `npm run build`
-(which is then deployed — see [DEPLOYMENT.md](../../DEPLOYMENT.md); deploying
+(which is then deployed — see [DEPLOYMENT.md](../DEPLOYMENT.md); deploying
 needs your approval and is not part of this change).
 
 ### Step 7 — Check it works

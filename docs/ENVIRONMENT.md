@@ -261,7 +261,7 @@ git, or the mobile app** — the site refuses to enable uploading if it finds
 one. The env files are ignored by git (`.env*`); keep it that way.
 
 Click-by-click setup, what a stranger could and could not do with an unsigned
-preset, and how to watch your free allowance: [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md).
+preset, and how to watch your free allowance: [docs/admin/MEDIA_UPLOADS.md](admin/MEDIA_UPLOADS.md).
 
 ## Apple Developer account (needed before real device testing / TestFlight)
 

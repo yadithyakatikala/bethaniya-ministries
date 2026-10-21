@@ -10,7 +10,7 @@
  *
  * Names are shown in the app language. THE TELUGU NAMES ARE DRAFTS and are
  * pending review by a Telugu speaker, like every Telugu string in the app
- * -- see /TELUGU_REVIEW.md.
+ * -- see /docs/TELUGU_REVIEW.md.
  *
  * Nothing here is sent anywhere. The code only decides how the number the
  * member typed is written down.

@@ -32,7 +32,7 @@
  *
  * TRANSLATION PROVENANCE. The Telugu strings below were drafted during
  * the V1 tester-feedback pass and are PENDING REVIEW by a Telugu-speaking
- * member of the church -- see /TELUGU_REVIEW.md, which is generated from
+ * member of the church -- see /docs/TELUGU_REVIEW.md, which is generated from
  * this file and lists every key with its English and Telugu side by side.
  * Anything wrong there is a wording fix in this one file.
  */
@@ -1297,7 +1297,7 @@ const en: Strings = {
 
 /**
  * Telugu. DRAFTED, PENDING CHURCH REVIEW -- see this module's header and
- * /TELUGU_REVIEW.md. Church/product nouns that the congregation uses in
+ * /docs/TELUGU_REVIEW.md. Church/product nouns that the congregation uses in
  * English (the church's own name) are deliberately left in English or
  * transliterated rather than translated.
  */

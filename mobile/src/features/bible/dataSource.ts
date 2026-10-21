@@ -11,7 +11,7 @@
  * ENGLISH: resolved. Real World English Bible (WEB, public domain) verse
  * text is now imported -- see webBible.ts's doc comment for the exact
  * source, license, and completeness verification, and
- * /BIBLE_LICENSING.md for the full writeup.
+ * /docs/BIBLE_LICENSING.md for the full writeup.
  *
  * TELUGU: resolved. Real Indian Revised Version (IRV) 2019 verse text
  * (CC BY-SA 4.0) -- see teluguBible.ts's doc comment for the source,

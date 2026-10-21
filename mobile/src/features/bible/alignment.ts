@@ -30,7 +30,7 @@
  *                reliably verse N, so we refuse to pair -> `chapterLevel`
  *                with a visible notice. Upgrading these to true pairing
  *                needs an authoritative Paratext/SIL versification table,
- *                which is not bundled -- see /BIBLE_LICENSING.md.
+ *                which is not bundled -- see /docs/BIBLE_LICENSING.md.
  *
  *   'absent'     1 chapter (English Malachi 4). The Telugu source has no
  *                text for it at all -> `englishOnly`. V1 rendered

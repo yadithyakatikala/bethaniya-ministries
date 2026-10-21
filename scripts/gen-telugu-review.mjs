@@ -153,5 +153,5 @@ for (const [g, gk] of Object.entries(groups)) {
   }
 }
 md += `\n---\n\nGenerated from \`mobile/src/i18n/strings.ts\`. Regenerate after editing:\n\n\`\`\`\nnode scripts/gen-telugu-review.mjs\n\`\`\`\n`;
-writeFileSync('TELUGU_REVIEW.md', md);
-console.log(`wrote TELUGU_REVIEW.md -- ${keys.length} keys, ${Object.keys(UNCERTAIN).length} flagged`);
+writeFileSync('docs/TELUGU_REVIEW.md', md);
+console.log(`wrote docs/TELUGU_REVIEW.md -- ${keys.length} keys, ${Object.keys(UNCERTAIN).length} flagged`);

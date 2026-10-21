@@ -7,7 +7,7 @@
  * compiler checks it. This script only writes it.
  *
  * READ mobile/src/features/plans/seedPlans.ts's header and
- * /PLANS_SOURCES.md first: these are APP-CREATED generic plans, not
+ * /docs/PLANS_SOURCES.md first: these are APP-CREATED generic plans, not
  * material authored by Bethaniya Ministries.
  *
  * IDEMPOTENT. Each plan uses a stable slug as its document id, so

@@ -49,7 +49,7 @@ const SRC_ROOT = join(__dirname, '..', '..', '..');
  * The modules that are allowed to carry the licence text in code.
  *
  * translationCredits.ts DEFINES it. BibleTranslationsScreen.tsx RENDERS it
- * in full, and is the legal location -- see /BIBLE_LICENSING.md. Settings'
+ * in full, and is the legal location -- see /docs/BIBLE_LICENSING.md. Settings'
  * own "Bible translations" row is the way in, and names the two Bibles under
  * its title, so it reads the names (and only the names) from the same constants.
  * Nothing else.

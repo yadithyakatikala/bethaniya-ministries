@@ -12,7 +12,7 @@
  *   Holder   © 2017, 2019 Bridge Connectivity Solutions
  *
  * The attribution this licence requires is shown in the app's Settings
- * screen. See /BIBLE_LICENSING.md for the full writeup, and
+ * screen. See /docs/BIBLE_LICENSING.md for the full writeup, and
  * scripts/import-telugu-bible.mjs for the import -- which re-reads the
  * upstream `metadata/licences.tsv` row on every run and refuses to import
  * if the terms have changed.

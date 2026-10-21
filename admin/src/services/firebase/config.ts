@@ -3,7 +3,7 @@
  *
  * Values come from VITE_* environment variables (see .env.example). These are not
  * secrets; access control is enforced by Firestore/Storage security rules and
- * Firebase Auth (see /SECURITY.md), not by hiding this config.
+ * Firebase Auth (see /docs/SECURITY.md), not by hiding this config.
  *
  * This module defines the config shape only. The actual Firebase SDK
  * instances (initializeApp, getAuth, getFirestore, ...) and the local

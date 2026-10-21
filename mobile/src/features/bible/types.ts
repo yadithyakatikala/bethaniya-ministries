@@ -1,7 +1,7 @@
 /**
  * Bible module types -- Day 8, updated once English text was sourced.
  *
- * See /BIBLE_LICENSING.md at the repo root for the current licensing
+ * See /docs/BIBLE_LICENSING.md for the current licensing
  * status. English renders real World English Bible (public domain) verse
  * text -- see webBible.ts's doc comment for the source/license. Telugu
  * renders real Indian Revised Version (IRV) 2019 verse text (CC BY-SA

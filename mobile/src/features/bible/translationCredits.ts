@@ -24,7 +24,7 @@
  * derivative work. Attribution stays in the app, where the obligation
  * actually sits; the message carries the verse and its reference.
  *
- * See /BIBLE_LICENSING.md for the full licensing writeup, and
+ * See /docs/BIBLE_LICENSING.md for the full licensing writeup, and
  * ./reader/verseSharing.ts for what a share does contain.
  */
 import type { BibleLanguage } from './types';

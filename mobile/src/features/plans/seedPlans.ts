@@ -10,7 +10,7 @@
  * organisation entirely (Bethania Retreat Centre, Thamarassery Diocese,
  * Kerala -- Malayalam, Syro-Malabar). The church's own logo reads
  * "Since 2026", consistent with having no established web presence yet.
- * See /PLANS_SOURCES.md for the full audit and per-plan sourcing.
+ * See /docs/PLANS_SOURCES.md for the full audit and per-plan sourcing.
  *
  * WHAT IS AND IS NOT SOURCED.
  *   - Scripture REFERENCES (book, chapter, verse ranges) are real and

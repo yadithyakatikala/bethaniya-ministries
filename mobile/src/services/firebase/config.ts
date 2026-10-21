@@ -4,7 +4,7 @@
  * Values are read from EXPO_PUBLIC_* environment variables (see .env.example).
  * These are NOT secrets — Firebase web/client config values are safe to ship in a client
  * binary. Actual access control is enforced by Firestore/Storage security rules and
- * Firebase Auth, never by hiding this config. See /SECURITY.md.
+ * Firebase Auth, never by hiding this config. See /docs/SECURITY.md.
  *
  * Env vars are referenced statically (process.env.EXPO_PUBLIC_X, never via a dynamic
  * key) because Metro/Expo replaces EXPO_PUBLIC_* references at build time and cannot

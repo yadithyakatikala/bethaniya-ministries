@@ -4,7 +4,7 @@
  * Functions: logAdminAction() triggers on writes (audit logging)") and its
  * "Audit Log Entry Format" section.
  *
- * Callable, not a Firestore background trigger -- see /SECURITY.md's "Day 3"
+ * Callable, not a Firestore background trigger -- see /docs/SECURITY.md's "Day 3"
  * section for the full reasoning, summarized here: a Firestore onWrite-style
  * trigger (functions.firestore.document().onWrite / onDocumentWritten) does
  * NOT receive the identity of whoever made the write -- Firestore triggers

@@ -8,7 +8,7 @@ import { BIBLE_BOOKS } from '../../bible/books';
  * requirement: exactly five plans must be available in V1. The second
  * matters more -- these plans are APP-CREATED, not authored by Bethaniya
  * Ministries (no official church material was found; see
- * /PLANS_SOURCES.md), so the tests pin the things that keep that honest:
+ * /docs/PLANS_SOURCES.md), so the tests pin the things that keep that honest:
  * every plan says so in its description, every scripture reference points
  * at a real book and a chapter that book actually has, and no scripture
  * TEXT is reproduced in the seed data.
