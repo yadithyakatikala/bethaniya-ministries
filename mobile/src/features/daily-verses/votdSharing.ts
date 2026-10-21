@@ -13,7 +13,7 @@
  * deleted, because "the docs said the opposite" is how the removal would
  * get undone. The attribution obligation is met, permanently, by the
  * Settings screen's "Bible translations" card -- see
- * ../bible/translationCredits.ts and /BIBLE_LICENSING.md.
+ * ../bible/translationCredits.ts and /docs/BIBLE_LICENSING.md.
  *
  * THE ONE CASE THE SHARED BUILDERS CANNOT COVER is an administrator's
  * override. Its reference is a string a person typed -- "Isaiah 53:5

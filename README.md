@@ -38,7 +38,7 @@ digital platform consisting of three parts:
   offline-persistence investigation, not enabled), a second V1 completion
   sprint (Telugu Bible licensing resolved and imported as the default
   language, IRV 2019, CC BY-SA 4.0, 1187/1189 chapters — see "Bible
-  status" and [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) — plus a
+  status" and [BIBLE_LICENSING.md](./docs/BIBLE_LICENSING.md) — plus a
   production Firebase setup script and a re-attempted Android APK build
   with two precise confirmed blockers documented), and a third V1
   completion sprint: **the owner formally moved the V1 Bible requirement
@@ -47,7 +47,7 @@ digital platform consisting of three parts:
   requested at `assets/branding/church-logo.png` but the file does not
   exist in this repository or environment (no logo was fabricated), and
   a 20-point real-Android-device QA checklist was added
-  ([QA_CHECKLIST.md](./QA_CHECKLIST.md)). A fourth checkpoint integrated
+  ([QA_CHECKLIST.md](./docs/QA_CHECKLIST.md)). A fourth checkpoint integrated
   the real church logo (added by the owner) into app icons/splash, and
   added three genuinely new V1 features beyond the original spec —
   **Reading Plans, Prayers, and Community** (see "New V1 features"
@@ -58,7 +58,7 @@ digital platform consisting of three parts:
   sandbox), every emulator-backed test suite this project has — see
   "Testing status".
 - **Next planned milestone:** not yet scoped — see
-  [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md)'s requirements
+  [PRODUCTION_READINESS.md](./docs/PRODUCTION_READINESS.md)'s requirements
   matrix for exactly what's left and why.
 
 ## Current development status
@@ -162,7 +162,7 @@ structure intact.
   Bible requirement, and it is complete.** All 66 books, all 1189
   chapters, 31,102 verses, imported from `scrollmapper/bible_databases`
   (public domain, independently corroborated) via a direct, verbatim
-  raw-file fetch. See [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s
+  raw-file fetch. See [BIBLE_LICENSING.md](./docs/BIBLE_LICENSING.md)'s
   "English: resolved and imported" section for the full
   source/method/verification writeup, and
   `mobile/src/features/bible/webBible.ts` for the code.
@@ -179,7 +179,7 @@ structure intact.
   completeness is no longer a V1 requirement, the strict completeness
   test that previously kept this failing on purpose was removed; the
   gap remains documented. See
-  [BIBLE_LICENSING.md](./BIBLE_LICENSING.md)'s "Telugu: licensed and
+  [BIBLE_LICENSING.md](./docs/BIBLE_LICENSING.md)'s "Telugu: licensed and
   imported" and "Investigation: are Joel 3 / Malachi 4 hiding elsewhere?"
   sections for the full writeup, and
   `mobile/src/features/bible/teluguBible.ts` for the code. Required CC
@@ -189,7 +189,7 @@ structure intact.
   `getChapter()` data-source seam — no remote Bible API or network call
   is involved for either language. The 2 Telugu gap chapters are still
   reachable by reference search (e.g. book name + chapter number).
-- [BIBLE_LICENSING.md](./BIBLE_LICENSING.md) remains the single source of
+- [BIBLE_LICENSING.md](./docs/BIBLE_LICENSING.md) remains the single source of
   truth for licensing status.
 
 ## Notifications status
@@ -377,8 +377,8 @@ result is part of.
 | Testing          | Jest + React Native Testing Library (mobile), Vitest + React Testing Library (admin), Jest (functions) |
 
 Full rationale for every choice — including why Redux was evaluated and
-rejected — lives in [FINAL_ARCHITECTURE_SPECIFICATION.md](./FINAL_ARCHITECTURE_SPECIFICATION.md),
-the approved baseline spec. [ARCHITECTURE.md](./ARCHITECTURE.md) explains how
+rejected — lives in [FINAL_ARCHITECTURE_SPECIFICATION.md](./docs/FINAL_ARCHITECTURE_SPECIFICATION.md),
+the approved baseline spec. [ARCHITECTURE.md](./docs/ARCHITECTURE.md) explains how
 the code on disk maps to that spec.
 
 ## Repository layout
@@ -391,16 +391,21 @@ bethaniya-ministries/
 ├── firebase.json, firestore.rules, firestore.indexes.json, storage.rules
 │                 Firebase project configuration (shared across dev/staging/prod)
 ├── firebase-tests/  Emulator-backed security rule tests (@firebase/rules-unit-testing) — currently blocked, see "Testing status"
-├── FINAL_ARCHITECTURE_SPECIFICATION.md   Approved baseline spec
-├── ARCHITECTURE.md    How this repo implements that spec
-├── SECURITY.md        Security model, RBAC, what's enforced where, real test results
-├── ADMIN_GUIDE.md      Step-by-step dashboard guide for church staff (non-programmers)
-├── ENVIRONMENT.md      Manual setup: Firebase projects, env vars, tool versions
-├── CONTRIBUTING.md    Code conventions, commit style, how to run checks
-├── DEPLOYMENT.md      How to deploy each part
-├── PRODUCTION_READINESS.md  Explicit staged pipeline; NOT production ready yet
-├── BIBLE_LICENSING.md  What's confirmed, what's not, for English + Telugu
-└── QA_CHECKLIST.md     20-point real-Android-device QA checklist (unexecuted)
+├── scripts/      One-off and maintenance scripts (setup, seeding, data imports)
+└── docs/         Every guide; README.md is the only one kept at the top
+    ├── FINAL_ARCHITECTURE_SPECIFICATION.md   Approved baseline spec
+    ├── ARCHITECTURE.md    How this repo implements that spec
+    ├── SECURITY.md        Security model, RBAC, what's enforced where, real test results
+    ├── ADMIN_GUIDE.md      Step-by-step dashboard guide for church staff (non-programmers)
+    ├── ENVIRONMENT.md      Manual setup: Firebase projects, env vars, tool versions
+    ├── CONTRIBUTING.md    Code conventions, commit style, how to run checks
+    ├── DEPLOYMENT.md      How to deploy each part
+    ├── PRODUCTION_READINESS.md  Explicit staged pipeline; NOT production ready yet
+    ├── BIBLE_LICENSING.md  What's confirmed, what's not, for English + Telugu
+    ├── QA_CHECKLIST.md     20-point real-Android-device QA checklist (unexecuted)
+    ├── GOOGLE_SIGN_IN_SETUP.md, PLAY_STORE_READINESS.md, PLANS_SOURCES.md, TELUGU_REVIEW.md
+    ├── admin/          Admin site guides (media uploads, reading plans, design system)
+    └── design/         The approved app design, screen by screen
 ```
 
 `mobile`, `admin`, and `functions` are three independent npm packages (no
@@ -411,7 +416,7 @@ ARCHITECTURE.md for why.
 ## Quick start
 
 Requires Node.js 20+, npm 10+, and a Firebase project — see
-[ENVIRONMENT.md](./ENVIRONMENT.md) for the full one-time setup (creating
+[ENVIRONMENT.md](./docs/ENVIRONMENT.md) for the full one-time setup (creating
 Firebase projects, filling in `.env.local` files, etc). Until that setup is
 done, each package still builds, lints, and tests — it just can't talk to a
 real backend yet.
@@ -582,7 +587,7 @@ accidentally over- or under-expose the admin dashboard (see
 
 Documentation + code review, per the spec's Day 14 plan: this README,
 ARCHITECTURE.md, and SECURITY.md were brought up to date through Day 13
-(they had drifted since the Day 9+10 checkpoint); [ADMIN_GUIDE.md](./ADMIN_GUIDE.md)
+(they had drifted since the Day 9+10 checkpoint); [ADMIN_GUIDE.md](./docs/ADMIN_GUIDE.md)
 was written from scratch (it didn't exist before); a code review pass
 looked for secrets, debug statements, error-handling gaps, and
 accessibility issues across `admin/src`, `mobile/src`, and `functions/src`
@@ -657,5 +662,5 @@ something Day 16 could do from this repository as it stands.
 ## Production readiness
 
 **Not production ready — expected at this stage.** See
-[PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) for the explicit
+[PRODUCTION_READINESS.md](./docs/PRODUCTION_READINESS.md) for the explicit
 staged pipeline and exactly what's verified vs. still pending.

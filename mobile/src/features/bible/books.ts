@@ -1,7 +1,7 @@
 /**
  * The 66-book Protestant Bible canon -- structural metadata only (id,
  * name, testament, canonical order, chapter count). This is NOT
- * scripture text and is not subject to /BIBLE_LICENSING.md's
+ * scripture text and is not subject to /docs/BIBLE_LICENSING.md's
  * restrictions: book names and chapter counts are objective, universally
  * published facts about a translation-independent canon structure, not
  * copyrightable expression -- see types.ts's doc comment. Chapter counts
@@ -17,7 +17,7 @@
  * naming variance is handled explicitly: that source titles the book
  * "Song of Songs" where this file uses the equally standard "Song of
  * Solomon" -- the same book under its two standard English titles. See
- * /BIBLE_LICENSING.md for the full provenance writeup.
+ * /docs/BIBLE_LICENSING.md for the full provenance writeup.
  *
  * Still structural metadata, not scripture text: these are the book
  * names a Telugu Bible prints in its table of contents, not translated

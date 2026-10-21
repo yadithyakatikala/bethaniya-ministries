@@ -32,7 +32,7 @@
  *              cannot prove where the remainder landed without an
  *              authoritative versification table (Paratext/SIL .vrs,
  *              not reachable from the build environment -- see
- *              /BIBLE_LICENSING.md). So these chapters are marked for
+ *              /docs/BIBLE_LICENSING.md). So these chapters are marked for
  *              chapter-level presentation instead: both chapters shown
  *              side by side, each with its own verse numbers, nothing
  *              paired. Honest, if less tightly aligned.

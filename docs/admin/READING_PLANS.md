@@ -164,7 +164,7 @@ same database the admin site writes to.
    judged by the time it was opened, so a phone already connected when the time
    passed needs a new connection. It has **not yet been checked on a real phone
    against the live database** — see "Scheduled plan arrives" in
-   [QA_CHECKLIST.md](../../QA_CHECKLIST.md).)
+   [QA_CHECKLIST.md](../QA_CHECKLIST.md).)
 3. Opening it shows your title, description, cover, language, time estimate and
    day count; each day shows the passage with a **Read** button, then whichever
    of devotional, reflection question, application and prayer you filled in.
@@ -216,7 +216,7 @@ against the rules currently in production:
   every day, still reaches phones as before.
 
 Deploying the new rules and the index is free (no plan upgrade) and is
-described in [DEPLOYMENT.md](../../DEPLOYMENT.md#pending-the-admin-cms-changes-to-the-rules-and-indexes-not-deployed).
+described in [DEPLOYMENT.md](../DEPLOYMENT.md#pending-the-admin-cms-changes-to-the-rules-and-indexes-not-deployed).
 Nothing is deployed without your say-so.
 
 ## If something looks wrong
@@ -232,6 +232,6 @@ Nothing is deployed without your say-so.
   (**Cancel schedule**, if it is scheduled) if you mean to empty it.
 - **The plan is Published but a phone does not show it.** Check the phone is
   online, that the rules and index have been deployed, and wait a moment; then
-  see the troubleshooting list in [QA_CHECKLIST.md](../../QA_CHECKLIST.md).
+  see the troubleshooting list in [QA_CHECKLIST.md](../QA_CHECKLIST.md).
 - **You cannot change the Plan ID.** That is deliberate (see above). To use a
   different ID, **Duplicate** the plan and choose a new one.

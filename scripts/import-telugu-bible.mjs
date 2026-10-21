@@ -140,7 +140,7 @@ function assertLicence() {
         `upstream licence changed for ${EXPECTED_LICENCE.id}: ${key} is ` +
           `'${actual[key]}', expected '${EXPECTED_LICENCE[key]}'.\n` +
           `  Do NOT redistribute this text until the new terms are reviewed ` +
-          `and /BIBLE_LICENSING.md is updated.`
+          `and /docs/BIBLE_LICENSING.md is updated.`
       );
     }
   }

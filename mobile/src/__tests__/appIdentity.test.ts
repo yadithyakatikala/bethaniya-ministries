@@ -36,7 +36,7 @@
  * label is generated from. But mobile/android/ is gitignored, generated,
  * and NOT overwritten by a plain `expo prebuild` -- so a native project
  * generated before the M0 rename keeps the old label and the old icons in
- * its res/ folder forever, and every later build ships them. /DEPLOYMENT.md
+ * its res/ folder forever, and every later build ships them. /docs/DEPLOYMENT.md
  * used to instruct exactly that ("run prebuild exactly once ... don't run
  * it again"), which was sound when the signing configuration was a manual
  * edit to build.gradle and is not now that plugins/withReleaseSigning.js

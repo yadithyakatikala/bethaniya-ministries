@@ -22,7 +22,7 @@
  * Settings screen's "Bible translations" card -- which is where the
  * licence obligation on bundling the text actually sits. Quoting a verse
  * into a message is a person citing scripture, and it now reads like
- * one. See /BIBLE_LICENSING.md.
+ * one. See /docs/BIBLE_LICENSING.md.
  *
  * =====================================================================
  * BILINGUAL

@@ -66,7 +66,7 @@ function formatSeconds(totalSeconds: number): string {
  * Real-device playback verification (including confirming a genuine
  * direct-audio-file URL plays end-to-end) remains an open integration
  * gap, same class of limitation as this project's other emulator-backed
- * verification gaps -- see /SECURITY.md.
+ * verification gaps -- see /docs/SECURITY.md.
  */
 export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   const { colors, type } = useTheme();

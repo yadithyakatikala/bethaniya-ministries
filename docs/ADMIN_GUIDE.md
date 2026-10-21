@@ -119,7 +119,7 @@ These work the same way (Content Admin and Super Admin only):
 4. **Pictures and songs.** Wherever a form takes a picture or a song you can
    **upload** it from your computer, **choose from library** (anything uploaded
    before), or **use a web address**. Uploading needs the one-time setup in
-   [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md); until that is
+   [docs/admin/MEDIA_UPLOADS.md](admin/MEDIA_UPLOADS.md); until that is
    done the form says so, and the other two ways still work. The form's save
    button waits while a file is uploading.
 5. A new entry always starts as a **Draft** — it will not appear in the
@@ -167,7 +167,7 @@ there is no way for a member to post here themselves.
 Reading Plans are multi-day Bible readings members browse and follow in the
 app (**Bible → Plans**). The full guide — every field, the statuses, the
 publish checklist, scheduling, and exactly what members see — is in
-**[docs/admin/READING_PLANS.md](./docs/admin/READING_PLANS.md)**. In short:
+**[docs/admin/READING_PLANS.md](admin/READING_PLANS.md)**. In short:
 
 1. **Reading Plans → New Plan.** On the **Details** tab give it a title,
    description and category (and, if you like, a subtitle, language, time per
@@ -205,7 +205,7 @@ description and category, and **remove** its record. Removing a record never
 deletes the file itself, and never breaks anything that already uses it.
 
 - **Upload file** — a picture or a song from your computer (needs the one-time
-  setup in [docs/admin/MEDIA_UPLOADS.md](./docs/admin/MEDIA_UPLOADS.md)).
+  setup in [docs/admin/MEDIA_UPLOADS.md](admin/MEDIA_UPLOADS.md)).
 - **Add video or link** — a **YouTube** link (the right home for video — it is
   free), or an `https://` address of a picture or song that already lives
   elsewhere.

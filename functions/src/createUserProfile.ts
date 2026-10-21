@@ -4,7 +4,7 @@
  * Phone OTP, or the admin's email/password account), per
  * FINAL_ARCHITECTURE_SPECIFICATION.md's Day 2 plan.
  *
- * Trust boundary (see /SECURITY.md): this runs on a `functions.auth.user()`
+ * Trust boundary (see /docs/SECURITY.md): this runs on a `functions.auth.user()`
  * trigger, which the Admin SDK fires from Firebase's own Auth system, not
  * from anything the mobile/admin client supplies. The client never gets a
  * chance to set `role` (or any other field) here at all -- there is no
